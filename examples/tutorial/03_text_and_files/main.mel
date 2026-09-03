@@ -1,0 +1,130 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/flow::emit
+use std/flow::stream
+use std/flow::filter
+use std/flow::count
+use std/flow::trigger
+use std/flow::fill
+use std/flow/vec::flatten
+use std/text/compose::split
+use std/text/compose::trim
+use std/text/compose::format
+use std/data/string_map::StringMap
+use std/data/string_map/block::entry as blockEntry
+use std/data/string_map/block::insert as blockInsert
+use std/conv::toString
+use std/conv::toVoid
+use std/ops/num::add
+use std/ops/bin::not
+use std/text/compare::exact
+use regex::matches
+use fs/local::readTextLocal
+use fs/local::writeTextLocal
+
+//
+// Text & Files
+//
+// Concepts introduced: file I/O (`fs`), regular expressions (`regex`), text
+// composition (`std/text/compose`).
+//
+// Reads a text file line by line, keeps the lines that match a regex
+// pattern, logs them, and writes a small report summarising how many lines
+// were read and how many matched.
+//
+// Usage:
+//   melodium run Compo.toml --input_file sample.txt --pattern "Mélodium"
+//
+
+treatment main(
+    const input_file: string = "sample.txt",
+    const pattern:    string = "Mélodium",
+    const output:     string = "report.txt"
+) {
+    startup()
+
+    read:       readTextLocal(path=input_file)
+    readFailed: logInfoMessage(label="read", message="could not read input file")
+    startup.trigger -> read.trigger
+    read.failed -> readFailed.trigger
+
+    // A file is just a stream of chunks; splitting on "\n" and flattening
+    // turns it into a stream of lines, exactly like decoding an HTTP body.
+    splitLines: split(delimiter="\n", inclusive=false)
+    lines:      flatten<string>()
+    trimmed:    trim()
+    read.text -> splitLines.text,splitted -> lines.vector,value -> trimmed.text
+
+    // Splitting on "\n" leaves a trailing empty piece after the file's last
+    // newline; drop blank lines before counting or matching anything.
+    isBlank:  exact(pattern="")
+    notBlank: not<bool>()
+    nonBlank: filter<string>()
+    trimmed.trimmed -> isBlank.text
+    isBlank.matches -> notBlank.value
+    trimmed.trimmed -> nonBlank.value
+    notBlank.not    -> nonBlank.select
+
+    isMatch:  matches(regex=pattern)
+    matching: filter<string>()
+    nonBlank.accepted -> isMatch.text
+    nonBlank.accepted -> matching.value
+    isMatch.matches   -> matching.select
+
+    logMatches: logInfos(label="match")
+    matching.accepted -> logMatches.messages
+
+    // Totals, computed with the small helper below.
+    lineTotal:  finalCount<string>()
+    matchTotal: finalCount<string>()
+    nonBlank.accepted -> lineTotal.items
+    matching.accepted -> matchTotal.items
+
+    // Combine the two one-shot totals and the pattern into a single report.
+    patternBlock: emit<string>(value=pattern)
+    startup.trigger -> patternBlock.trigger
+
+    withLines:   blockEntry(key="lines")
+    withMatches: blockInsert(key="matches")
+    withPattern: blockInsert(key="pattern")
+    lineTotal.total  -> withLines.value
+    withLines.map    -> withMatches.base
+    matchTotal.total -> withMatches.value
+    withMatches.map  -> withPattern.base
+    patternBlock.emit -> withPattern.value
+
+    reportEntries: stream<StringMap>()
+    reportLine:    format(format="Report for pattern \"{pattern}\": {lines} line(s) read, {matches} matching.")
+    write:         writeTextLocal(path=output)
+    logDone:       logInfoMessage(label="report", message="report written")
+
+    withPattern.map -> reportEntries.block,stream -> reportLine.entries,formatted -> write.text
+    write.finished  -> logDone.trigger
+}
+
+// Counts the elements of a stream and returns the total as a single string,
+// once the stream ends. `std/flow::count` numbers elements starting at 0, so
+// the running index is turned into a same-length stream of `1`s (via
+// `toVoid` + `fill`, as in 02_flow_and_generics) and added to it before
+// taking the last value with `trigger`.
+treatment finalCount<T>()
+  input  items: Stream<T>
+  output total: Block<string>
+{
+    index:   count<T>()
+    asVoid:  toVoid<u128>()
+    one:     fill<u128>(value=1)
+    plusOne: add<u128>()
+    asStr:   toString<u128>()
+    lastStr: trigger<string>()
+
+    Self.items -> index.stream,count -> asVoid.value
+    asVoid.iter -> one.pattern
+
+    index.count -> plusOne.a
+    one.filled  -> plusOne.b
+
+    plusOne.sum -> asStr.value,into -> lastStr.stream
+    lastStr.last -> Self.total
+}

@@ -1,0 +1,184 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logError
+use std/engine/log::logErrorMessage
+use std/engine/log::logErrors
+use std/flow::emit
+use std/flow::trigger
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/map::|map as |dataMap
+use std/data/map::|entry as |dataEntry
+use std/ops/option::|wrap
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::decode
+use encoding::encode
+use ml/remote/llm::RemoteLlm
+use ml/remote/llm::chat
+use work/distant::DistantEngine
+use work/distant::distant
+use distrib::DistributionEngine
+use distrib::start as distribStart
+use distrib::distribute
+use distrib::sendStream
+use distrib::recvStream
+
+//
+// Distributed LLM Cluster: showcase
+//
+// Not a tutorial step: builds on 10_distributed_computation's `distrib`
+// primitives, adding `work/distant` to provision the remote engine on
+// demand from Mélodium Services, instead of pointing at a `melodium dist`
+// node you started yourself.
+//
+// An HTTP server accepts POST /chat with a plain-text prompt body and
+// streams the LLM response back to the caller. The `ml` package (and any
+// GPU/API dependency it needs) only has to be available on the *worker*,
+// not on this front-end process: this is the same shape needed to spread
+// inference across a whole fleet of workers, just with one worker for
+// clarity. Scaling out is a matter of provisioning several workers (several
+// `distant` + `DistributionEngine` pairs) and load-balancing requests
+// across them; that fan-out is not implemented here to keep the example
+// readable.
+//
+// This example requires a Mélodium Services API token and an LLM provider
+// API key. Set MELODIUM_API_TOKEN in the environment and run with
+// --api-report; see Cadence.CI to obtain a token and follow execution.
+// It is type-checked with `melodium check` but was not run against live
+// services for this tutorial.
+//
+// Usage:
+//   export MELODIUM_API_TOKEN="my-melodium-services-token"
+//   melodium run --api-report Compo.toml \
+//     --llm_api_key sk-... \
+//     --port 8080
+//
+//   curl -X POST http://127.0.0.1:8080/chat \
+//        -d "Explain the Mélodium dataflow model in one sentence."
+//
+
+// LLM model used on the remote worker.
+model Assistant(const api_key: string, const model: string) : RemoteLlm {
+    backend     = "anthropic"
+    api_key     = |wrap<string>(api_key)
+    base_url    = ""
+    model       = model
+    system      = "You are a concise and helpful assistant."
+    max_tokens  = |wrap<u64>(1024)
+    temperature = _
+    top_p       = _
+    timeout     = _
+}
+
+treatment server(
+    const llm_api_key: string,
+    const model:       string = "claude-sonnet-4-6",
+    const port:        u16    = 8080
+)
+  model runner: DistantEngine(api_token=_, api_url=_)
+  model distributor: DistributionEngine(
+    treatment = "distributed_llm_cluster/main::inferText",
+    version   = "0.1.0"
+  )
+  model httpServer: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
+{
+    startup()
+    logStart: logInfoMessage(label="cloud", message="provisioning LLM worker…")
+    startup.trigger -> logStart.trigger
+
+    provisionRunner: distant[distant_engine=runner](
+        max_duration        = 600,
+        memory              = 512,
+        cpu                 = 1000,
+        storage             = 512,
+        edition             = _,
+        arch                = _,
+        volumes             = [],
+        containers          = [],
+        service_containers  = [],
+        tags                = []
+    )
+    startup.trigger -> provisionRunner.trigger,access -> connectDistributor.access
+
+    distantErrors: logErrors(label="distant")
+    distantFailed: logErrorMessage(label="distant", message="worker provisioning failed")
+    provisionRunner.errors -> distantErrors.messages
+    provisionRunner.failed -> distantFailed.trigger
+
+    connectDistributor: distribStart[distributor=distributor](params=|dataMap([|dataEntry<string>("api_key", llm_api_key), |dataEntry<string>("model", model)]))
+
+    distribError:  logError(label="distrib")
+    distribFailed: logErrorMessage(label="distrib", message="distribution engine failed")
+    connectDistributor.error  -> distribError.message
+    connectDistributor.failed -> distribFailed.trigger
+
+    logConnected: logInfoMessage(label="distrib", message="worker connected")
+    connectDistributor.ready -> logConnected.trigger
+
+    startHttp: start[http_server=httpServer]()
+    logReady:  logInfoMessage(label="server", message="HTTP server ready")
+    connectDistributor.ready -> startHttp.trigger
+    connectDistributor.ready -> logReady.trigger
+
+    connection[http_server=httpServer](method=|post(), route="/chat")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    dispatchInfer[distributor=distributor]()
+    connection.data -> dispatchInfer.prompt,response -> connection.data
+}
+
+// Sends the prompt bytes to the remote `inferText` treatment and streams
+// the response back, the same three-step handshake as
+// 10_distributed_computation: allocate a distribution_id, send input,
+// receive output, tagged by name.
+treatment dispatchInfer[distributor: DistributionEngine]()
+  input  prompt:   Stream<byte>
+  output response: Stream<byte>
+{
+    trig: trigger<byte>()
+    dist: distribute[distributor=distributor]()
+    Self.prompt -> trig.stream,start -> dist.trigger
+
+    sendPrompt:   sendStream<byte>[distributor=distributor](name="prompt")
+    recvResponse: recvStream<byte>[distributor=distributor](name="response")
+    dist.distribution_id -> sendPrompt.distribution_id
+    dist.distribution_id -> recvResponse.distribution_id
+
+    Self.prompt       -> sendPrompt.data
+    recvResponse.data -> Self.response
+
+    distErr:    logError(label="distrib")
+    distFailed: logErrorMessage(label="distrib", message="failed to distribute request")
+    dist.error  -> distErr.message
+    dist.failed -> distFailed.trigger
+}
+
+// The treatment executed remotely for each chat request: receives raw UTF-8
+// prompt bytes, calls the LLM, streams response bytes back.
+treatment inferText(const api_key: string, const model: string)
+  model llm: Assistant(api_key=api_key, model=model)
+  input  prompt:   Stream<byte>
+  output response: Stream<byte>
+{
+    decodePrompt: decode()
+    Self.prompt -> decodePrompt.data,text -> doChat.prompt
+
+    doChat: chat[llm=llm]()
+
+    chatErrors: logErrors(label="llm")
+    doChat.error -> chatErrors.messages
+
+    encodeResponse: encode()
+    doChat.response -> encodeResponse.text,data -> Self.response
+}

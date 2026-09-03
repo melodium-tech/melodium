@@ -1,0 +1,76 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logError
+use std/engine/log::logErrorMessage
+use std/text/compose::|format
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/flow::filter
+use std/ops/bin::not
+use std/text/compare::exact
+use std/conv::toString
+use std/ops/option::unwrapOr
+use encoding::decode
+use json::Json
+use json::toJson
+use json/value::|null
+use http/client/util::get
+use fs/local::writeTextLocal
+
+//
+// HTTP Client
+//
+// Concepts introduced: calling a remote HTTP API (`http/client`), telling a
+// network failure apart from an application-level error.
+//
+// Fetches one post from a public test API, logs its HTTP status, and writes
+// the (re-serialised, pretty-printed by nothing in particular: just parsed
+// and turned back to text) JSON body to a file.
+//
+// Usage:
+//   melodium run Compo.toml --post_id 1
+//
+
+treatment main(
+    const post_id: string = "1",
+    const output:  string = "post.txt"
+) {
+    startup()
+
+    fetch: get(url=|format("https://jsonplaceholder.typicode.com/posts/{id}", |map([|entry("id", post_id)])))
+    startup.trigger -> fetch.trigger
+
+    logOk: logInfoMessage(label="http", message="request completed")
+    fetch.completed -> logOk.trigger
+
+    // A failed request (DNS, connection, timeout, …) never reaches this
+    // point at all: it is a *different* failure mode from getting a
+    // response whose body turns out not to be valid JSON.
+    netFailed: logErrorMessage(label="http", message="request failed technically")
+    netError:  logError(label="http")
+    fetch.failed -> netFailed.trigger
+    fetch.error  -> netError.message
+
+    decode: decode()
+    fetch.data -> decode.data
+
+    // `decode` can emit a trailing empty chunk when the body stream closes;
+    // parsing it as JSON would produce a spurious extra `null`. Drop blanks
+    // first: the same idiom used for file lines in 03/04.
+    isBlank:  exact(pattern="")
+    notBlank: not<bool>()
+    nonBlank: filter<string>()
+    decode.text     -> isBlank.text
+    isBlank.matches -> notBlank.value
+    decode.text     -> nonBlank.value
+    notBlank.not    -> nonBlank.select
+
+    parsed:  toJson()
+    body:    unwrapOr<Json>(default=|null())
+    asText:  toString<Json>()
+    write:   writeTextLocal(path=output)
+    logDone: logInfoMessage(label="http", message="response written to file")
+
+    nonBlank.accepted -> parsed.text,json -> body.option,value -> asText.value,into -> write.text
+    write.finished -> logDone.trigger
+}

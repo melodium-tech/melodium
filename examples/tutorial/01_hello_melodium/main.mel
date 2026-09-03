@@ -1,0 +1,61 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/flow::emit
+use std/flow::stream
+use std/flow::generate
+use std/flow::count
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/text/compose::|format
+use std/conv::toString
+use fs/local::writeTextLocal
+
+//
+// Hello, Mélodium
+//
+// The smallest useful Mélodium program, in two halves:
+//
+//   - a single greeting, computed once with a pure function and written to
+//     a file: showing that a `const` parameter, a function call and a
+//     `Block` value are already enough to do useful work;
+//   - a short stream of repeated greetings, produced by `generate` and
+//     numbered by `count`: showing that a `Stream` is built the same way,
+//     just with values arriving one after another instead of once.
+//
+// `main` below is not a function body: it is a *graph*. `startup` fires once
+// when the engine starts, and every other treatment reacts as soon as the
+// data it needs is available: there is no top-to-bottom execution order.
+//
+// Usage:
+//   melodium run Compo.toml --name "World"
+//
+
+treatment main(
+    const name:   string = "World",
+    const times:  u128   = 3,
+    const output: string = "hello.txt"
+) {
+    startup()
+
+    // --- Block side: one greeting, computed once, written to a file. ---
+    greeting:   emit<string>(value=|format("Hello, {name}! Welcome to Mélodium.", |map([|entry("name", name)])))
+    asText:     stream<string>()
+    write:      writeTextLocal(path=output)
+    logWritten: logInfoMessage(label="hello", message="greeting written to file")
+
+    startup.trigger -> greeting.trigger,emit -> asText.block,stream -> write.text
+    write.finished  -> logWritten.trigger
+
+    // --- Stream side: the same name repeated `times`, numbered as it flows. ---
+    howMany:   emit<u128>(value=times)
+    names:     generate<string>(data=name)
+    tally:     count<string>()
+    tallyText: toString<u128>()
+    logNames:  logInfos(label="greeting-stream")
+    logCount:  logInfos(label="greeting-count")
+
+    startup.trigger -> howMany.trigger,emit -> names.length,stream -> tally.stream
+    names.stream -> logNames.messages
+    tally.count  -> tallyText.value,into -> logCount.messages
+}

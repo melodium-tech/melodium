@@ -1,0 +1,15 @@
+name    = "ai_voice_assistant"
+version = "0.1.0"
+
+[dependencies]
+std      = "0.10.2"
+http     = "0.10.2"
+net      = "0.10.2"
+encoding = "0.10.2"
+fs       = "0.10.2"
+record   = "0.10.2"
+ml       = "0.10.2"
+
+[entrypoints]
+chat  = "ai_voice_assistant/main::chat"
+voice = "ai_voice_assistant/main::voice"

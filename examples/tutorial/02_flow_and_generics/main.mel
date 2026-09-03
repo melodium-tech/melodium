@@ -1,0 +1,119 @@
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/engine/log::logDataInfos
+use std/flow::emit
+use std/flow::generate
+use std/flow::count
+use std/flow::filter
+use std/flow::merge
+use std/flow::fill
+use std/conv::saturatingToI64
+use std/conv::toVoid
+use std/conv::toString
+use std/ops::greaterThan
+use std/ops/num::add
+
+//
+// Flow & Generics
+//
+// Concepts introduced: generic treatments with trait bounds, `std/flow`
+// combinators (generate, filter, merge), `std/ops` arithmetic/comparison.
+//
+// Generates the integers 1..upper, splits them around `threshold` with a
+// reusable generic treatment, nudges each half by a different offset with
+// another, and merges the two halves back into one stream.
+//
+// Usage:
+//   melodium run Compo.toml --upper 10 --threshold 5
+//
+
+treatment main(
+    const upper:        u128 = 10,
+    const threshold:    i64  = 5,
+    const offset_above: i64  = 100,
+    const offset_below: i64  = -100
+) {
+    startup()
+
+    // 1..upper, built the same way as in 01_hello_melodium: `generate`
+    // produces `upper` placeholder values, `count` numbers them.
+    howMany:   emit<u128>(value=upper)
+    seed:      generate<u128>(data=0)
+    numbering: count<u128>()
+    asI64:     saturatingToI64<u128>()
+
+    startup.trigger -> howMany.trigger,emit -> seed.length,stream -> numbering.stream
+    numbering.count -> asI64.value,into -> split.value
+
+    // A single generic treatment reused for any orderable type.
+    split: aboveThreshold<i64>(threshold=threshold)
+
+    logAbove: logDataInfos<i64>(label="above-threshold")
+    logBelow: logDataInfos<i64>(label="at-or-below-threshold")
+    split.above -> logAbove.data
+    split.below -> logBelow.data
+
+    // A single generic treatment reused for any addable type.
+    bumpAbove: shift<i64>(offset=offset_above)
+    bumpBelow: shift<i64>(offset=offset_below)
+    split.above -> bumpAbove.value
+    split.below -> bumpBelow.value
+
+    // Streams merge in no predictable order: that is the point of `merge`.
+    combined: merge<i64>()
+    bumpAbove.shifted -> combined.a
+    bumpBelow.shifted -> combined.b
+
+    logCombined: logDataInfos<i64>(label="shifted+merged")
+    combined.value -> logCombined.data
+
+    tally:    count<i64>()
+    tallyStr: toString<u128>()
+    logTally: logInfos(label="merged-position")
+    combined.value -> tally.stream
+    tally.count -> tallyStr.value,into -> logTally.messages
+}
+
+// Splits `value` around `threshold`. Works for any type that can be ordered
+// (`PartialOrder`), whatever it is: here `i64`, but the treatment itself
+// does not know or care.
+treatment aboveThreshold<N: PartialOrder>(const threshold: N)
+  input  value: Stream<N>
+  output above: Stream<N>
+  output below: Stream<N>
+{
+    asVoid:      toVoid<N>()
+    thresholdSt: fill<N>(value=threshold)
+    isAbove:     greaterThan<N>()
+    partition:   filter<N>()
+
+    Self.value  -> asVoid.value
+    asVoid.iter -> thresholdSt.pattern
+
+    Self.value          -> isAbove.a
+    thresholdSt.filled  -> isAbove.b
+
+    Self.value -> partition.value
+    isAbove.is -> partition.select
+
+    partition.accepted -> Self.above
+    partition.rejected -> Self.below
+}
+
+// Adds `offset` to every value. Works for any type that supports addition
+// (`Add`): no matter which one, the treatment is written once.
+treatment shift<N: Add>(const offset: N)
+  input  value:   Stream<N>
+  output shifted: Stream<N>
+{
+    asVoid:   toVoid<N>()
+    offsetSt: fill<N>(value=offset)
+    adder:    add<N>()
+
+    Self.value  -> asVoid.value
+    asVoid.iter -> offsetSt.pattern
+
+    Self.value      -> adder.a
+    offsetSt.filled -> adder.b
+    adder.sum -> Self.shifted
+}

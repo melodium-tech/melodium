@@ -1,0 +1,10 @@
+name    = "json_toolkit"
+version = "0.1.0"
+
+[dependencies]
+std  = "0.10.2"
+fs   = "0.10.2"
+json = "0.10.2"
+
+[entrypoints]
+main = "json_toolkit/main::main"

@@ -1,0 +1,5 @@
+Mélodium is a graph-oriented dataflow programming language.
+Programs are described as explicit graphs of treatments connected by typed flows.
+There is no procedural control flow: every treatment runs as soon as data is available.
+This makes Mélodium a natural fit for distributed orchestration and streaming pipelines.
+Plain text files are just another kind of stream, one line at a time.

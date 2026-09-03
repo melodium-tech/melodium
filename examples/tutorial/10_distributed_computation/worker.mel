@@ -1,0 +1,16 @@
+use std/ops/num::add
+
+//
+// The treatment executed on the remote engine. `main.mel` refers to it by
+// its fully-qualified identifier, "distributed_computation/worker::double",
+// in the `DistributionEngine` model.
+//
+treatment double()
+  input  n: Stream<i64>
+  output n: Stream<i64>
+{
+    doubled: add<i64>()
+    Self.n -> doubled.a
+    Self.n -> doubled.b
+    doubled.sum -> Self.n
+}

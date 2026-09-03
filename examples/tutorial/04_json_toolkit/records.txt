@@ -1,0 +1,7 @@
+"hello"
+42
+true
+{"name": "Ada", "lang": "Mélodium"}
+{"name": "Grace", "lang": "COBOL"}
+not valid json at all
+[1, 2, 3]

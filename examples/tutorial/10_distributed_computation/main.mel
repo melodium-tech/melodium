@@ -1,0 +1,115 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/engine/log::logError
+use std/engine/log::logErrorMessage
+use std/flow::emit
+use std/flow::generate
+use std/flow::trigger
+use std/conv::toString
+use std/data/map::|map
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use work/access::Access
+use work/access::|new_access
+use distrib::DistributionEngine
+use distrib::start
+use distrib::distribute
+use distrib::sendStream
+use distrib::recvStream
+
+//
+// Distributed Computation
+//
+// Concepts introduced: the `distrib` package, running a treatment on a
+// separate Mélodium engine, wiring inputs and outputs across the network as
+// if it were local.
+//
+// This closes the tutorial track: everything from example 01 onward runs in
+// a single process; `distribute` is the one primitive that spreads a
+// computation across several.
+//
+// Setup: two Mélodium engines:
+//
+//   1. Start a listening engine, from *this project's directory* (so it can
+//      resolve "distributed_computation/worker::double"):
+//        melodium dist --localhost --port 6789 \
+//          --recv-key <uuid-A> --send-key <uuid-B>
+//
+//   2. Run this program, with the keys swapped (this side sends what the
+//      other side expects to receive, and vice versa):
+//        melodium run Compo.toml \
+//          --port 6789 --send_key <uuid-A> --recv_key <uuid-B>
+//
+// `--localhost` uses an embedded certificate for local testing; generate the
+// UUIDs however is convenient (e.g. `python3 -c "import uuid; print(uuid.uuid4())"`).
+//
+
+model Doubler() : DistributionEngine {
+    treatment = "distributed_computation/worker::double"
+    version   = "0.1.0"
+}
+
+treatment main(
+    const port:     u16    = 6789,
+    const send_key: string,
+    const recv_key: string,
+    const amount:   u128   = 5,
+    const value:    i64    = 3
+)
+  model distributor: Doubler()
+{
+    startup()
+
+    accessBlock: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], port, recv_key, send_key))
+    startup.trigger -> accessBlock.trigger
+
+    distribStart: start[distributor=distributor](params=|map([]))
+    accessBlock.emit -> distribStart.access
+
+    distribErr:    logError(label="distrib")
+    distribFailed: logErrorMessage(label="distrib", message="could not connect to the remote engine")
+    distribStart.error  -> distribErr.message
+    distribStart.failed -> distribFailed.trigger
+
+    logReady: logInfoMessage(label="distrib", message="connected to remote engine")
+    distribStart.ready -> logReady.trigger
+
+    run[distributor=distributor](amount=amount, value=value)
+    distribStart.ready -> run.trigger
+}
+
+// Builds a small local stream, sends every value to the remote `double`
+// treatment, and logs whatever comes back.
+treatment run[distributor: DistributionEngine](const amount: u128, const value: i64)
+  input trigger: Block<void>
+{
+    length: emit<u128>(value=amount)
+    numbers: generate<i64>(data=value)
+    Self.trigger -> length.trigger,emit -> numbers.length,stream -> dispatch.n
+
+    dispatch: dispatchDouble[distributor=distributor]()
+
+    logResult: logInfos(label="doubled")
+    asText: toString<i64>()
+    dispatch.n -> asText.value,into -> logResult.messages
+}
+
+// Sends a `Stream<i64>` to the remote `double` treatment and receives the
+// result back, as if it were a local treatment with the same ports.
+treatment dispatchDouble[distributor: DistributionEngine]()
+  input  n: Stream<i64>
+  output n: Stream<i64>
+{
+    startTrigger: trigger<i64>()
+    dist: distribute[distributor=distributor]()
+    Self.n -> startTrigger.stream,start -> dist.trigger
+
+    send: sendStream<i64>[distributor=distributor](name="n")
+    recv: recvStream<i64>[distributor=distributor](name="n")
+    dist.distribution_id -> send.distribution_id
+    dist.distribution_id -> recv.distribution_id
+
+    Self.n    -> send.data
+    recv.data -> Self.n
+}

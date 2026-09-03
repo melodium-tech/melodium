@@ -1,0 +1,206 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logErrorMessage
+use std/engine/log::logError
+use std/engine/log::logErrors
+use std/flow::emit
+use std/flow::stream
+use std/flow::check
+use std/flow::filter
+use std/flow::trigger
+use std/ops/bin::not
+use std/text/compare::exact
+use std/text/compose::format
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/map::Map
+use std/data/map::|map as |mmap
+use std/data/map::get as mapGet
+use std/data/map/block::entry as blockMapEntry
+use std/data/string_map::entry
+use std/data/string_map::insert
+use std/ops/option::unwrapOr
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/method::|get
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::decode
+use encoding::encode
+use sql::SqlPool
+use sql::connect
+use sql::connected
+use sql::executeRaw
+use sql::execute
+use sql::fetch
+
+//
+// SQL CRUD API
+//
+// Concepts introduced: a `SqlPool` model shared across requests, `fetch`
+// versus `execute`, combining a database model with an HTTP server model in
+// the same program.
+//
+// A tiny "notes" API backed by PostgreSQL:
+//   POST /notes  → body is the note's plain text; stores it
+//   GET  /notes  → lists every note as "id) text" lines
+//
+// This example needs a reachable PostgreSQL database: it is type-checked
+// (`melodium check`) but was not run against a live database for this
+// tutorial. Point `db_url` at any Postgres instance to try it for real.
+//
+// Usage:
+//   melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
+//
+//   curl -X POST http://127.0.0.1:8080/notes -d "buy milk"
+//   curl http://127.0.0.1:8080/notes
+//
+
+model AppDb(const db_url: string) : SqlPool {
+    url             = db_url
+    min_connections = 1
+    max_connections = 5
+}
+
+treatment main(
+    const db_url: string = "postgresql://postgres@localhost/notes_db",
+    const port:   u16    = 8080
+)
+  model db:     AppDb(db_url=db_url)
+  model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
+{
+    startup()
+    connect[sql_pool=db]()
+    startup.trigger -> connect.trigger
+
+    connected[sql_pool=db]()
+    createTable[db=db]()
+    connected.trigger -> createTable.trigger
+
+    start[http_server=server]()
+    logReady: logInfoMessage(label="server", message="notes API ready")
+    createTable.done -> start.trigger
+    createTable.done -> logReady.trigger
+
+    createNote[db=db, http_server=server]()
+    listNotes[db=db, http_server=server]()
+}
+
+// Create the notes table if it does not exist yet.
+treatment createTable[db: SqlPool]()
+  input  trigger: Block<void>
+  output done:    Block<void>
+{
+    executeRaw[sql_pool=db](sql="CREATE TABLE IF NOT EXISTS notes (id SERIAL PRIMARY KEY, text TEXT NOT NULL)")
+    checkAffected: check<u64>()
+    emitDone:      emit<void>(value=_)
+
+    Self.trigger -> executeRaw.trigger,affected -> checkAffected.value,check -> emitDone.trigger,emit -> Self.done
+}
+
+// POST /notes: the request body, as plain text, becomes one row.
+treatment createNote[db: SqlPool, http_server: HttpServer]() {
+    connection[http_server=http_server](method=|post(), route="/notes")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    insertNote[db=db]()
+    connection.data -> insertNote.data,data -> connection.data
+}
+
+treatment insertNote[db: SqlPool]()
+  input  data: Stream<byte>
+  output data: Stream<byte>
+{
+    decoded: decode()
+    Self.data -> decoded.data
+
+    // Drop a possible trailing empty chunk before using the body: the same
+    // gotcha discussed in 05_http_client.
+    isBlank:  exact(pattern="")
+    notBlank: not<bool>()
+    nonBlank: filter<string>()
+    decoded.text    -> isBlank.text
+    isBlank.matches -> notBlank.value
+    decoded.text    -> nonBlank.value
+    notBlank.not    -> nonBlank.select
+
+    // A request body is a stream, but `execute` needs a single `Block<Map>`
+    // of bindings: `trigger.last` collapses the (one-item) stream to a
+    // block, same idiom as the totals in 03_text_and_files.
+    textBlock: trigger<string>()
+    nonBlank.accepted -> textBlock.stream
+
+    bindMap: blockMapEntry<string>(key="text")
+    textBlock.last -> bindMap.value
+
+    doInsert: execute[sql_pool=db](sql="INSERT INTO notes (text) VALUES (?)", bindings=["text"])
+    bindMap.map -> doInsert.bind
+
+    insertFailed: logErrorMessage(label="sql", message="insert failed")
+    insertError:  logError(label="sql")
+    doInsert.failed -> insertFailed.trigger
+    doInsert.error  -> insertError.message
+
+    confirm: emit<string>(value="created\n")
+    asBytes: stream<string>()
+    encoded: encode()
+    doInsert.completed -> confirm.trigger,emit -> asBytes.block,stream -> encoded.text,data -> Self.data
+}
+
+// GET /notes: streams every row straight into the response body, one line
+// per row, as soon as `fetch` produces it.
+treatment listNotes[db: SqlPool, http_server: HttpServer]() {
+    connection[http_server=http_server](method=|get(), route="/notes")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    listRows[db=db]()
+    connection.started -> listRows.trigger,lines -> connection.data
+}
+
+treatment listRows[db: SqlPool]()
+  input  trigger: Block<void>
+  output lines:   Stream<byte>
+{
+    emitBind: emit<Map>(value=|mmap([]))
+    // Casting `id` to text in SQL sidesteps guessing which native integer
+    // type the driver maps `SERIAL` to.
+    rows: fetch[sql_pool=db](sql="SELECT id::text AS id, text FROM notes ORDER BY id", bindings=[])
+    Self.trigger -> emitBind.trigger,emit -> rows.bind
+
+    rowErrors: logErrors(label="sql")
+    rows.errors -> rowErrors.messages
+
+    id:   mapGet<string>(key="id")
+    text: mapGet<string>(key="text")
+    rows.data -> id.map
+    rows.data -> text.map
+
+    idOr:   unwrapOr<string>(default="?")
+    textOr: unwrapOr<string>(default="")
+    id.value   -> idOr.option
+    text.value -> textOr.option
+
+    line: format(format="{id}) {text}\n")
+    idOr.value   -> asEntry.value
+    asEntry: entry(key="id")
+    asEntry.map -> withText.base
+    textOr.value -> withText.value
+    withText: insert(key="text")
+    withText.map -> line.entries
+
+    line.formatted -> encoded.text
+    encoded: encode()
+    encoded.data -> Self.lines
+}

@@ -1,0 +1,8 @@
+name    = "flow_and_generics"
+version = "0.1.0"
+
+[dependencies]
+std = "0.10.2"
+
+[entrypoints]
+main = "flow_and_generics/main::main"

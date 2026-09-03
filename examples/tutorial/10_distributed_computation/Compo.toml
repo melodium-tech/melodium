@@ -1,0 +1,11 @@
+name    = "distributed_computation"
+version = "0.1.0"
+
+[dependencies]
+std     = "0.10.2"
+net     = "0.10.2"
+work    = "0.10.2"
+distrib = "0.10.2"
+
+[entrypoints]
+main = "distributed_computation/main::main"

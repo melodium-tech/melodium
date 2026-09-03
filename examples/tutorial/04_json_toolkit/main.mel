@@ -1,0 +1,146 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/flow::stream
+use std/flow::filter
+use std/flow::count
+use std/flow::trigger
+use std/flow::fill
+use std/flow/vec::flatten
+use std/text/compose::split
+use std/text/compose::trim
+use std/data/string_map::StringMap
+use std/data/string_map/block::entry as blockEntry
+use std/data/string_map/block::insert as blockInsert
+use std/ops/option::unwrapOr
+use std/ops/bin::not
+use std/text/compare::exact
+use std/conv::toString
+use std/conv::toVoid
+use std/ops/num::add
+use json::Json
+use json::toJson
+use json::validate
+use json/value::isObject
+use json/value::fromStringMap
+use json/value::|null
+use fs/local::readTextLocal
+use fs/local::writeTextLocal
+
+//
+// JSON Toolkit
+//
+// Concepts introduced: parsing/validating JSON (`json`), `Option` unwrapping,
+// building structured data with `StringMap`.
+//
+// Reads one record per line (a mix of valid JSON values and garbage),
+// separates the invalid lines, classifies the valid ones as JSON objects or
+// plain scalars, and writes a small JSON summary of the counts.
+//
+// Usage:
+//   melodium run Compo.toml --input_file records.txt
+//
+
+treatment main(
+    const input_file: string = "records.txt",
+    const output:     string = "summary.json"
+) {
+    startup()
+
+    read: readTextLocal(path=input_file)
+    startup.trigger -> read.trigger
+
+    splitLines: split(delimiter="\n", inclusive=false)
+    lines:      flatten<string>()
+    trimmed:    trim()
+    read.text -> splitLines.text,splitted -> lines.vector,value -> trimmed.text
+
+    isBlank:  exact(pattern="")
+    notBlank: not<bool>()
+    nonBlank: filter<string>()
+    trimmed.trimmed -> isBlank.text
+    isBlank.matches -> notBlank.value
+    trimmed.trimmed -> nonBlank.value
+    notBlank.not    -> nonBlank.select
+
+    // Separate valid JSON text from garbage before trying to parse it.
+    isValid: validate()
+    split:   filter<string>()
+    nonBlank.accepted -> isValid.text
+    nonBlank.accepted -> split.value
+    isValid.is_json   -> split.select
+
+    logInvalid: logInfos(label="invalid")
+    split.rejected -> logInvalid.messages
+
+    // Parse the valid records. `toJson` never fails here since `validate`
+    // already screened out anything that would not parse.
+    parsed:  toJson()
+    asJson:  unwrapOr<Json>(default=|null())
+    split.accepted -> parsed.text,json -> asJson.option,value -> classify.value
+
+    // Classify each value and split objects from scalars.
+    classify:  isObject()
+    partition: filter<Json>()
+    asJson.value      -> partition.value
+    classify.is_object -> partition.select
+
+    logObjects: logInfos(label="object")
+    objAsText:  toString<Json>()
+    partition.accepted -> objAsText.value,into -> logObjects.messages
+
+    logScalars: logInfos(label="scalar")
+    scalarAsText: toString<Json>()
+    partition.rejected -> scalarAsText.value,into -> logScalars.messages
+
+    // Totals, using the same 0-index-corrected counter for every kind.
+    objTotal:     finalCount<Json>()
+    scalarTotal:  finalCount<Json>()
+    invalidTotal: finalCount<string>()
+    partition.accepted -> objTotal.items
+    partition.rejected -> scalarTotal.items
+    split.rejected      -> invalidTotal.items
+
+    // Build the summary as a JSON object and write it out.
+    withObjects: blockEntry(key="objects")
+    withScalars: blockInsert(key="scalars")
+    withInvalid: blockInsert(key="invalid")
+    objTotal.total     -> withObjects.value
+    withObjects.map     -> withScalars.base
+    scalarTotal.total   -> withScalars.value
+    withScalars.map     -> withInvalid.base
+    invalidTotal.total  -> withInvalid.value
+
+    summaryStream: stream<StringMap>()
+    summaryJson:   fromStringMap()
+    summaryText:   toString<Json>()
+    write:         writeTextLocal(path=output)
+    logDone:       logInfoMessage(label="json", message="summary written")
+
+    withInvalid.map -> summaryStream.block,stream -> summaryJson.value,json -> summaryText.value,into -> write.text
+    write.finished  -> logDone.trigger
+}
+
+// Counts the elements of a stream and returns the total as a single string.
+// `std/flow::count` starts at 0, so this adds 1 back: see 03_text_and_files
+// for the discussion of why.
+treatment finalCount<T>()
+  input  items: Stream<T>
+  output total: Block<string>
+{
+    index:   count<T>()
+    asVoid:  toVoid<u128>()
+    one:     fill<u128>(value=1)
+    plusOne: add<u128>()
+    asStr:   toString<u128>()
+    lastStr: trigger<string>()
+
+    Self.items -> index.stream,count -> asVoid.value
+    asVoid.iter -> one.pattern
+
+    index.count -> plusOne.a
+    one.filled  -> plusOne.b
+
+    plusOne.sum -> asStr.value,into -> lastStr.stream
+    lastStr.last -> Self.total
+}

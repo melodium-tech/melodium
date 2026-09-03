@@ -1,0 +1,170 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/flow::emit
+use std/flow::stream
+use std/flow::filter
+use std/flow::fill
+use std/ops/bin::not
+use std/text/compare::exact
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/string_map::|entry
+use std/data/string_map::|insert
+use std/data/string_map::entry
+use std/data/string_map::insert
+use std/ops/option::unwrapOr
+use std/conv::toString
+use std/conv::toVoid
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/server::@HttpRequest
+use http/method::|get
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::decode
+use encoding::encode
+use json::Json
+use json::toJson
+use json/value::|null
+use json/value::fromStringMap
+
+//
+// HTTP Server API
+//
+// Concepts introduced: the `HttpServer` model, routing with `connection`,
+// the `@HttpRequest` context.
+//
+// Three routes:
+//   GET  /health  → a fixed JSON status
+//   GET  /whoami  → echoes back request metadata read from @HttpRequest
+//   POST /greet   → reads {"name": "..."} and replies {"message": "..."}
+//
+// Usage:
+//   melodium run Compo.toml --port 8080
+//
+//   curl http://127.0.0.1:8080/health
+//   curl http://127.0.0.1:8080/whoami
+//   curl -X POST http://127.0.0.1:8080/greet -d '{"name":"Ada"}'
+//
+
+treatment main(const port: u16 = 8080)
+  model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
+{
+    startup()
+    start[http_server=server]()
+    logReady: logInfoMessage(label="server", message="HTTP server ready")
+    startup.trigger -> start.trigger
+    startup.trigger -> logReady.trigger
+
+    health[http_server=server]()
+    whoami[http_server=server]()
+    greet[http_server=server]()
+}
+
+// GET /health: a fixed JSON response; no request body involved.
+//
+// `connection.started`: not a trigger derived from the body stream: is
+// used to kick off the response: a GET request has no body at all, so a
+// stream never starts on `connection.data`, and anything gated on it would
+// simply never fire.
+treatment health[http_server: HttpServer]() {
+    connection[http_server=http_server](method=|get(), route="/health")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    reply:   emit<string>(value="{\"status\":\"ok\"}")
+    asBytes: stream<string>()
+    encoded: encode()
+    connection.started -> reply.trigger,emit -> asBytes.block,stream -> encoded.text,data -> connection.data
+}
+
+// GET /whoami: reads the route and path straight from the @HttpRequest
+// context, without touching the request body at all.
+treatment whoami[http_server: HttpServer]() {
+    connection[http_server=http_server](method=|get(), route="/whoami")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    describe()
+    connection.started -> describe.trigger,body -> connection.data
+}
+
+treatment describe()
+  require @HttpRequest
+  input  trigger: Block<void>
+  output body:    Stream<byte>
+{
+    info:    emit<StringMap>(value=|insert(|entry("route", @HttpRequest[route]), "path", @HttpRequest[path]))
+    asJson:  fromStringMap()
+    asText:  toString<Json>()
+    asStream: stream<StringMap>()
+    encoded:  encode()
+
+    Self.trigger -> info.trigger,emit -> asStream.block,stream -> asJson.value,json -> asText.value,into -> encoded.text,data -> Self.body
+}
+
+// POST /greet: parses a JSON body, replies with a JSON greeting.
+treatment greet[http_server: HttpServer]() {
+    connection[http_server=http_server](method=|post(), route="/greet")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    respondGreeting()
+    connection.data -> respondGreeting.data,data -> connection.data
+}
+
+// Parses the request body as JSON, wraps it back with a canned message, and
+// replies with a new JSON object. There is no field-by-field access into a
+// parsed `Json` value in the `json` package (that needs the JavaScript
+// engine: see 08_javascript_transform); here the whole body is echoed back
+// as a single JSON string value instead of reaching into it.
+treatment respondGreeting()
+  input  data: Stream<byte>
+  output data: Stream<byte>
+{
+    decoded: decode()
+    Self.data -> decoded.data
+
+    // Drop a possible trailing empty chunk before parsing: see
+    // 05_http_client for why this matters.
+    isBlank:  exact(pattern="")
+    notBlank: not<bool>()
+    nonBlank: filter<string>()
+    decoded.text    -> isBlank.text
+    isBlank.matches -> notBlank.value
+    decoded.text    -> nonBlank.value
+    notBlank.not    -> nonBlank.select
+
+    parsed:   toJson()
+    body:     unwrapOr<Json>(default=|null())
+    bodyText: toString<Json>()
+    nonBlank.accepted -> parsed.text,json -> body.option,value -> bodyText.value,into -> withReceived.value
+
+    withReceived: entry(key="received")
+
+    asVoid:      toVoid<StringMap>()
+    thankYou:    fill<string>(value="thanks for the greeting!")
+    withMessage: insert(key="message")
+    withReceived.map -> asVoid.value
+    asVoid.iter       -> thankYou.pattern
+    withReceived.map  -> withMessage.base
+    thankYou.filled   -> withMessage.value
+
+    reply:    fromStringMap()
+    asText:   toString<Json>()
+    encoded:  encode()
+    withMessage.map -> reply.value,json -> asText.value,into -> encoded.text,data -> Self.data
+}

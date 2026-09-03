@@ -1,0 +1,11 @@
+name    = "process_pipeline"
+version = "0.1.0"
+
+[dependencies]
+std      = "0.10.2"
+fs       = "0.10.2"
+process  = "0.10.2"
+encoding = "0.10.2"
+
+[entrypoints]
+main = "process_pipeline/main::main"

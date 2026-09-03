@@ -1,0 +1,87 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logErrorMessage
+use std/engine/log::logError
+use std/engine/log::logErrors
+use std/engine/log::logDataInfo
+use std/flow::filter
+use std/ops/bin::not
+use std/text/compare::exact
+use std/ops/option/block::unwrapOr
+use encoding::decode
+use process/command::|command
+use process/local::spawnOnce
+use fs/local::readLocal
+use fs/local::writeTextLocal
+
+//
+// Process Pipeline
+//
+// Concepts introduced: running an external command as a treatment
+// (`process`), streaming data through its stdin/stdout like any other
+// treatment.
+//
+// Reads a file, pipes its content through the `sort` command, and writes
+// the sorted result: Mélodium orchestrates the subprocess, but the actual
+// sorting is done by the operating system's own `sort` binary.
+//
+// Usage:
+//   melodium run Compo.toml --input_file fruits.txt
+//
+
+treatment main(
+    const input_file: string = "fruits.txt",
+    const output:      string = "sorted.txt"
+) {
+    startup()
+
+    read: readLocal(path=input_file)
+    startup.trigger -> read.trigger
+
+    proc: spawnOnce(command=|command("sort", []))
+    read.data       -> proc.stdin
+    startup.trigger -> proc.launch
+
+    procFailed: logErrorMessage(label="process", message="failed to spawn `sort`")
+    procError:  logError(label="process")
+    proc.failed -> procFailed.trigger
+    proc.error  -> procError.message
+
+    exitCode: unwrapOr<i32>(default=-1)
+    logExitCode: logDataInfo<i32>(label="exit-code")
+    logExit:     logInfoMessage(label="process", message="sort finished")
+    proc.exit      -> exitCode.option,value -> logExitCode.data
+    proc.completed -> logExit.trigger
+
+    // Same trailing-empty-chunk caveat as any decoded stream (example 05):
+    // an empty stderr should not be logged as an (empty) error line.
+    stderrText:    decode()
+    stderrBlank:   exact(pattern="")
+    stderrNotBlank: not<bool>()
+    stderrNonBlank: filter<string>()
+    proc.stderr        -> stderrText.data
+    stderrText.text    -> stderrBlank.text
+    stderrBlank.matches -> stderrNotBlank.value
+    stderrText.text    -> stderrNonBlank.value
+    stderrNotBlank.not -> stderrNonBlank.select
+
+    stderrLog: logErrors(label="sort-stderr")
+    stderrNonBlank.accepted -> stderrLog.messages
+
+    // The subprocess's stdout, like any decoded byte stream, can end with a
+    // trailing empty chunk: drop it before writing, same as example 05.
+    stdoutText: decode()
+    isBlank:  exact(pattern="")
+    notBlank: not<bool>()
+    nonBlank: filter<string>()
+    proc.stdout     -> stdoutText.data
+    stdoutText.text -> isBlank.text
+    isBlank.matches -> notBlank.value
+    stdoutText.text -> nonBlank.value
+    notBlank.not    -> nonBlank.select
+
+    write:   writeTextLocal(path=output)
+    logDone: logInfoMessage(label="process", message="sorted output written")
+    nonBlank.accepted -> write.text
+    write.finished    -> logDone.trigger
+}

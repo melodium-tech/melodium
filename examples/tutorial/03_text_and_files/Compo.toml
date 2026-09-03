@@ -1,0 +1,10 @@
+name    = "text_and_files"
+version = "0.1.0"
+
+[dependencies]
+std   = "0.10.2"
+fs    = "0.10.2"
+regex = "0.10.2"
+
+[entrypoints]
+main = "text_and_files/main::main"

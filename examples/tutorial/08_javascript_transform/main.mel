@@ -1,0 +1,91 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/flow::filter
+use std/flow/vec::flatten
+use std/text/compose::split
+use std/text/compose::trim
+use std/text/compose::format
+use std/data/string_map::entry
+use std/ops/bin::not
+use std/text/compare::exact
+use std/ops/option::unwrapOr
+use std/conv::toString
+use json::Json
+use json::toJson
+use json/value::|null
+use javascript::JavaScriptEngine
+use javascript::process
+use fs/local::readTextLocal
+use fs/local::writeTextLocal
+
+//
+// JavaScript Transform
+//
+// Concepts introduced: the `JavaScriptEngine` model, transforming structured
+// data with JS: including the field-by-field JSON access that the `json`
+// package alone cannot do (see 06_http_server_api and 07_sql_crud_api).
+//
+// Reads one JSON object per line, computes a letter grade from its `score`
+// field in JavaScript, and writes the graded records back out.
+//
+// Usage:
+//   melodium run Compo.toml --input_file students.json
+//
+
+model Grader() : JavaScriptEngine {
+    code = ${{function grade(input) {
+        var g = 'F';
+        if (input.score >= 90) g = 'A';
+        else if (input.score >= 75) g = 'B';
+        else if (input.score >= 60) g = 'C';
+        else if (input.score >= 50) g = 'D';
+        return { name: input.name, score: input.score, grade: g };
+    }
+}}
+}
+
+treatment main(
+    const input_file: string = "students.json",
+    const output:     string = "grades.txt"
+)
+  model engine: Grader()
+{
+    startup()
+
+    read: readTextLocal(path=input_file)
+    startup.trigger -> read.trigger
+
+    splitLines: split(delimiter="\n", inclusive=false)
+    lines:      flatten<string>()
+    trimmed:    trim()
+    read.text -> splitLines.text,splitted -> lines.vector,value -> trimmed.text
+
+    isBlank:  exact(pattern="")
+    notBlank: not<bool>()
+    nonBlank: filter<string>()
+    trimmed.trimmed -> isBlank.text
+    isBlank.matches -> notBlank.value
+    trimmed.trimmed -> nonBlank.value
+    notBlank.not    -> nonBlank.select
+
+    // Parse each line, run it through the JS `grade` function, and
+    // re-serialise the (possibly transformed) JSON result.
+    parsed: toJson()
+    body:   unwrapOr<Json>(default=|null())
+    graded: process[engine=engine](code="grade(value)")
+    result: unwrapOr<Json>(default=|null())
+    asText: toString<Json>()
+
+    nonBlank.accepted -> parsed.text,json -> body.option,value -> graded.value,result -> result.option,value -> asText.value,into -> logGrades.messages
+
+    logGrades: logInfos(label="grade")
+
+    withNewline: entry(key="line")
+    asLine:      format(format="{line}\n")
+    write:       writeTextLocal(path=output)
+    logDone:     logInfoMessage(label="js", message="grades written")
+
+    asText.into -> withNewline.value,map -> asLine.entries,formatted -> write.text
+    write.finished -> logDone.trigger
+}

@@ -1,0 +1,200 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/engine/log::logError
+use std/engine/log::logErrorMessage
+use std/engine/log::logErrors
+use std/flow::emit
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/ops/option::|wrap
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::decode
+use encoding::encode
+use record/audio::recordMono
+use ml/repos/hf::HfHub
+use ml/repos/hf::fetch
+use ml/models/whisper::Whisper
+use ml/models/whisper::load
+use ml/models/whisper::decode as whisperDecode
+use ml/remote/llm::RemoteLlm
+use ml/remote/llm::stream
+use ml/remote/tts::RemoteTts
+use ml/remote/tts::synthesize
+use fs/local::writeLocal
+
+//
+// AI Voice Assistant: showcase
+//
+// Not a tutorial step: this combines several `ml` capabilities from across
+// the library into one convincing demo, without pausing to explain every
+// concept: those are covered individually in examples/tutorial/.
+//
+// Two entrypoints:
+//
+//   chat  : HTTP server, POST /chat streams a remote LLM's response back
+//           token by token as it is generated.
+//           melodium run Compo.toml chat --api_key sk-...
+//           curl -X POST http://127.0.0.1:8080/chat -d "What is Mélodium?"
+//
+//   voice : microphone -> local Whisper (speech-to-text) -> remote LLM
+//           (streamed reply) -> remote text-to-speech -> answer.mp3.
+//           Speech-to-text runs locally so raw audio never leaves the
+//           machine; only the transcribed text is sent to the LLM.
+//           melodium run Compo.toml voice --llm_api_key sk-... --tts_api_key el-...
+//
+// This example requires real API keys (an LLM provider, and ElevenLabs for
+// `voice`) and, for `voice`, a working microphone. It is type-checked with
+// `melodium check` but was not run against live providers for this
+// tutorial: see examples/tutorial/ for examples verified end to end.
+//
+
+// --- entrypoint: chat ---
+
+model ChatLlm(const api_key: string, const model: string) : RemoteLlm {
+    backend     = "anthropic"
+    api_key     = |wrap<string>(api_key)
+    base_url    = ""
+    model       = model
+    system      = "You are a helpful, concise assistant."
+    max_tokens  = |wrap<u64>(512)
+    temperature = _
+    top_p       = _
+    timeout     = _
+}
+
+treatment chat(
+    const api_key: string,
+    const model:   string = "claude-sonnet-4-6",
+    const port:    u16    = 8080
+)
+  model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
+  model llm:    ChatLlm(api_key=api_key, model=model)
+{
+    startup()
+    start[http_server=server]()
+    logReady: logInfoMessage(label="server", message="chat server ready")
+    startup.trigger -> start.trigger
+    startup.trigger -> logReady.trigger
+
+    connection[http_server=server](method=|post(), route="/chat")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    respond[llm=llm]()
+    connection.data -> respond.data,data -> connection.data
+}
+
+treatment respond[llm: RemoteLlm]()
+  input  data: Stream<byte>
+  output data: Stream<byte>
+{
+    decoded: decode()
+    reply:   stream[llm=llm]()
+    encoded: encode()
+    Self.data -> decoded.data,text -> reply.prompt,token -> encoded.text,data -> Self.data
+
+    llmErrors: logErrors(label="llm")
+    reply.error -> llmErrors.messages
+}
+
+// --- entrypoint: voice ---
+
+model WhisperHub() : HfHub   { repo_id = "openai/whisper-tiny" }
+model Asr()        : Whisper {}
+
+model VoiceLlm(const api_key: string, const model: string) : RemoteLlm {
+    backend     = "anthropic"
+    api_key     = |wrap<string>(api_key)
+    base_url    = ""
+    model       = model
+    system      = "You are a concise voice assistant. Answer in one short paragraph."
+    max_tokens  = |wrap<u64>(256)
+    temperature = _
+    top_p       = _
+    timeout     = _
+}
+
+model Voice(const tts_api_key: string, const voice_id: string) : RemoteTts {
+    backend = "elevenlabs"
+    api_key = |wrap<string>(tts_api_key)
+    model   = "eleven_multilingual_v2"
+    voice   = voice_id
+}
+
+treatment voice(
+    const llm_api_key: string,
+    const tts_api_key: string,
+    const model:        string = "claude-sonnet-4-6",
+    const voice_id:      string = "JBFqnCBsd6RMkjVDRZzb",
+    const output:        string = "answer.mp3"
+)
+  model whisperHub: WhisperHub()
+  model asr:        Asr()
+  model llm:        VoiceLlm(api_key=llm_api_key, model=model)
+  model tts:        Voice(tts_api_key=tts_api_key, voice_id=voice_id)
+{
+    startup()
+    fetchAsr: fetch[hub=whisperHub]()
+    loadAsr:  load[whisper=asr]()
+
+    startup.trigger      -> fetchAsr.trigger
+    fetchAsr.safetensors -> loadAsr.safetensors
+    fetchAsr.tokenizer   -> loadAsr.tokenizer
+
+    fetchFailed: logErrorMessage(label="fetch", message="Whisper fetch failed")
+    fetchError:  logError(label="fetch")
+    loadFailed:  logErrorMessage(label="load",  message="Whisper load failed")
+    loadError:   logError(label="load")
+    fetchAsr.failed -> fetchFailed.trigger
+    fetchAsr.error  -> fetchError.message
+    loadAsr.failed  -> loadFailed.trigger
+    loadAsr.error   -> loadError.message
+
+    logReady: logInfoMessage(label="assistant", message="ready: speak into the microphone")
+    loadAsr.loaded -> logReady.trigger
+
+    record:    recordMono(device=_, sample_rate=_)
+    asrDecode: whisperDecode[whisper=asr]()
+    loadAsr.loaded -> record.trigger
+    loadAsr.loaded -> asrDecode.ready
+    record.signal  -> asrDecode.audio
+
+    recFailed: logErrorMessage(label="record", message="microphone error")
+    recErrors: logErrors(label="record")
+    record.failed -> recFailed.trigger
+    record.errors -> recErrors.messages
+
+    logQuestion: logInfos(label="you")
+    asrDecode.transcribed -> logQuestion.messages
+
+    reply: stream[llm=llm]()
+    asrDecode.transcribed -> reply.prompt
+
+    logAnswer: logInfos(label="assistant")
+    reply.token -> logAnswer.messages
+
+    llmErrors: logErrors(label="llm")
+    reply.error -> llmErrors.messages
+
+    speak: synthesize[tts=tts]()
+    reply.token -> speak.text
+
+    ttsErrors: logErrors(label="tts")
+    speak.error -> ttsErrors.messages
+
+    write:   writeLocal(path=output)
+    logDone: logInfoMessage(label="voice", message="answer written to file")
+    speak.audio    -> write.data
+    write.completed -> logDone.trigger
+}
