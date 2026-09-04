@@ -9,7 +9,9 @@ mod protocol;
 
 pub use error::{DistributionError, DistributionResult};
 pub use framing::{max_batch_chunk_bytes, max_frame_bytes};
-pub use listen::{launch_listen, launch_listen_localcert, launch_listen_unsecure};
+pub use listen::{
+    launch_listen, launch_listen_localcert, launch_listen_unsecure, max_concurrent_messages,
+};
 pub use messages::*;
 pub use protocol::{Error, Protocol};
 

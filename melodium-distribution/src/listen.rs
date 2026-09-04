@@ -2,7 +2,7 @@ use crate::error::DistributionResult;
 use crate::framing::max_batch_chunk_bytes;
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
-use async_std::channel::{unbounded, Sender};
+use async_std::channel::{bounded, Sender};
 use async_std::sync::Barrier;
 use async_std::{
     future::timeout,
@@ -55,6 +55,61 @@ fn teardown_timeout() -> Duration {
             .and_then(|value| value.parse().ok())
             .map(Duration::from_secs)
             .unwrap_or(Duration::from_secs(DEFAULT_TEARDOWN_TIMEOUT_SECS))
+    })
+}
+
+const DEFAULT_LOG_CHANNEL_CAPACITY: usize = 256;
+
+/// Bound on how many `Log` events may be queued for this connection's log listener before the
+/// engine's own log fan-out task (which awaits each listener's `send`) starts waiting on it.
+/// That wait only stalls log/debug *delivery* for this connection, never treatment execution -
+/// see the log/debug listener setup below for why. Overridable through
+/// `MELODIUM_DIST_LOG_CHANNEL_CAPACITY`.
+fn log_channel_capacity() -> usize {
+    static CAPACITY: OnceLock<usize> = OnceLock::new();
+    *CAPACITY.get_or_init(|| {
+        std::env::var("MELODIUM_DIST_LOG_CHANNEL_CAPACITY")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_LOG_CHANNEL_CAPACITY)
+    })
+}
+
+const DEFAULT_DEBUG_CHANNEL_CAPACITY: usize = 256;
+
+/// Same rationale as `log_channel_capacity`, for debug events. Overridable through
+/// `MELODIUM_DIST_DEBUG_CHANNEL_CAPACITY`.
+fn debug_channel_capacity() -> usize {
+    static CAPACITY: OnceLock<usize> = OnceLock::new();
+    *CAPACITY.get_or_init(|| {
+        std::env::var("MELODIUM_DIST_DEBUG_CHANNEL_CAPACITY")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_DEBUG_CHANNEL_CAPACITY)
+    })
+}
+
+const DEFAULT_MAX_CONCURRENT_MESSAGES: usize = 64;
+
+/// Upper bound on how many incoming protocol messages may be decoded and awaiting handling at
+/// once for a single connection. Without this, a fast peer (or a locally slow consumer) lets
+/// the message-read loop keep decoding indefinitely, piling up in-memory message payloads with
+/// no back-pressure back to the socket. Once this many handlers are in flight, the read loop
+/// stops pulling new messages until one finishes - so a slow consumer now visibly throttles the
+/// connection's read side instead of growing memory. Overridable through
+/// `MELODIUM_DIST_MAX_CONCURRENT_MESSAGES`.
+///
+/// Shared between the server's message loop here and the client's in `distrib-mel` (which
+/// mirrors this same dispatch pattern), so `pub` and re-exported from the crate root — one
+/// setting governs the same policy on both sides of the connection.
+pub fn max_concurrent_messages() -> usize {
+    static LIMIT: OnceLock<usize> = OnceLock::new();
+    *LIMIT.get_or_init(|| {
+        std::env::var("MELODIUM_DIST_MAX_CONCURRENT_MESSAGES")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_MAX_CONCURRENT_MESSAGES)
+            .max(1)
     })
 }
 
@@ -412,14 +467,14 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         melodium_engine::new_engine(Arc::clone(&collection), Level::Trace, DebugLevel::Detailed);
     engine.set_auto_end(false);
 
-    let (logs_sender, logs_receiver) = unbounded();
+    let (logs_sender, logs_receiver) = bounded(log_channel_capacity());
     engine.add_logs_listener(logs_sender);
     for log_sender in logs_senders {
         engine.add_logs_listener(log_sender);
     }
     let watchdog_logs_receiver = logs_receiver.clone();
 
-    let (debug_sender, debug_receiver) = unbounded();
+    let (debug_sender, debug_receiver) = bounded(debug_channel_capacity());
     engine.add_debug_listener(debug_sender);
     for debug_sender in debug_senders {
         engine.add_debug_listener(debug_sender);
@@ -684,6 +739,19 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
         let mut messages_futures = FuturesUnordered::new();
 
+        // `InputData`/`CloseInput` messages for the same (id, name) port are read off the wire
+        // in order, but dispatched as independent, concurrently-polled futures below -
+        // `FuturesUnordered` makes no completion-order guarantee between them. `InputData`
+        // writes into the entry's local engine `Output`, which (per its byte-size watermark) can
+        // genuinely suspend when the local consumer is behind; if a same-port `CloseInput` -
+        // whose own `.close()` call has comparatively little to await - gets polled first, it
+        // closes that `Output` out from under a still-pending write, silently dropping the
+        // tail of the data (see the client-side twin of this fix in `distrib-mel` for the full
+        // story - this is the same race, mirrored). This map chains same-key messages so each
+        // one explicitly awaits the previous one for that key before doing its own work,
+        // restoring wire order without serializing unrelated ports against each other.
+        let mut port_chains = HashMap::new();
+
         let unfold_protocol = unfold(true, |still_valid| {
             let protocol = Arc::clone(&protocol);
             async move {
@@ -703,23 +771,53 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         pin_mut!(unfold_protocol);
 
         loop {
-            select! {
-                message = unfold_protocol.select_next_some() => {
+            if messages_futures.len() < max_concurrent_messages() {
+                select! {
+                    message = unfold_protocol.select_next_some() => {
 
-                    match message {
-                        Ok(Message::Ended) => {
-                            break;
-                        }
-                        Err(_err) => {
-                            break;
-                        }
-                        Ok(msg) => {
-                            messages_futures.push(manage_message(msg));
+                        match message {
+                            Ok(Message::Ended) => {
+                                break;
+                            }
+                            Err(_err) => {
+                                break;
+                            }
+                            Ok(msg) => {
+                                let key = match &msg {
+                                    Message::InputData(id) => Some((id.id, id.name.clone())),
+                                    Message::CloseInput(ci) => Some((ci.id, ci.name.clone())),
+                                    _ => None,
+                                };
+                                let prev =
+                                    key.as_ref().and_then(|k| port_chains.get(k).cloned());
+                                let fut = manage_message(msg);
+                                let chained = async move {
+                                    if let Some(prev) = prev {
+                                        prev.await;
+                                    }
+                                    fut.await;
+                                }
+                                .boxed()
+                                .shared();
+                                if let Some(key) = key {
+                                    port_chains.insert(key, chained.clone());
+                                }
+                                messages_futures.push(chained);
+                            }
                         }
                     }
+                    () = messages_futures.select_next_some() => {}
+                    complete => break,
                 }
-                () = messages_futures.select_next_some() => {}
-                complete => break,
+            } else {
+                // At the concurrency cap: stop pulling new messages off the socket until a
+                // handler finishes, so a locally slow consumer throttles this connection's read
+                // side instead of letting decoded message payloads pile up in memory. `next()`
+                // only returns `None` on an empty stream, which cannot happen here since the
+                // `if` above guarantees at least one in-flight future.
+                if messages_futures.next().await.is_none() {
+                    break;
+                }
             }
         }
 
