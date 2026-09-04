@@ -23,12 +23,18 @@ use fs/local::writeLocal
 // provisioned cloud containers, combining `cicd`, `work`, and `process` in
 // one realistic scenario.
 //
-//   Stage 1, build:   rust:1.82-slim container; `cargo build --release`
-//                      produces a compiled binary streamed back locally.
+//   Stage 1, build:   rust:1.90-slim container; `cargo build --release`
+//                      produces a compiled binary, whose name is read from
+//                      the cloned repo's own Cargo.toml, streamed back
+//                      locally (works for any ordinary single-binary crate,
+//                      not just the one used as the default `repo_url`).
 //
-//   Stage 2, test:    rust:1.82-slim + postgres:16 service container;
-//                      `cargo test`; exercises integration tests that need
-//                      a live database (DATABASE_URL is wired to the sidecar).
+//   Stage 2, test:    rust:1.90-slim + postgres:16 service container; a
+//                      `psql` connectivity check exercises DATABASE_URL
+//                      against the sidecar before `cargo test` runs the
+//                      repo's own test suite (the default repo's tests do
+//                      not themselves touch the database; the sidecar's
+//                      reachability is what this stage actually proves).
 //
 //   Stage 3, package: debian:bookworm-slim container; bundles the binary
 //                      into a tar.gz archive and streams the archive back.
@@ -36,21 +42,36 @@ use fs/local::writeLocal
 // Stages 1 and 2 run concurrently. Stage 3 starts only after both succeed.
 // The binary produced by stage 1 is piped directly into stage 3 as input data.
 //
+// `repo_url` defaults to a small, real, public Rust binary crate
+// (sharkdp/hexyl) chosen so this example runs end to end with nothing
+// beyond a Mélodium Services API token: no separate repo to prepare. Its
+// build and its own (database-independent) test suite were both verified
+// locally with a plain `cargo build --release` and `cargo test --release`
+// before being wired into this pipeline. Override `repo_url` to build your
+// own project instead; the binary-name detection works for any simple,
+// single-binary Cargo crate.
+//
 // This example requires a Mélodium Services API token (or a local
 // podman/docker compose setup, see `CicdDispatchEngine`'s `location`
 // parameter). Set MELODIUM_API_TOKEN in the environment and run with
 // --api-report; see Cadence.CI to obtain a token and follow execution.
-// It is type-checked with `melodium check` but was not run against live
-// infrastructure for this tutorial.
+// The pipeline itself is type-checked with `melodium check`; running it
+// against live Mélodium Services infrastructure was not part of this
+// tutorial (no token was available in the environment that wrote it), but
+// every assumption it makes about the repository it builds was verified
+// locally beforehand.
 //
 // Usage:
 //   export MELODIUM_API_TOKEN="my-api-token"
+//   melodium run --api-report Compo.toml
+//
+//   # or, to build a different repository:
 //   melodium run --api-report Compo.toml \
-//     --repo_url "https://github.com/my-org/my-project.git"
+//     --repo_url "https://github.com/your-org/your-project.git"
 //
 
 treatment main(
-    const repo_url: string,
+    const repo_url: string = "https://github.com/sharkdp/hexyl.git",
     const output:   string = "artifact.tar.gz"
 )
   model dispatcher: CicdDispatchEngine()
@@ -128,7 +149,9 @@ treatment main(
 }
 
 // Stage 1: clone the repo and compile a release binary in a Rust container.
-// The binary is streamed back via `data` (read from /mnt/data/binary on the container).
+// The binary's name is read back from the repo's own Cargo.toml (works for
+// any simple single-binary crate, not just the default `repo_url`), then
+// streamed back via `data` (read from /mnt/data/binary on the container).
 treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
   input  trigger:  Block<void>
   output started:  Block<void>
@@ -140,7 +163,7 @@ treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
 {
     simpleStep[dispatcher=dispatcher](
         name         = "build",
-        image        = "rust:1.82-slim",
+        image        = "rust:1.90-slim",
         cpu          = 2000,
         memory       = 4096,
         storage      = 8192,
@@ -149,7 +172,7 @@ treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
             "apt-get update -qq && apt-get install -y --no-install-recommends git",
             "git clone --depth 1 ${REPO_URL} /workspace",
             "cd /workspace && cargo build --release 2>&1",
-            "cp /workspace/target/release/app /mnt/data/binary"
+            "BIN=$(grep -m1 '^name' /workspace/Cargo.toml | cut -d '\"' -f2) && cp \"/workspace/target/release/$BIN\" /mnt/data/binary"
         ]),
         variables    = |wrap<StringMap>(|map([|entry("REPO_URL", repo_url)])),
         out_file     = "binary"
@@ -164,8 +187,8 @@ treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
     simpleStep.data     -> Self.data
 }
 
-// Stage 2: clone the repo and run `cargo test` with a Postgres service container.
-// DATABASE_URL is set to point at the postgres sidecar.
+// Stage 2: clone the repo, prove the Postgres sidecar is actually reachable
+// via DATABASE_URL with a `psql` connectivity check, then run `cargo test`.
 treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
   input  trigger:  Block<void>
   output started:  Block<void>
@@ -176,7 +199,7 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
 {
     simpleStep[dispatcher=dispatcher](
         name         = "test",
-        image        = "rust:1.82-slim",
+        image        = "rust:1.90-slim",
         cpu          = 2000,
         memory       = 4096,
         storage      = 8192,
@@ -200,8 +223,9 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
             )
         ],
         commands     = |raw_commands([
-            "apt-get update -qq && apt-get install -y --no-install-recommends git",
+            "apt-get update -qq && apt-get install -y --no-install-recommends git postgresql-client",
             "git clone --depth 1 ${REPO_URL} /workspace",
+            "psql \"${DATABASE_URL}\" -c \"SELECT 1;\"",
             "cd /workspace && cargo test 2>&1"
         ]),
         variables    = |wrap<StringMap>(|map([

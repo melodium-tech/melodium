@@ -5,13 +5,37 @@ Two tracks:
 - **[`tutorial/`](tutorial/)**: a guided path through Mélodium's core concepts, one at a time, in increasing order of difficulty. Start at [`01_hello_melodium`](tutorial/01_hello_melodium/) if you are new to the language.
 - **[`showcase/`](showcase/)**: a handful of larger, more convincing demos that combine several capabilities at once (remote LLMs, speech, distributed compute, CI/CD) without stopping to explain every concept along the way. Read these once the tutorial track feels comfortable.
 
-Every example is a self-contained Mélodium project (`Compo.toml` + `.mel` files) with its own `README.md` explaining what it does and why it is built the way it is. Run any of them with:
+Every example is a self-contained Mélodium project (`Compo.toml` + `.mel` files) with its own `README.md` explaining what it does and why it is built the way it is. **Run them from inside their own directory**, because examples that read or write files use paths relative to the current working directory:
 
 ```
-melodium run <path-to-example>/Compo.toml [arguments...]
+cd tutorial/01_hello_melodium
+melodium run Compo.toml [arguments...]
 ```
 
-Examples with more than one entrypoint are run with `melodium run Compo.toml <entrypoint> [arguments...]`; see each example's `README.md` for its exact invocation.
+Running `melodium run tutorial/01_hello_melodium/Compo.toml` from somewhere else starts fine but will not find the example's data files. Examples with more than one entrypoint are run with `melodium run Compo.toml <entrypoint> [arguments...]`; see each example's `README.md` for its exact invocation.
+
+## What you need to run each example
+
+Installing Mélodium is enough for most of the tutorial. The table below lists everything else, so nothing is a surprise halfway through.
+
+| Example | Beyond installing Mélodium |
+|---|---|
+| [tutorial/01](tutorial/01_hello_melodium/) | nothing |
+| [tutorial/02](tutorial/02_flow_and_generics/) | nothing |
+| [tutorial/03](tutorial/03_text_and_files/) | nothing (`sample.txt` is included) |
+| [tutorial/04](tutorial/04_json_toolkit/) | nothing (`records.txt` is included) |
+| [tutorial/05](tutorial/05_http_client/) | internet access (calls the public `jsonplaceholder.typicode.com`) |
+| [tutorial/06](tutorial/06_http_server_api/) | a free TCP port (8080 by default) and `curl` to send requests |
+| [tutorial/07](tutorial/07_sql_crud_api/) | **a reachable PostgreSQL database** |
+| [tutorial/08](tutorial/08_javascript_transform/) | nothing (`students.json` is included) |
+| [tutorial/09](tutorial/09_process_pipeline/) | the `sort` command in `PATH` (standard on Linux and macOS, absent on plain Windows) |
+| [tutorial/10](tutorial/10_distributed_computation/) | **a second Mélodium engine** started with `melodium dist`, plus two UUIDs you generate yourself |
+| [showcase/smart_llm_router](showcase/smart_llm_router/) | an LLM provider API key |
+| [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) | an LLM provider API key; the `voice` entrypoint also needs an ElevenLabs key, a working microphone, and downloads a Whisper model from HuggingFace on first run |
+| [showcase/ci_pipeline](showcase/ci_pipeline/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) or a local `podman`/`docker compose` setup; `repo_url` defaults to a real public repo, so nothing else is required |
+| [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) and an LLM provider API key |
+
+Examples that write output (`hello.txt`, `report.txt`, `summary.json`, `post.txt`, `grades.txt`, `sorted.txt`, ...) create those files in the directory you run them from.
 
 Most tutorial examples run entirely locally and were verified end to end while writing them (`melodium check` **and** an actual `melodium run`, inspecting the real output: see each README's *Runtime behaviour* section for specifics, including a few real bugs that were found and fixed this way). A few examples (anything needing a real database, a paid API key, a second Mélodium engine, or cloud infrastructure) were verified with `melodium check` only; their README says so explicitly.
 

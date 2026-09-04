@@ -31,7 +31,7 @@ startup.trigger ── fan-out ──┤
 
 1. `startup.trigger` fires once and fans out to both halves of the graph: nothing here runs "first" or "second", both start as soon as the trigger arrives.
 2. **Block side:** `|format` and `|map`/`|entry` build the greeting string from the `name` parameter, purely (no I/O); `emit` turns it into a `Block<string>`; `stream` widens it into a one-element `Stream<string>` so `writeTextLocal` can consume it; the file write logs a confirmation once finished.
-3. **Stream side:** `emit<u128>(value=times)` supplies the length to `generate`, which repeats `name` that many times as a `Stream<string>`. That stream fans out to `logInfos` directly, and separately through `count` (which numbers each element starting at 1) and `toString` before being logged again.
+3. **Stream side:** `emit<u128>(value=times)` supplies the length to `generate`, which repeats `name` that many times as a `Stream<string>`. That stream fans out to `logInfos` directly, and separately through `count` and `toString` before being logged again. `count` numbers elements starting at **0**, not at 1 as its own documentation claims: a run of `--times 3` logs `0`, `1`, `2`. Example 03 shows how to correct for that when a total matters.
 
 ### Key Mélodium patterns used
 
