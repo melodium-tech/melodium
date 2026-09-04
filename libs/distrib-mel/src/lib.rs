@@ -8,7 +8,7 @@
 ))]
 compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
-use async_std::channel::{unbounded, Receiver, Sender};
+use async_std::channel::{bounded, Receiver, Sender};
 use async_std::io::{Read, Write};
 #[cfg(feature = "real")]
 use async_std::net::{SocketAddr, TcpStream};
@@ -19,14 +19,18 @@ use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use event_listener::{Event, IntoNotification};
+#[cfg(feature = "real")]
+use futures::stream::{unfold, FuturesUnordered};
+#[cfg(feature = "real")]
+use futures::StreamExt;
 use futures::{pin_mut, select, FutureExt};
 #[cfg(feature = "real")]
 use futures_rustls::client::TlsStream;
 use melodium_core::*;
 #[cfg(feature = "real")]
 use melodium_distribution::{
-    max_batch_chunk_bytes, AskDistribution, CloseInput, CloseOutput, InputData, Instanciate,
-    InstanciateStatus, LoadAndLaunch, Message, Protocol,
+    max_batch_chunk_bytes, max_concurrent_messages, AskDistribution, CloseInput, CloseOutput,
+    InputData, Instanciate, InstanciateStatus, LoadAndLaunch, Message, Protocol,
 };
 use melodium_macro::{mel_model, mel_package, mel_treatment};
 use melodium_share::{Collection, TransmissionValue as WireTransmissionValue};
@@ -46,6 +50,17 @@ const PROBE_RETRY_ATTEMPTS: u32 = 3;
 /// Delay between probe retry attempts.
 #[cfg(feature = "real")]
 const PROBE_RETRY_DELAY: Duration = Duration::from_secs(2);
+
+/// Capacity of the per-port input/output data channels backing a distributed track.
+///
+/// In practice each of these channels holds at most one pending batch: the sending side always
+/// awaits a full drain-and-network-send right after pushing onto it (see `send_data`), and the
+/// receiving side (`Message::OutputData` handling in `continuous`) awaits the channel directly,
+/// so a full channel already back-pressures the connection's message-read loop. The bound here
+/// exists so that stays true - a bounded channel with real, deliberate slack instead of an
+/// unbounded one that could otherwise grow without limit if either assumption ever changes.
+#[cfg(feature = "real")]
+const DATA_CHANNEL_CAPACITY: usize = 8;
 
 #[derive(Debug)]
 struct Track {
@@ -384,14 +399,14 @@ impl DistributionEngine {
 
                 let mut io = 0;
                 for (name, _) in treatment.inputs() {
-                    let (sender, receiver) = unbounded();
+                    let (sender, receiver) = bounded(DATA_CHANNEL_CAPACITY);
                     inputs_senders.insert(name.clone(), sender);
                     inputs_receivers.insert(name.clone(), receiver);
                     io += 1;
                 }
 
                 for (name, _) in treatment.outputs() {
-                    let (sender, receiver) = unbounded();
+                    let (sender, receiver) = bounded(DATA_CHANNEL_CAPACITY);
                     outputs_senders.insert(name.clone(), sender);
                     outputs_receivers.insert(name.clone(), receiver);
                     io += 1;
@@ -539,104 +554,244 @@ impl DistributionEngine {
             self.wait_protocol_ready().await;
         }
 
-        let mut ended = false;
-        let mut log_ended = false;
-        let mut debug_ended = false;
-
+        // Mirrors the server's concurrency-capped message dispatch (see `listen.rs`): without
+        // it, a slow local consumer on *any one* distributed port blocks this single sequential
+        // loop from processing messages for every other port on the same connection too, since
+        // `output.send()` on the (now bounded, see `DATA_CHANNEL_CAPACITY`) per-port channel
+        // can itself await. Dispatching each message as its own concurrently-polled future,
+        // capped at `max_concurrent_messages()`, means one slow port only ever blocks up to
+        // that many in-flight messages rather than the whole connection.
         let exec = async {
-            if let Some(protocol) = self.protocol.read().await.as_ref() {
+            if let Some(protocol) = self.protocol.read().await.as_ref().cloned() {
+                // Plain `bool` locals can't be mutated from independent concurrently-polled
+                // futures - shared, atomically-settable flags instead, mirroring how the
+                // server keeps its own per-connection state behind shared interior mutability.
+                let world = AsyncArc::new(world);
+                let ended = AsyncArc::new(AtomicBool::new(false));
+                let log_ended = AsyncArc::new(AtomicBool::new(false));
+                let debug_ended = AsyncArc::new(AtomicBool::new(false));
+
+                let manage_message = {
+                    let protocol = AsyncArc::clone(&protocol);
+                    let world = AsyncArc::clone(&world);
+                    let ended = AsyncArc::clone(&ended);
+                    let log_ended = AsyncArc::clone(&log_ended);
+                    let debug_ended = AsyncArc::clone(&debug_ended);
+                    move |msg: Message| {
+                        let protocol = AsyncArc::clone(&protocol);
+                        let world = AsyncArc::clone(&world);
+                        let ended = AsyncArc::clone(&ended);
+                        let log_ended = AsyncArc::clone(&log_ended);
+                        let debug_ended = AsyncArc::clone(&debug_ended);
+                        async move {
+                            match msg {
+                                Message::InstanciateStatus(instanciate_status) => {
+                                    match instanciate_status {
+                                        InstanciateStatus::Ok { id } => {
+                                            let track = self.tracks.read().await.get(&id).cloned();
+                                            if let Some(track) = track {
+                                                let track = track.read().await;
+                                                track.instancied.store(true, Ordering::Relaxed);
+                                                track.instanciation_barrier.wait().await;
+                                            }
+                                        }
+                                        InstanciateStatus::Failure { id, message: _ } => {
+                                            let track = self.tracks.read().await.get(&id).cloned();
+                                            if let Some(track) = track {
+                                                let track = track.read().await;
+                                                track.instanciation_barrier.wait().await;
+                                            }
+                                        }
+                                    }
+                                }
+                                Message::CloseInput(close_input) => {
+                                    let track =
+                                        self.tracks.read().await.get(&close_input.id).cloned();
+                                    if let Some(track) = track {
+                                        if let Some(input) = track
+                                            .read()
+                                            .await
+                                            .inputs_receivers
+                                            .get(&close_input.name)
+                                        {
+                                            input.close();
+                                        }
+                                    }
+                                }
+                                Message::OutputData(output_data) => {
+                                    let track =
+                                        self.tracks.read().await.get(&output_data.id).cloned();
+                                    if let Some(track) = track {
+                                        if let Some(output) = track
+                                            .read()
+                                            .await
+                                            .outputs_senders
+                                            .get(&output_data.name)
+                                        {
+                                            if output.send(output_data.data).await.is_err() {
+                                                let _ = protocol
+                                                    .send_message(Message::CloseOutput(
+                                                        CloseOutput {
+                                                            id: output_data.id,
+                                                            name: output_data.name.clone(),
+                                                        },
+                                                    ))
+                                                    .await;
+                                            }
+                                        }
+                                    }
+                                }
+                                Message::CloseOutput(close_output) => {
+                                    let track =
+                                        self.tracks.read().await.get(&close_output.id).cloned();
+                                    if let Some(track) = track {
+                                        if let Some(output) = track
+                                            .read()
+                                            .await
+                                            .outputs_senders
+                                            .get(&close_output.name)
+                                        {
+                                            output.close();
+                                        }
+                                    }
+                                }
+                                Message::Log(log) => {
+                                    if let Some(world) = world.as_ref() {
+                                        let _ = world.inject_log(log).await;
+                                    }
+                                }
+                                Message::Debug(debug) => {
+                                    if let Some(world) = world.as_ref() {
+                                        if let Some(run_id) =
+                                            self.distant_run_id.read().await.as_ref()
+                                        {
+                                            let _ = world.inject_debug(*run_id, debug).await;
+                                        }
+                                    }
+                                }
+                                Message::Ended => {
+                                    self.close_all().await;
+                                    ended.store(true, Ordering::SeqCst);
+                                }
+                                Message::LogEnded => {
+                                    log_ended.store(true, Ordering::SeqCst);
+                                }
+                                Message::DebugEnded => {
+                                    debug_ended.store(true, Ordering::SeqCst);
+                                }
+                                Message::Probe => {}
+                                _ => {}
+                            }
+                        }
+                    }
+                };
+
+                let mut messages_futures = FuturesUnordered::new();
+
+                // `OutputData`/`CloseOutput` messages for the same (id, name) port are read off
+                // the wire in order, but dispatched as independent, concurrently-polled futures
+                // below - `FuturesUnordered` makes no completion-order guarantee between them.
+                // Since the per-port channel `OutputData` writes into is now bounded (see
+                // `DATA_CHANNEL_CAPACITY`), its `send()` can genuinely suspend when the local
+                // consumer is behind; if a same-port `CloseOutput` (whose `.close()` has no
+                // await point of its own) gets polled first, it closes the channel out from
+                // under that still-pending send, silently dropping the data. This map chains
+                // same-key messages so each one explicitly awaits the previous one for that key
+                // before doing its own work, restoring wire order without serializing unrelated
+                // ports against each other.
+                let mut port_chains = HashMap::new();
+
+                // Unlike the server's equivalent unfold (which stops polling once it sees
+                // `Message::Ended`, since that's genuinely the last thing a server connection
+                // ever needs), this side keeps reading after `Ended` - it still needs to see
+                // `LogEnded` before the exit condition below is satisfied, matching the
+                // original sequential loop's `if ended && log_ended { break }`. Only a real
+                // read error stops further polling.
+                let unfold_protocol = unfold(true, |still_valid| {
+                    let protocol = AsyncArc::clone(&protocol);
+                    async move {
+                        if still_valid {
+                            match protocol.recv_message().await {
+                                Err(err) => Some((Err(err), false)),
+                                Ok(msg) => Some((Ok(msg), true)),
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                })
+                .fuse();
+
+                pin_mut!(unfold_protocol);
+
                 loop {
-                    let msg = protocol.recv_message().await;
-                    match msg {
-                        Ok(Message::InstanciateStatus(instanciate_status)) => {
-                            match instanciate_status {
-                                InstanciateStatus::Ok { id } => {
-                                    let track = self.tracks.read().await.get(&id).cloned();
-                                    if let Some(track) = track {
-                                        let track = track.read().await;
-                                        track.instancied.store(true, Ordering::Relaxed);
-                                        track.instanciation_barrier.wait().await;
+                    if messages_futures.len() < max_concurrent_messages() {
+                        select! {
+                            message = unfold_protocol.select_next_some() => {
+                                match message {
+                                    Err(_err) => {
+                                        self.close_all().await;
+                                        break;
                                     }
-                                }
-                                InstanciateStatus::Failure { id, message: _ } => {
-                                    let track = self.tracks.read().await.get(&id).cloned();
-                                    if let Some(track) = track {
-                                        let track = track.read().await;
-                                        track.instanciation_barrier.wait().await;
-                                    }
-                                }
-                            }
-                        }
-                        Ok(Message::CloseInput(close_input)) => {
-                            let track = self.tracks.read().await.get(&close_input.id).cloned();
-                            if let Some(track) = track {
-                                if let Some(input) =
-                                    track.read().await.inputs_receivers.get(&close_input.name)
-                                {
-                                    input.close();
-                                }
-                            }
-                        }
-                        Ok(Message::OutputData(output_data)) => {
-                            let track = self.tracks.read().await.get(&output_data.id).cloned();
-                            if let Some(track) = track {
-                                if let Some(output) =
-                                    track.read().await.outputs_senders.get(&output_data.name)
-                                {
-                                    if output.send(output_data.data).await.is_err() {
-                                        let _ = protocol
-                                            .send_message(Message::CloseOutput(CloseOutput {
-                                                id: output_data.id,
-                                                name: output_data.name.clone(),
-                                            }))
-                                            .await;
+                                    Ok(msg) => {
+                                        let key = match &msg {
+                                            Message::OutputData(od) => {
+                                                Some((od.id, od.name.clone()))
+                                            }
+                                            Message::CloseOutput(co) => {
+                                                Some((co.id, co.name.clone()))
+                                            }
+                                            _ => None,
+                                        };
+                                        let prev =
+                                            key.as_ref().and_then(|k| port_chains.get(k).cloned());
+                                        let fut = manage_message(msg);
+                                        let chained = async move {
+                                            if let Some(prev) = prev {
+                                                prev.await;
+                                            }
+                                            fut.await;
+                                        }
+                                        .boxed()
+                                        .shared();
+                                        if let Some(key) = key {
+                                            port_chains.insert(key, chained.clone());
+                                        }
+                                        messages_futures.push(chained);
                                     }
                                 }
                             }
+                            () = messages_futures.select_next_some() => {}
+                            complete => break,
                         }
-                        Ok(Message::CloseOutput(close_output)) => {
-                            let track = self.tracks.read().await.get(&close_output.id).cloned();
-                            if let Some(track) = track {
-                                if let Some(output) =
-                                    track.read().await.outputs_senders.get(&close_output.name)
-                                {
-                                    output.close();
-                                }
-                            }
-                        }
-                        Ok(Message::Log(log)) => {
-                            if let Some(world) = world.as_ref() {
-                                let _ = world.inject_log(log).await;
-                            }
-                        }
-                        Ok(Message::Debug(debug)) => {
-                            if let Some(world) = world.as_ref() {
-                                if let Some(run_id) = self.distant_run_id.read().await.as_ref() {
-                                    let _ = world.inject_debug(*run_id, debug).await;
-                                }
-                            }
-                        }
-                        Ok(Message::Ended) => {
-                            self.close_all().await;
-                            ended = true;
-                        }
-                        Ok(Message::LogEnded) => {
-                            log_ended = true;
-                        }
-                        Ok(Message::DebugEnded) => {
-                            debug_ended = true;
-                        }
-                        Ok(Message::Probe) => {}
-                        Ok(_) => {}
-                        Err(_) => {
-                            self.close_all().await;
+                    } else {
+                        // At the concurrency cap: stop pulling new messages off the socket
+                        // until a handler finishes, same reasoning as the server's identical
+                        // gate. `next()` only returns `None` on an empty stream, which cannot
+                        // happen here since the `if` above guarantees at least one in-flight
+                        // future.
+                        if messages_futures.next().await.is_none() {
                             break;
                         }
                     }
-                    if ended && log_ended {
+
+                    // `messages_futures.is_empty()` matters here, not just the two flags:
+                    // `LogEnded`'s handler is a single atomic store with no `.await` point, so
+                    // it can complete before an earlier-arrived `Log`/`OutputData`/etc. handler
+                    // that's still doing real async work. Breaking on the flags alone would
+                    // drop whatever is still in `messages_futures` at that instant - silent
+                    // data loss for messages that had already been read off the wire and
+                    // dispatched, just hadn't finished processing yet. Requiring the queue to
+                    // be drained first restores the sequential version's implicit guarantee
+                    // that nothing still in flight gets abandoned.
+                    if ended.load(Ordering::SeqCst)
+                        && log_ended.load(Ordering::SeqCst)
+                        && messages_futures.is_empty()
+                    {
                         break;
                     }
                 }
+
                 protocol.close().await;
             }
         }
@@ -1044,6 +1199,97 @@ async fn tls_stream(
             .connect(ServerName::IpAddress(ip.into()), stream)
             .await?,
     )))
+}
+
+#[cfg(all(test, feature = "real"))]
+mod graceful_shutdown_drain_tests {
+    use async_std::channel::bounded as async_bounded;
+    use async_std::sync::Arc as AsyncArc;
+    use core::future::Future;
+    use core::pin::Pin;
+    use core::sync::atomic::{AtomicBool, Ordering};
+    use core::time::Duration;
+    use futures::stream::FuturesUnordered;
+    use futures::StreamExt;
+
+    type BoxFut = Pin<Box<dyn Future<Output = ()>>>;
+
+    // Mirrors the exact drain-before-exit guard used in `continuous()`'s message loop:
+    // the loop must not consider itself done just because a terminal flag flipped, it
+    // also has to wait for every already-dispatched handler in `messages_futures` to
+    // actually finish.
+    async fn drain_until_done(messages_futures: &mut FuturesUnordered<BoxFut>, done: &AtomicBool) {
+        while !(done.load(Ordering::SeqCst) && messages_futures.is_empty()) {
+            messages_futures.next().await;
+        }
+    }
+
+    // Reproduces the race that caused the bug: `Message::LogEnded`'s handler is a
+    // trivial, immediately-ready atomic store, while a `Message::Log` handler dispatched
+    // just before it does genuine async work (here, waiting on a channel) and can still
+    // be pending when `log_ended` flips true. A drain guard that only checks the flag
+    // would exit and silently drop the still-pending handler; checking
+    // `messages_futures.is_empty()` as well must keep the loop alive until it finishes.
+    #[test]
+    fn drain_waits_for_slow_handler_still_pending_when_flag_flips() {
+        async_std::task::block_on(async {
+            let (unblock_tx, unblock_rx) = async_bounded::<()>(1);
+            let processed = AsyncArc::new(AtomicBool::new(false));
+            let log_ended = AsyncArc::new(AtomicBool::new(false));
+
+            let mut messages_futures: FuturesUnordered<BoxFut> = FuturesUnordered::new();
+
+            // Stands in for Message::Log's handler: doesn't complete until told to.
+            {
+                let processed = AsyncArc::clone(&processed);
+                messages_futures.push(Box::pin(async move {
+                    let _ = unblock_rx.recv().await;
+                    processed.store(true, Ordering::SeqCst);
+                }));
+            }
+
+            // Stands in for Message::LogEnded's handler: completes immediately.
+            {
+                let log_ended = AsyncArc::clone(&log_ended);
+                messages_futures.push(Box::pin(async move {
+                    log_ended.store(true, Ordering::SeqCst);
+                }));
+            }
+
+            // The drain must not be able to finish while the slow handler is still
+            // blocked, even though `log_ended` will already be true almost immediately.
+            let still_pending = async_std::future::timeout(
+                Duration::from_millis(200),
+                drain_until_done(&mut messages_futures, &log_ended),
+            )
+            .await
+            .is_err();
+            assert!(
+                still_pending,
+                "drain must keep waiting while a dispatched handler has not completed yet, \
+                 not exit as soon as the flag is set"
+            );
+            assert!(
+                !processed.load(Ordering::SeqCst),
+                "the slow handler must not have been abandoned"
+            );
+
+            // Once the slow handler is allowed to finish, the drain must complete and the
+            // handler must have actually run - nothing was silently dropped.
+            unblock_tx.send(()).await.unwrap();
+            async_std::future::timeout(
+                Duration::from_secs(1),
+                drain_until_done(&mut messages_futures, &log_ended),
+            )
+            .await
+            .expect("drain should complete promptly once the pending handler is unblocked");
+            assert!(
+                processed.load(Ordering::SeqCst),
+                "the slow handler must have run to completion before the drain considered \
+                 itself done"
+            );
+        });
+    }
 }
 
 mel_package!();
