@@ -1,0 +1,16 @@
+name    = "ci_failure_triage"
+version = "0.1.0"
+
+[dependencies]
+std        = "0.10.2"
+process    = "0.10.2"
+work       = "0.10.2"
+cicd       = "0.10.2"
+encoding   = "0.10.2"
+json       = "0.10.2"
+javascript = "0.10.2"
+ml         = "0.10.2"
+fs         = "0.10.2"
+
+[entrypoints]
+main = "ci_failure_triage/main::main"

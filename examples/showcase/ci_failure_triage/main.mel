@@ -1,0 +1,317 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/engine/log::logErrorMessage
+use std/engine/log::logErrors
+use std/flow::emit
+use std/flow::stream
+use std/flow::trigger
+use std/flow::filterBlock
+use std/flow::merge
+use std/ops/block::equalTo
+use std/data/string_map::StringMap
+use std/data/string_map/block::entry as blockEntry
+use std/data/string_map/block::insert as blockInsert
+use std/ops/option::unwrapOr
+use std/ops/option::|wrap
+use std/conv::toString
+use std/conv::tryToString
+use std/text/compose::format
+use process/command::Command
+use process/command::|raw_commands
+use cicd/runners::CicdDispatchEngine
+use cicd/naive::simpleStep
+use encoding::decode
+use json::Json
+use json/value::fromString
+use json/value::|null
+use javascript::JavaScriptEngine
+use javascript::process
+use ml/remote/llm::RemoteLlm
+use ml/remote/llm::chat as llmChat
+use fs/local::writeTextLocal
+
+//
+// CI Failure Triage: showcase
+//
+// Not a tutorial step: two CI steps run on provisioned containers, each
+// step's raw output is deterministically classified by a small JavaScript
+// function, and only the step the classifier actually flagged as failed is
+// handed to a remote LLM for a plain-language diagnosis and a suggested
+// fix. The step the classifier considers fine costs nothing beyond the
+// classification itself: no LLM request is made for it at all.
+//
+// The two steps are deliberately deterministic (one always passes, one
+// always fails with a realistic, single-character-typo bug) so this example
+// runs the same way every time, without depending on an external
+// repository's current state. Both are plain `python3 -c "..."` one-liners
+// on the stock `python:3.13-slim` image: nothing to clone, nothing to
+// install.
+//
+// This example requires a Mélodium Services API token and an LLM provider
+// API key. Set MELODIUM_API_TOKEN in the environment and run with
+// --api-report; see Cadence.CI to obtain a token and follow execution.
+// It is type-checked with `melodium check`; running it against live
+// infrastructure was not part of this tutorial (no token was available in
+// the environment that wrote it), but every assumption it makes about the
+// two steps' output was verified locally beforehand with a plain `python3`
+// interpreter, and the JS classifier and report assembly were verified end
+// to end with `melodium run` against captured, real log text.
+//
+// Usage:
+//   export MELODIUM_API_TOKEN="my-melodium-services-token"
+//   melodium run --api-report Compo.toml --api_key sk-...
+//
+
+// The deterministic classifier: reads a step's raw stdout/stderr and, with
+// no LLM call involved, decides whether it represents a real failure and
+// what kind. `statusOf` projects just the `status` field back out (see
+// showcase/smart_llm_router for why a second small call is the way to read
+// one field out of a result already computed in JS).
+model Classifier() : JavaScriptEngine {
+    code = ${{function classify(log) {
+        var signatures = [
+            { re: /KeyError:\s*'([^']*)'/,             category: "key_error",    summary: "A dictionary key does not exist" },
+            { re: /TypeError:\s*(.+)/,                 category: "type_error",   summary: "A type error occurred" },
+            { re: /ModuleNotFoundError|ImportError/,   category: "dependency",   summary: "A required module or dependency is missing" },
+            { re: /SyntaxError:\s*(.+)/,               category: "syntax_error", summary: "A syntax error was found" },
+            { re: /AssertionError/,                    category: "assertion",    summary: "An assertion failed" },
+            { re: /Traceback \(most recent call last\)/, category: "runtime_error", summary: "An unhandled exception occurred" }
+        ];
+        for (var i = 0; i < signatures.length; i++) {
+            var match = log.match(signatures[i].re);
+            if (match) {
+                var detail = match[1] ? (": " + match[1]) : "";
+                return {
+                    status: "failed",
+                    category: signatures[i].category,
+                    summary: signatures[i].summary + detail
+                };
+            }
+        }
+        return {
+            status: "passed",
+            category: "none",
+            summary: "no known failure signature found in the step output"
+        };
+    }
+
+    function statusOf(decision) {
+        return decision.status;
+    }
+    }}
+}
+
+// A single LLM used to explain and suggest a fix for a step the classifier
+// already flagged as failed; there is only one tier here (unlike
+// showcase/smart_llm_router), since this example's cost-saving lever is not
+// "which model" but "whether to call a model at all".
+model Analyst(const api_key: string, const model: string) : RemoteLlm {
+    backend     = "anthropic"
+    api_key     = |wrap<string>(api_key)
+    base_url    = ""
+    model       = model
+    system      = "You are a CI failure triage assistant. You are given the name of a failed CI step, a deterministic classification of the failure, and the step's raw output. In two short paragraphs: explain the likely root cause in plain language, then suggest a concrete, minimal fix. Do not repeat the raw log back verbatim."
+    max_tokens  = |wrap<u64>(500)
+    temperature = _
+    top_p       = _
+    timeout     = _
+}
+
+treatment main(
+    const api_key: string,
+    const model:   string = "claude-sonnet-4-6",
+    const output:  string = "ci_failure_report.md"
+)
+  model dispatcher: CicdDispatchEngine()
+  model classifier: Classifier()
+  model analyst:    Analyst(api_key=api_key, model=model)
+{
+    startup()
+    logStart: logInfoMessage(label="ci-triage", message="running CI steps")
+    startup.trigger -> logStart.trigger
+
+    // A step that always passes: three trivial, always-true assertions.
+    unitTests: ciStepAnalysis[dispatcher=dispatcher, classifier=classifier, analyst=analyst](
+        step_name = "unit_tests",
+        image     = "python:3.13-slim",
+        commands  = |raw_commands([
+            "python3 -c \"assert 1 + 1 == 2; assert 'melodium'.upper() == 'MELODIUM'; assert len([1, 2, 3]) == 3; print('all checks passed')\" > /mnt/data/log.txt 2>&1; true"
+        ])
+    )
+
+    // A step that always fails: a one-character typo in a dictionary key
+    // ('tiemout' instead of 'timeout'), raising a real, realistic KeyError.
+    integrationCheck: ciStepAnalysis[dispatcher=dispatcher, classifier=classifier, analyst=analyst](
+        step_name = "integration_check",
+        image     = "python:3.13-slim",
+        commands  = |raw_commands([
+            "python3 -c \"config = {'timeout': 30, 'retries': 3}; print('effective retries:', config['retries']); print('effective timeout:', config['tiemout'])\" > /mnt/data/log.txt 2>&1; true"
+        ])
+    )
+
+    startup.trigger -> unitTests.trigger
+    startup.trigger -> integrationCheck.trigger
+
+    // --- Assemble the final report from both steps' sections. ---
+    title: emit<string>(value="# CI Failure Triage Report\n\n")
+    startup.trigger -> title.trigger
+
+    withTitle: blockEntry(key="title")
+    withUnit:  blockInsert(key="unit_tests")
+    withInteg: blockInsert(key="integration_check")
+    title.emit             -> withTitle.value
+    withTitle.map          -> withUnit.base
+    unitTests.report       -> withUnit.value
+    withUnit.map           -> withInteg.base
+    integrationCheck.report -> withInteg.value
+
+    reportEntries: stream<StringMap>()
+    reportText:    format(format="{title}{unit_tests}{integration_check}")
+    write:         writeTextLocal(path=output)
+    logDone:       logInfoMessage(label="ci-triage", message="report written")
+
+    withInteg.map -> reportEntries.block,stream -> reportText.entries,formatted -> write.text
+    write.finished -> logDone.trigger
+}
+
+// Runs one CI step, captures its full output regardless of whether the step
+// succeeded, classifies that output deterministically, and (only if the
+// classifier flagged it as failed) asks the LLM to diagnose and suggest a
+// fix. Returns one ready-to-embed Markdown section.
+treatment ciStepAnalysis[dispatcher: CicdDispatchEngine, classifier: JavaScriptEngine, analyst: RemoteLlm](
+    const step_name: string,
+    const image:     string,
+    const commands:  Vec<Command>
+)
+  input  trigger: Block<void>
+  output report:  Block<string>
+{
+    // `simpleStep`'s `data` output only ever carries `out_file`'s bytes when
+    // every command in the step exits 0 (see cicd/naive documentation): a
+    // step whose real command fails would leave `data` empty, with nothing
+    // to classify or analyse. Each step above works around that by
+    // redirecting its real command's output to a file and ending with
+    // `; true`, so the container always exits 0 and `log.txt` is always
+    // streamed back; whether the step actually succeeded is then something
+    // this treatment decides for itself from the captured text, not
+    // something it trusts the container's own exit code for.
+    step: simpleStep[dispatcher=dispatcher](
+        name         = step_name,
+        image        = image,
+        cpu          = 500,
+        memory       = 256,
+        storage      = 512,
+        max_duration = 120,
+        commands     = commands,
+        out_file     = "log.txt"
+    )
+    Self.trigger -> step.trigger
+
+    stepFailed: logErrorMessage(label="ci-triage", message="step executor failed to run at all")
+    step.failed -> stepFailed.trigger
+
+    decoded: decode()
+    step.data -> decoded.data
+
+    logLast: trigger<string>()
+    decoded.text -> logLast.stream
+
+    // --- Classify the captured output. ---
+    asStream1: stream<string>()
+    logLast.last -> asStream1.block
+    asJson: fromString<string>()
+    asStream1.stream -> asJson.value
+
+    classifyCall: process[engine=classifier](code="classify(value)")
+    asJson.json -> classifyCall.value
+    decisionOpt: unwrapOr<Json>(default=|null())
+    classifyCall.result -> decisionOpt.option
+
+    decisionText: toString<Json>()
+    logClassification: logInfos(label=step_name)
+    decisionOpt.value -> decisionText.value,into -> logClassification.messages
+
+    decisionTextLast: trigger<string>()
+    decisionText.into -> decisionTextLast.stream
+
+    decisionLast: trigger<Json>()
+    decisionOpt.value -> decisionLast.stream
+
+    // --- Extract just the status, to decide whether to call the LLM. ---
+    asStream2: stream<Json>()
+    decisionLast.last -> asStream2.block
+    statusCall: process[engine=classifier](code="statusOf(value)")
+    asStream2.stream -> statusCall.value
+    statusJsonOpt: unwrapOr<Json>(default=|null())
+    statusCall.result -> statusJsonOpt.option
+    statusStrOpt: tryToString<Json>()
+    statusJsonOpt.value -> statusStrOpt.value
+    statusStr: unwrapOr<string>(default="passed")
+    statusStrOpt.into -> statusStr.option
+
+    statusLast: trigger<string>()
+    statusStr.value -> statusLast.stream
+
+    // --- Failed: hand the raw log to the LLM. ---
+    isFailed: equalTo<string>(value="failed")
+    statusLast.last -> isFailed.data
+    gateFailedLog: filterBlock<string>()
+    logLast.last -> gateFailedLog.value
+    isFailed.result -> gateFailedLog.select
+
+    diagnosisPrompt: stream<string>()
+    gateFailedLog.accepted -> diagnosisPrompt.block
+    diagnosis: llmChat[llm=analyst]()
+    diagnosisPrompt.stream -> diagnosis.prompt
+    diagnosisErrors: logErrors(label="ci-triage-analyst")
+    diagnosis.error -> diagnosisErrors.messages
+
+    diagnosisLast: trigger<string>()
+    diagnosis.response -> diagnosisLast.stream
+    diagAsStream: stream<string>()
+    diagnosisLast.last -> diagAsStream.block
+
+    // --- Passed: a fixed, free message, no LLM call at all. ---
+    isPassed: equalTo<string>(value="passed")
+    statusLast.last -> isPassed.data
+    passedMessage: emit<string>(value="No issues detected by the deterministic classifier; no AI analysis was requested for this step.")
+    Self.trigger -> passedMessage.trigger
+    gatePassed: filterBlock<string>()
+    passedMessage.emit -> gatePassed.value
+    isPassed.result -> gatePassed.select
+
+    passedAsStream: stream<string>()
+    gatePassed.accepted -> passedAsStream.block
+
+    // Exactly one of the two branches above ever produces anything.
+    analysisStream: merge<string>()
+    diagAsStream.stream    -> analysisStream.a
+    passedAsStream.stream  -> analysisStream.b
+
+    analysisLast: trigger<string>()
+    analysisStream.value -> analysisLast.stream
+
+    // --- Assemble this step's report section. ---
+    nameBlock: emit<string>(value=step_name)
+    Self.trigger -> nameBlock.trigger
+
+    withStep:   blockEntry(key="step")
+    withStatus: blockInsert(key="status")
+    withClass:  blockInsert(key="classification")
+    withAnalysis: blockInsert(key="analysis")
+    nameBlock.emit      -> withStep.value
+    withStep.map        -> withStatus.base
+    statusLast.last      -> withStatus.value
+    withStatus.map       -> withClass.base
+    decisionTextLast.last -> withClass.value
+    withClass.map         -> withAnalysis.base
+    analysisLast.last     -> withAnalysis.value
+
+    sectionEntries: stream<StringMap>()
+    sectionText:    format(format="## {step}\n\nStatus: **{status}**\nClassification: `{classification}`\n\n{analysis}\n\n")
+    sectionLast:    trigger<string>()
+
+    withAnalysis.map -> sectionEntries.block,stream -> sectionText.entries,formatted -> sectionLast.stream
+    sectionLast.last -> Self.report
+}

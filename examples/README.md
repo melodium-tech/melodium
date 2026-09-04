@@ -34,6 +34,7 @@ Installing Mélodium is enough for most of the tutorial. The table below lists e
 | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) | an LLM provider API key; the `voice` entrypoint also needs an ElevenLabs key, a working microphone, and downloads a Whisper model from HuggingFace on first run |
 | [showcase/ci_pipeline](showcase/ci_pipeline/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) or a local `podman`/`docker compose` setup; `repo_url` defaults to a real public repo, so nothing else is required |
 | [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) and an LLM provider API key |
+| [showcase/ci_failure_triage](showcase/ci_failure_triage/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) and an LLM provider API key; both CI steps are self-contained (`python:3.13-slim`), so nothing else is required |
 
 Examples that write output (`hello.txt`, `report.txt`, `summary.json`, `post.txt`, `grades.txt`, `sorted.txt`, ...) create those files in the directory you run them from.
 
@@ -56,14 +57,14 @@ The table below is a map of what Mélodium (and its standard library packages) c
 | HTTP client | `http/client` | [tutorial/05](tutorial/05_http_client/) |
 | HTTP server, routing, `@HttpRequest` context | `http/server` | [tutorial/06](tutorial/06_http_server_api/) |
 | SQL: connection pools, `fetch`, `execute` | `sql` | [tutorial/07](tutorial/07_sql_crud_api/) |
-| Embedded JavaScript execution | `javascript` | [tutorial/08](tutorial/08_javascript_transform/), [showcase/smart_llm_router](showcase/smart_llm_router/) |
+| Embedded JavaScript execution | `javascript` | [tutorial/08](tutorial/08_javascript_transform/), [showcase/smart_llm_router](showcase/smart_llm_router/), [showcase/ci_failure_triage](showcase/ci_failure_triage/) |
 | External process execution | `process` | [tutorial/09](tutorial/09_process_pipeline/) |
 | Distributed dataflow: running a treatment on another engine | `distrib` | [tutorial/10](tutorial/10_distributed_computation/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) |
-| On-demand cloud workers | `work` | [tutorial/10](tutorial/10_distributed_computation/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/), [showcase/ci_pipeline](showcase/ci_pipeline/) |
-| Remote LLM chat (streaming & non-streaming) | `ml/remote/llm` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/), [showcase/smart_llm_router](showcase/smart_llm_router/) |
+| On-demand cloud workers | `work` | [tutorial/10](tutorial/10_distributed_computation/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/), [showcase/ci_pipeline](showcase/ci_pipeline/), [showcase/ci_failure_triage](showcase/ci_failure_triage/) |
+| Remote LLM chat (streaming & non-streaming) | `ml/remote/llm` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/), [showcase/smart_llm_router](showcase/smart_llm_router/), [showcase/ci_failure_triage](showcase/ci_failure_triage/) |
 | Local speech-to-text (Whisper) & remote text-to-speech | `ml/models/whisper`, `ml/remote/tts`, `record/audio` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) |
 | HuggingFace Hub model download | `ml/repos/hf` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) |
-| CI/CD pipelines, containerised steps, service containers | `cicd` | [showcase/ci_pipeline](showcase/ci_pipeline/) |
+| CI/CD pipelines, containerised steps, service containers | `cicd` | [showcase/ci_pipeline](showcase/ci_pipeline/), [showcase/ci_failure_triage](showcase/ci_failure_triage/) |
 
 Packages with no dedicated example: `audio` (decode/encode/resample audio formats, used indirectly wherever `record/audio` is), `net` (IP address handling, used throughout as plumbing for `http`/`distrib`), `encoding` (byte↔string conversion, used throughout).
 
