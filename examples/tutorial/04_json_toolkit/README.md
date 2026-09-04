@@ -42,6 +42,6 @@ readTextLocal ──▶ lines ──▶ validate ──▶ filter ──┬─�
 - **`validate` before `toJson`**: checking validity first avoids ever having to handle a parse failure downstream; the `Option` returned by `toJson` still has to be unwrapped, but it is guaranteed to always be `some`.
 - **Classifying with a boolean predicate + `filter`**: the same shape as example 03's regex matching, just with `json/value::isObject` instead of `regex::matches`. Most "does this satisfy X" library treatments are designed to plug directly into `filter.select`.
 - **`fromStringMap`**: the direct way to build a JSON *object* out of Mélodium data; every value becomes a JSON string, which is enough for a summary report (for richer JSON, numbers or nested objects, build it with the `json/value::from*` functions/treatments individually).
-- **`finalCount<T>`**: the same 0-index-corrected counter from example 03, reused here at two different types (`Json` and `string`) in the same file, without changing a single line of its body.
+- **`finalCount<T>`**: the same counter from example 03, reused here at two different types (`Json` and `string`) in the same file, without changing a single line of its body.
 
 Next: [05_http_client](../05_http_client/) introduces calling a remote HTTP API.

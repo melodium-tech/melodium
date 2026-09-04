@@ -5,7 +5,6 @@ use std/flow::stream
 use std/flow::filter
 use std/flow::count
 use std/flow::trigger
-use std/flow::fill
 use std/flow/vec::flatten
 use std/text/compose::split
 use std/text/compose::trim
@@ -16,8 +15,6 @@ use std/ops/option::unwrapOr
 use std/ops/bin::not
 use std/text/compare::exact
 use std/conv::toString
-use std/conv::toVoid
-use std/ops/num::add
 use json::Json
 use json::toJson
 use json::validate
@@ -93,7 +90,7 @@ treatment main(
     scalarAsText: toString<Json>()
     partition.rejected -> scalarAsText.value,into -> logScalars.messages
 
-    // Totals, using the same 0-index-corrected counter for every kind.
+    // Totals, using the same small counter for every kind.
     objTotal:     finalCount<Json>()
     scalarTotal:  finalCount<Json>()
     invalidTotal: finalCount<string>()
@@ -121,26 +118,16 @@ treatment main(
     write.finished  -> logDone.trigger
 }
 
-// Counts the elements of a stream and returns the total as a single string.
-// `std/flow::count` starts at 0, so this adds 1 back: see 03_text_and_files
-// for the discussion of why.
+// Counts the elements of a stream and returns the total as a single string,
+// once the stream ends: see 03_text_and_files for the same treatment.
 treatment finalCount<T>()
   input  items: Stream<T>
   output total: Block<string>
 {
     index:   count<T>()
-    asVoid:  toVoid<u128>()
-    one:     fill<u128>(value=1)
-    plusOne: add<u128>()
     asStr:   toString<u128>()
     lastStr: trigger<string>()
 
-    Self.items -> index.stream,count -> asVoid.value
-    asVoid.iter -> one.pattern
-
-    index.count -> plusOne.a
-    one.filled  -> plusOne.b
-
-    plusOne.sum -> asStr.value,into -> lastStr.stream
+    Self.items -> index.stream,count -> asStr.value,into -> lastStr.stream
     lastStr.last -> Self.total
 }

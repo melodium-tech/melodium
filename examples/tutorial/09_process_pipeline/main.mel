@@ -4,9 +4,6 @@ use std/engine/log::logErrorMessage
 use std/engine/log::logError
 use std/engine/log::logErrors
 use std/engine/log::logDataInfo
-use std/flow::filter
-use std/ops/bin::not
-use std/text/compare::exact
 use std/ops/option/block::unwrapOr
 use encoding::decode
 use process/command::|command
@@ -53,35 +50,16 @@ treatment main(
     proc.exit      -> exitCode.option,value -> logExitCode.data
     proc.completed -> logExit.trigger
 
-    // Same trailing-empty-chunk caveat as any decoded stream (example 05):
-    // an empty stderr should not be logged as an (empty) error line.
-    stderrText:    decode()
-    stderrBlank:   exact(pattern="")
-    stderrNotBlank: not<bool>()
-    stderrNonBlank: filter<string>()
-    proc.stderr        -> stderrText.data
-    stderrText.text    -> stderrBlank.text
-    stderrBlank.matches -> stderrNotBlank.value
-    stderrText.text    -> stderrNonBlank.value
-    stderrNotBlank.not -> stderrNonBlank.select
+    stderrText: decode()
+    stderrLog:  logErrors(label="sort-stderr")
+    proc.stderr     -> stderrText.data
+    stderrText.text -> stderrLog.messages
 
-    stderrLog: logErrors(label="sort-stderr")
-    stderrNonBlank.accepted -> stderrLog.messages
-
-    // The subprocess's stdout, like any decoded byte stream, can end with a
-    // trailing empty chunk: drop it before writing, same as example 05.
     stdoutText: decode()
-    isBlank:  exact(pattern="")
-    notBlank: not<bool>()
-    nonBlank: filter<string>()
-    proc.stdout     -> stdoutText.data
-    stdoutText.text -> isBlank.text
-    isBlank.matches -> notBlank.value
-    stdoutText.text -> nonBlank.value
-    notBlank.not    -> nonBlank.select
+    proc.stdout -> stdoutText.data
 
     write:   writeTextLocal(path=output)
     logDone: logInfoMessage(label="process", message="sorted output written")
-    nonBlank.accepted -> write.text
-    write.finished    -> logDone.trigger
+    stdoutText.text -> write.text
+    write.finished  -> logDone.trigger
 }

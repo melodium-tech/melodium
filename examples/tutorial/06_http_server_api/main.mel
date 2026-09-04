@@ -2,10 +2,7 @@ use std/engine/util::startup
 use std/engine/log::logInfoMessage
 use std/flow::emit
 use std/flow::stream
-use std/flow::filter
 use std/flow::fill
-use std/ops/bin::not
-use std/text/compare::exact
 use std/data/string_map::StringMap
 use std/data/string_map::|map
 use std/data/string_map::|entry
@@ -138,20 +135,10 @@ treatment respondGreeting()
     decoded: decode()
     Self.data -> decoded.data
 
-    // Drop a possible trailing empty chunk before parsing: see
-    // 05_http_client for why this matters.
-    isBlank:  exact(pattern="")
-    notBlank: not<bool>()
-    nonBlank: filter<string>()
-    decoded.text    -> isBlank.text
-    isBlank.matches -> notBlank.value
-    decoded.text    -> nonBlank.value
-    notBlank.not    -> nonBlank.select
-
     parsed:   toJson()
     body:     unwrapOr<Json>(default=|null())
     bodyText: toString<Json>()
-    nonBlank.accepted -> parsed.text,json -> body.option,value -> bodyText.value,into -> withReceived.value
+    decoded.text -> parsed.text,json -> body.option,value -> bodyText.value,into -> withReceived.value
 
     withReceived: entry(key="received")
 

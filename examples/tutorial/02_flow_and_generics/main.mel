@@ -36,7 +36,7 @@ treatment main(
     startup()
 
     // 1..upper, built the same way as in 01_hello_melodium: `generate`
-    // produces `upper` placeholder values, `count` numbers them.
+    // produces `upper` placeholder values, `count` numbers them starting at 1.
     howMany:   emit<u128>(value=upper)
     seed:      generate<u128>(data=0)
     numbering: count<u128>()

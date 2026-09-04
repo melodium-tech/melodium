@@ -32,13 +32,12 @@ readTextLocal ──▶ split + flatten ──▶ trim ──▶ drop blank line
 1. `readTextLocal` streams the file's raw content in chunks; `split(delimiter="\n")` + `flatten` turns that into a stream of lines: the same "split then flatten" idiom used to decode any delimited stream, not just files.
 2. Splitting on `"\n"` leaves one trailing empty piece after the file's last newline, so a small `exact(pattern="") + not + filter` chain drops blank lines before anything else runs.
 3. Each line is tested against `pattern` with `regex::matches`; the resulting boolean stream drives `filter`, whose `accepted` branch is both logged and counted.
-4. Totals are computed by a small local treatment, `finalCount<T>`, reused for both the line count and the match count.
+4. Totals are computed by a small local treatment, `finalCount<T>`, reused for both the line count and the match count: `count` numbers every element as it streams by, and `trigger.last` collapses that running count to its final value once the stream ends.
 
 ### Key Mélodium patterns used
 
 - **`split` + `flatten`**: turn any delimited stream (file content, HTTP body, …) into a stream of individual pieces.
 - **Filtering out unwanted elements**: `compare/exact` + `std/ops/bin::not` + `filter` is the general pattern for "keep everything except X"; the same shape as "keep only lines matching a pattern" a few lines below, just inverted.
-- **A real library gotcha, verified rather than assumed:** `std/flow::count`'s own documentation says it "starts at 1", but running it shows it actually starts at 0. `finalCount<T>` corrects for this explicitly (`toVoid` + `fill(value=1)` + `add`, the same trick as `aboveThreshold`/`shift` in example 02) rather than silently reporting a number one too low. When a treatment's documented behaviour matters for correctness, `melodium check` only validates types: confirm the actual values with `melodium run`.
 - **Aggregating a stream to one value**: `count` + `trigger.last` is the standard way to turn "how many things flowed through" into a single number available once the stream is finished.
 
 Next: [04_json_toolkit](../04_json_toolkit/) introduces structured JSON data and maps.

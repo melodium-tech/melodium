@@ -7,6 +7,12 @@ use melodium_macro::{mel_data, mel_function, mel_treatment};
 /// (`DataTrait::display`), rather than `Value`'s own `core::fmt::Display`,
 /// which renders `Data` values as a `/* TypeName */` placeholder meant for
 /// regenerating Mélodium source, not for user-facing logging.
+///
+/// `DataTrait::display`'s own fallback for non-`Data` variants used to
+/// silently resolve to the derived `Debug::fmt` instead of `Display::fmt`
+/// (only `Debug` was imported where it is implemented), printing e.g.
+/// `I64(42)` instead of `42` for every plain value, not just `Data` ones.
+/// Fixed at the source in `melodium-common`'s `impl DataTrait for Value`.
 struct RuntimeDisplay<'a>(&'a Value);
 
 impl std::fmt::Display for RuntimeDisplay<'_> {

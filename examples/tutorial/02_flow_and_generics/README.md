@@ -31,7 +31,7 @@ No models here either: everything is stateless treatments, functions, and two cu
 
 ## Runtime behaviour
 
-1. The numbered sequence is built exactly as in example 01: `generate` produces `upper` placeholder values, `count` numbers them starting at 1.
+1. `generate` produces `upper` placeholder values, and `count` numbers them starting at 1, exactly as example 01 documents. Verified with `melodium run --upper 10 --threshold 5`: `at-or-below-threshold` logs `1, 2, 3, 4, 5` and `above-threshold` logs `6, 7, 8, 9, 10`, the symmetric split `1..10` around `5` implies.
 2. `aboveThreshold<i64>` is instantiated once (`split`) but is written generically: it never mentions `i64` in its body. Inside, it builds a same-length stream of the `threshold` value with `toVoid` + `fill` (so it can compare element-by-element with `greaterThan`), then uses that boolean stream to `filter` the input into `above`/`below`.
 3. `shift<i64>` is instantiated twice (`bumpAbove`, `bumpBelow`) with two different `offset` values: same treatment, same trick with `fill`, this time feeding `std/ops/num::add`.
 4. `merge` interleaves the two shifted streams unpredictably; run the program twice and the log order may differ, which is expected: Mélodium streams have no implicit ordering guarantee across branches.

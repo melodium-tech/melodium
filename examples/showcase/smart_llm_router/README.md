@@ -2,7 +2,7 @@
 
 Not a tutorial step: a JavaScript decision function reads each incoming prompt, estimates how complex it actually is, and routes it to one of three pre-configured `RemoteLlm` tiers, instead of always paying for the biggest model and the largest response budget regardless of what was actually asked.
 
-> **Requirements:** a real LLM provider API key. The decision logic itself (the JavaScript part, with no LLM call involved) was run and verified with `melodium run`; the full request, through a live provider, was not, for this tutorial.
+> **Requirements:** a real LLM provider API key. The server, routing, and the actual outbound request to the provider were all run and verified end to end with `melodium run` and real `curl` requests (see *How it was checked* below); only the provider's own reply was not observed, since a real key was not available for this tutorial.
 
 ## What it does
 
@@ -14,13 +14,15 @@ curl -X POST http://127.0.0.1:8080/chat -d "Can you summarize the main differenc
 curl -X POST http://127.0.0.1:8080/chat -d "Explain, step by step, how a hash map resizes, and compare it to a B-tree's rebalancing cost."
 ```
 
-Verified with `melodium run` against the decision function alone (see *How it was checked* below): the first request (short, factual) is routed to the `economy` tier; the second (moderate length, one complexity signal) to `standard`; the third (three distinct complexity signals: "explain", "step by step", "compare") to `premium`. The server log prints the router's decision and its reasoning for every request:
+Verified with `melodium run` against the real server, HTTP requests included (see *How it was checked* below): the first request (short, factual) is routed to the `economy` tier; the second (moderate length, one complexity signal) to `standard`; the third (three distinct complexity signals: "explain", "step by step", "compare") to `premium`. The server log prints the router's decision and its reasoning for every request:
 
 ```json
-{"complexity_score":-1,"estimated_input_tokens":4,"reason":"short, simple request","tier":"economy","word_count":4}
-{"complexity_score":1,"estimated_input_tokens":18,"reason":"moderate length or complexity","tier":"standard","word_count":11}
-{"complexity_score":3,"estimated_input_tokens":24,"reason":"long or explicitly complex request","tier":"premium","word_count":17}
+{"complexity_score":-1.0,"estimated_input_tokens":4.0,"reason":"short, simple request","tier":"economy","word_count":4}
+{"complexity_score":1.0,"estimated_input_tokens":18.0,"reason":"moderate length or complexity","tier":"standard","word_count":11}
+{"complexity_score":3.0,"estimated_input_tokens":24.0,"reason":"long or explicitly complex request","tier":"premium","word_count":17}
 ```
+
+`complexity_score` and `estimated_input_tokens` (built with arithmetic: `+=`, `Math.min`, `Math.ceil`) print with a trailing `.0`, even for whole numbers; `word_count` (read straight off `Array.length`) does not. JavaScript has no separate integer type, so this comes from how the embedded JS engine happens to represent each value internally, not from any rounding choice on Mélodium's side. Do not assume every numeric field here parses cleanly as an integer downstream without checking.
 
 ## How it is built
 
@@ -51,7 +53,7 @@ POST /chat body ──▶ collapse to one block ──▶ decide() (JS) ──�
 
 ### How it was checked
 
-The JS decision logic (the actual "smart" part of this example) was extracted into a standalone local test with no HTTP server and no `RemoteLlm` involved, three hardcoded prompts, and `melodium run`. This caught two real bugs before they shipped: the first version's keyword regex used `\b(summar|analyz|...)\b`, which never matches "summarize" or "analyzing" (no word boundary between the stem and its suffix, fixed with `\w*`); and the first scoring version only checked *whether any* complexity keyword matched rather than *how many distinct ones*, which routed a request naming three separate complexity signals to `standard` instead of `premium`. Both were found by running the actual heuristic against real sentences, not by reading the code.
+Run with `melodium run Compo.toml --api_key sk-fake-test-key` and all three `curl` requests from *What it does* above, against the real HTTP server on a real port, with a deliberately invalid key. All three requests routed to the tier the prose above claims, the router's full decision was logged for each, and each tier's `RemoteLlm` genuinely attempted its outbound request and got a real `401 Unauthorized` back from the provider, exactly what a request that got everything right up to the point of needing a real credential should do. That confirms the routing, the HTTP wiring, and the request assembly all work; only the provider's own successful reply was never observed, since that needs a real key.
 
 ### Key Mélodium patterns used
 

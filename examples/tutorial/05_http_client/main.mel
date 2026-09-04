@@ -5,9 +5,6 @@ use std/engine/log::logErrorMessage
 use std/text/compose::|format
 use std/data/string_map::|entry
 use std/data/string_map::|map
-use std/flow::filter
-use std/ops/bin::not
-use std/text/compare::exact
 use std/conv::toString
 use std/ops/option::unwrapOr
 use encoding::decode
@@ -54,23 +51,12 @@ treatment main(
     decode: decode()
     fetch.data -> decode.data
 
-    // `decode` can emit a trailing empty chunk when the body stream closes;
-    // parsing it as JSON would produce a spurious extra `null`. Drop blanks
-    // first: the same idiom used for file lines in 03/04.
-    isBlank:  exact(pattern="")
-    notBlank: not<bool>()
-    nonBlank: filter<string>()
-    decode.text     -> isBlank.text
-    isBlank.matches -> notBlank.value
-    decode.text     -> nonBlank.value
-    notBlank.not    -> nonBlank.select
-
     parsed:  toJson()
     body:    unwrapOr<Json>(default=|null())
     asText:  toString<Json>()
     write:   writeTextLocal(path=output)
     logDone: logInfoMessage(label="http", message="response written to file")
 
-    nonBlank.accepted -> parsed.text,json -> body.option,value -> asText.value,into -> write.text
+    decode.text -> parsed.text,json -> body.option,value -> asText.value,into -> write.text
     write.finished -> logDone.trigger
 }

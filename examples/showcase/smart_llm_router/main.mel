@@ -6,11 +6,8 @@ use std/flow::emit
 use std/flow::stream
 use std/flow::trigger
 use std/flow::filterBlock
-use std/flow::filter
 use std/flow::merge
-use std/ops/bin::not
 use std/ops/block::equalTo
-use std/text/compare::exact
 use std/data/string_map::StringMap
 use std/data/string_map::|map
 use std/ops/option::unwrapOr
@@ -204,20 +201,10 @@ treatment respond[router: JavaScriptEngine, economyLlm: RemoteLlm, standardLlm: 
     decoded: decode()
     Self.data -> decoded.data
 
-    // Drop a possible trailing empty chunk before using the body, see
-    // 05_http_client.
-    isBlank:  exact(pattern="")
-    notBlank: not<bool>()
-    nonBlank: filter<string>()
-    decoded.text    -> isBlank.text
-    isBlank.matches -> notBlank.value
-    decoded.text    -> nonBlank.value
-    notBlank.not    -> nonBlank.select
-
     // Collapse the (one-item) request text to a single block, the same
     // idiom as the totals in 03_text_and_files.
     promptLast: trigger<string>()
-    nonBlank.accepted -> promptLast.stream
+    decoded.text -> promptLast.stream
 
     // --- Ask the router to analyse the request. ---
     asStream1: stream<string>()

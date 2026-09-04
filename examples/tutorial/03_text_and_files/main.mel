@@ -6,7 +6,6 @@ use std/flow::stream
 use std/flow::filter
 use std/flow::count
 use std/flow::trigger
-use std/flow::fill
 use std/flow/vec::flatten
 use std/text/compose::split
 use std/text/compose::trim
@@ -15,8 +14,6 @@ use std/data/string_map::StringMap
 use std/data/string_map/block::entry as blockEntry
 use std/data/string_map/block::insert as blockInsert
 use std/conv::toString
-use std/conv::toVoid
-use std/ops/num::add
 use std/ops/bin::not
 use std/text/compare::exact
 use regex::matches
@@ -104,27 +101,16 @@ treatment main(
 }
 
 // Counts the elements of a stream and returns the total as a single string,
-// once the stream ends. `std/flow::count` numbers elements starting at 0, so
-// the running index is turned into a same-length stream of `1`s (via
-// `toVoid` + `fill`, as in 02_flow_and_generics) and added to it before
-// taking the last value with `trigger`.
+// once the stream ends: `count` numbers every element as it flows, and
+// `trigger.last` collapses that running count down to just its final value.
 treatment finalCount<T>()
   input  items: Stream<T>
   output total: Block<string>
 {
     index:   count<T>()
-    asVoid:  toVoid<u128>()
-    one:     fill<u128>(value=1)
-    plusOne: add<u128>()
     asStr:   toString<u128>()
     lastStr: trigger<string>()
 
-    Self.items -> index.stream,count -> asVoid.value
-    asVoid.iter -> one.pattern
-
-    index.count -> plusOne.a
-    one.filled  -> plusOne.b
-
-    plusOne.sum -> asStr.value,into -> lastStr.stream
+    Self.items -> index.stream,count -> asStr.value,into -> lastStr.stream
     lastStr.last -> Self.total
 }

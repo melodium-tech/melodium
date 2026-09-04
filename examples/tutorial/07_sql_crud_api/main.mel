@@ -6,10 +6,7 @@ use std/engine/log::logErrors
 use std/flow::emit
 use std/flow::stream
 use std/flow::check
-use std/flow::filter
 use std/flow::trigger
-use std/ops/bin::not
-use std/text/compare::exact
 use std/text/compose::format
 use std/data/string_map::StringMap
 use std/data/string_map::|map
@@ -122,21 +119,11 @@ treatment insertNote[db: SqlPool]()
     decoded: decode()
     Self.data -> decoded.data
 
-    // Drop a possible trailing empty chunk before using the body: the same
-    // gotcha discussed in 05_http_client.
-    isBlank:  exact(pattern="")
-    notBlank: not<bool>()
-    nonBlank: filter<string>()
-    decoded.text    -> isBlank.text
-    isBlank.matches -> notBlank.value
-    decoded.text    -> nonBlank.value
-    notBlank.not    -> nonBlank.select
-
     // A request body is a stream, but `execute` needs a single `Block<Map>`
     // of bindings: `trigger.last` collapses the (one-item) stream to a
     // block, same idiom as the totals in 03_text_and_files.
     textBlock: trigger<string>()
-    nonBlank.accepted -> textBlock.stream
+    decoded.text -> textBlock.stream
 
     bindMap: blockMapEntry<string>(key="text")
     textBlock.last -> bindMap.value
