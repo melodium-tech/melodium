@@ -70,22 +70,14 @@ pub async fn map_environment(
     expand_variables: bool,
     working_directory: Option<string>,
 ) {
-    if let Ok(variables) = variables.recv_one().await.map(|val| {
-        GetData::<std::sync::Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<StringMap>()
-            .unwrap()
-    }) {
+    if let Ok(variables) = variables.recv_one_as::<std::sync::Arc<StringMap>>().await {
         let _ = environment
-            .send_one(
-                (std::sync::Arc::new(Environment {
-                    working_directory,
-                    variables: (*variables).clone(),
-                    expand_variables,
-                    clear_env,
-                }) as std::sync::Arc<dyn Data>)
-                    .into(),
-            )
+            .send_one_as(std::sync::Arc::new(Environment {
+                working_directory,
+                variables: (*variables).clone(),
+                expand_variables,
+                clear_env,
+            }) as std::sync::Arc<dyn Data>)
             .await;
     }
 }
@@ -114,27 +106,16 @@ pub async fn map_environment(
 )]
 pub async fn map_full_environment(clear_env: bool, expand_variables: bool) {
     if let (Ok(working_directory), Ok(variables)) = (
-        working_directory
-            .recv_one()
-            .await
-            .map(|val| GetData::<Option<String>>::try_data(val).unwrap()),
-        variables.recv_one().await.map(|val| {
-            GetData::<std::sync::Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<StringMap>()
-                .unwrap()
-        }),
+        working_directory.recv_one_as::<Option<String>>().await,
+        variables.recv_one_as::<std::sync::Arc<StringMap>>().await,
     ) {
         let _ = environment
-            .send_one(
-                (std::sync::Arc::new(Environment {
-                    working_directory,
-                    variables: (*variables).clone(),
-                    expand_variables,
-                    clear_env,
-                }) as std::sync::Arc<dyn Data>)
-                    .into(),
-            )
+            .send_one_as(std::sync::Arc::new(Environment {
+                working_directory,
+                variables: (*variables).clone(),
+                expand_variables,
+                clear_env,
+            }) as std::sync::Arc<dyn Data>)
             .await;
     }
 }

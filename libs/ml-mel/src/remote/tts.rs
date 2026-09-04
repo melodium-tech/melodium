@@ -184,7 +184,7 @@ pub async fn synthesize() {
     let model_arc = RemoteTtsModel::into(tts);
 
     while let Ok(val) = text.recv_one().await {
-        let text_str = GetData::<String>::try_data(val).unwrap_or_default();
+        let text_str = val.try_data::<String>().unwrap_or_default();
 
         #[cfg(feature = "real")]
         {
@@ -196,15 +196,15 @@ pub async fn synthesize() {
                         check!(audio.send_many(batch).await);
                     }
                     Err(e) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(Value::String(e.to_string())).await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as(e.to_string()).await;
                         break;
                     }
                 }
             } else {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
                 let _ = error
-                    .send_one(Value::String("provider not initialized".into()))
+                    .send_one_as("provider not initialized".to_string())
                     .await;
                 break;
             }

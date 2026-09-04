@@ -98,18 +98,11 @@ pub fn error() -> StepState {
 pub async fn github_map_eval(assume: bool, local_context: Json) {
     let engine = JavaScriptEngineModel::into(contexts);
 
-    if let Ok(map) = map.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<StringMap>()
-            .unwrap()
-    }) {
+    if let Ok(map) = map.recv_one_as::<Arc<StringMap>>().await {
         let updated_map = map_eval(&map.map, &local_context.0, &engine, assume);
 
         let _ = evaluated
-            .send_one(Value::Data(
-                Arc::new(StringMap { map: updated_map }) as Arc<dyn Data>
-            ))
+            .send_one_as(Arc::new(StringMap { map: updated_map }) as Arc<dyn Data>)
             .await;
     }
 }
@@ -140,11 +133,7 @@ pub async fn github_map_eval(assume: bool, local_context: Json) {
 pub async fn github_string_eval(assume: bool, local_context: Json) {
     let engine = JavaScriptEngineModel::into(contexts);
 
-    if let Ok(value) = value
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
+    if let Ok(value) = value.recv_one_as::<String>().await {
         let var_replacer = VarReplacer {
             js_engine: &engine,
             local_context: &local_context.0,
@@ -161,7 +150,7 @@ pub async fn github_string_eval(assume: bool, local_context: Json) {
             regex.replace_all(&value, &var_replacer).to_string()
         };
 
-        let _ = evaluated.send_one(result.into()).await;
+        let _ = evaluated.send_one_as(result).await;
     }
 }
 
@@ -191,13 +180,8 @@ pub async fn github_string_eval(assume: bool, local_context: Json) {
 )]
 pub async fn github_command() {
     if let (Ok(shell), Ok(run)) = (
-        shell
-            .recv_one()
-            .await
-            .map(|val| GetData::<Option<String>>::try_data(val).unwrap()),
-        run.recv_one()
-            .await
-            .map(|val| GetData::<String>::try_data(val).unwrap()),
+        shell.recv_one_as::<Option<String>>().await,
+        run.recv_one_as::<String>().await,
     ) {
         let mut file_path = std::env::temp_dir();
 
@@ -351,14 +335,8 @@ pub async fn github_command() {
 )]
 pub async fn github_get_env() {
     if let (Ok(workflow_id), Ok(step_id)) = (
-        workflow_id
-            .recv_one()
-            .await
-            .map(|val| GetData::<String>::try_data(val).unwrap()),
-        step_id
-            .recv_one()
-            .await
-            .map(|val| GetData::<String>::try_data(val).unwrap()),
+        workflow_id.recv_one_as::<String>().await,
+        step_id.recv_one_as::<String>().await,
     ) {
         let env_file = env_file(&workflow_id);
 
@@ -448,10 +426,10 @@ pub async fn github_job_result(name: string, outputs: StringMap, local_context: 
     {
         match job_result[&name]["result"].as_str() {
             Some("success") => {
-                let _ = success.send_one(().into()).await;
+                let _ = success.send_one_as(()).await;
             }
             Some("failure") => {
-                let _ = failure.send_one(().into()).await;
+                let _ = failure.send_one_as(()).await;
             }
             _ => {}
         }
@@ -460,7 +438,7 @@ pub async fn github_job_result(name: string, outputs: StringMap, local_context: 
             .send_one(Value::Data(Arc::new(Json(job_result))))
             .await;
     }
-    let _ = finished.send_one(().into()).await;
+    let _ = finished.send_one_as(()).await;
 }
 
 /// Record step outputs and advance the GitHub Actions step state machine.
@@ -511,19 +489,12 @@ pub async fn github_set_outputs() {
     let engine = JavaScriptEngineModel::into(contexts);
 
     if let (Ok(workflow_id), Ok(step_id)) = (
-        workflow_id
-            .recv_one()
-            .await
-            .map(|val| GetData::<String>::try_data(val).unwrap()),
-        step_id
-            .recv_one()
-            .await
-            .map(|val| GetData::<String>::try_data(val).unwrap()),
+        workflow_id.recv_one_as::<String>().await,
+        step_id.recv_one_as::<String>().await,
     ) {
         let continue_on_error = continue_on_error
-            .recv_one()
+            .recv_one_as::<bool>()
             .await
-            .map(|val| GetData::<bool>::try_data(val).unwrap())
             .unwrap_or(false);
 
         let conclusion;
@@ -532,10 +503,7 @@ pub async fn github_set_outputs() {
         let continue_after;
         let completed;
         let failed;
-        match (
-            spawn_completed.recv_one().await,
-            spawn_failed.recv_one().await,
-        ) {
+        match futures::join!(spawn_completed.recv_one(), spawn_failed.recv_one()) {
             (Ok(_), Err(_)) => {
                 conclusion = serde_json::Value::String("success".to_string());
                 outcome = serde_json::Value::String("success".to_string());
@@ -601,13 +569,13 @@ pub async fn github_set_outputs() {
             .await;
 
         if completed {
-            let _ = step_completed.send_one(().into()).await;
+            let _ = step_completed.send_one_as(()).await;
         }
         if failed {
-            let _ = step_failed.send_one(().into()).await;
+            let _ = step_failed.send_one_as(()).await;
         }
         if continue_after {
-            let _ = step_continue.send_one(().into()).await;
+            let _ = step_continue.send_one_as(()).await;
         }
     }
 }
@@ -630,12 +598,8 @@ pub async fn github_set_outputs() {
     output filename Block<string>
 )]
 pub async fn github_get_env_files() {
-    if let Ok(workflow_id) = workflow_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
-        let _ = filename.send_one(env_file(&workflow_id).into()).await;
+    if let Ok(workflow_id) = workflow_id.recv_one_as::<String>().await {
+        let _ = filename.send_one_as(env_file(&workflow_id)).await;
     }
 }
 

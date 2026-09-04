@@ -17,11 +17,7 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output parent Stream<Option<string>>
 )]
 pub async fn composition() {
-    while let Ok(paths) = path
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(paths) = path.recv_many_as::<string>().await {
         let mut extensions = VecDeque::with_capacity(paths.len());
         let mut file_names = VecDeque::with_capacity(paths.len());
         let mut file_stems = VecDeque::with_capacity(paths.len());
@@ -67,16 +63,12 @@ pub async fn composition() {
 )]
 pub async fn exists() {
     #[cfg(feature = "real")]
-    while let Ok(paths) = path
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(paths) = path.recv_many_as::<string>().await {
         let mut results = Vec::with_capacity(paths.len());
         for path in paths {
             results.push(PathBuf::from(path).exists().await);
         }
-        check!(exists.send_many(results.into()).await);
+        check!(exists.send_many_as(results).await);
     }
 }
 
@@ -92,11 +84,7 @@ pub async fn exists() {
 )]
 pub async fn meta() {
     #[cfg(feature = "real")]
-    while let Ok(paths) = path
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(paths) = path.recv_many_as::<string>().await {
         let mut are_dirs = Vec::with_capacity(paths.len());
         let mut are_files = Vec::with_capacity(paths.len());
         let mut lengths = Vec::with_capacity(paths.len());
@@ -112,9 +100,9 @@ pub async fn meta() {
             }
         }
         if let (Err(_), Err(_), Err(_)) = futures::join!(
-            is_dir.send_many(are_dirs.into()),
-            is_file.send_many(are_files.into()),
-            length.send_many(lengths.into())
+            is_dir.send_many_as(are_dirs),
+            is_file.send_many_as(are_files),
+            length.send_many_as(lengths)
         ) {
             break;
         }

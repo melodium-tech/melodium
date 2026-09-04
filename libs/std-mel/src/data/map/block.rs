@@ -27,13 +27,8 @@ pub async fn entry(key: string) {
     output value Block<Option<T>>
 )]
 pub async fn get(key: string) {
-    if let Ok(map) = map.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<Map>()
-            .unwrap()
-    }) {
-        let _ = value.send_one(map.map.get(&key).cloned().into()).await;
+    if let Ok(map) = map.recv_one_as::<Arc<Map>>().await {
+        let _ = value.send_one_as(map.map.get(&key).cloned()).await;
     }
 }
 
@@ -45,15 +40,7 @@ pub async fn get(key: string) {
     output map Block<Map>
 )]
 pub async fn insert(key: string) {
-    if let (Ok(base), Ok(value)) = (
-        base.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Map>()
-                .unwrap()
-        }),
-        value.recv_one().await,
-    ) {
+    if let (Ok(base), Ok(value)) = (base.recv_one_as::<Arc<Map>>().await, value.recv_one().await) {
         let mut new_map = Arc::unwrap_or_clone(base);
         new_map.map.insert(key.clone(), value);
         let _ = map.send_one(Value::Data(Arc::new(new_map))).await;
@@ -71,18 +58,8 @@ pub async fn insert(key: string) {
     output merged Block<Map>
 )]
 pub async fn merge() {
-    if let Ok(base) = base.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<Map>()
-            .unwrap()
-    }) {
-        if let Ok(entries) = entries.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Map>()
-                .unwrap()
-        }) {
+    if let Ok(base) = base.recv_one_as::<Arc<Map>>().await {
+        if let Ok(entries) = entries.recv_one_as::<Arc<Map>>().await {
             let mut new_map = Arc::unwrap_or_clone(base);
             for (key, value) in &entries.map {
                 new_map.map.insert(key.clone(), value.clone());

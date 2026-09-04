@@ -1734,6 +1734,7 @@ dependencies = [
  "distrib-mel",
  "dotenvy",
  "fs-mel",
+ "futures",
  "http-mel",
  "javascript-mel",
  "json-mel",
@@ -4634,6 +4635,7 @@ version = "0.10.2"
 name = "melodium-common"
 version = "0.10.2"
 dependencies = [
+ "async-std",
  "async-trait",
  "chrono",
  "downcast-rs",
@@ -4788,6 +4790,7 @@ dependencies = [
  "melodium-common",
  "melodium-engine",
  "serde",
+ "serde_bytes",
  "tsify",
  "uuid",
  "wasm-bindgen",

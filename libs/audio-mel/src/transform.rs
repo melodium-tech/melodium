@@ -58,24 +58,15 @@ use std::sync::Arc;
 )]
 pub async fn resample_mono(to_rate: u32) {
     // Wait for AudioInfo to learn the source sample rate before consuming any signal samples.
-    let from_rate = match info.recv_one().await {
-        Ok(value) => {
-            let arc = GetData::<Arc<dyn Data>>::try_data(value).unwrap();
-            let audio_info = arc.downcast_arc::<AudioInfo>().unwrap();
-            audio_info.sample_rate
-        }
+    let from_rate = match info.recv_one_as::<Arc<AudioInfo>>().await {
+        Ok(audio_info) => audio_info.sample_rate,
         Err(_) => return,
     };
 
     if from_rate == to_rate || from_rate == 0 {
         // Passthrough: forward every batch unchanged.
-        while let Ok(batch) = signal
-            .recv_many()
-            .await
-            .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
-        {
-            let out: VecDeque<f32> = batch.into_iter().collect();
-            if resampled.send_many(out.into()).await.is_err() {
+        while let Ok(batch) = signal.recv_many_as::<f32>().await {
+            if resampled.send_many_as(batch).await.is_err() {
                 return;
             }
         }
@@ -91,14 +82,10 @@ pub async fn resample_mono(to_rate: u32) {
     // Fractional read position inside `buf`, in input-sample units.
     let mut phase: f64 = 0.0;
 
-    while let Ok(batch) = signal
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
-    {
+    while let Ok(batch) = signal.recv_many_as::<f32>().await {
         buf.extend_from_slice(&batch);
 
-        let mut out: VecDeque<f32> = VecDeque::new();
+        let mut out: Vec<f32> = Vec::new();
 
         while phase + 1.0 <= (buf.len() - 1) as f64 + 1.0 {
             let i = phase as usize;
@@ -106,11 +93,11 @@ pub async fn resample_mono(to_rate: u32) {
                 break;
             }
             let frac = (phase - i as f64) as f32;
-            out.push_back(buf[i] + frac * (buf[i + 1] - buf[i]));
+            out.push(buf[i] + frac * (buf[i + 1] - buf[i]));
             phase += ratio;
         }
 
-        if !out.is_empty() && resampled.send_many(out.into()).await.is_err() {
+        if !out.is_empty() && resampled.send_many_as(out).await.is_err() {
             return;
         }
 
@@ -125,7 +112,7 @@ pub async fn resample_mono(to_rate: u32) {
     // Flush: emit remaining output samples, holding the last input value for extrapolation.
     if !buf.is_empty() {
         let last = *buf.last().unwrap();
-        let mut out: VecDeque<f32> = VecDeque::new();
+        let mut out: Vec<f32> = Vec::new();
         while phase < buf.len() as f64 {
             let i = phase as usize;
             let sample = if i + 1 < buf.len() {
@@ -134,11 +121,11 @@ pub async fn resample_mono(to_rate: u32) {
             } else {
                 last
             };
-            out.push_back(sample);
+            out.push(sample);
             phase += ratio;
         }
         if !out.is_empty() {
-            let _ = resampled.send_many(out.into()).await;
+            let _ = resampled.send_many_as(out).await;
         }
     }
 }

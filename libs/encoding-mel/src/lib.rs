@@ -32,11 +32,7 @@ pub async fn decode(encoding: string) {
     let mut finished = false;
     while !finished {
         let bytes;
-        if let Ok(data) = data
-            .recv_many()
-            .await
-            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-        {
+        if let Ok(data) = data.recv_many_as::<u8>().await {
             bytes = data;
         } else {
             bytes = vec![];
@@ -49,7 +45,7 @@ pub async fn decode(encoding: string) {
 
         result.shrink_to_fit();
 
-        check!(text.send_one(result.into()).await);
+        check!(text.send_one_as(result).await);
     }
 }
 
@@ -74,11 +70,7 @@ pub async fn encode(encoding: string, replace: bool) {
         encoding_rs::Encoding::for_label(encoding.as_bytes()).unwrap_or(encoding_rs::UTF_8);
     let mut encoder = encoding.new_encoder();
 
-    'main: while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    'main: while let Ok(text) = text.recv_many_as::<string>().await {
         for text in text {
             let expected_size = if replace {
                 7 * encoder

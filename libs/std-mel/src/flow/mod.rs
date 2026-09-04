@@ -1,5 +1,5 @@
 use futures::{pin_mut, select, FutureExt};
-use melodium_core::common::executive::{GetData, Value};
+use melodium_core::common::executive::{InputExt, OutputExt, Value};
 use melodium_macro::{check, mel_treatment};
 use std::collections::VecDeque;
 
@@ -77,7 +77,7 @@ pub async fn trigger() {
     let mut last_value = None;
 
     if let Ok(mut values) = stream.recv_many().await {
-        let _ = start.send_one(().into()).await;
+        let _ = start.send_one_as(()).await;
         if let Some(val) = values.pop_front() {
             let _ = first.send_one(val.clone()).await;
             last_value = Some(val);
@@ -93,7 +93,7 @@ pub async fn trigger() {
         last_value = Into::<VecDeque<Value>>::into(values).pop_back();
     }
 
-    let _ = end.send_one(().into()).await;
+    let _ = end.send_one_as(()).await;
     if let Some(val) = last_value {
         let _ = last.send_one(val).await;
     }
@@ -124,7 +124,7 @@ pub async fn trigger() {
 )]
 pub async fn check() {
     if let Ok(_) = value.recv_one().await {
-        let _ = check.send_one(().into()).await;
+        let _ = check.send_one_as(()).await;
     }
 }
 
@@ -149,7 +149,7 @@ pub async fn check() {
 )]
 pub async fn uncheck() {
     if let Err(_) = value.recv_one().await {
-        let _ = uncheck.send_one(().into()).await;
+        let _ = uncheck.send_one_as(()).await;
     }
 }
 
@@ -287,11 +287,7 @@ pub async fn merge() {
     output value Stream<T>
 )]
 pub async fn arrange() {
-    while let Ok(select) = select
-        .recv_one()
-        .await
-        .map(|val| GetData::<bool>::try_data(val).unwrap())
-    {
+    while let Ok(select) = select.recv_one_as::<bool>().await {
         let val;
         if select {
             if let Ok(v) = a.recv_one().await {
@@ -368,7 +364,7 @@ pub async fn filter() {
     let mut rejected_op = true;
 
     while let (Ok(value), Ok(select)) = futures::join!(value.recv_one(), select.recv_one()) {
-        let select = GetData::<bool>::try_data(select).unwrap();
+        let select = select.try_data::<bool>().unwrap();
         if select {
             if let Err(_) = accepted.send_one(value).await {
                 // If we cannot send anymore on accepted, we note it,
@@ -418,7 +414,7 @@ pub async fn filter() {
 )]
 pub async fn filterBlock() {
     if let (Ok(value), Ok(select)) = futures::join!(value.recv_one(), select.recv_one()) {
-        let select = GetData::<bool>::try_data(select).unwrap();
+        let select = select.try_data::<bool>().unwrap();
         if select {
             let _ = accepted.send_one(value).await;
         } else {
@@ -450,11 +446,7 @@ pub async fn filterBlock() {
     output fitted Stream<T>
 )]
 pub async fn fit() {
-    'main: while let Ok(pattern) = pattern
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<()>>::try_into(values).unwrap())
-    {
+    'main: while let Ok(pattern) = pattern.recv_many_as::<()>().await {
         for _ in pattern {
             if let Ok(val) = value.recv_one().await {
                 check!('main, fitted.send_one(val).await)
@@ -488,11 +480,7 @@ pub async fn count() {
     let mut i: u128 = 0;
     while let Ok(iter) = stream.recv_many().await {
         let next_i = i + iter.len() as u128;
-        check!(
-            count
-                .send_many((i..next_i).collect::<VecDeque<_>>().into())
-                .await
-        );
+        check!(count.send_many_as((i..next_i).collect::<Vec<_>>()).await);
         i = next_i;
     }
 }
@@ -516,11 +504,7 @@ pub async fn count() {
     output stream Stream<T>
 )]
 pub async fn generate(data: T) {
-    if let Ok(length) = length
-        .recv_one()
-        .await
-        .map(|val| GetData::<u128>::try_data(val).unwrap())
-    {
+    if let Ok(length) = length.recv_one_as::<u128>().await {
         const CHUNK: u128 = 2u128.pow(20);
         let mut total = 0u128;
         while total < length {
@@ -798,11 +782,7 @@ pub async fn passBlock(cond: bool) {
     output passed Stream<T>
 )]
 pub async fn barrier() {
-    if let Ok(true) = leverage
-        .recv_one()
-        .await
-        .map(|val| GetData::<bool>::try_data(val).unwrap())
-    {
+    if let Ok(true) = leverage.recv_one_as::<bool>().await {
         while let Ok(data) = stream.recv_many().await {
             check!(passed.send_many(data).await)
         }
@@ -894,6 +874,6 @@ pub async fn waitBlock() {
     });
 
     if a && b {
-        let _ = awaited.send_one(().into()).await;
+        let _ = awaited.send_one_as(()).await;
     }
 }

@@ -576,7 +576,7 @@ pub async fn distant(
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {
             Ok((distrib, api_errors, future)) => {
-                let _ = errors.send_many(api_errors.into()).await;
+                let _ = errors.send_many_as(api_errors).await;
                 match distrib {
                     api::DistributionResponse::Started(Some(access_info)) => {
                         let _ = access
@@ -594,7 +594,7 @@ pub async fn distant(
                         if let Some(future_errors) = future {
                             let some_errors = future_errors.await;
                             if !some_errors.is_empty() {
-                                let _ = errors.send_many(some_errors.into()).await;
+                                let _ = errors.send_many_as(some_errors).await;
                             }
                         }
 
@@ -602,14 +602,14 @@ pub async fn distant(
                     }
                     api::DistributionResponse::Started(None) => {}
                     api::DistributionResponse::Error(errs) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = errors.send_many(errs.into()).await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = errors.send_many_as(errs).await;
                     }
                 }
             }
             Err(err) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = errors.send_many(vec![err].into()).await;
+                let _ = failed.send_one_as(()).await;
+                let _ = errors.send_many_as(vec![err]).await;
             }
         }
     }

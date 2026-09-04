@@ -24,15 +24,8 @@ use std::sync::Arc;
 )]
 pub async fn read() {
     if let (Ok(filesystem), Ok(path)) = (
-        filesystem.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<FileSystem>()
-                .unwrap()
-        }),
-        path.recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap()),
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        path.recv_one_as::<string>().await,
     ) {
         filesystem
             .filesystem
@@ -47,7 +40,7 @@ pub async fn read() {
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = reached.send_one(().into()).await;
+                        let _ = reached.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
@@ -57,21 +50,21 @@ pub async fn read() {
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = completed.send_one(().into()).await;
+                        let _ = completed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = failed.send_one(().into()).await;
+                        let _ = failed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = finished.send_one(().into()).await;
+                        let _ = finished.send_one_as(()).await;
                     })
                 }),
                 Box::new(|msg: String| {
-                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ()) })
+                    Box::pin(async { errors.send_one_as(msg).await.map_err(|_| ()) })
                 }),
             )
             .await
@@ -105,15 +98,8 @@ pub async fn read() {
 )]
 pub async fn write(append: bool, create: bool, new: bool) {
     if let (Ok(filesystem), Ok(path)) = (
-        filesystem.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<FileSystem>()
-                .unwrap()
-        }),
-        path.recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap()),
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        path.recv_one_as::<string>().await,
     ) {
         filesystem
             .filesystem
@@ -122,38 +108,31 @@ pub async fn write(append: bool, create: bool, new: bool) {
                 append,
                 create,
                 new,
-                Box::new(|| {
-                    Box::pin(async {
-                        data.recv_many()
-                            .await
-                            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                            .map_err(|_| ())
-                    })
-                }),
+                Box::new(|| Box::pin(async { data.recv_many_as::<u8>().await.map_err(|_| ()) })),
                 Box::new(|amt: u128| {
                     Box::pin({
                         let amount = &amount;
-                        async move { amount.send_one(amt.into()).await.map_err(|_| ()) }
+                        async move { amount.send_one_as(amt).await.map_err(|_| ()) }
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = completed.send_one(().into()).await;
+                        let _ = completed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = failed.send_one(().into()).await;
+                        let _ = failed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = finished.send_one(().into()).await;
+                        let _ = finished.send_one_as(()).await;
                     })
                 }),
                 Box::new(|msg: String| {
                     Box::pin(async {
-                        let _ = errors.send_one(msg.into()).await.map_err(|_| ());
+                        let _ = errors.send_one_as(msg).await.map_err(|_| ());
                         errors.force_send().await;
                         Ok(())
                     })

@@ -63,11 +63,7 @@ pub fn entry(key: string, value: string) -> StringMap {
     output map Stream<StringMap>
 )]
 pub async fn entry(key: string) {
-    while let Ok(value) = value
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
+    while let Ok(value) = value.recv_one_as::<String>().await {
         let mut new_map = HashMap::new();
         new_map.insert(key.clone(), value);
         let new_map = StringMap { map: new_map };
@@ -87,13 +83,8 @@ pub fn get(map: StringMap, key: string) -> Option<string> {
     output value Stream<Option<string>>
 )]
 pub async fn get(key: string) {
-    while let Ok(map) = map.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<StringMap>()
-            .unwrap()
-    }) {
-        check!(value.send_one(map.map.get(&key).cloned().into()).await)
+    while let Ok(map) = map.recv_one_as::<Arc<StringMap>>().await {
+        check!(value.send_one_as(map.map.get(&key).cloned()).await)
     }
 }
 
@@ -112,16 +103,8 @@ pub fn insert(mut map: StringMap, key: string, value: string) -> StringMap {
 )]
 pub async fn insert(key: string) {
     while let (Ok(base), Ok(value)) = (
-        base.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<StringMap>()
-                .unwrap()
-        }),
-        value
-            .recv_one()
-            .await
-            .map(|val| GetData::<String>::try_data(val).unwrap()),
+        base.recv_one_as::<Arc<StringMap>>().await,
+        value.recv_one_as::<String>().await,
     ) {
         let mut new_map = Arc::unwrap_or_clone(base);
         new_map.map.insert(key.clone(), value);

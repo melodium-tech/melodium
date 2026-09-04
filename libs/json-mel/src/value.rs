@@ -27,9 +27,7 @@ pub async fn null() {
     while let Ok(ticks) = ticks.recv_many().await {
         check!(
             nulls
-                .send_many(TransmissionValue::Other(
-                    vec![Value::Data(Arc::new(Json(serde_json::Value::Null))); ticks.len()].into()
-                ))
+                .send_many_as(vec![Arc::new(Json(serde_json::Value::Null)); ticks.len()])
                 .await
         )
     }
@@ -66,12 +64,12 @@ pub async fn from_bool() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Value::Data(Arc::new(Json(serde_json::Value::Bool(val.to_bool())))))
-                    .collect()
-            ))
+                    .map(|val| Arc::new(Json(serde_json::Value::Bool(val.to_bool()))))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -108,12 +106,12 @@ pub async fn from_number_i64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Value::Data(Arc::new(Json(serde_json::Value::from(val.to_i16())))))
-                    .collect()
-            ))
+                    .map(|val| Arc::new(Json(serde_json::Value::from(val.to_i16()))))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -150,12 +148,12 @@ pub async fn from_number_u64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Value::Data(Arc::new(Json(serde_json::Value::from(val.to_u16())))))
-                    .collect()
-            ))
+                    .map(|val| Arc::new(Json(serde_json::Value::from(val.to_u16()))))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -258,18 +256,18 @@ pub async fn from_number_f64(replacement: Json) {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
                     .map(
                         |val| if let Some(num) = serde_json::Number::from_f64(val.to_f64()) {
-                            Value::Data(Arc::new(Json(serde_json::Value::from(num))))
+                            Arc::new(Json(serde_json::Value::from(num)))
                         } else {
-                            Value::Data(Arc::clone(&replacement) as Arc<dyn Data>)
+                            Arc::clone(&replacement)
                         }
                     )
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -306,14 +304,14 @@ pub async fn from_string() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Value::Data(Arc::new(Json(serde_json::Value::String(
-                        DataTrait::to_string(&val)
-                    )))))
-                    .collect()
-            ))
+                    .map(
+                        |val| Arc::new(Json(serde_json::Value::String(DataTrait::to_string(&val))))
+                    )
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -346,12 +344,7 @@ pub fn from_string_map(map: StringMap) -> Json {
     output json Stream<Json>
 )]
 pub async fn from_string_map() {
-    while let Ok(value) = value.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<StringMap>()
-            .unwrap()
-    }) {
+    while let Ok(value) = value.recv_one_as::<Arc<StringMap>>().await {
         let object = Json(serde_json::Value::Object(
             value
                 .map
@@ -398,17 +391,17 @@ pub async fn from_option_bool() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Value::Data(Arc::new(Json(match val {
+                    .map(|val| Arc::new(Json(match val {
                         Value::Option(Some(val)) => {
                             serde_json::Value::Bool(val.to_bool())
                         }
                         _ => serde_json::Value::Null,
-                    }))))
-                    .collect()
-            ))
+                    })))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -449,17 +442,17 @@ pub async fn from_option_number_i64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Value::Data(Arc::new(Json(match val {
+                    .map(|val| Arc::new(Json(match val {
                         Value::Option(Some(val)) => {
                             serde_json::Value::from(val.to_i64())
                         }
                         _ => serde_json::Value::Null,
-                    }))))
-                    .collect()
-            ))
+                    })))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -500,17 +493,17 @@ pub async fn from_option_number_u64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Value::Data(Arc::new(Json(match val {
+                    .map(|val| Arc::new(Json(match val {
                         Value::Option(Some(val)) => {
                             serde_json::Value::from(val.to_u64())
                         }
                         _ => serde_json::Value::Null,
-                    }))))
-                    .collect()
-            ))
+                    })))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -626,21 +619,21 @@ pub async fn from_option_number_f64(replacement: Json) {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
                     .map(|val| match val {
                         Value::Option(Some(val)) => {
                             if let Some(num) = serde_json::Number::from_f64(val.to_f64()) {
-                                Value::Data(Arc::new(Json(serde_json::Value::from(num))))
+                                Arc::new(Json(serde_json::Value::from(num)))
                             } else {
-                                Value::Data(Arc::clone(&replacement) as Arc<dyn Data>)
+                                Arc::clone(&replacement)
                             }
                         }
-                        _ => Value::Data(Arc::new(Json(serde_json::Value::Null))),
+                        _ => Arc::new(Json(serde_json::Value::Null)),
                     })
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -681,17 +674,17 @@ pub async fn from_option_string() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            json.send_many(TransmissionValue::Other(
+            json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Value::Data(Arc::new(Json(match val {
+                    .map(|val| Arc::new(Json(match val {
                         Value::Option(Some(val)) => {
                             serde_json::Value::String(DataTrait::to_string(&*val))
                         }
                         _ => serde_json::Value::Null,
-                    }))))
-                    .collect()
-            ))
+                    })))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -726,7 +719,7 @@ pub async fn is_null() {
     {
         check!(
             is_null
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -736,8 +729,8 @@ pub async fn is_null() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -772,7 +765,7 @@ pub async fn is_bool() {
     {
         check!(
             is_bool
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -782,8 +775,8 @@ pub async fn is_bool() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -818,7 +811,7 @@ pub async fn is_string() {
     {
         check!(
             is_string
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -828,8 +821,8 @@ pub async fn is_string() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -864,7 +857,7 @@ pub async fn is_number() {
     {
         check!(
             is_number
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -874,8 +867,8 @@ pub async fn is_number() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -910,7 +903,7 @@ pub async fn is_i64() {
     {
         check!(
             is_i64
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -920,8 +913,8 @@ pub async fn is_i64() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -956,7 +949,7 @@ pub async fn is_u64() {
     {
         check!(
             is_u64
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -966,8 +959,8 @@ pub async fn is_u64() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -1002,7 +995,7 @@ pub async fn is_f64() {
     {
         check!(
             is_f64
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -1012,8 +1005,8 @@ pub async fn is_f64() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -1048,7 +1041,7 @@ pub async fn is_vector() {
     {
         check!(
             is_vector
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -1058,8 +1051,8 @@ pub async fn is_vector() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -1094,7 +1087,7 @@ pub async fn is_object() {
     {
         check!(
             is_object
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| match val {
@@ -1104,8 +1097,8 @@ pub async fn is_object() {
                                 .unwrap_or(false),
                             _ => false,
                         })
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }

@@ -27,6 +27,7 @@ pub async fn flatten() {
     {
         while let Some(vector) = vectors.pop_front().map(|val| match val {
             Value::Vec(vec) => vec,
+            Value::Packed(arr) => arr.into_values(),
             _ => panic!("Vec expected"),
         }) {
             for val in vector {
@@ -60,12 +61,12 @@ pub async fn pattern() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         for val in vectors {
-            match val {
-                Value::Vec(vec) => {
-                    check!('main, pattern.send_one(vec![(); vec.len()].into()).await)
-                }
+            let len = match val {
+                Value::Vec(vec) => vec.len(),
+                Value::Packed(arr) => arr.len(),
                 _ => panic!("Vec expected"),
-            }
+            };
+            check!('main, pattern.send_one_as(vec![(); len]).await)
         }
     }
 }
@@ -100,21 +101,21 @@ pub async fn fit() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         for pattern in patterns {
-            match pattern {
-                Value::Vec(pattern) => {
-                    let mut vector = Vec::with_capacity(pattern.len());
-                    for _ in 0..pattern.len() {
-                        if let Ok(val) = value.recv_one().await {
-                            vector.push(val);
-                        } else {
-                            // Uncomplete, we 'trash' vector
-                            break 'main;
-                        }
-                    }
-                    check!('main, fitted.send_one(vector.into()).await)
-                }
+            let pattern_len = match pattern {
+                Value::Vec(pattern) => pattern.len(),
+                Value::Packed(arr) => arr.len(),
                 _ => panic!("Vec expected"),
+            };
+            let mut vector = Vec::with_capacity(pattern_len);
+            for _ in 0..pattern_len {
+                if let Ok(val) = value.recv_one().await {
+                    vector.push(val);
+                } else {
+                    // Uncomplete, we 'trash' vector
+                    break 'main;
+                }
             }
+            check!('main, fitted.send_one_as(vector).await)
         }
     }
 }
@@ -143,13 +144,12 @@ pub async fn fill(value: T) {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         for pattern in patterns {
-            match pattern {
-                Value::Vec(pattern) => {
-                    check!('main, filled.send_one(vec![value.clone(); pattern.len()].into()).await)
-                }
-
+            let len = match pattern {
+                Value::Vec(pattern) => pattern.len(),
+                Value::Packed(arr) => arr.len(),
                 _ => panic!("Vec expected"),
-            }
+            };
+            check!('main, filled.send_one_as(vec![value.clone(); len]).await)
         }
     }
 }
@@ -180,14 +180,14 @@ pub async fn size() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            size.send_many(
+            size.send_many_as(
                 iter.into_iter()
                     .map(|v| match v {
                         Value::Vec(v) => v.len() as u64,
+                        Value::Packed(arr) => arr.len() as u64,
                         _ => panic!("Vec expected"),
                     })
-                    .collect::<VecDeque<_>>()
-                    .into()
+                    .collect::<Vec<_>>()
             )
             .await
         );
@@ -217,19 +217,15 @@ pub async fn size() {
     output resized Stream<Vec<T>>
 )]
 pub async fn resize(default: T) {
-    while let Ok(size) = size
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    while let Ok(size) = size.recv_one_as::<u64>().await {
         if let Ok(vec) = vector.recv_one().await {
-            match vec {
-                Value::Vec(mut vec) => {
-                    vec.resize(size as usize, default.clone());
-                    check!(resized.send_one(vec.into()).await);
-                }
+            let mut vec = match vec {
+                Value::Vec(vec) => vec,
+                Value::Packed(arr) => arr.into_values(),
                 _ => panic!("Vec expected"),
-            }
+            };
+            vec.resize(size as usize, default.clone());
+            check!(resized.send_one_as(vec).await);
         } else {
             break;
         }
