@@ -366,6 +366,14 @@ pub struct ContextualEnvironment {
     variables: BTreeMap<String, RawValue>,
 }
 
+impl ContextualEnvironment {
+    /// The track this environment (and whatever it's attached to, e.g. a
+    /// `TreatmentBuilt` event) belongs to.
+    pub fn track_id(&self) -> u64 {
+        self.track_id
+    }
+}
+
 impl From<&EngineContextualEnvironment> for ContextualEnvironment {
     fn from(contextual_environment: &EngineContextualEnvironment) -> Self {
         Self {
