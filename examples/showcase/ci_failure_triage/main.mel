@@ -18,7 +18,7 @@ use std/conv::toString
 use std/conv::tryToString
 use std/text/compose::format
 use process/command::Command
-use process/command::|raw_commands
+use process/command::|command
 use cicd/runners::CicdDispatchEngine
 use cicd/naive::simpleStep
 use encoding::decode
@@ -132,12 +132,15 @@ treatment main(
     startup.trigger -> logStart.trigger
 
     // A step that always passes: three trivial, always-true assertions.
+    //
+    // `commands` runs each entry as a direct exec, not through a shell (see
+    // `ciStepAnalysis` below for why that matters): wrapping in `sh -c`
+    // explicitly is what makes `>` a real redirection here, rather than a
+    // literal argument handed to `python3`.
     unitTests: ciStepAnalysis[dispatcher=dispatcher, classifier=classifier, analyst=analyst](
         step_name = "unit_tests",
         image     = "python:3.13-slim",
-        commands  = |raw_commands([
-            "python3 -c \"assert 1 + 1 == 2; assert 'melodium'.upper() == 'MELODIUM'; assert len([1, 2, 3]) == 3; print('all checks passed')\" > /mnt/data/log.txt 2>&1; true"
-        ])
+        commands  = [|command("sh", ["-c", "python3 -c \"assert 1 + 1 == 2; assert 'melodium'.upper() == 'MELODIUM'; assert len([1, 2, 3]) == 3; print('all checks passed')\" > /mnt/data/log.txt 2>&1; true"])]
     )
 
     // A step that always fails: a one-character typo in a dictionary key
@@ -145,9 +148,7 @@ treatment main(
     integrationCheck: ciStepAnalysis[dispatcher=dispatcher, classifier=classifier, analyst=analyst](
         step_name = "integration_check",
         image     = "python:3.13-slim",
-        commands  = |raw_commands([
-            "python3 -c \"config = {'timeout': 30, 'retries': 3}; print('effective retries:', config['retries']); print('effective timeout:', config['tiemout'])\" > /mnt/data/log.txt 2>&1; true"
-        ])
+        commands  = [|command("sh", ["-c", "python3 -c \"config = {'timeout': 30, 'retries': 3}; print('effective retries:', config['retries']); print('effective timeout:', config['tiemout'])\" > /mnt/data/log.txt 2>&1; true"])]
     )
 
     startup.trigger -> unitTests.trigger

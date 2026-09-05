@@ -8,8 +8,9 @@ use std/data/string_map::StringMap
 use std/data/string_map::|map
 use std/data/string_map::|entry
 use std/ops/option::|wrap
-use process/command::|raw_commands
-use work/resources/arch::|amd64
+use process/command::|command
+use work/resources/arch::Arch
+use work/resources/arch::|arm64
 use work/resources::|service_container
 use cicd/runners::CicdDispatchEngine
 use cicd/naive::simpleStep
@@ -167,13 +168,20 @@ treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
         cpu          = 2000,
         memory       = 4096,
         storage      = 8192,
+        arch         = |wrap<Arch>(|arm64()),
         max_duration = 1800,
-        commands     = |raw_commands([
-            "apt-get update -qq && apt-get install -y --no-install-recommends git",
-            "git clone --depth 1 ${REPO_URL} /workspace",
-            "cd /workspace && cargo build --release 2>&1",
-            "BIN=$(grep -m1 '^name' /workspace/Cargo.toml | cut -d '\"' -f2) && cp \"/workspace/target/release/$BIN\" /mnt/data/binary"
-        ]),
+        // `commands` runs each entry as a direct exec, never through a shell:
+        // `${REPO_URL}` is a real OS environment variable for the process
+        // (from `variables` below), but nothing expands `${...}` syntax
+        // unless the command running is itself a shell. Every entry that
+        // needs shell features (variable expansion, `&&`, `cd`, `2>&1`,
+        // `$(...)`) is wrapped in an explicit `sh -c`.
+        commands     = [
+            |command("sh", ["-c", "apt-get update -qq && apt-get install -y --no-install-recommends git"]),
+            |command("sh", ["-c", "git clone --depth 1 ${REPO_URL} /workspace"]),
+            |command("sh", ["-c", "cd /workspace && cargo build --release 2>&1"]),
+            |command("sh", ["-c", "BIN=$(grep -m1 '^name' /workspace/Cargo.toml | cut -d '\"' -f2) && cp \"/workspace/target/release/$BIN\" /mnt/data/binary"])
+        ],
         variables    = |wrap<StringMap>(|map([|entry("REPO_URL", repo_url)])),
         out_file     = "binary"
     )
@@ -203,14 +211,20 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
         cpu          = 2000,
         memory       = 4096,
         storage      = 8192,
+        arch         = |wrap<Arch>(|arm64()),
         max_duration = 1800,
+        // `|service_container`'s `arch` has no "unspecified" option (unlike
+        // the main step's own `arch` above), so it must be pinned to
+        // something. It has to match the main step's `arch` exactly, or
+        // dispatch is rejected with "Architecture is not valid or
+        // consistent for run and all containers".
         service_containers = [
             |service_container(
                 "postgres",
-                512,
+                1024,
                 1000,
                 2048,
-                |amd64(),
+                |arm64(),
                 [],
                 "postgres:16",
                 _,
@@ -222,12 +236,12 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
                 _
             )
         ],
-        commands     = |raw_commands([
-            "apt-get update -qq && apt-get install -y --no-install-recommends git postgresql-client",
-            "git clone --depth 1 ${REPO_URL} /workspace",
-            "psql \"${DATABASE_URL}\" -c \"SELECT 1;\"",
-            "cd /workspace && cargo test 2>&1"
-        ]),
+        commands     = [
+            |command("sh", ["-c", "apt-get update -qq && apt-get install -y --no-install-recommends git postgresql-client"]),
+            |command("sh", ["-c", "git clone --depth 1 ${REPO_URL} /workspace"]),
+            |command("sh", ["-c", "psql \"${DATABASE_URL}\" -c \"SELECT 1;\""]),
+            |command("sh", ["-c", "cd /workspace && cargo test 2>&1"])
+        ],
         variables    = |wrap<StringMap>(|map([
             |entry("REPO_URL",     repo_url),
             |entry("DATABASE_URL", "postgres://ci:ci@postgres/ci_test")
@@ -262,10 +276,12 @@ treatment package[dispatcher: CicdDispatchEngine](const output: string)
         storage      = 2048,
         max_duration = 300,
         in_file      = "binary",
-        commands     = |raw_commands([
-            "chmod +x /mnt/data/binary",
-            "tar -czf /mnt/data/artifact.tar.gz -C /mnt/data binary"
-        ]),
+        // Neither of these needs a shell: no variable expansion, no
+        // operators, so a direct exec of the plain argv works as-is.
+        commands     = [
+            |command("chmod", ["+x", "/mnt/data/binary"]),
+            |command("tar", ["-czf", "/mnt/data/artifact.tar.gz", "-C", "/mnt/data", "binary"])
+        ],
         out_file     = "artifact.tar.gz"
     )
 
