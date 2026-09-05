@@ -1,8 +1,10 @@
 use crate::reference::load_core_collection;
 use crate::tools::{
-    check_program, describe_element, get_program_info, list_library_elements, search_reference,
-    CheckProgramRequest, DescribeElementRequest, GetProgramInfoRequest, ListLibraryElementsRequest,
-    SearchReferenceRequest,
+    check_program, describe_element, get_cicd_migration_guide, get_language_guide,
+    get_program_info, list_library_elements, read_book_chapter, search_book, search_reference,
+    CheckProgramRequest, DescribeElementRequest, GetCicdMigrationGuideRequest,
+    GetLanguageGuideRequest, GetProgramInfoRequest, ListLibraryElementsRequest,
+    ReadBookChapterRequest, SearchBookRequest, SearchReferenceRequest,
 };
 use melodium_common::descriptor::Collection;
 use rmcp::{
@@ -81,6 +83,46 @@ impl MelodiumMcp {
     ) -> Json<crate::tools::SearchReferenceResult> {
         Json(search_reference(request, &self.collection))
     }
+
+    #[tool(
+        description = "Explanation of Mélodium's dataflow execution model (treatments, tracks, models, contexts, connections, generics, project layout) aimed at an AI reading or writing Mélodium code, in Markdown."
+    )]
+    fn get_language_guide(
+        &self,
+        Parameters(request): Parameters<GetLanguageGuideRequest>,
+    ) -> Json<crate::tools::GetLanguageGuideResult> {
+        Json(get_language_guide(request))
+    }
+
+    #[tool(
+        description = "Reference guide for migrating CI/CD pipelines (GitHub Actions or GitLab CI) to Mélodium's `cicd` package: concept mapping, treatments, and data types."
+    )]
+    fn get_cicd_migration_guide(
+        &self,
+        Parameters(request): Parameters<GetCicdMigrationGuideRequest>,
+    ) -> Json<crate::tools::GetCicdMigrationGuideResult> {
+        Json(get_cicd_migration_guide(request))
+    }
+
+    #[tool(
+        description = "Search the Mélodium book (the language's narrative reference documentation) by keyword across chapter titles and content. Omit the query to list every chapter instead."
+    )]
+    fn search_book(
+        &self,
+        Parameters(request): Parameters<SearchBookRequest>,
+    ) -> Json<crate::tools::SearchBookResult> {
+        Json(search_book(request))
+    }
+
+    #[tool(
+        description = "Read the full Markdown content of one Mélodium book chapter, addressed by the path reported by search_book (e.g. `programming/elements/functions.md`)."
+    )]
+    fn read_book_chapter(
+        &self,
+        Parameters(request): Parameters<ReadBookChapterRequest>,
+    ) -> Json<crate::tools::ReadBookChapterResult> {
+        Json(read_book_chapter(request))
+    }
 }
 
 #[tool_handler]
@@ -88,10 +130,13 @@ impl ServerHandler for MelodiumMcp {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
             "Validate and inspect Mélodium (.mel) programs, and browse the Mélodium \
-                 standard library reference. Use check_program to type-check a program file, \
-                 get_program_info to inspect its entrypoints, list_library_elements/\
+                 standard library and book reference. Use check_program to type-check a program \
+                 file, get_program_info to inspect its entrypoints, list_library_elements/\
                  search_reference to browse the standard library, and describe_element for a \
-                 specific element's full signature.",
+                 specific element's full signature. Use get_language_guide for an explanation of \
+                 the dataflow execution model, get_cicd_migration_guide when migrating a GitHub \
+                 Actions or GitLab CI pipeline, and search_book/read_book_chapter to browse the \
+                 Mélodium book's narrative documentation.",
         )
     }
 }
