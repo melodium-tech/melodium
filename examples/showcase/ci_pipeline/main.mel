@@ -2,8 +2,11 @@ use std/engine/util::startup
 use std/engine/log::logInfoMessage
 use std/engine/log::logErrorMessage
 use std/flow::one
-use std/flow::flock
+use std/flow::stream
 use std/flow::trigger
+use std/flow::emit
+use std/flow::filterBlock
+use std/ops/bin::and
 use std/data/string_map::StringMap
 use std/data/string_map::|map
 use std/data/string_map::|entry
@@ -120,19 +123,70 @@ treatment main(
     logAbort: logErrorMessage(label="ci", message="pipeline aborted: skipping package stage")
     oneAnyFailed.value -> logAbort.trigger
 
-    // Wait for both stages to finish before packaging.
-    bothFinished: flock<void>()
-    build.finished -> bothFinished.a
-    test.finished  -> bothFinished.b
+    // Package only if both stages truly succeeded. `flock<T>()` is not an
+    // AND-gate: it waits for both of its `Block` inputs to *resolve*, value
+    // or empty close, and forwards whichever ones actually carried a
+    // value (see libs/std-mel/src/flow/mod.rs). Feeding it `success`
+    // directly does not work: if a stage instead fires `error`, its
+    // `success` input closes empty, `flock` still considers that
+    // "resolved", and forwards `build.success` alone, which was enough to
+    // (wrongly) trigger `package` even after `test` failed. `finished`
+    // worked earlier only because it always carries a value regardless of
+    // outcome; `success` does not.
+    //
+    // Each stage's three mutually exclusive outcomes (`success`, `error`,
+    // `failed`) are turned into one *guaranteed* `Block<bool>` first (two
+    // chained `one<bool>()`, mirroring the abort-logging OR-gate above),
+    // so `and()` always has a real value on both sides.
+    buildSuccessTrue: emit<bool>(value=true)
+    buildErrorFalse:  emit<bool>(value=false)
+    buildFailedFalse: emit<bool>(value=false)
+    build.success -> buildSuccessTrue.trigger
+    build.error   -> buildErrorFalse.trigger
+    build.failed  -> buildFailedFalse.trigger
 
-    // flock.stream is Stream<void>; convert to Block<void> trigger for package.
-    bothTrigger: trigger<void>()
-    bothFinished.stream -> bothTrigger.stream
+    buildOkOrError: one<bool>()
+    buildSuccessTrue.emit -> buildOkOrError.a
+    buildErrorFalse.emit  -> buildOkOrError.b
+    buildOk: one<bool>()
+    buildOkOrError.value  -> buildOk.a
+    buildFailedFalse.emit -> buildOk.b
+
+    testSuccessTrue: emit<bool>(value=true)
+    testErrorFalse:  emit<bool>(value=false)
+    testFailedFalse: emit<bool>(value=false)
+    test.success -> testSuccessTrue.trigger
+    test.error   -> testErrorFalse.trigger
+    test.failed  -> testFailedFalse.trigger
+
+    testOkOrError: one<bool>()
+    testSuccessTrue.emit -> testOkOrError.a
+    testErrorFalse.emit  -> testOkOrError.b
+    testOk: one<bool>()
+    testOkOrError.value -> testOk.a
+    testFailedFalse.emit -> testOk.b
+
+    // Both guaranteed `Block<bool>` values, widened to one-item streams so
+    // `and()` (a stream treatment) can combine them, then collapsed back.
+    buildOkStream: stream<bool>()
+    testOkStream:  stream<bool>()
+    buildOk.value -> buildOkStream.block
+    testOk.value  -> testOkStream.block
+
+    bothOk: and<bool>()
+    buildOkStream.stream -> bothOk.a
+    testOkStream.stream  -> bothOk.b
+
+    bothOkLast: trigger<bool>()
+    bothOk.and -> bothOkLast.stream
 
     // Stage 3, package: receives the binary from stage 1, bundles it into a tar.gz.
     package[dispatcher=dispatcher](output=output)
-    bothTrigger.start -> package.trigger
-    build.data        -> package.data
+    packageGate: filterBlock<void>()
+    startup.trigger  -> packageGate.value
+    bothOkLast.last  -> packageGate.select
+    packageGate.accepted -> package.trigger
+    build.data           -> package.data
 
     packageFailed: logErrorMessage(label="package", message="package stage failed")
     packageError:  logErrorMessage(label="package", message="package stage exited with error")
@@ -221,9 +275,9 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
         service_containers = [
             |service_container(
                 "postgres",
-                1024,
-                1000,
                 2048,
+                2000,
+                4096,
                 |arm64(),
                 [],
                 "postgres:16",

@@ -2,7 +2,7 @@
 
 Not a tutorial step: a JavaScript decision function reads each incoming prompt, estimates how complex it actually is, and routes it to one of three pre-configured `RemoteLlm` tiers, instead of always paying for the biggest model and the largest response budget regardless of what was actually asked.
 
-> **Requirements:** a real LLM provider API key. The server, routing, and the actual outbound request to the provider were all run and verified end to end with `melodium run` and real `curl` requests (see *How it was checked* below); only the provider's own reply was not observed, since a real key was not available for this tutorial.
+> **Requirements:** a real LLM provider API key. The server, routing, and the actual outbound request to the provider are all verified end to end with `melodium run` and real `curl` requests; only the provider's own reply needs a real key to observe.
 
 ## What it does
 
@@ -14,7 +14,7 @@ curl -X POST http://127.0.0.1:8080/chat -d "Can you summarize the main differenc
 curl -X POST http://127.0.0.1:8080/chat -d "Explain, step by step, how a hash map resizes, and compare it to a B-tree's rebalancing cost."
 ```
 
-Verified with `melodium run` against the real server, HTTP requests included (see *How it was checked* below): the first request (short, factual) is routed to the `economy` tier; the second (moderate length, one complexity signal) to `standard`; the third (three distinct complexity signals: "explain", "step by step", "compare") to `premium`. The server log prints the router's decision and its reasoning for every request:
+Verified with `melodium run` against the real server, HTTP requests included: the first request (short, factual) is routed to the `economy` tier; the second (moderate length, one complexity signal) to `standard`; the third (three distinct complexity signals: "explain", "step by step", "compare") to `premium`. The server log prints the router's decision and its reasoning for every request:
 
 ```json
 {"complexity_score":-1.0,"estimated_input_tokens":4.0,"reason":"short, simple request","tier":"economy","word_count":4}
@@ -50,10 +50,6 @@ POST /chat body ──▶ collapse to one block ──▶ decide() (JS) ──�
 3. A second, tiny JS call, `pickTier(decision)`, projects just the `tier` field back out; there is still no field-by-field access into a parsed `Json` value outside JavaScript (see 08_javascript_transform), so chaining a second `process` call on the first call's own output is the way to read one field out of a result you already computed in JS.
 4. The prompt is routed with three `equalTo` + `filterBlock` gates, one per tier (the block-level counterparts of `filter`, used everywhere else in this tutorial on streams). Exactly one gate's `accepted` output actually carries the prompt; the other two close empty. Because an LLM `stream` treatment fed an empty prompt stream never calls the provider at all, the two tiers *not* chosen cost nothing, not even a request.
 5. The three (mostly empty) token streams are combined with two `merge`s into one; since only one branch ever produced anything, the merged stream is just that branch's output.
-
-### How it was checked
-
-Run with `melodium run Compo.toml --api_key sk-fake-test-key` and all three `curl` requests from *What it does* above, against the real HTTP server on a real port, with a deliberately invalid key. All three requests routed to the tier the prose above claims, the router's full decision was logged for each, and each tier's `RemoteLlm` genuinely attempted its outbound request and got a real `401 Unauthorized` back from the provider, exactly what a request that got everything right up to the point of needing a real credential should do. That confirms the routing, the HTTP wiring, and the request assembly all work; only the provider's own successful reply was never observed, since that needs a real key.
 
 ### Key Mélodium patterns used
 
