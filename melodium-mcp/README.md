@@ -56,3 +56,9 @@ same reference documents shipped as the `melodium` Claude Code skill
 copy of the [Mélodium book](https://gitlab.com/melodium/book) (see
 `melodium-mcp/book/README.md`) — both embedded into the binary at compile
 time, so no network access is required at runtime.
+
+## Links
+
+- Homepage: <https://melodium.tech>
+- Repository: <https://gitlab.com/melodium/melodium>
+- MCP Registry name: `mcp-name: tech.melodium/melodium-mcp`
