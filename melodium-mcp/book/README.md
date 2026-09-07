@@ -9,7 +9,9 @@ runtime dependency on the book's repository or website.
 
 Vendored from commit `51989870feacbea586c016c8ab7ac09bc7eb47ec` of `melodium/book`, refreshed 2026-09-07.
 
-To refresh, run `book/sync.sh` (clones `melodium/book`, replaces this
-directory's chapters, and rewrites the line above), then review the diff
-and commit. This is a deliberate manual step rather than a build-time
-fetch — see `sync.sh` for why.
+This content may fall behind `melodium/book` over time and needs to be
+refreshed manually from there occasionally (re-copy `src/**/*.md` over this
+directory, keeping this README, and update the commit/date above). It is
+deliberately not fetched at build time: that would make `melodium-mcp`'s
+build depend on network access and the book repository's live state,
+breaking offline builds (e.g. docs.rs) and reproducibility.
