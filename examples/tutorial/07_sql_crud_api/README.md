@@ -6,7 +6,7 @@
 
 A tiny "notes" API backed by PostgreSQL: `POST /notes` stores the request body as plain text, `GET /notes` lists every stored note.
 
-> **Note on verification:** unlike the previous tutorial steps, this example needs a reachable PostgreSQL database. It was type-checked with `melodium check` but **not** run end-to-end against a live database for this tutorial (no Postgres server was available in the environment that wrote it). Point `db_url` at any real Postgres instance to try it for real: the query shapes and wiring follow the same verified patterns as examples 03–06.
+> **Requirement:** a reachable PostgreSQL database. Verified end to end against a real one: `POST /notes` followed by `GET /notes` returns exactly the inserted rows.
 
 ## What it does
 
@@ -45,7 +45,7 @@ startup ─▶ connect ─▶ connected ─▶ createTable ─▶ start (HTTP)
 ## Runtime behaviour
 
 1. `connect` is fired once at startup; the `connected` *source* treatment starts a track once the pool is actually ready: `createTable` (and everything downstream, including starting the HTTP server) only runs after that, so no request can race the table's creation.
-2. `POST /notes` reduces the body to a single `Block<string>` with `trigger.last` (the same "collapse a one-item stream to a block" idiom as the totals in example 03), wraps it in a `Map` with `std/data/map/block::entry`, and passes it as the single bind parameter to `execute`.
+2. `POST /notes` reduces the body to a single `Block<string>` with `trigger.last` (the same "collapse a one-item stream to a block" idiom as the totals in example 03), wraps it in a `Map` with `std/data/map/block::entry`, and passes it as the single bind parameter to `execute`. `execute`'s SQL uses the default `?` placeholder (`bind_symbol`); for a PostgreSQL connection (`postgres://` or `postgresql://`) it is automatically rewritten to `$1`, `$2`, … before reaching the driver, so the `?` in `INSERT INTO notes (text) VALUES (?)` never has to be written as `$1` by hand.
 3. `GET /notes` does not build a response and send it once: `fetch`'s `data` output streams each row as soon as it arrives from the database, and each row is turned into one `"id) text\n"` line and written straight into `connection.data`. Nothing is buffered client-side; the HTTP response grows as rows arrive.
 4. `SELECT id::text AS id, text FROM notes` casts `id` to text *in SQL*, rather than guessing which native integer type (`i32`? `i64`?) the Postgres driver maps `SERIAL` to: `std/data/map::get<string>` then always matches.
 

@@ -60,6 +60,7 @@ POST /chat body ──▶ collapse to one block ──▶ decide() (JS) ──�
 3. A second, tiny JS call, `pickTier(decision)`, projects just the `tier` field back out; there is still no field-by-field access into a parsed `Json` value outside JavaScript (see 08_javascript_transform), so chaining a second `process` call on the first call's own output is the way to read one field out of a result you already computed in JS.
 4. The prompt is routed with three `equalTo` + `filterBlock` gates, one per tier (the block-level counterparts of `filter`, used everywhere else in this tutorial on streams). Exactly one gate's `accepted` output actually carries the prompt; the other two close empty. Because an LLM `stream` treatment fed an empty prompt stream never calls the provider at all, the two tiers *not* chosen cost nothing, not even a request.
 5. The three (mostly empty) token streams are combined with two `merge`s into one; since only one branch ever produced anything, the merged stream is just that branch's output.
+6. `temperature` is set explicitly to `|wrap<f32>(1.0)`. Left as `_`, `RemoteLlm`'s `temperature` (a Rust-declared model parameter) does not omit the value the way a `.mel`-declared `Option<T>` would: it is sent as `0`, which Anthropic's newest models reject outright (`` `temperature` is deprecated for this model``). `1.0` is the one value they still accept. `top_p`, left as `_`, is correctly omitted.
 
 ### Key Mélodium patterns used
 
@@ -68,5 +69,6 @@ POST /chat body ──▶ collapse to one block ──▶ decide() (JS) ──�
 - **`equalTo` + `filterBlock`**: the block-level shape of the `exact`/`filter` combination used on streams throughout this tutorial, for routing a single request rather than filtering a sequence.
 - **An empty prompt stream costs nothing.** Feeding all three tiers and letting the unchosen ones receive zero items is simpler than building a true N-way dynamic dispatch, and is free: an LLM treatment that never receives a prompt never calls the provider.
 - **Verify logic in isolation before wiring it into something you can't easily test** (here, real API calls): the same principle as `melodium run` over `melodium check` elsewhere in this tutorial, applied to a piece of business logic rather than a library treatment.
+- **`_` on a Rust-declared model parameter is not the same thing as `_` on a `.mel`-declared one.** The latter genuinely omits an `Option<T>`; the former can silently send a zero value instead. Prefer an explicit `|wrap<T>(value)` over `_` for a Rust-declared model's optional numeric parameters until this is fixed at the source.
 
 Back to the [examples index](../../README.md).

@@ -427,8 +427,13 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
     if let Ok(bind) = bind.recv_one_as::<Arc<Map>>().await {
         match SqlPoolModel::into(sql_pool).inner().pool().await {
             Ok(pool) => {
+                // Both "postgres" and "postgresql" are valid, standard scheme
+                // spellings for a PostgreSQL connection URL (the driver
+                // itself accepts either); matching only one silently left
+                // `bind_symbol` unconverted for the other, sending a literal
+                // "?" to the database and failing with a SQL syntax error.
                 let sql = match pool.connect_options().database_url.scheme() {
-                    "postgres" => postgres_bind_replace(sql, &bind_symbol),
+                    "postgres" | "postgresql" => postgres_bind_replace(sql, &bind_symbol),
                     _ => sql,
                 };
                 let mut query = sqlx::query(&sql);
@@ -507,7 +512,7 @@ pub async fn execute_each(
             let mut success = true;
             while let Ok(bind) = bind.recv_one_as::<Arc<Map>>().await {
                 let sql = match pool.connect_options().database_url.scheme() {
-                    "postgres" => postgres_bind_replace(sql.clone(), &bind_symbol),
+                    "postgres" | "postgresql" => postgres_bind_replace(sql.clone(), &bind_symbol),
                     _ => sql.clone(),
                 };
                 let mut query = sqlx::query(&sql);
@@ -627,7 +632,7 @@ pub async fn execute_batch(
                             .collect::<Vec<_>>()
                             .join(&separator);
                         match pool.connect_options().database_url.scheme() {
-                            "postgres" => postgres_bind_replace(batch, &bind_symbol),
+                            "postgres" | "postgresql" => postgres_bind_replace(batch, &bind_symbol),
                             _ => batch,
                         }
                     })
@@ -708,7 +713,7 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
         match SqlPoolModel::into(sql_pool).inner().pool().await {
             Ok(pool) => {
                 let sql = match pool.connect_options().database_url.scheme() {
-                    "postgres" => postgres_bind_replace(sql, &bind_symbol),
+                    "postgres" | "postgresql" => postgres_bind_replace(sql, &bind_symbol),
                     _ => sql,
                 };
                 let mut query = sqlx::query(&sql);
@@ -824,7 +829,7 @@ pub async fn fetch_batch(
                             .collect::<Vec<_>>()
                             .join(&separator);
                         match pool.connect_options().database_url.scheme() {
-                            "postgres" => postgres_bind_replace(batch, &bind_symbol),
+                            "postgres" | "postgresql" => postgres_bind_replace(batch, &bind_symbol),
                             _ => batch,
                         }
                     })

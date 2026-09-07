@@ -5,7 +5,7 @@ Two tracks:
 - **[`tutorial/`](tutorial/)**: a guided path through Mélodium's core concepts, one at a time, in increasing order of difficulty. Start at [`01_hello_melodium`](tutorial/01_hello_melodium/) if you are new to the language.
 - **[`showcase/`](showcase/)**: a handful of larger, more convincing demos that combine several capabilities at once (remote LLMs, speech, distributed compute, CI/CD) without stopping to explain every concept along the way. Read these once the tutorial track feels comfortable.
 
-Every example is a self-contained Mélodium project (`Compo.toml` + `.mel` files) with its own `README.md` explaining what it does and why it is built the way it is. **Run them from inside their own directory**, because examples that read or write files use paths relative to the current working directory:
+Every example is a self-contained Mélodium project (`Compo.toml` + `.mel` files, except [tutorial/10](tutorial/10_distributed_computation/), a single standalone script, see its own README for why) with its own `README.md` explaining what it does and why it is built the way it is. **Run them from inside their own directory**, because examples that read or write files use paths relative to the current working directory:
 
 ```
 cd tutorial/01_hello_melodium
@@ -29,7 +29,7 @@ Installing Mélodium is enough for most of the tutorial. The table below lists e
 | [tutorial/07](tutorial/07_sql_crud_api/) | **a reachable PostgreSQL database** |
 | [tutorial/08](tutorial/08_javascript_transform/) | nothing (`students.json` is included) |
 | [tutorial/09](tutorial/09_process_pipeline/) | the `sort` command in `PATH` (standard on Linux and macOS, absent on plain Windows) |
-| [tutorial/10](tutorial/10_distributed_computation/) | **a second Mélodium engine** started with `melodium dist`, plus two UUIDs you generate yourself |
+| [tutorial/10](tutorial/10_distributed_computation/) | **a second Mélodium engine** started with `melodium dist`, two UUIDs you generate yourself, and the same `MELODIUM_GROUP_ID` exported for both engines |
 | [showcase/smart_llm_router](showcase/smart_llm_router/) | an LLM provider API key |
 | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) | an LLM provider API key; the `voice` entrypoint also needs an ElevenLabs key, a working microphone, and downloads a Whisper model from HuggingFace on first run |
 | [showcase/ci_pipeline](showcase/ci_pipeline/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) or a local `podman`/`docker compose` setup; `repo_url` defaults to a real public repo, so nothing else is required |
@@ -38,7 +38,7 @@ Installing Mélodium is enough for most of the tutorial. The table below lists e
 
 Examples that write output (`hello.txt`, `report.txt`, `summary.json`, `post.txt`, `grades.txt`, `sorted.txt`, ...) create those files in the directory you run them from.
 
-Most tutorial examples run entirely locally and were verified end to end while writing them (`melodium check` **and** an actual `melodium run`, inspecting the real output: see each README's *Runtime behaviour* section for specifics, including a few real bugs that were found and fixed this way). A few examples (anything needing a real database, a paid API key, a second Mélodium engine, or cloud infrastructure) were verified with `melodium check` only; their README says so explicitly.
+Every tutorial example, including the ones needing a real PostgreSQL database or a second Mélodium engine, has been verified end to end (`melodium check` **and** an actual `melodium run`, inspecting the real output): see each README's *Runtime behaviour* section for specifics, including several real bugs found and fixed this way. The showcase examples needing a paid API key or cloud infrastructure (Cadence.CI, an LLM provider) are verified the same way wherever credentials were available; each README says plainly whether that run happened.
 
 ## Capability inventory
 

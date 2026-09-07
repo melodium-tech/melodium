@@ -65,7 +65,7 @@ model ChatLlm(const api_key: string, const model: string) : RemoteLlm {
     model       = model
     system      = "You are a helpful, concise assistant."
     max_tokens  = |wrap<u64>(512)
-    temperature = _
+    temperature = |wrap<f32>(1.0)
     top_p       = _
     timeout     = _
 }
@@ -120,7 +120,7 @@ model VoiceLlm(const api_key: string, const model: string) : RemoteLlm {
     model       = model
     system      = "You are a concise voice assistant. Answer in one short paragraph."
     max_tokens  = |wrap<u64>(256)
-    temperature = _
+    temperature = |wrap<f32>(1.0)
     top_p       = _
     timeout     = _
 }

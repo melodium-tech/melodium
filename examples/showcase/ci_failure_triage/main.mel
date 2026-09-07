@@ -113,7 +113,7 @@ model Analyst(const api_key: string, const model: string) : RemoteLlm {
     model       = model
     system      = "You are a CI failure triage assistant. You are given the name of a failed CI step, a deterministic classification of the failure, and the step's raw output. In two short paragraphs: explain the likely root cause in plain language, then suggest a concrete, minimal fix. Do not repeat the raw log back verbatim."
     max_tokens  = |wrap<u64>(500)
-    temperature = _
+    temperature = |wrap<f32>(1.0)
     top_p       = _
     timeout     = _
 }

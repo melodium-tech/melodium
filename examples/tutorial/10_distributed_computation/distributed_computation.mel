@@ -1,3 +1,8 @@
+#!/usr/bin/env melodium
+#! name = distributed_computation
+#! version = 0.1.0
+#! require = std:0.10.* net:0.10.* work:0.10.* distrib:0.10.*
+
 use std/engine/util::startup
 use std/engine/log::logInfoMessage
 use std/engine/log::logInfos
@@ -8,6 +13,7 @@ use std/flow::generate
 use std/flow::trigger
 use std/conv::toString
 use std/data/map::|map
+use std/ops/num::add
 use net/ip::|localhost_ipv4
 use net/ip::|from_ipv4
 use work/access::Access
@@ -29,24 +35,40 @@ use distrib::recvStream
 // a single process; `distribute` is the one primitive that spreads a
 // computation across several.
 //
+// This is a standalone script (one `.mel` file, no Compo.toml), not a
+// project like every other example in this tutorial. A `DistributionEngine`
+// resolves its target treatment against the local engine's own compiled
+// collection, and a Compo.toml project only compiles what is reachable from
+// the entrypoint being run: `double` below is never directly instantiated
+// anywhere in `main`'s own graph (it is only referenced by name in
+// `Doubler`'s configuration), so a project build prunes it and the
+// `DistributionEngine` can never find it at runtime. A standalone script
+// compiles as a single unit with nothing pruned, so `double` stays
+// available. Point a `DistributionEngine` at a treatment you *do* also
+// instantiate locally somewhere and this limitation does not apply.
+//
 // Setup: two Mélodium engines:
 //
-//   1. Start a listening engine, from *this project's directory* (so it can
-//      resolve "distributed_computation/worker::double"):
+//   1. Start a listening engine:
 //        melodium dist --localhost --port 6789 \
 //          --recv-key <uuid-A> --send-key <uuid-B>
 //
-//   2. Run this program, with the keys swapped (this side sends what the
+//   2. Run this script, with the keys swapped (this side sends what the
 //      other side expects to receive, and vice versa):
-//        melodium run Compo.toml \
+//        melodium run distributed_computation.mel \
 //          --port 6789 --send_key <uuid-A> --recv_key <uuid-B>
 //
 // `--localhost` uses an embedded certificate for local testing; generate the
 // UUIDs however is convenient (e.g. `python3 -c "import uuid; print(uuid.uuid4())"`).
 //
+// Both engines must share the same distribution group: export
+// MELODIUM_GROUP_ID (any UUID, e.g. from the same `python3` one-liner above)
+// to the same value before starting each one; two engines started without
+// it each pick their own random group and can never pair up.
+//
 
 model Doubler() : DistributionEngine {
-    treatment = "distributed_computation/worker::double"
+    treatment = "distributed_computation::double"
     version   = "0.1.0"
 }
 
@@ -61,7 +83,7 @@ treatment main(
 {
     startup()
 
-    accessBlock: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], port, recv_key, send_key))
+    accessBlock: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], port, send_key, recv_key))
     startup.trigger -> accessBlock.trigger
 
     distribStart: start[distributor=distributor](params=|map([]))
@@ -112,4 +134,15 @@ treatment dispatchDouble[distributor: DistributionEngine]()
 
     Self.n    -> send.data
     recv.data -> Self.n
+}
+
+// The treatment executed on the remote engine.
+treatment double()
+  input  n: Stream<i64>
+  output n: Stream<i64>
+{
+    doubled: add<i64>()
+    Self.n -> doubled.a
+    Self.n -> doubled.b
+    doubled.sum -> Self.n
 }

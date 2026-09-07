@@ -133,7 +133,7 @@ model EconomyLlm(const api_key: string, const model: string) : RemoteLlm {
     model       = model
     system      = "You are a fast, concise assistant. Answer as briefly and directly as accuracy allows."
     max_tokens  = |wrap<u64>(200)
-    temperature = _
+    temperature = |wrap<f32>(1.0)
     top_p       = _
     timeout     = _
 }
@@ -146,7 +146,7 @@ model StandardLlm(const api_key: string, const model: string) : RemoteLlm {
     model       = model
     system      = "You are a helpful, clear assistant."
     max_tokens  = |wrap<u64>(600)
-    temperature = _
+    temperature = |wrap<f32>(1.0)
     top_p       = _
     timeout     = _
 }
@@ -159,7 +159,7 @@ model PremiumLlm(const api_key: string, const model: string) : RemoteLlm {
     model       = model
     system      = "You are a thorough, expert assistant. Explain your reasoning fully and precisely."
     max_tokens  = |wrap<u64>(1500)
-    temperature = _
+    temperature = |wrap<f32>(1.0)
     top_p       = _
     timeout     = _
 }
@@ -167,8 +167,8 @@ model PremiumLlm(const api_key: string, const model: string) : RemoteLlm {
 treatment chat(
     const api_key:        string,
     const economy_model:  string = "claude-haiku-4-5",
-    const standard_model: string = "claude-sonnet-4-6",
-    const premium_model:  string = "claude-opus-4-1",
+    const standard_model: string = "claude-sonnet-5",
+    const premium_model:  string = "claude-opus-4-5",
     const port:           u16    = 8080
 )
   model server:      HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
