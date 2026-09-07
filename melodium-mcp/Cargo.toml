@@ -26,6 +26,7 @@ schemars = "1"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std"] }
 anyhow = "1"
+include_dir = "0.7"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
