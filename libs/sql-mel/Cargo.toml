@@ -27,9 +27,10 @@ sqlx = { version = "0.8" }
 mock = []
 plugin = []
 real = ["sqlx/runtime-async-std", "sqlx/postgres", "sqlx/mysql", "sqlx/tls-rustls"]
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
