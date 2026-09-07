@@ -652,7 +652,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "audio-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-channel 2.5.0",
  "async-std",
@@ -1536,14 +1536,15 @@ dependencies = [
 
 [[package]]
 name = "candle-core"
-version = "0.10.2"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bd9895436c1ba5dc1037a19935d084b838db066ff4e15ef7dded020b7c12a4a"
+checksum = "5ecb245093b0f791b89d3420c3df9c6d49c60ab63ba54db896bf8a3baf486706"
 dependencies = [
  "byteorder",
  "float8",
  "gemm",
  "half",
+ "libc",
  "libm",
  "memmap2",
  "num-traits",
@@ -1555,14 +1556,15 @@ dependencies = [
  "thiserror 2.0.19",
  "tokenizers",
  "yoke 0.8.3",
+ "zerocopy",
  "zip",
 ]
 
 [[package]]
 name = "candle-nn"
-version = "0.10.2"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9317a09d6530b758990ed7f625ac69ff43653bc9ee28b0464644ad1169ada87"
+checksum = "eaa10b6ccc365b33210ce404fbf45e60d3e0bdac1004463cf1052e6ee1c1739a"
 dependencies = [
  "candle-core",
  "half",
@@ -1576,14 +1578,14 @@ dependencies = [
 
 [[package]]
 name = "candle-transformers"
-version = "0.10.2"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f59d08c89e9f4af9c464e2f3a8e16199e7cc601e6f34538c2cfbb42b623b1783"
+checksum = "3bcbbf7ff00ff6fe2af22b93600195917fe90e90ff48424a140d1a926c44b1c1"
 dependencies = [
  "byteorder",
  "candle-core",
  "candle-nn",
- "fancy-regex 0.17.0",
+ "fancy-regex 0.18.0",
  "num-traits",
  "rand 0.9.5",
  "rayon",
@@ -1728,7 +1730,7 @@ dependencies = [
 
 [[package]]
 name = "cicd-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "distrib-mel",
@@ -2512,7 +2514,7 @@ dependencies = [
 
 [[package]]
 name = "distrib-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "event-listener 5.4.2",
@@ -2587,7 +2589,7 @@ checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "encoding-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "encoding_rs",
  "melodium-core",
@@ -2737,9 +2739,9 @@ dependencies = [
 
 [[package]]
 name = "fancy-regex"
-version = "0.17.0"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72cf461f865c862bb7dc573f643dd6a2b6842f7c30b07882b56bd148cc2761b8"
+checksum = "e1e1dacd0d2082dfcf1351c4bdd566bbe89a2b263235a2b50058f1e130a47277"
 dependencies = [
  "bit-set",
  "regex-automata",
@@ -2862,7 +2864,7 @@ dependencies = [
 
 [[package]]
 name = "fs-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "async-trait",
@@ -3604,7 +3606,7 @@ dependencies = [
 
 [[package]]
 name = "http-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-ringbuf",
  "async-std",
@@ -4059,6 +4061,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8a5a9a0ff0086c7a148acb942baaabeadf9504d10400b5a05645853729b9cd2"
 
 [[package]]
+name = "include_dir"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "923d117408f1e49d914f1a379a309cffe4f18c05cf4e3d12e613a15fc81bd0dd"
+dependencies = [
+ "include_dir_macros",
+]
+
+[[package]]
+name = "include_dir_macros"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cab85a7ed0bd5f0e76d93846e0147172bed2e2d3f859bcc33a8d9699cad1a75"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4168,7 +4189,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "javascript-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "boa_engine",
@@ -4245,7 +4266,7 @@ dependencies = [
 
 [[package]]
 name = "json-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "futures",
  "melodium-core",
@@ -4584,7 +4605,7 @@ dependencies = [
 
 [[package]]
 name = "melodium"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "audio-mel",
@@ -4629,11 +4650,11 @@ dependencies = [
 
 [[package]]
 name = "melodium-certs"
-version = "0.10.2"
+version = "0.10.3"
 
 [[package]]
 name = "melodium-common"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "async-trait",
@@ -4648,7 +4669,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-core"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "erased-serde",
  "melodium-common",
@@ -4658,7 +4679,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-distribution"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "ciborium",
@@ -4676,7 +4697,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-doc"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "itertools 0.13.0",
  "melodium-common",
@@ -4684,7 +4705,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-engine"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "async-trait",
@@ -4700,7 +4721,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-lang"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "convert_case 0.6.0",
  "descape",
@@ -4718,7 +4739,7 @@ version = "0.0.1-reserved"
 
 [[package]]
 name = "melodium-loader"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "banzai",
  "bzip2-rs",
@@ -4736,7 +4757,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-macro"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "convert_case 0.6.0",
  "glob",
@@ -4749,9 +4770,10 @@ dependencies = [
 
 [[package]]
 name = "melodium-mcp"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "anyhow",
+ "include_dir",
  "melodium",
  "melodium-common",
  "melodium-loader",
@@ -4763,7 +4785,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-repository"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "cargo_author",
@@ -4781,7 +4803,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-share"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "cbor4ii",
  "chrono",
@@ -4866,7 +4888,7 @@ dependencies = [
 
 [[package]]
 name = "ml-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "candle-core",
@@ -4943,7 +4965,7 @@ dependencies = [
 
 [[package]]
 name = "net-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "futures",
  "melodium-core",
@@ -5630,7 +5652,7 @@ dependencies = [
 
 [[package]]
 name = "process-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "async-trait",
@@ -5937,7 +5959,7 @@ checksum = "03251193000f4bd3b042892be858ee50e8b3719f2b08e5833ac4353724632430"
 
 [[package]]
 name = "record-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-channel 2.5.0",
  "async-std",
@@ -6029,7 +6051,7 @@ checksum = "cab834c73d247e67f4fae452806d17d3c7501756d98c8808d7c9c7aa7d18f973"
 
 [[package]]
 name = "regex-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "futures",
  "melodium-core",
@@ -6393,13 +6415,15 @@ checksum = "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714"
 
 [[package]]
 name = "safetensors"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "675656c1eabb620b921efea4f9199f97fc86e36dd6ffd1fbbe48d0f59a4987f5"
+checksum = "79b079b829cb27a1c3c374341345ed2e8b2c0c839034522cee576c140bd7f846"
 dependencies = [
  "hashbrown 0.16.1",
+ "libc",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -6997,7 +7021,7 @@ checksum = "3b9b39299b249ad65f3b7e96443bad61c02ca5cd3589f46cb6d610a0fd6c0d6a"
 
 [[package]]
 name = "sql-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "melodium-core",
@@ -7232,7 +7256,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "std-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "futures",
@@ -7620,6 +7644,19 @@ checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
 dependencies = [
  "filetime",
  "libc",
+]
+
+[[package]]
+name = "tempfile"
+version = "3.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
+dependencies = [
+ "fastrand 2.5.0",
+ "getrandom 0.4.3",
+ "once_cell",
+ "rustix 1.1.4",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9134,7 +9171,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "work-mel"
-version = "0.10.2"
+version = "0.10.3"
 dependencies = [
  "async-std",
  "async-trait",
@@ -9336,9 +9373,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "7.2.0"
+version = "8.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c42e33efc22a0650c311c2ef19115ce232583abbe80850bc8b66509ebef02de0"
+checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
 dependencies = [
  "crc32fast",
  "indexmap",

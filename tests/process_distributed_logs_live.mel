@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = process_distributed_logs_live
-#! version = 0.10.2
-#! require = std:0.10.2 work:0.10.2 distrib:0.10.2 process:0.10.2 fs:0.10.2 net:0.10.2
+#! version = 0.10.3
+#! require = std:0.10.3 work:0.10.3 distrib:0.10.3 process:0.10.3 fs:0.10.3 net:0.10.3
 
 use std/flow::emit
 use std/flow::stream
@@ -28,7 +28,7 @@ use process/local::spawnOnce
 // The orchestrator's `--logs` file must contain that message while the worker is
 // still in that slow phase, not only once the whole run has completed.
 treatment main(const distrib_port: u16, var remote_key: string, var self_key: string, const message: string = "Pingouin")
-  model distributor: DistributionEngine(treatment="process_distributed_logs_live::slowLogEcho", version="0.10.2")
+  model distributor: DistributionEngine(treatment="process_distributed_logs_live::slowLogEcho", version="0.10.3")
 {
     startup()
     emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], distrib_port, remote_key, self_key))

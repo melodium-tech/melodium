@@ -1,8 +1,8 @@
 #!/usr/bin/env melodium
 #! name = complex_call
-#! version = 0.10.2
-#! require = std:0.10.2
-#! require = fs:0.10.2
+#! version = 0.10.3
+#! require = std:0.10.3
+#! require = fs:0.10.3
 
 use std/engine/util::startup
 use std/flow::generate

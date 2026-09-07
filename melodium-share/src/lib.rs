@@ -37,7 +37,10 @@ pub use context::Context;
 pub use data::Data;
 pub use data_trait::DataTrait;
 pub use data_type::DataType;
-pub use debug::Event;
+pub use debug::{
+    ContextualEnvironment, DataContent, Event, EventKind, HostTreatment, InfoTrack, TrackCreation,
+    TrackResult, TransmissionDetails,
+};
 pub use described_type::DescribedType;
 pub use entry::{Entry, EntryId, EntryKind};
 pub use error::{SharingError, SharingResult};

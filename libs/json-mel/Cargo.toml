@@ -1,6 +1,6 @@
 [package]
 name = "json-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -18,9 +18,9 @@ name = "json_mel"
 
 [dependencies]
 futures = "0.3.28"
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
-std-mel = { path = "../std-mel", version = "0.10.2" }
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
+std-mel = { path = "../std-mel", version = "0.10.3" }
 serde = "1.0.185"
 serde_json = "1.0.105"
 
@@ -28,9 +28,10 @@ serde_json = "1.0.105"
 mock = []
 plugin = []
 real = []
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

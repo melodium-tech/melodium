@@ -1,6 +1,6 @@
 [package]
 name = "javascript-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -19,18 +19,19 @@ name = "javascript_mel"
 [dependencies]
 async-std = "1.13"
 boa_engine = { version = "0.20" }
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
-json-mel = { path = "../json-mel", version = "0.10.2" }
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
+json-mel = { path = "../json-mel", version = "0.10.3" }
 serde_json = "1.0.105"
 
 [features]
 mock = []
 plugin = []
 real = []
+"docs.rs" = ["mock", "json-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
