@@ -31,8 +31,8 @@ use distrib::recvStream
 // separate Mélodium engine, wiring inputs and outputs across the network as
 // if it were local.
 //
-// This closes the tutorial track: everything from example 01 onward runs in
-// a single process; `distribute` is the one primitive that spreads a
+// This closes the tutorial track: everything from 01_hello_melodium onward
+// runs in a single process; `distribute` is the one primitive that spreads a
 // computation across several.
 //
 // This is a standalone script (one `.mel` file, no Compo.toml), not a

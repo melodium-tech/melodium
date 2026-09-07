@@ -46,9 +46,8 @@ use sql::fetch
 //   POST /notes  → body is the note's plain text; stores it
 //   GET  /notes  → lists every note as "id) text" lines
 //
-// This example needs a reachable PostgreSQL database: it is type-checked
-// (`melodium check`) but was not run against a live database for this
-// tutorial. Point `db_url` at any Postgres instance to try it for real.
+// This example needs a reachable PostgreSQL database. Point `db_url` at
+// any Postgres instance to try it.
 //
 // Usage:
 //   melodium run Compo.toml --db_url postgresql://user@localhost/notes_db

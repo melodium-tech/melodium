@@ -38,8 +38,6 @@ Installing Mélodium is enough for most of the tutorial. The table below lists e
 
 Examples that write output (`hello.txt`, `report.txt`, `summary.json`, `post.txt`, `grades.txt`, `sorted.txt`, ...) create those files in the directory you run them from.
 
-Every tutorial example, including the ones needing a real PostgreSQL database or a second Mélodium engine, has been verified end to end (`melodium check` **and** an actual `melodium run`, inspecting the real output): see each README's *Runtime behaviour* section for specifics, including several real bugs found and fixed this way. The showcase examples needing a paid API key or cloud infrastructure (Cadence.CI, an LLM provider) are verified the same way wherever credentials were available; each README says plainly whether that run happened.
-
 ## Capability inventory
 
 The table below is a map of what Mélodium (and its standard library packages) can do, and which example(s) demonstrate it. It is not exhaustive: see the [Mélodium reference documentation](https://doc.melodium.tech/latest/en/) for the full standard library.

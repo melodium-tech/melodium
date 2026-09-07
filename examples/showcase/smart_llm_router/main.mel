@@ -50,10 +50,7 @@ use ml/remote/llm::stream as llmStream
 // "pick the right one of a few pre-defined (model, budget) tiers". That is
 // exactly what the JavaScript function below decides.
 //
-// This example requires a real LLM provider API key. It is type-checked
-// with `melodium check`, and its decision logic (the JavaScript part, with
-// no LLM call involved) was run and verified with `melodium run`, but the
-// full request was not run against a live provider for this tutorial.
+// This example requires a real LLM provider API key.
 //
 // Usage:
 //   melodium run Compo.toml --api_key sk-...
@@ -62,8 +59,7 @@ use ml/remote/llm::stream as llmStream
 //   curl -X POST http://127.0.0.1:8080/chat -d "Can you summarize the main differences between REST and GraphQL APIs?"
 //   curl -X POST http://127.0.0.1:8080/chat -d "Explain, step by step, how a hash map resizes, and compare it to a B-tree's rebalancing cost."
 //
-// Verified with `melodium run` against the decision function alone: the
-// first request (short, factual) is routed to the economy tier; the
+// The first request (short, factual) is routed to the economy tier; the
 // second (moderate length, one complexity keyword) to standard; the third
 // (multiple complexity signals: "explain", "step by step", "compare") to
 // premium. The server log prints the router's decision and its reasoning

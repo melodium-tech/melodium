@@ -2,7 +2,7 @@
 
 Not a tutorial step: a JavaScript decision function reads each incoming prompt, estimates how complex it actually is, and routes it to one of three pre-configured `RemoteLlm` tiers, instead of always paying for the biggest model and the largest response budget regardless of what was actually asked.
 
-> **Requirements:** a real LLM provider API key. The server, routing, and the actual outbound request to the provider are all verified end to end with `melodium run` and real `curl` requests; only the provider's own reply needs a real key to observe.
+> **Requirements:** a real LLM provider API key.
 
 ## What it does
 
@@ -14,7 +14,7 @@ curl -X POST http://127.0.0.1:8080/chat -d "Can you summarize the main differenc
 curl -X POST http://127.0.0.1:8080/chat -d "Explain, step by step, how a hash map resizes, and compare it to a B-tree's rebalancing cost."
 ```
 
-Verified with `melodium run` against the real server, HTTP requests included: the first request (short, factual) is routed to the `economy` tier; the second (moderate length, one complexity signal) to `standard`; the third (three distinct complexity signals: "explain", "step by step", "compare") to `premium`. The server log prints the router's decision and its reasoning for every request:
+The first request (short, factual) is routed to the `economy` tier; the second (moderate length, one complexity signal) to `standard`; the third (three distinct complexity signals: "explain", "step by step", "compare") to `premium`. The server log prints the router's decision and its reasoning for every request:
 
 ```json
 {"complexity_score":-1.0,"estimated_input_tokens":4.0,"reason":"short, simple request","tier":"economy","word_count":4}
@@ -56,8 +56,8 @@ POST /chat body ──▶ collapse to one block ──▶ decide() (JS) ──�
 ## Runtime behaviour
 
 1. Mélodium's `RemoteLlm` sets `model` and `max_tokens` once per model instance, not per request, so "optimise the token budget for this request" cannot mean "compute an arbitrary number every time"; it means "pick the right one of a few pre-defined `(model, budget)` tiers": `economyLlm` (small, fast model, 200-token budget), `standardLlm` (600 tokens), `premiumLlm` (most capable model, 1500 tokens).
-2. The request body is collapsed to a single `Block<string>` (the `trigger.last` idiom from example 03), wrapped as `Json` with `fromString`, and passed to the JS `decide()` function, which returns a JSON object with the chosen `tier`, a word/token estimate, and a human-readable `reason`. That whole object is logged server-side for every request.
-3. A second, tiny JS call, `pickTier(decision)`, projects just the `tier` field back out; there is still no field-by-field access into a parsed `Json` value outside JavaScript (see 08_javascript_transform), so chaining a second `process` call on the first call's own output is the way to read one field out of a result you already computed in JS.
+2. The request body is collapsed to a single `Block<string>` (the `trigger.last` idiom from [03_text_and_files](../../tutorial/03_text_and_files/)), wrapped as `Json` with `fromString`, and passed to the JS `decide()` function, which returns a JSON object with the chosen `tier`, a word/token estimate, and a human-readable `reason`. That whole object is logged server-side for every request.
+3. A second, tiny JS call, `pickTier(decision)`, projects just the `tier` field back out; there is still no field-by-field access into a parsed `Json` value outside JavaScript (see [08_javascript_transform](../../tutorial/08_javascript_transform/)), so chaining a second `process` call on the first call's own output is the way to read one field out of a result you already computed in JS.
 4. The prompt is routed with three `equalTo` + `filterBlock` gates, one per tier (the block-level counterparts of `filter`, used everywhere else in this tutorial on streams). Exactly one gate's `accepted` output actually carries the prompt; the other two close empty. Because an LLM `stream` treatment fed an empty prompt stream never calls the provider at all, the two tiers *not* chosen cost nothing, not even a request.
 5. The three (mostly empty) token streams are combined with two `merge`s into one; since only one branch ever produced anything, the merged stream is just that branch's output.
 6. `temperature` is set explicitly to `|wrap<f32>(1.0)`. Left as `_`, `RemoteLlm`'s `temperature` (a Rust-declared model parameter) does not omit the value the way a `.mel`-declared `Option<T>` would: it is sent as `0`, which Anthropic's newest models reject outright (`` `temperature` is deprecated for this model``). `1.0` is the one value they still accept. `top_p`, left as `_`, is correctly omitted.

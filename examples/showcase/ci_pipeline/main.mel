@@ -48,22 +48,14 @@ use fs/local::writeLocal
 //
 // `repo_url` defaults to a small, real, public Rust binary crate
 // (sharkdp/hexyl) chosen so this example runs end to end with nothing
-// beyond a Mélodium Services API token: no separate repo to prepare. Its
-// build and its own (database-independent) test suite were both verified
-// locally with a plain `cargo build --release` and `cargo test --release`
-// before being wired into this pipeline. Override `repo_url` to build your
-// own project instead; the binary-name detection works for any simple,
-// single-binary Cargo crate.
+// beyond a Mélodium Services API token: no separate repo to prepare.
+// Override `repo_url` to build your own project instead; the binary-name
+// detection works for any simple, single-binary Cargo crate.
 //
 // This example requires a Mélodium Services API token (or a local
 // podman/docker compose setup, see `CicdDispatchEngine`'s `location`
 // parameter). Set MELODIUM_API_TOKEN in the environment and run with
 // --api-report; see Cadence.CI to obtain a token and follow execution.
-// The pipeline itself is type-checked with `melodium check`; running it
-// against live Mélodium Services infrastructure was not part of this
-// tutorial (no token was available in the environment that wrote it), but
-// every assumption it makes about the repository it builds was verified
-// locally beforehand.
 //
 // Usage:
 //   export MELODIUM_API_TOKEN="my-api-token"

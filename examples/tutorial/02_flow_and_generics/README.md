@@ -14,7 +14,7 @@ melodium run Compo.toml --upper 10 --threshold 5 --offset_above 100 --offset_bel
 
 A negative value needs the `--flag=value` form; `--offset_below -100` fails to parse (the CLI reads `-100` as a short-flag cluster, not a value).
 
-- Builds the sequence `1, 2, …, upper` (same `generate` + `count` trick as example 01).
+- Builds the sequence `1, 2, …, upper` (same `generate` + `count` trick as [01_hello_melodium](../01_hello_melodium/)).
 - `aboveThreshold<N: PartialOrder>` splits it into two streams around `threshold`.
 - `shift<N: Add>` adds a different offset to each half.
 - `merge` recombines both halves into one stream, in no particular order.
@@ -37,7 +37,7 @@ No models here either: everything is stateless treatments, functions, and two cu
 
 ## Runtime behaviour
 
-1. `generate` produces `upper` placeholder values, and `count` numbers them starting at 1, exactly as example 01 documents. Verified with `melodium run --upper 10 --threshold 5`: `at-or-below-threshold` logs `1, 2, 3, 4, 5` and `above-threshold` logs `6, 7, 8, 9, 10`, the symmetric split `1..10` around `5` implies.
+1. `generate` produces `upper` placeholder values, and `count` numbers them starting at 1, exactly as [01_hello_melodium](../01_hello_melodium/) documents. With `--upper 10 --threshold 5`, `at-or-below-threshold` logs `1, 2, 3, 4, 5` and `above-threshold` logs `6, 7, 8, 9, 10`, the symmetric split `1..10` around `5` implies.
 2. `aboveThreshold<i64>` is instantiated once (`split`) but is written generically: it never mentions `i64` in its body. Inside, it builds a same-length stream of the `threshold` value with `toVoid` + `fill` (so it can compare element-by-element with `greaterThan`), then uses that boolean stream to `filter` the input into `above`/`below`.
 3. `shift<i64>` is instantiated twice (`bumpAbove`, `bumpBelow`) with two different `offset` values: same treatment, same trick with `fill`, this time feeding `std/ops/num::add`.
 4. `merge` interleaves the two shifted streams unpredictably; run the program twice and the log order may differ, which is expected: Mélodium streams have no implicit ordering guarantee across branches.

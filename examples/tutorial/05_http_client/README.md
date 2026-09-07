@@ -46,6 +46,6 @@ get ──▶ decode ──▶ toJson ──▶ unwrapOr ──▶ toString ─�
 ### Key Mélodium patterns used
 
 - **Technical failure vs. data failure**: `fetch.failed`/`fetch.error` fire when the *request itself* could not be completed; a response that arrives successfully but contains invalid JSON is a completely separate, later failure mode (`toJson`'s `Option` coming back `none`). Do not conflate the two.
-- **`|format` for URLs**: the same function used for the greeting in example 01 works just as well to build a URL from a parameter.
+- **`|format` for URLs**: the same function used for the greeting in [01_hello_melodium](../01_hello_melodium/) works just as well to build a URL from a parameter.
 
 Next: [06_http_server_api](../06_http_server_api/) introduces building an HTTP server and the `@HttpRequest` context.

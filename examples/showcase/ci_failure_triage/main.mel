@@ -51,12 +51,6 @@ use fs/local::writeTextLocal
 // This example requires a Mélodium Services API token and an LLM provider
 // API key. Set MELODIUM_API_TOKEN in the environment and run with
 // --api-report; see Cadence.CI to obtain a token and follow execution.
-// It is type-checked with `melodium check`; running it against live
-// infrastructure was not part of this tutorial (no token was available in
-// the environment that wrote it), but every assumption it makes about the
-// two steps' output was verified locally beforehand with a plain `python3`
-// interpreter, and the JS classifier and report assembly were verified end
-// to end with `melodium run` against captured, real log text.
 //
 // Usage:
 //   export MELODIUM_API_TOKEN="my-melodium-services-token"

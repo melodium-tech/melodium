@@ -4,8 +4,6 @@
 
 This closes the tutorial track. Every example from 01 onward ran in a single process; `distribute` is the one primitive that spreads a computation across several: the mechanism the [showcase](../../showcase/) examples lean on for scaling further.
 
-Verified live: two real `melodium` processes, one listening, one connecting, with a real 5-item stream sent and doubled by the remote side.
-
 ## What it does
 
 This is a single standalone script, `distributed_computation.mel` (no `Compo.toml`), unlike every other example in this tutorial. A `DistributionEngine` resolves its target treatment against the local engine's own compiled collection, and a `Compo.toml` project only compiles what is reachable from the entrypoint being run: `double` is never directly instantiated anywhere in `main`'s own graph, it is only referenced by name in `Doubler`'s configuration, so a project build prunes it and `DistributionEngine` can never find it at runtime. A standalone script compiles as a single unit with nothing pruned, so `double` stays available. Point a `DistributionEngine` at a treatment you *do* also instantiate locally somewhere and this does not apply.

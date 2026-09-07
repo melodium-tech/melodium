@@ -2,7 +2,7 @@
 
 Not a tutorial step: a three-stage CI pipeline that runs entirely on provisioned cloud containers, combining `cicd`, `work`, and `process` in one realistic scenario.
 
-> **Requirements:** a Mélodium Services API token, or a local `podman`/`docker compose` setup (see `CicdDispatchEngine`'s `location` parameter). Set `MELODIUM_API_TOKEN` in the environment and run with `--api-report`; see Cadence.CI to obtain a token and follow execution. Nothing else: `repo_url` defaults to a real, public repository (see below). Verified end to end against real Cadence.CI infrastructure: a genuine `git clone` and `cargo build --release` of `hexyl`, a genuine `cargo test` against a genuine Postgres sidecar, and a genuine `artifact.tar.gz` written to disk.
+> **Requirements:** a Mélodium Services API token, or a local `podman`/`docker compose` setup (see `CicdDispatchEngine`'s `location` parameter). Set `MELODIUM_API_TOKEN` in the environment and run with `--api-report`; see Cadence.CI to obtain a token and follow execution. Nothing else: `repo_url` defaults to a real, public repository (see below).
 
 ## What it does
 
@@ -61,7 +61,7 @@ startup ──┬──▶ build (rust container)  ──▶ [success? true/fals
 - **A guaranteed `Block<bool>` plus `and()`, for a true AND-gate on an optional signal.** `success`/`error`/`failed` are mutually exclusive but only one is guaranteed to actually fire depending on what happened; folding the three into one always-present `true`/`false` value first is what makes a plain `and()` behave correctly afterward.
 - **`commands` is not a shell, no matter how shell-like the strings look.** `|raw_commands` tokenises a string; it does not interpret `${VAR}`, `&&`, `cd`, or redirection. Anything that needs those needs an explicit `|command("sh", ["-c", "..."])`.
 - **A required field with no "unspecified" option has to match something, deliberately.** `service_containers`' `arch` cannot be left to the scheduler the way a step's own can; the two must be pinned to the same value.
-- **A showcase's default parameter is itself part of what must be verified.** A `repo_url` with no default, or one pointing at a placeholder like `my-org/my-project`, quietly makes the example unrunnable without the reader doing their own setup work first. Giving it a real, verified default is what makes `--api-report` and a token the only two things a reader needs to supply.
-- **Prove infrastructure is wired correctly independently of the workload that happens to run on it**: `cargo test` here would pass identically whether or not `DATABASE_URL` pointed at a real, reachable database, so it proves nothing about the `service_containers` wiring by itself. The `psql -c "SELECT 1;"` step is a minimal, targeted check of exactly the thing this stage exists to demonstrate.
+- **A showcase's default parameter is part of the design, not an afterthought.** A `repo_url` with no default, or one pointing at a placeholder like `my-org/my-project`, leaves the reader to do their own setup before the example runs at all. A working default is what makes `--api-report` and a token the only two things a reader needs to supply.
+- **Check infrastructure wiring independently of the workload running on it.** `cargo test` here would pass identically whether or not `DATABASE_URL` pointed at a real, reachable database, so it says nothing about whether `service_containers` is actually wired correctly. The `psql -c "SELECT 1;"` step targets exactly that.
 
 Back to the [examples index](../../README.md).

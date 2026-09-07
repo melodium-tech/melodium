@@ -51,9 +51,7 @@ use fs/local::writeLocal
 //           melodium run Compo.toml voice --llm_api_key sk-... --tts_api_key el-...
 //
 // This example requires real API keys (an LLM provider, and ElevenLabs for
-// `voice`) and, for `voice`, a working microphone. It is type-checked with
-// `melodium check` but was not run against live providers for this
-// tutorial: see examples/tutorial/ for examples verified end to end.
+// `voice`) and, for `voice`, a working microphone.
 //
 
 // --- entrypoint: chat ---

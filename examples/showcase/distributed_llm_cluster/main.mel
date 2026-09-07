@@ -51,8 +51,6 @@ use distrib::recvStream
 // This example requires a Mélodium Services API token and an LLM provider
 // API key. Set MELODIUM_API_TOKEN in the environment and run with
 // --api-report; see Cadence.CI to obtain a token and follow execution.
-// It is type-checked with `melodium check` but was not run against live
-// services for this tutorial.
 //
 // Usage:
 //   export MELODIUM_API_TOKEN="my-melodium-services-token"

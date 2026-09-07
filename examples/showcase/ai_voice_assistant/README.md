@@ -2,7 +2,7 @@
 
 Not a tutorial step: this combines several `ml` capabilities from across the library into one convincing demo, without pausing to explain every underlying concept; those are covered individually in [`examples/tutorial/`](../../tutorial/).
 
-> **Requirements:** real API keys (an LLM provider for both entrypoints, plus ElevenLabs for `voice`) and, for `voice`, a working microphone. This example is type-checked with `melodium check` but was not run against live providers for this tutorial.
+> **Requirements:** real API keys (an LLM provider for both entrypoints, plus ElevenLabs for `voice`) and, for `voice`, a working microphone.
 
 ## Two entrypoints
 

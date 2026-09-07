@@ -39,7 +39,7 @@ readTextLocal ──▶ lines ──▶ validate ──▶ filter ──┬─�
 
 ## Runtime behaviour
 
-1. Lines are extracted the same way as in example 03 (`split` + `flatten` + `trim`, blank lines dropped).
+1. Lines are extracted the same way as in [03_text_and_files](../03_text_and_files/) (`split` + `flatten` + `trim`, blank lines dropped).
 2. `json::validate` checks each line without parsing it; `filter` splits the stream into valid text (`accepted`) and garbage (`rejected`, logged as-is).
 3. Only the valid text reaches `toJson`, so parsing never fails here: but `toJson` still returns `Stream<Option<Json>>` by design (it has no way to know that from the type alone), so `unwrapOr` is used to get a plain `Stream<Json>`.
 4. `json/value::isObject` classifies each `Json` value; a second `filter` splits objects from scalars (strings, numbers, booleans, arrays: anything that is not a JSON object).
@@ -48,8 +48,8 @@ readTextLocal ──▶ lines ──▶ validate ──▶ filter ──┬─�
 ### Key Mélodium patterns used
 
 - **`validate` before `toJson`**: checking validity first avoids ever having to handle a parse failure downstream; the `Option` returned by `toJson` still has to be unwrapped, but it is guaranteed to always be `some`.
-- **Classifying with a boolean predicate + `filter`**: the same shape as example 03's regex matching, just with `json/value::isObject` instead of `regex::matches`. Most "does this satisfy X" library treatments are designed to plug directly into `filter.select`.
+- **Classifying with a boolean predicate + `filter`**: the same shape as [03_text_and_files](../03_text_and_files/)'s regex matching, just with `json/value::isObject` instead of `regex::matches`. Most "does this satisfy X" library treatments are designed to plug directly into `filter.select`.
 - **`fromStringMap`**: the direct way to build a JSON *object* out of Mélodium data; every value becomes a JSON string, which is enough for a summary report (for richer JSON, numbers or nested objects, build it with the `json/value::from*` functions/treatments individually).
-- **`finalCount<T>`**: the same counter from example 03, reused here at two different types (`Json` and `string`) in the same file, without changing a single line of its body.
+- **`finalCount<T>`**: the same counter from [03_text_and_files](../03_text_and_files/), reused here at two different types (`Json` and `string`) in the same file, without changing a single line of its body.
 
 Next: [05_http_client](../05_http_client/) introduces calling a remote HTTP API.
