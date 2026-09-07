@@ -36,9 +36,9 @@ use ml/remote/llm::stream as llmStream
 //
 // Smart LLM Router: showcase
 //
-// Not a tutorial step: a JavaScript decision function reads each incoming
-// prompt, estimates how complex it actually is, and routes it to one of
-// three pre-configured `RemoteLlm` tiers (a cheap/fast model with a small
+// A JavaScript decision function reads each incoming prompt, estimates how
+// complex it actually is, and routes it to one of three pre-configured
+// `RemoteLlm` tiers (a cheap/fast model with a small
 // token budget for simple requests, up to the most capable model with a
 // larger budget for genuinely demanding ones), instead of always paying
 // for the biggest model and the largest response budget regardless of what

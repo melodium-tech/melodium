@@ -23,9 +23,8 @@ use fs/local::writeLocal
 //
 // CI Pipeline: showcase
 //
-// Not a tutorial step: a three-stage CI pipeline that runs entirely on
-// provisioned cloud containers, combining `cicd`, `work`, and `process` in
-// one realistic scenario.
+// A three-stage CI pipeline that runs entirely on provisioned cloud
+// containers, combining `cicd`, `work`, and `process`.
 //
 //   Stage 1, build:   rust:1.90-slim container; `cargo build --release`
 //                      produces a compiled binary, whose name is read from

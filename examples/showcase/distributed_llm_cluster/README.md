@@ -1,6 +1,6 @@
 # Distributed LLM Cluster: showcase
 
-Not a tutorial step: builds directly on [10_distributed_computation](../../tutorial/10_distributed_computation/)'s `distrib` primitives, adding `work/distant` to provision the remote engine on demand from Mélodium Services, instead of pointing at a `melodium dist` node started by hand.
+Builds directly on [10_distributed_computation](../../tutorial/10_distributed_computation/)'s `distrib` primitives, adding `work/distant` to provision the remote engine on demand from Mélodium Services, instead of pointing at a `melodium dist` node started by hand.
 
 > **Requirements:** a Mélodium Services API token and an LLM provider API key. Set `MELODIUM_API_TOKEN` in the environment and run with `--api-report`; see Cadence.CI to obtain a token and follow execution.
 

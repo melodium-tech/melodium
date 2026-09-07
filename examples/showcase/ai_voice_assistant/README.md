@@ -1,6 +1,6 @@
 # AI Voice Assistant: showcase
 
-Not a tutorial step: this combines several `ml` capabilities from across the library into one convincing demo, without pausing to explain every underlying concept; those are covered individually in [`examples/tutorial/`](../../tutorial/).
+Combines several `ml` capabilities from across the library: remote LLM chat, local speech-to-text, and remote text-to-speech.
 
 > **Requirements:** real API keys (an LLM provider for both entrypoints, plus ElevenLabs for `voice`) and, for `voice`, a working microphone.
 

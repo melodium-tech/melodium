@@ -34,9 +34,9 @@ use fs/local::writeTextLocal
 //
 // CI Failure Triage: showcase
 //
-// Not a tutorial step: two CI steps run on provisioned containers, each
-// step's raw output is deterministically classified by a small JavaScript
-// function, and only the step the classifier actually flagged as failed is
+// Two CI steps run on provisioned containers, each step's raw output is
+// deterministically classified by a small JavaScript function, and only
+// the step the classifier actually flagged as failed is
 // handed to a remote LLM for a plain-language diagnosis and a suggested
 // fix. The step the classifier considers fine costs nothing beyond the
 // classification itself: no LLM request is made for it at all.

@@ -1,6 +1,6 @@
 # CI Pipeline: showcase
 
-Not a tutorial step: a three-stage CI pipeline that runs entirely on provisioned cloud containers, combining `cicd`, `work`, and `process` in one realistic scenario.
+A three-stage CI pipeline that runs entirely on provisioned cloud containers, combining `cicd`, `work`, and `process`.
 
 > **Requirements:** a Mélodium Services API token, or a local `podman`/`docker compose` setup (see `CicdDispatchEngine`'s `location` parameter). Set `MELODIUM_API_TOKEN` in the environment and run with `--api-report`; see Cadence.CI to obtain a token and follow execution. Nothing else: `repo_url` defaults to a real, public repository (see below).
 
