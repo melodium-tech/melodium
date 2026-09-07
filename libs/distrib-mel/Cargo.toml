@@ -33,9 +33,9 @@ rustls-pemfile = "^2"
 uuid = { version = "1" }
 
 [features]
-mock = []
+mock = ["std-mel/mock", "work-mel/mock"]
 plugin = []
-real = ["futures-rustls", "melodium-distribution"]
+real = ["std-mel/real", "work-mel/real", "futures-rustls", "melodium-distribution"]
 
 [package.metadata.docs.rs]
 features = ["mock"]

@@ -24,9 +24,9 @@ std-mel = { path = "../std-mel", version = "0.10.2" }
 regex = "1.9.1"
 
 [features]
-mock = []
+mock = ["std-mel/mock"]
 plugin = []
-real = []
+real = ["std-mel/real"]
 
 [package.metadata.docs.rs]
 features = ["mock"]

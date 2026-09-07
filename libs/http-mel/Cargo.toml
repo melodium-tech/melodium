@@ -35,9 +35,9 @@ routefinder = "0.5"
 uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 
 [features]
-mock = []
+mock = ["std-mel/mock", "net-mel/mock"]
 plugin = []
-real = ["trillium-async-std", "trillium-rustls"]
+real = ["std-mel/real", "net-mel/real", "trillium-async-std", "trillium-rustls"]
 
 [package.metadata.docs.rs]
 features = ["mock"]

@@ -27,9 +27,9 @@ serde = "1.0.185"
 std-mel = { path = "../std-mel", version = "0.10.2" }
 
 [features]
-mock = []
+mock = ["std-mel/mock"]
 plugin = []
-real = []
+real = ["std-mel/real"]
 
 [package.metadata.docs.rs]
 features = ["mock"]

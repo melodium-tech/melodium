@@ -46,9 +46,9 @@ async-std = { version = "1.13", features = ["attributes"] }
 
 [features]
 default = []
-mock = []
+mock = ["std-mel/mock", "fs-mel/mock", "net-mel/mock", "process-mel/mock"]
 plugin = []
-real = ["generic-async-http-client"]
+real = ["std-mel/real", "fs-mel/real", "net-mel/real", "process-mel/real", "generic-async-http-client"]
 kubernetes = ["real", "kube", "k8s-openapi", "async-std/tokio1", "tokio"]
 
 [package.metadata.docs.rs]

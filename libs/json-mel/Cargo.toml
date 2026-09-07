@@ -25,9 +25,9 @@ serde = "1.0.185"
 serde_json = "1.0.105"
 
 [features]
-mock = []
+mock = ["std-mel/mock"]
 plugin = []
-real = []
+real = ["std-mel/real"]
 
 [package.metadata.docs.rs]
 features = ["mock"]

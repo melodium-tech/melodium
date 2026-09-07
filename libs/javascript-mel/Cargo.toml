@@ -25,9 +25,9 @@ json-mel = { path = "../json-mel", version = "0.10.2" }
 serde_json = "1.0.105"
 
 [features]
-mock = []
+mock = ["json-mel/mock"]
 plugin = []
-real = []
+real = ["json-mel/real"]
 
 [package.metadata.docs.rs]
 features = ["mock"]

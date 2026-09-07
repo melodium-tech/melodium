@@ -35,9 +35,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.105"
 
 [features]
-mock = []
+mock = ["std-mel/mock", "http-mel/mock", "javascript-mel/mock", "json-mel/mock", "process-mel/mock", "fs-mel/mock", "work-mel/mock", "distrib-mel/mock"]
 plugin = []
-real = []
+real = ["std-mel/real", "http-mel/real", "javascript-mel/real", "json-mel/real", "process-mel/real", "fs-mel/real", "work-mel/real", "distrib-mel/real"]
 
 [package.metadata.docs.rs]
 features = ["mock"]

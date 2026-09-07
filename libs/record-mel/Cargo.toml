@@ -32,6 +32,6 @@ plugin = []
 real = ["cpal"]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["mock", "std-mel/mock", "audio-mel/mock"]
 rustdoc-args = ["--cfg", "docsrs"]
 

@@ -90,7 +90,7 @@ console_error_panic_hook = "0.1.7"
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["std-mel/mock", "fs"]
+features = ["fs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
