@@ -50,6 +50,7 @@ melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
 mock = []
 plugin = []
 real = [ "async-std/tokio1", "hf-hub", "llm" ]
+"docs.rs" = ["mock"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
@@ -58,7 +59,7 @@ tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
 tokenizers = { version = "0.22", default-features = false, features = ["unstable_wasm"] }
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

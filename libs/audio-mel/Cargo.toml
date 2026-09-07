@@ -48,8 +48,9 @@ optional = true
 mock = []
 plugin = []
 real = ["async-std", "symphonia", "hound", "flacenc"]
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 

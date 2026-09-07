@@ -30,9 +30,10 @@ std-mel = { path = "../std-mel", version = "0.10.2" }
 mock = []
 plugin = []
 real = []
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
