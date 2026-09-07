@@ -38,6 +38,13 @@ main (this engine)                          worker.mel (remote engine)
 generate ──▶ dispatchDouble ──send──▶ ...  ──▶  double (n -> n*2)  ──▶ ... ──recv──▶ dispatchDouble ──▶ log
 ```
 
+### Reference
+
+- **`distrib`**: [DistributionEngine](https://doc.melodium.tech/latest/en/distrib/DistributionEngine.html), [start](https://doc.melodium.tech/latest/en/distrib/start.html), [distribute](https://doc.melodium.tech/latest/en/distrib/distribute.html), [sendStream](https://doc.melodium.tech/latest/en/distrib/sendStream.html), [recvStream](https://doc.melodium.tech/latest/en/distrib/recvStream.html)
+- **`net`**: [|localhost_ipv4](https://doc.melodium.tech/latest/en/net/ip/|localhost_ipv4.html), [|from_ipv4](https://doc.melodium.tech/latest/en/net/ip/|from_ipv4.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [logError](https://doc.melodium.tech/latest/en/std/engine/log/logError.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [generate](https://doc.melodium.tech/latest/en/std/flow/generate.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html), [|map](https://doc.melodium.tech/latest/en/std/data/map/|map.html), [add](https://doc.melodium.tech/latest/en/std/ops/num/add.html)
+- **`work`**: [Access](https://doc.melodium.tech/latest/en/work/access/Access.html), [|new_access](https://doc.melodium.tech/latest/en/work/access/|new_access.html)
+
 ## Runtime behaviour
 
 1. `work/access::|new_access` builds an `Access` value (IP, port, and the two authentication keys) entirely from parameters: no cloud service involved, just a second Mélodium process reachable over the network.

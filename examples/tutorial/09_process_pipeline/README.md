@@ -25,6 +25,13 @@ proc.stderr ──▶ decode ──▶ logErrors
 proc.exit   ──▶ unwrapOr ──▶ logDataInfo
 ```
 
+### Reference
+
+- **`encoding`**: [decode](https://doc.melodium.tech/latest/en/encoding/decode.html)
+- **`fs`**: [readLocal](https://doc.melodium.tech/latest/en/fs/local/readLocal.html), [writeTextLocal](https://doc.melodium.tech/latest/en/fs/local/writeTextLocal.html)
+- **`process`**: [|command](https://doc.melodium.tech/latest/en/process/command/|command.html), [spawnOnce](https://doc.melodium.tech/latest/en/process/local/spawnOnce.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [logError](https://doc.melodium.tech/latest/en/std/engine/log/logError.html), [logErrors](https://doc.melodium.tech/latest/en/std/engine/log/logErrors.html), [logDataInfo](https://doc.melodium.tech/latest/en/std/engine/log/logDataInfo.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/block/unwrapOr.html)
+
 ## Runtime behaviour
 
 1. `read.data` (the file's bytes) is wired straight into `proc.stdin`; `sort` starts reading as soon as bytes arrive, before the file has even finished being read: there is no "read the whole file, then start the subprocess" step.

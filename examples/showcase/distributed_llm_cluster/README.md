@@ -35,6 +35,16 @@ distant (provision worker) ──▶ distrib start (connect) ──▶ HTTP serv
                                      POST /chat ──▶ dispatchInfer ──send/recv──▶ inferText (remote) ──▶ chat (LLM)
 ```
 
+### Reference
+
+- **`distrib`**: [DistributionEngine](https://doc.melodium.tech/latest/en/distrib/DistributionEngine.html), [distribStart](https://doc.melodium.tech/latest/en/distrib/start.html), [distribute](https://doc.melodium.tech/latest/en/distrib/distribute.html), [sendStream](https://doc.melodium.tech/latest/en/distrib/sendStream.html), [recvStream](https://doc.melodium.tech/latest/en/distrib/recvStream.html)
+- **`encoding`**: [decode](https://doc.melodium.tech/latest/en/encoding/decode.html), [encode](https://doc.melodium.tech/latest/en/encoding/encode.html)
+- **`http`**: [HttpServer](https://doc.melodium.tech/latest/en/http/server/HttpServer.html), [start](https://doc.melodium.tech/latest/en/http/server/start.html), [connection](https://doc.melodium.tech/latest/en/http/server/connection.html), [|post](https://doc.melodium.tech/latest/en/http/method/|post.html), [|ok](https://doc.melodium.tech/latest/en/http/status/|ok.html), [HttpStatus](https://doc.melodium.tech/latest/en/http/status/HttpStatus.html)
+- **`ml`**: [RemoteLlm](https://doc.melodium.tech/latest/en/ml/remote/llm/RemoteLlm.html), [chat](https://doc.melodium.tech/latest/en/ml/remote/llm/chat.html)
+- **`net`**: [|localhost_ipv4](https://doc.melodium.tech/latest/en/net/ip/|localhost_ipv4.html), [|from_ipv4](https://doc.melodium.tech/latest/en/net/ip/|from_ipv4.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logError](https://doc.melodium.tech/latest/en/std/engine/log/logError.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [logErrors](https://doc.melodium.tech/latest/en/std/engine/log/logErrors.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [|dataMap](https://doc.melodium.tech/latest/en/std/data/map/|map.html), [|dataEntry](https://doc.melodium.tech/latest/en/std/data/map/|entry.html), [|wrap](https://doc.melodium.tech/latest/en/std/ops/option/|wrap.html)
+- **`work`**: [DistantEngine](https://doc.melodium.tech/latest/en/work/distant/DistantEngine.html), [distant](https://doc.melodium.tech/latest/en/work/distant/distant.html)
+
 ## Notable choices
 
 - **Scaling to an actual cluster** means provisioning several workers, each with its own `distant` + `DistributionEngine` pair, and load-balancing requests across them: the same `dispatchInfer` shape, repeated N times. This example provisions one worker for clarity; the fan-out itself is not implemented here.

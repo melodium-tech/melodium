@@ -2,6 +2,8 @@
 
 **Concepts introduced:** a `SqlPool` model shared across requests, `fetch` vs. `execute`, combining a database model with an HTTP server model in one program.
 
+**Book:** [Models](https://doc.melodium.tech/book/en/programming/elements/models.html) (its own `SqlPool` example is essentially `AppDb` below), [Parameters](https://doc.melodium.tech/book/en/programming/parameters.html) (configuration parameters, e.g. `[db: SqlPool]`).
+
 A tiny "notes" API backed by PostgreSQL: `POST /notes` stores the request body as plain text, `GET /notes` lists every stored note.
 
 > **Note on verification:** unlike the previous tutorial steps, this example needs a reachable PostgreSQL database. It was type-checked with `melodium check` but **not** run end-to-end against a live database for this tutorial (no Postgres server was available in the environment that wrote it). Point `db_url` at any real Postgres instance to try it for real: the query shapes and wiring follow the same verified patterns as examples 03–06.
@@ -31,6 +33,14 @@ startup ─▶ connect ─▶ connected ─▶ createTable ─▶ start (HTTP)
                             POST /notes ──▶ insertNote ──▶ execute (INSERT)
                             GET  /notes ──▶ listRows    ──▶ fetch (SELECT), streamed row by row
 ```
+
+### Reference
+
+- **`encoding`**: [decode](https://doc.melodium.tech/latest/en/encoding/decode.html), [encode](https://doc.melodium.tech/latest/en/encoding/encode.html)
+- **`http`**: [HttpServer](https://doc.melodium.tech/latest/en/http/server/HttpServer.html), [start](https://doc.melodium.tech/latest/en/http/server/start.html), [connection](https://doc.melodium.tech/latest/en/http/server/connection.html), [|get](https://doc.melodium.tech/latest/en/http/method/|get.html), [|post](https://doc.melodium.tech/latest/en/http/method/|post.html), [|ok](https://doc.melodium.tech/latest/en/http/status/|ok.html), [HttpStatus](https://doc.melodium.tech/latest/en/http/status/HttpStatus.html)
+- **`net`**: [|localhost_ipv4](https://doc.melodium.tech/latest/en/net/ip/|localhost_ipv4.html), [|from_ipv4](https://doc.melodium.tech/latest/en/net/ip/|from_ipv4.html)
+- **`sql`**: [SqlPool](https://doc.melodium.tech/latest/en/sql/SqlPool.html), [connect](https://doc.melodium.tech/latest/en/sql/connect.html), [connected](https://doc.melodium.tech/latest/en/sql/connected.html), [executeRaw](https://doc.melodium.tech/latest/en/sql/executeRaw.html), [execute](https://doc.melodium.tech/latest/en/sql/execute.html), [fetch](https://doc.melodium.tech/latest/en/sql/fetch.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [logError](https://doc.melodium.tech/latest/en/std/engine/log/logError.html), [logErrors](https://doc.melodium.tech/latest/en/std/engine/log/logErrors.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [check](https://doc.melodium.tech/latest/en/std/flow/check.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [format](https://doc.melodium.tech/latest/en/std/text/compose/format.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [Map](https://doc.melodium.tech/latest/en/std/data/map/Map.html), [|mmap](https://doc.melodium.tech/latest/en/std/data/map/|map.html), [mapGet](https://doc.melodium.tech/latest/en/std/data/map/get.html), [blockMapEntry](https://doc.melodium.tech/latest/en/std/data/map/block/entry.html), [entry](https://doc.melodium.tech/latest/en/std/data/string_map/entry.html), [insert](https://doc.melodium.tech/latest/en/std/data/string_map/insert.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html)
 
 ## Runtime behaviour
 

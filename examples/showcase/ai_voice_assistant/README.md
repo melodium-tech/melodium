@@ -38,6 +38,16 @@ HfHub.fetch ──▶ Whisper.load ──▶ recordMono ──▶ Whisper.decode
                                                                                         └──▶ RemoteTts.synthesize ──▶ writeLocal
 ```
 
+### Reference
+
+- **`encoding`**: [decode](https://doc.melodium.tech/latest/en/encoding/decode.html), [encode](https://doc.melodium.tech/latest/en/encoding/encode.html)
+- **`fs`**: [writeLocal](https://doc.melodium.tech/latest/en/fs/local/writeLocal.html)
+- **`http`**: [HttpServer](https://doc.melodium.tech/latest/en/http/server/HttpServer.html), [start](https://doc.melodium.tech/latest/en/http/server/start.html), [connection](https://doc.melodium.tech/latest/en/http/server/connection.html), [|post](https://doc.melodium.tech/latest/en/http/method/|post.html), [|ok](https://doc.melodium.tech/latest/en/http/status/|ok.html), [HttpStatus](https://doc.melodium.tech/latest/en/http/status/HttpStatus.html)
+- **`ml`**: [HfHub](https://doc.melodium.tech/latest/en/ml/repos/hf/HfHub.html), [fetch](https://doc.melodium.tech/latest/en/ml/repos/hf/fetch.html), [Whisper](https://doc.melodium.tech/latest/en/ml/models/whisper/Whisper.html), [load](https://doc.melodium.tech/latest/en/ml/models/whisper/load.html), [whisperDecode](https://doc.melodium.tech/latest/en/ml/models/whisper/decode.html), [RemoteLlm](https://doc.melodium.tech/latest/en/ml/remote/llm/RemoteLlm.html), [stream](https://doc.melodium.tech/latest/en/ml/remote/llm/stream.html), [RemoteTts](https://doc.melodium.tech/latest/en/ml/remote/tts/RemoteTts.html), [synthesize](https://doc.melodium.tech/latest/en/ml/remote/tts/synthesize.html)
+- **`net`**: [|localhost_ipv4](https://doc.melodium.tech/latest/en/net/ip/|localhost_ipv4.html), [|from_ipv4](https://doc.melodium.tech/latest/en/net/ip/|from_ipv4.html)
+- **`record`**: [recordMono](https://doc.melodium.tech/latest/en/record/audio/recordMono.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [logError](https://doc.melodium.tech/latest/en/std/engine/log/logError.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [logErrors](https://doc.melodium.tech/latest/en/std/engine/log/logErrors.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [|wrap](https://doc.melodium.tech/latest/en/std/ops/option/|wrap.html)
+
 ## Notable choices
 
 - **`connection.started` for `chat`**, exactly as established in [06_http_server_api](../../tutorial/06_http_server_api/): the response is gated on the connection being accepted, not on the body stream starting.

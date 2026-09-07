@@ -1,6 +1,8 @@
 # 06: HTTP Server API
 
-**Concepts introduced:** the `HttpServer` model, routing with `connection`, the `@HttpRequest` context, a verified server-side gotcha.
+**Concepts introduced:** the `HttpServer` model, routing with `connection`, the `@HttpRequest` context.
+
+**Book:** [Models](https://doc.melodium.tech/book/en/programming/elements/models.html), [Contexts](https://doc.melodium.tech/book/en/programming/elements/contexts.html), [Tracks](https://doc.melodium.tech/book/en/programming/concepts/tracks.html) (the HTTP server example there is essentially this one).
 
 A small HTTP server with three routes: a fixed status endpoint, one that reads request metadata from the `@HttpRequest` context, and one that parses a JSON body and replies with a JSON object built from it.
 
@@ -35,6 +37,14 @@ connection.started ──▶ status/headers ──▶ connection.status/headers
 connection.started ──▶ build response body ──▶ connection.data
 connection.data (incoming) ──▶ [only for /greet: parse body] ──▶ connection.data (outgoing)
 ```
+
+### Reference
+
+- **`encoding`**: [decode](https://doc.melodium.tech/latest/en/encoding/decode.html), [encode](https://doc.melodium.tech/latest/en/encoding/encode.html)
+- **`http`**: [HttpServer](https://doc.melodium.tech/latest/en/http/server/HttpServer.html), [start](https://doc.melodium.tech/latest/en/http/server/start.html), [connection](https://doc.melodium.tech/latest/en/http/server/connection.html), [@HttpRequest](https://doc.melodium.tech/latest/en/http/server/@HttpRequest.html), [|get](https://doc.melodium.tech/latest/en/http/method/|get.html), [|post](https://doc.melodium.tech/latest/en/http/method/|post.html), [|ok](https://doc.melodium.tech/latest/en/http/status/|ok.html), [HttpStatus](https://doc.melodium.tech/latest/en/http/status/HttpStatus.html)
+- **`json`**: [Json](https://doc.melodium.tech/latest/en/json/Json.html), [toJson](https://doc.melodium.tech/latest/en/json/toJson.html), [|null](https://doc.melodium.tech/latest/en/json/value/|null.html), [fromStringMap](https://doc.melodium.tech/latest/en/json/value/fromStringMap.html)
+- **`net`**: [|localhost_ipv4](https://doc.melodium.tech/latest/en/net/ip/|localhost_ipv4.html), [|from_ipv4](https://doc.melodium.tech/latest/en/net/ip/|from_ipv4.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [fill](https://doc.melodium.tech/latest/en/std/flow/fill.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [|entry](https://doc.melodium.tech/latest/en/std/data/string_map/|entry.html), [|insert](https://doc.melodium.tech/latest/en/std/data/string_map/|insert.html), [entry](https://doc.melodium.tech/latest/en/std/data/string_map/entry.html), [insert](https://doc.melodium.tech/latest/en/std/data/string_map/insert.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html), [toVoid](https://doc.melodium.tech/latest/en/std/conv/toVoid.html)
 
 ## Runtime behaviour
 

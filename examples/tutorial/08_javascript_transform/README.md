@@ -2,6 +2,8 @@
 
 **Concepts introduced:** the `JavaScriptEngine` model, transforming structured data with JS.
 
+**Book:** [Models](https://doc.melodium.tech/book/en/programming/elements/models.html) (a third flavor of the same idea: a long-lived model holding compiled code, rather than a network or database connection).
+
 Reads one JSON object per line, computes a letter grade from its `score` field in JavaScript, and writes the graded records back out.
 
 ## What it does
@@ -28,6 +30,13 @@ melodium run Compo.toml --input_file students.json
 ```
 readTextLocal ──▶ lines ──▶ toJson ──▶ process (JS grade()) ──▶ toString ──▶ log + writeTextLocal
 ```
+
+### Reference
+
+- **`fs`**: [readTextLocal](https://doc.melodium.tech/latest/en/fs/local/readTextLocal.html), [writeTextLocal](https://doc.melodium.tech/latest/en/fs/local/writeTextLocal.html)
+- **`javascript`**: [JavaScriptEngine](https://doc.melodium.tech/latest/en/javascript/JavaScriptEngine.html), [process](https://doc.melodium.tech/latest/en/javascript/process.html)
+- **`json`**: [Json](https://doc.melodium.tech/latest/en/json/Json.html), [toJson](https://doc.melodium.tech/latest/en/json/toJson.html), [|null](https://doc.melodium.tech/latest/en/json/value/|null.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [filter](https://doc.melodium.tech/latest/en/std/flow/filter.html), [flatten](https://doc.melodium.tech/latest/en/std/flow/vec/flatten.html), [split](https://doc.melodium.tech/latest/en/std/text/compose/split.html), [trim](https://doc.melodium.tech/latest/en/std/text/compose/trim.html), [format](https://doc.melodium.tech/latest/en/std/text/compose/format.html), [entry](https://doc.melodium.tech/latest/en/std/data/string_map/entry.html), [not](https://doc.melodium.tech/latest/en/std/ops/bin/not.html), [exact](https://doc.melodium.tech/latest/en/std/text/compare/exact.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html)
 
 ## Runtime behaviour
 

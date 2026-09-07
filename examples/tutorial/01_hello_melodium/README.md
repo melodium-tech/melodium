@@ -2,6 +2,8 @@
 
 **Concepts introduced:** treatments & connections, `Block<T>` vs `Stream<T>`, functions (`|name(...)`), `startup()`.
 
+**Book:** [First Program](https://doc.melodium.tech/book/en/programming/quickstart.html), [General Orchestration](https://doc.melodium.tech/book/en/programming/concepts/general.html), [Connections](https://doc.melodium.tech/book/en/programming/concepts/connections.html).
+
 The smallest useful Mélodium program. It has no procedural entry point: `main` is a *graph* of treatments wired together, not a function body that runs top to bottom. `startup()` fires once when the engine starts, and every other treatment reacts as soon as the data it needs is available.
 
 ## What it does
@@ -26,6 +28,11 @@ startup.trigger ── fan-out ──┤
                               └── emit(times) ── generate ──┬── logInfos (each greeting)
                                                              └── count ── toString ── logInfos (running count)
 ```
+
+### Reference
+
+- **`fs`**: [writeTextLocal](https://doc.melodium.tech/latest/en/fs/local/writeTextLocal.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [generate](https://doc.melodium.tech/latest/en/std/flow/generate.html), [count](https://doc.melodium.tech/latest/en/std/flow/count.html), [|entry](https://doc.melodium.tech/latest/en/std/data/string_map/|entry.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [|format](https://doc.melodium.tech/latest/en/std/text/compose/|format.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html)
 
 ## Runtime behaviour
 

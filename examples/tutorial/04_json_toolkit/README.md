@@ -2,6 +2,8 @@
 
 **Concepts introduced:** parsing & validating JSON (`json`), `Option` unwrapping, building structured data (`StringMap` → JSON object).
 
+**Book:** [Error Handling](https://doc.melodium.tech/book/en/programming/error_handling.html) (the `Option<T>` section), [Data types](https://doc.melodium.tech/book/en/programming/elements/data.html).
+
 Reads one record per line (a mix of valid JSON values and garbage), separates the invalid lines, classifies the valid ones as JSON objects or plain scalars (strings, numbers, booleans, arrays), and writes a small JSON summary of the counts.
 
 ## What it does
@@ -28,6 +30,12 @@ readTextLocal ──▶ lines ──▶ validate ──▶ filter ──┬─�
                                                                                                   ↓
                                                                               counts ──▶ StringMap ──▶ JSON ──▶ writeTextLocal
 ```
+
+### Reference
+
+- **`fs`**: [readTextLocal](https://doc.melodium.tech/latest/en/fs/local/readTextLocal.html), [writeTextLocal](https://doc.melodium.tech/latest/en/fs/local/writeTextLocal.html)
+- **`json`**: [Json](https://doc.melodium.tech/latest/en/json/Json.html), [toJson](https://doc.melodium.tech/latest/en/json/toJson.html), [validate](https://doc.melodium.tech/latest/en/json/validate.html), [isObject](https://doc.melodium.tech/latest/en/json/value/isObject.html), [fromStringMap](https://doc.melodium.tech/latest/en/json/value/fromStringMap.html), [|null](https://doc.melodium.tech/latest/en/json/value/|null.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [filter](https://doc.melodium.tech/latest/en/std/flow/filter.html), [count](https://doc.melodium.tech/latest/en/std/flow/count.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [flatten](https://doc.melodium.tech/latest/en/std/flow/vec/flatten.html), [split](https://doc.melodium.tech/latest/en/std/text/compose/split.html), [trim](https://doc.melodium.tech/latest/en/std/text/compose/trim.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [blockEntry](https://doc.melodium.tech/latest/en/std/data/string_map/block/entry.html), [blockInsert](https://doc.melodium.tech/latest/en/std/data/string_map/block/insert.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html), [not](https://doc.melodium.tech/latest/en/std/ops/bin/not.html), [exact](https://doc.melodium.tech/latest/en/std/text/compare/exact.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html)
 
 ## Runtime behaviour
 

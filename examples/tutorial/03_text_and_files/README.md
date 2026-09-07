@@ -2,6 +2,8 @@
 
 **Concepts introduced:** file I/O (`fs`), regular expressions (`regex`), text composition (`std/text/compose`), building and running local `melodium run` end to end.
 
+**Book:** [Error Handling](https://doc.melodium.tech/book/en/programming/error_handling.html) (the `readTextLocal.failed` pattern below is exactly the pattern this chapter documents).
+
 Reads a text file line by line, keeps the lines that match a regex pattern, and writes a small report summarising how many (non-blank) lines were read and how many matched.
 
 ## What it does
@@ -26,6 +28,12 @@ readTextLocal ──▶ split + flatten ──▶ trim ──▶ drop blank line
                                                                                           ↓
                                                               combine totals + pattern ──▶ format ──▶ writeTextLocal
 ```
+
+### Reference
+
+- **`fs`**: [readTextLocal](https://doc.melodium.tech/latest/en/fs/local/readTextLocal.html), [writeTextLocal](https://doc.melodium.tech/latest/en/fs/local/writeTextLocal.html)
+- **`regex`**: [matches](https://doc.melodium.tech/latest/en/regex/matches.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [filter](https://doc.melodium.tech/latest/en/std/flow/filter.html), [count](https://doc.melodium.tech/latest/en/std/flow/count.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [flatten](https://doc.melodium.tech/latest/en/std/flow/vec/flatten.html), [split](https://doc.melodium.tech/latest/en/std/text/compose/split.html), [trim](https://doc.melodium.tech/latest/en/std/text/compose/trim.html), [format](https://doc.melodium.tech/latest/en/std/text/compose/format.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [blockEntry](https://doc.melodium.tech/latest/en/std/data/string_map/block/entry.html), [blockInsert](https://doc.melodium.tech/latest/en/std/data/string_map/block/insert.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html), [not](https://doc.melodium.tech/latest/en/std/ops/bin/not.html), [exact](https://doc.melodium.tech/latest/en/std/text/compare/exact.html)
 
 ## Runtime behaviour
 

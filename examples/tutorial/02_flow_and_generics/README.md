@@ -2,6 +2,8 @@
 
 **Concepts introduced:** generic treatments (`<N: Trait>`), `std/flow` combinators (`filter`, `merge`, `fill`), `std/ops` arithmetic & comparison, writing your own reusable treatments.
 
+**Book:** [Generics](https://doc.melodium.tech/book/en/programming/generics.html), [Traits](https://doc.melodium.tech/book/en/programming/traits/main.html).
+
 Generates the integers `1..upper`, splits them around `threshold`, nudges each half by a different offset, and merges the two halves back into a single stream: using two small generic treatments defined right in this file and reused twice each.
 
 ## What it does
@@ -28,6 +30,10 @@ No models here either: everything is stateless treatments, functions, and two cu
                                 │                              ├─▶ merge ──▶ log
                                 └──▶ below ──▶ shift(-100) ──┘
 ```
+
+### Reference
+
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [logDataInfos](https://doc.melodium.tech/latest/en/std/engine/log/logDataInfos.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [generate](https://doc.melodium.tech/latest/en/std/flow/generate.html), [count](https://doc.melodium.tech/latest/en/std/flow/count.html), [filter](https://doc.melodium.tech/latest/en/std/flow/filter.html), [merge](https://doc.melodium.tech/latest/en/std/flow/merge.html), [fill](https://doc.melodium.tech/latest/en/std/flow/fill.html), [saturatingToI64](https://doc.melodium.tech/latest/en/std/conv/saturatingToI64.html), [toVoid](https://doc.melodium.tech/latest/en/std/conv/toVoid.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html), [greaterThan](https://doc.melodium.tech/latest/en/std/ops/greaterThan.html), [add](https://doc.melodium.tech/latest/en/std/ops/num/add.html)
 
 ## Runtime behaviour
 

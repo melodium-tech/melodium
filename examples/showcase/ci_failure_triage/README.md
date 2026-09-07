@@ -70,6 +70,17 @@ step ──▶ capture log ──▶ classify() (JS) ──▶ log full classifi
 
 Run twice (`unit_tests`, `integration_check`), and the two sections are combined into one file.
 
+### Reference
+
+- **`cicd`**: [CicdDispatchEngine](https://doc.melodium.tech/latest/en/cicd/runners/CicdDispatchEngine.html), [simpleStep](https://doc.melodium.tech/latest/en/cicd/naive/simpleStep.html)
+- **`encoding`**: [decode](https://doc.melodium.tech/latest/en/encoding/decode.html)
+- **`fs`**: [writeTextLocal](https://doc.melodium.tech/latest/en/fs/local/writeTextLocal.html)
+- **`javascript`**: [JavaScriptEngine](https://doc.melodium.tech/latest/en/javascript/JavaScriptEngine.html), [process](https://doc.melodium.tech/latest/en/javascript/process.html)
+- **`json`**: [Json](https://doc.melodium.tech/latest/en/json/Json.html), [fromString](https://doc.melodium.tech/latest/en/json/value/fromString.html), [|null](https://doc.melodium.tech/latest/en/json/value/|null.html)
+- **`ml`**: [RemoteLlm](https://doc.melodium.tech/latest/en/ml/remote/llm/RemoteLlm.html), [llmChat](https://doc.melodium.tech/latest/en/ml/remote/llm/chat.html)
+- **`process`**: [Command](https://doc.melodium.tech/latest/en/process/command/Command.html), [|command](https://doc.melodium.tech/latest/en/process/command/|command.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [logErrors](https://doc.melodium.tech/latest/en/std/engine/log/logErrors.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [filterBlock](https://doc.melodium.tech/latest/en/std/flow/filterBlock.html), [merge](https://doc.melodium.tech/latest/en/std/flow/merge.html), [equalTo](https://doc.melodium.tech/latest/en/std/ops/block/equalTo.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [blockEntry](https://doc.melodium.tech/latest/en/std/data/string_map/block/entry.html), [blockInsert](https://doc.melodium.tech/latest/en/std/data/string_map/block/insert.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html), [|wrap](https://doc.melodium.tech/latest/en/std/ops/option/|wrap.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html), [tryToString](https://doc.melodium.tech/latest/en/std/conv/tryToString.html), [format](https://doc.melodium.tech/latest/en/std/text/compose/format.html)
+
 ## Runtime behaviour
 
 1. `simpleStep`'s `commands` runs each entry as a direct exec, never through a shell: `>`, `2>&1`, `;`, `&&`, and `cd` are only interpreted when the command itself is `sh -c "..."`, which is why each step's command is `|command("sh", ["-c", "<the real command>"])` rather than something built with `|raw_commands`.

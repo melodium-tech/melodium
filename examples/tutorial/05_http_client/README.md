@@ -2,6 +2,8 @@
 
 **Concepts introduced:** calling a remote HTTP API (`http/client`), telling a network failure apart from an application-level error.
 
+**Book:** [Error Handling](https://doc.melodium.tech/book/en/programming/error_handling.html).
+
 Fetches one post from a public test API ([jsonplaceholder.typicode.com](https://jsonplaceholder.typicode.com)), re-serialises its JSON body, and writes it to a file.
 
 ## What it does
@@ -27,6 +29,14 @@ get ──▶ decode ──▶ toJson ──▶ unwrapOr ──▶ toString ─�
   ├──▶ failed    ──▶ log "request failed technically"
   └──▶ error     ──▶ log error message
 ```
+
+### Reference
+
+- **`encoding`**: [decode](https://doc.melodium.tech/latest/en/encoding/decode.html)
+- **`fs`**: [writeTextLocal](https://doc.melodium.tech/latest/en/fs/local/writeTextLocal.html)
+- **`http`**: [get](https://doc.melodium.tech/latest/en/http/client/util/get.html)
+- **`json`**: [Json](https://doc.melodium.tech/latest/en/json/Json.html), [toJson](https://doc.melodium.tech/latest/en/json/toJson.html), [|null](https://doc.melodium.tech/latest/en/json/value/|null.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logError](https://doc.melodium.tech/latest/en/std/engine/log/logError.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [|format](https://doc.melodium.tech/latest/en/std/text/compose/|format.html), [|entry](https://doc.melodium.tech/latest/en/std/data/string_map/|entry.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html)
 
 ## Runtime behaviour
 

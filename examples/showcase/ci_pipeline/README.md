@@ -37,6 +37,14 @@ startup ──┬──▶ build (rust container)  ──▶ [success? true/fals
           └──▶ test  (rust + postgres) ──▶ [success? true/false] ──┴──▶ and() ──▶ filterBlock ──▶ package (debian container) ──▶ writeLocal
 ```
 
+### Reference
+
+- **`cicd`**: [CicdDispatchEngine](https://doc.melodium.tech/latest/en/cicd/runners/CicdDispatchEngine.html), [simpleStep](https://doc.melodium.tech/latest/en/cicd/naive/simpleStep.html), [simpleStepWithInput](https://doc.melodium.tech/latest/en/cicd/naive/simpleStepWithInput.html)
+- **`fs`**: [writeLocal](https://doc.melodium.tech/latest/en/fs/local/writeLocal.html)
+- **`process`**: [|command](https://doc.melodium.tech/latest/en/process/command/|command.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [one](https://doc.melodium.tech/latest/en/std/flow/one.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [filterBlock](https://doc.melodium.tech/latest/en/std/flow/filterBlock.html), [and](https://doc.melodium.tech/latest/en/std/ops/bin/and.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [|entry](https://doc.melodium.tech/latest/en/std/data/string_map/|entry.html), [|wrap](https://doc.melodium.tech/latest/en/std/ops/option/|wrap.html)
+- **`work`**: [Arch](https://doc.melodium.tech/latest/en/work/resources/arch/Arch.html), [|arm64](https://doc.melodium.tech/latest/en/work/resources/arch/|arm64.html), [|service_container](https://doc.melodium.tech/latest/en/work/resources/|service_container.html)
+
 ## Runtime behaviour
 
 1. `build` and `test` both start on `startup.trigger`: two independent containers, provisioned and run in parallel, each reporting `started`/`success`/`error`/`failed`/`finished` independently. Both are explicitly pinned to the same `arch` (`|arm64()`): a service container's `arch` has no "unspecified" option the way a step's own does, so the two must agree explicitly or dispatch is rejected outright, before either container starts.

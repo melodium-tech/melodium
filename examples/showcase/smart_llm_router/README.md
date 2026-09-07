@@ -43,6 +43,16 @@ POST /chat body ──▶ collapse to one block ──▶ decide() (JS) ──�
                                           └──▶ [tier == premium]  ──▶ premiumLlm.stream  ──┘
 ```
 
+### Reference
+
+- **`encoding`**: [decode](https://doc.melodium.tech/latest/en/encoding/decode.html), [encode](https://doc.melodium.tech/latest/en/encoding/encode.html)
+- **`http`**: [HttpServer](https://doc.melodium.tech/latest/en/http/server/HttpServer.html), [start](https://doc.melodium.tech/latest/en/http/server/start.html), [connection](https://doc.melodium.tech/latest/en/http/server/connection.html), [|post](https://doc.melodium.tech/latest/en/http/method/|post.html), [|ok](https://doc.melodium.tech/latest/en/http/status/|ok.html), [HttpStatus](https://doc.melodium.tech/latest/en/http/status/HttpStatus.html)
+- **`javascript`**: [JavaScriptEngine](https://doc.melodium.tech/latest/en/javascript/JavaScriptEngine.html), [process](https://doc.melodium.tech/latest/en/javascript/process.html)
+- **`json`**: [Json](https://doc.melodium.tech/latest/en/json/Json.html), [toJson](https://doc.melodium.tech/latest/en/json/toJson.html), [fromString](https://doc.melodium.tech/latest/en/json/value/fromString.html), [|null](https://doc.melodium.tech/latest/en/json/value/|null.html)
+- **`ml`**: [RemoteLlm](https://doc.melodium.tech/latest/en/ml/remote/llm/RemoteLlm.html), [llmStream](https://doc.melodium.tech/latest/en/ml/remote/llm/stream.html)
+- **`net`**: [|localhost_ipv4](https://doc.melodium.tech/latest/en/net/ip/|localhost_ipv4.html), [|from_ipv4](https://doc.melodium.tech/latest/en/net/ip/|from_ipv4.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logInfos](https://doc.melodium.tech/latest/en/std/engine/log/logInfos.html), [logErrors](https://doc.melodium.tech/latest/en/std/engine/log/logErrors.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [filterBlock](https://doc.melodium.tech/latest/en/std/flow/filterBlock.html), [merge](https://doc.melodium.tech/latest/en/std/flow/merge.html), [equalTo](https://doc.melodium.tech/latest/en/std/ops/block/equalTo.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html), [|wrap](https://doc.melodium.tech/latest/en/std/ops/option/|wrap.html), [toString](https://doc.melodium.tech/latest/en/std/conv/toString.html), [tryToString](https://doc.melodium.tech/latest/en/std/conv/tryToString.html)
+
 ## Runtime behaviour
 
 1. Mélodium's `RemoteLlm` sets `model` and `max_tokens` once per model instance, not per request, so "optimise the token budget for this request" cannot mean "compute an arbitrary number every time"; it means "pick the right one of a few pre-defined `(model, budget)` tiers": `economyLlm` (small, fast model, 200-token budget), `standardLlm` (600 tokens), `premiumLlm` (most capable model, 1500 tokens).
