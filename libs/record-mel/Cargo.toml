@@ -30,8 +30,9 @@ audio-mel = { path = "../audio-mel", version = "0.10.2" }
 mock = []
 plugin = []
 real = ["cpal"]
+"docs.rs" = ["mock", "std-mel/docs.rs", "audio-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock", "std-mel/mock", "audio-mel/mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 

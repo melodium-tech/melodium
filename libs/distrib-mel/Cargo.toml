@@ -33,12 +33,13 @@ rustls-pemfile = "^2"
 uuid = { version = "1" }
 
 [features]
-mock = ["std-mel/mock", "work-mel/mock"]
+mock = []
 plugin = []
-real = ["std-mel/real", "work-mel/real", "futures-rustls", "melodium-distribution"]
+real = ["futures-rustls", "melodium-distribution"]
+"docs.rs" = ["mock", "std-mel/docs.rs", "work-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

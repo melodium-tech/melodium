@@ -45,11 +45,12 @@ features = ["par"]
 optional = true
 
 [features]
-mock = ["std-mel/mock"]
+mock = []
 plugin = []
-real = ["std-mel/real", "async-std", "symphonia", "hound", "flacenc"]
+real = ["async-std", "symphonia", "hound", "flacenc"]
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 

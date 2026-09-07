@@ -28,12 +28,13 @@ serde = "1.0.185"
 shlex = "1.3"
 
 [features]
-mock = ["std-mel/mock"]
+mock = []
 plugin = []
-real = ["std-mel/real"]
+real = []
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

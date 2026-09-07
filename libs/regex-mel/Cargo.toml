@@ -24,12 +24,13 @@ std-mel = { path = "../std-mel", version = "0.10.2" }
 regex = "1.9.1"
 
 [features]
-mock = ["std-mel/mock"]
+mock = []
 plugin = []
-real = ["std-mel/real"]
+real = []
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

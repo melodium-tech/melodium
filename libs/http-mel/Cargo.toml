@@ -35,12 +35,13 @@ routefinder = "0.5"
 uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 
 [features]
-mock = ["std-mel/mock", "net-mel/mock"]
+mock = []
 plugin = []
-real = ["std-mel/real", "net-mel/real", "trillium-async-std", "trillium-rustls"]
+real = ["trillium-async-std", "trillium-rustls"]
+"docs.rs" = ["mock", "std-mel/docs.rs", "net-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
