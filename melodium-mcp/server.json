@@ -3,7 +3,7 @@
   "name": "tech.melodium/melodium-mcp",
   "title": "Mélodium",
   "description": "MCP server exposing Mélodium program validation and reference lookup",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "websiteUrl": "https://melodium.tech",
   "repository": {
     "url": "https://gitlab.com/melodium/melodium",
@@ -15,7 +15,7 @@
       "registryType": "cargo",
       "registryBaseUrl": "https://crates.io",
       "identifier": "melodium-mcp",
-      "version": "0.10.2",
+      "version": "0.10.3",
       "transport": {
         "type": "stdio"
       }

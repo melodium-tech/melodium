@@ -2,9 +2,9 @@ name    = "batch_transcription"
 version = "0.1.0"
 
 [dependencies]
-std   = "0.10.2"
-fs    = "0.10.2"
-ml    = "0.10.2"
+std   = "0.10.3"
+fs    = "0.10.3"
+ml    = "0.10.3"
 
 [entrypoints]
 main = "batch_transcription/main::main"

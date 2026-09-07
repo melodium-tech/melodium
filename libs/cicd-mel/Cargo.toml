@@ -1,6 +1,6 @@
 [package]
 name = "cicd-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -20,16 +20,16 @@ name = "cicd_mel"
 async-std = "1.13"
 dotenvy = "0.15"
 futures = "0.3"
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
-std-mel = { path = "../std-mel", version = "0.10.2" }
-http-mel = { path = "../http-mel", version = "0.10.2" }
-javascript-mel = { path = "../javascript-mel", version = "0.10.2" }
-json-mel = { path = "../json-mel", version = "0.10.2" }
-process-mel = { path = "../process-mel", version = "0.10.2" }
-fs-mel = { path = "../fs-mel", version = "0.10.2" }
-work-mel = { path = "../work-mel", version = "0.10.2" }
-distrib-mel = { path = "../distrib-mel", version = "0.10.2" }
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
+std-mel = { path = "../std-mel", version = "0.10.3" }
+http-mel = { path = "../http-mel", version = "0.10.3" }
+javascript-mel = { path = "../javascript-mel", version = "0.10.3" }
+json-mel = { path = "../json-mel", version = "0.10.3" }
+process-mel = { path = "../process-mel", version = "0.10.3" }
+fs-mel = { path = "../fs-mel", version = "0.10.3" }
+work-mel = { path = "../work-mel", version = "0.10.3" }
+distrib-mel = { path = "../distrib-mel", version = "0.10.3" }
 regex = "1.9.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.105"
