@@ -1,0 +1,24 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "tech.melodium/melodium-mcp",
+  "title": "Mélodium",
+  "description": "MCP server exposing Mélodium program validation and reference lookup",
+  "version": "0.10.2",
+  "websiteUrl": "https://melodium.tech",
+  "repository": {
+    "url": "https://gitlab.com/melodium/melodium",
+    "source": "gitlab",
+    "subfolder": "melodium-mcp"
+  },
+  "packages": [
+    {
+      "registryType": "cargo",
+      "registryBaseUrl": "https://crates.io",
+      "identifier": "melodium-mcp",
+      "version": "0.10.2",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

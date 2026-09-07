@@ -69,19 +69,36 @@ pub struct DescribeElementResult {
     pub element: Option<ElementDetail>,
 }
 
+/// For elements whose descriptor keeps parameters in an unordered map
+/// (treatments, models): declaration order isn't available, so results are
+/// sorted alphabetically for determinism.
 fn parameters_of(
     parameters: impl Iterator<Item = (String, String, String, Option<String>)>,
 ) -> Vec<ParameterInfo> {
-    let mut params: Vec<ParameterInfo> = parameters
+    let mut params = collect_parameters(parameters);
+    params.sort_by(|a, b| a.name.cmp(&b.name));
+    params
+}
+
+/// For elements whose descriptor keeps parameters in declaration order
+/// (functions): preserve that order as-is.
+fn ordered_parameters_of(
+    parameters: impl Iterator<Item = (String, String, String, Option<String>)>,
+) -> Vec<ParameterInfo> {
+    collect_parameters(parameters)
+}
+
+fn collect_parameters(
+    parameters: impl Iterator<Item = (String, String, String, Option<String>)>,
+) -> Vec<ParameterInfo> {
+    parameters
         .map(|(name, variability, type_, default)| ParameterInfo {
             name,
             variability,
             type_,
             default,
         })
-        .collect();
-    params.sort_by(|a, b| a.name.cmp(&b.name));
-    params
+        .collect()
 }
 
 pub fn describe_element(
@@ -150,7 +167,7 @@ pub fn describe_element(
             identifier: function.identifier().to_string(),
             documentation: function.documentation().to_string(),
             generics: function.generics().iter().map(|g| g.to_string()).collect(),
-            parameters: parameters_of(function.parameters().iter().map(|p| {
+            parameters: ordered_parameters_of(function.parameters().iter().map(|p| {
                 (
                     p.name().to_string(),
                     p.variability().to_string(),
