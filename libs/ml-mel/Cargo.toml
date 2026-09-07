@@ -18,9 +18,9 @@ name = "ml_mel"
 
 [dependencies]
 async-std = { version = "1.13" }
-candle-core = { version = "0.10.3" }
-candle-nn = { version = "0.10.3" }
-candle-transformers = { version = "0.10.3" }
+candle-core = { version = "0.11" }
+candle-nn = { version = "0.11" }
+candle-transformers = { version = "0.11" }
 flume = { version = "0.11" }
 futures = { version = "0.3" }
 hf-hub = { version = "0.4", optional = true, default-features = false, features = ["ureq"] }
