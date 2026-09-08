@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Adding a wire-serializable `TransmissionValue`, keeping a whole stream batch as one CBOR-encoded unit instead of re-encoding it tick by tick (#114).
+- Exposing `ContextualEnvironment`, `DataContent`, `EventKind`, `HostTreatment`, `InfoTrack`, `TrackCreation`, `TrackResult`, and `TransmissionDetails`, and making `ContextualEnvironment`'s fields public.
+
 ## [v0.10.2] (2026-08-04)
 
 - No changes in this crate.

@@ -1,6 +1,14 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Adding `Value::Packed`, a packed representation for homogeneous scalar arrays (`byte`, numeric, `bool`, `char` vectors), avoiding the per-element `Value` enum overhead a boxed `Vec<Value>` costs (#116).
+- Adding panic-free `InputExt`/`OutputExt` (`recv_one_as`, `recv_many_as`, `send_one_as`, `send_many_as`) for casting to/from a concrete type without risking a panic on a type mismatch (#119).
+- Adding `Value::estimated_size`, a cheap memory-footprint estimate used to bound transmission buffering.
+- Adding `Value::try_data` as a more ergonomic entry point to `GetData`.
+- Generating `TransmissionValue`'s per-type conversions instead of hand-duplicating them (#120).
+
 ## [v0.10.2] (2026-08-04)
 
 - Adding `World::wait_no_more_tracks` to let continuous tasks detect that no track will ever run again, instead of relying on an arbitrary timeout.

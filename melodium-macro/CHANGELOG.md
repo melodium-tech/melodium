@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Generating code that delegates to `Value`'s own `Vec`/`Option` conversions (including packed-array auto-packing/unpacking) for scalar and generic type chains, instead of hand-rolling a per-element match (#116, #120).
+
 ## [v0.10.2] (2026-08-04)
 
 - No changes in this crate.

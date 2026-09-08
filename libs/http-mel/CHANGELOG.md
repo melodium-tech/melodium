@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Documenting that `http_server`'s `status`/`headers`/`data` outputs must be driven from `started`, not from a trigger derived from `data`, since a request with no body never emits on `data`.
+- Adapting to `melodium-common`'s new panic-free value casting and packed-array APIs (no behavior change).
+
 ## [v0.10.2] (2026-08-04)
 
 - No changes in this crate.

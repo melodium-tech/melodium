@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Adapting to `melodium-common`'s new panic-free value casting and packed-array APIs (no behavior change).
+
 ## [v0.10.2] (2026-08-04)
 
 - Adding a detection timeout (overridable via `MELODIUM_COMPOSE_DETECTION_TIMEOUT_SECS`) so an unresponsive `podman`/`docker` daemon can no longer block `compose()`, and the whole distributed run, forever.

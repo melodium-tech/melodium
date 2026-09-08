@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Adding byte-size watermark flow control to transmission `Output`, blocking the producer only once buffered data crosses a threshold instead of on every full receiver slot (overridable via `MELODIUM_TRANSMISSION_MAX_BUFFERED_BYTES`) (#112).
+- Sharing one `Arc`-wrapped batch across fan-out receivers instead of deep-cloning it per receiver (#113).
+
 ## [v0.10.2] (2026-08-04)
 
 - Implementing `World::wait_no_more_tracks`, fixing continuous tasks hanging forever when waiting on an event tied to a track that never runs.

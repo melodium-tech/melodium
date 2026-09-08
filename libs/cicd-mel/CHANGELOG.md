@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Adapting to `melodium-common`'s new panic-free value casting and packed-array APIs (no behavior change).
+
 ## [v0.10.2] (2026-08-04)
 
 - Fixing `simpleStepTerminable`/`simpleStepTerminableWithInput` hanging the whole engine when the runner fails to dispatch.
