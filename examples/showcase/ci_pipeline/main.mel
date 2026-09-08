@@ -114,17 +114,6 @@ treatment main(
     logAbort: logErrorMessage(label="ci", message="pipeline aborted: skipping package stage")
     oneAnyFailed.value -> logAbort.trigger
 
-    // Package only if both stages truly succeeded. `flock<T>()` is not an
-    // AND-gate: it waits for both of its `Block` inputs to *resolve*, value
-    // or empty close, and forwards whichever ones actually carried a
-    // value (see libs/std-mel/src/flow/mod.rs). Feeding it `success`
-    // directly does not work: if a stage instead fires `error`, its
-    // `success` input closes empty, `flock` still considers that
-    // "resolved", and forwards `build.success` alone, which was enough to
-    // (wrongly) trigger `package` even after `test` failed. `finished`
-    // worked earlier only because it always carries a value regardless of
-    // outcome; `success` does not.
-    //
     // Each stage's three mutually exclusive outcomes (`success`, `error`,
     // `failed`) are turned into one *guaranteed* `Block<bool>` first (two
     // chained `one<bool>()`, mirroring the abort-logging OR-gate above),
