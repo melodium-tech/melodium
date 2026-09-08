@@ -16,6 +16,8 @@ The smallest useful Mélodium program. It has no procedural entry point: `main` 
 melodium run Compo.toml --name "World" --times 3
 ```
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 ## How it is built
 
 No models here: this example only uses stateless treatments and functions.

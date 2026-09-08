@@ -9,15 +9,17 @@ Reads one JSON object per line, computes a letter grade from its `score` field i
 ## What it does
 
 ```
-melodium run Compo.toml --input_file students.json
+melodium run Compo.toml --input_file students.jsonl
 ```
 
 ```json
-{"grade":"A","name":"Ada","score":92}
-{"grade":"D","name":"Grace","score":58}
-{"grade":"C","name":"Linus","score":74}
-{"grade":"F","name":"Barbara","score":45}
+{"grade":"A","name":"Amélie","score":92}
+{"grade":"E","name":"Øystein","score":58}
+{"grade":"C","name":"Carmiña","score":74}
+{"grade":"FX","name":"Łukasz","score":45}
 ```
+
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
 
 ## How it is built
 
@@ -40,8 +42,8 @@ readTextLocal ──▶ lines ──▶ toJson ──▶ process (JS grade()) �
 
 ## Runtime behaviour
 
-1. Lines are extracted the same way as in examples 03/04/07 (`split` + `flatten` + `trim`, blanks dropped).
-2. Each line is parsed with `toJson` into a `Json` value and fed to `process`, which calls the JS `grade(value)` function defined in the `Grader` model's `code`. Inside JS, `value` is the parsed object (`input.score`, `input.name`), exactly the field access that plain `json` treatments cannot do (see 06 and 07, which both work around this).
+1. Lines are extracted the same way as in [03_text_and_files](../03_text_and_files/), [04_json_toolkit](../04_json_toolkit/), and [07_sql_crud_api](../07_sql_crud_api/) (`split` + `flatten` + `trim`, blanks dropped).
+2. Each line is parsed with `toJson` into a `Json` value and fed to `process`, which calls the JS `grade(value)` function defined in the `Grader` model's `code`. Inside JS, `value` is the parsed object (`input.score`, `input.name`), exactly the field access that plain `json` treatments cannot do (see [06_http_server_api](../06_http_server_api/) and [07_sql_crud_api](../07_sql_crud_api/), which both work around this).
 3. `process` returns `Option<Json>` (`none` if the code throws or returns something that cannot convert to JSON); `unwrapOr` supplies a fallback so the pipeline never stalls on one bad record.
 4. Each result is logged and written to `grades.txt`, one JSON object per line, using the same "`entry` + `format` + `\n`" idiom as building any other text report in this tutorial.
 

@@ -19,6 +19,8 @@ A negative value needs the `--flag=value` form; `--offset_below -100` fails to p
 - `shift<N: Add>` adds a different offset to each half.
 - `merge` recombines both halves into one stream, in no particular order.
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 ## How it is built
 
 No models here either: everything is stateless treatments, functions, and two custom generic treatments.

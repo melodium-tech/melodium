@@ -16,6 +16,8 @@ melodium run Compo.toml --input_file sample.txt --pattern "Mélodium"
 - Logs every line matching the `pattern` regex.
 - Writes `report.txt` with the total line and match counts.
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 ## How it is built
 
 No models here: file reading, regex matching, and text composition are all stateless treatments.

@@ -71,4 +71,6 @@ POST /chat body ──▶ collapse to one block ──▶ decide() (JS) ──�
 - **Verify logic in isolation before wiring it into something you can't easily test** (here, real API calls): the same principle as `melodium run` over `melodium check` elsewhere in this tutorial, applied to a piece of business logic rather than a library treatment.
 - **`_` on a Rust-declared model parameter is not the same thing as `_` on a `.mel`-declared one.** The latter genuinely omits an `Option<T>`; the former can silently send a zero value instead. Prefer an explicit `|wrap<T>(value)` over `_` for a Rust-declared model's optional numeric parameters until this is fixed at the source.
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 Back to the [examples index](../../README.md).

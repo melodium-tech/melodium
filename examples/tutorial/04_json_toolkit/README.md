@@ -18,6 +18,8 @@ With the shipped `records.txt` (7 lines: strings, a number, a bool, two objects,
 {"invalid":"1","objects":"2","scalars":"4"}
 ```
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 ## How it is built
 
 No models here: JSON parsing and validation are stateless treatments.

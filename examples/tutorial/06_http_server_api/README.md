@@ -13,14 +13,16 @@ melodium run Compo.toml --port 8080
 
 curl http://127.0.0.1:8080/health
 curl http://127.0.0.1:8080/whoami
-curl -X POST http://127.0.0.1:8080/greet -d '{"name":"Ada"}'
+curl -X POST http://127.0.0.1:8080/greet -d '{"name":"Sláine"}'
 ```
 
 ```json
 {"status":"ok"}
 {"path":"/whoami","route":"/whoami"}
-{"message":"thanks for the greeting!","received":"{\"name\":\"Ada\"}"}
+{"message":"thanks for the greeting!","received":"{\"name\":\"Sláine\"}"}
 ```
+
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
 
 ## How it is built
 
@@ -50,7 +52,7 @@ connection.data (incoming) ──▶ [only for /greet: parse body] ──▶ con
 
 1. **Drive a route's response from `connection.started`**, not from a trigger derived from `connection.data` (the incoming body). `connection.started` is a `Block<void>` that fires as soon as the connection is accepted, regardless of whether the request has a body. A GET request has no body, so a stream never starts on `connection.data`, and anything gated on "first byte of the body" simply never fires, leaving the server hanging on that route. `/greet` (POST, with an actual body) would work either way, which is exactly the trap: a body-derived trigger looks correct until tested against a route with no body.
 2. `/whoami` reads `@HttpRequest[route]` and `@HttpRequest[path]` directly as values inside `describe`, a treatment that `require`s the context: it can only be instantiated inside a track that provides `@HttpRequest`, which `connection` guarantees.
-3. `/greet` parses the JSON body and rebuilds a response with `std/data/string_map::entry`/`insert` + `fromStringMap`. There is no field-by-field access into a parsed `Json` value in the `json` package itself: reaching into `{"name": "Ada"}` to pull out `"Ada"` needs the JavaScript engine ([08_javascript_transform](../08_javascript_transform/)); here the whole body is echoed back as one JSON string value instead.
+3. `/greet` parses the JSON body and rebuilds a response with `std/data/string_map::entry`/`insert` + `fromStringMap`. There is no field-by-field access into a parsed `Json` value in the `json` package itself: reaching into `{"name": "Sláine"}` to pull out `"Sláine"` needs the JavaScript engine ([08_javascript_transform](../08_javascript_transform/)); here the whole body is echoed back as one JSON string value instead.
 
 ### Key Mélodium patterns used
 

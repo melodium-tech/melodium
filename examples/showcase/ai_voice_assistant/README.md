@@ -54,4 +54,6 @@ HfHub.fetch ──▶ Whisper.load ──▶ recordMono ──▶ Whisper.decode
 - **A model subclass must set every parameter of its base model that has no default**: `RemoteLlm.temperature`/`top_p`/`timeout` have no default value, so `ChatLlm`/`VoiceLlm` set them to `_` (meaning "use the provider's own default") even though the example never overrides them; `melodium check` catches a missing one immediately.
 - **No `visionChat` entrypoint here.** The real `ml/remote/llm::visionChat` treatment takes raw image bytes as a single `Block<Vec<byte>>`, but there is currently no generic "collect an entire byte stream into one block" treatment in `std` to build that value from, say, an HTTP-fetched or locally-read image. Reaching into individual JSON/text values has the same kind of limit worked around with the JavaScript engine in [08_javascript_transform](../../tutorial/08_javascript_transform/); collecting a whole byte stream into one block has no such workaround in the current standard library, so it is left out rather than faked.
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 Back to the [examples index](../../README.md).

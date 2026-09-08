@@ -12,6 +12,8 @@ melodium run Compo.toml --input_file fruits.txt
 
 Turns `banana / apple / cherry / date / elderberry` into an alphabetically sorted `sorted.txt`.
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 ## How it is built
 
 No models: `process/local::spawnOnce` is a convenience treatment that obtains a local executor on its own.

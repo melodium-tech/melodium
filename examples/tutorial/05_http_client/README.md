@@ -16,6 +16,8 @@ melodium run Compo.toml --post_id 1
 - Logs when the request completes, and separately handles a *technical* failure (DNS, connection, timeout: `fetch.failed`/`fetch.error`) versus a body that fails to parse.
 - Writes the parsed-and-reserialised JSON body to `post.txt`.
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 ## How it is built
 
 No models: `http/client/util::get` needs no client model for a one-off request (see [06_http_server_api](../06_http_server_api/) for the model-based server side, and later examples for `HttpClient` as a model when a connection should be reused).

@@ -30,23 +30,25 @@ use fs/local::writeTextLocal
 // field in JavaScript, and writes the graded records back out.
 //
 // Usage:
-//   melodium run Compo.toml --input_file students.json
+//   melodium run Compo.toml --input_file students.jsonl
 //
 
 model Grader() : JavaScriptEngine {
     code = ${{function grade(input) {
         var g = 'F';
         if (input.score >= 90) g = 'A';
-        else if (input.score >= 75) g = 'B';
-        else if (input.score >= 60) g = 'C';
-        else if (input.score >= 50) g = 'D';
+        else if (input.score >= 80) g = 'B';
+        else if (input.score >= 70) g = 'C';
+        else if (input.score >= 60) g = 'D';
+        else if (input.score >= 50) g = 'E';
+        else if (input.score >= 45) g = 'FX';
         return { name: input.name, score: input.score, grade: g };
     }
 }}
 }
 
 treatment main(
-    const input_file: string = "students.json",
+    const input_file: string = "students.jsonl",
     const output:     string = "grades.txt"
 )
   model engine: Grader()

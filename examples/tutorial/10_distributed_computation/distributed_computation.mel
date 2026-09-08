@@ -35,36 +35,41 @@ use distrib::recvStream
 // runs in a single process; `distribute` is the one primitive that spreads a
 // computation across several.
 //
+// A local client sends a stream of numbers to a second, separately running
+// Mélodium engine; that engine doubles each number and sends it back.
+//
+// Setup: two terminals, each running a separate Mélodium engine. Both must
+// share the same distribution group and a matching pair of keys (one side's
+// send key is the other side's recv key, swapped). The UUIDs below are
+// example values for local pairing only; any matching pair works, as long
+// as both terminals agree.
+//
+// Terminal 1, the listening engine:
+//   export MELODIUM_GROUP_ID=10101010-1010-1010-1010-101010101010
+//   melodium dist --localhost --port 6789 \
+//     --recv-key 11111111-1111-1111-1111-111111111111 \
+//     --send-key 22222222-2222-2222-2222-222222222222
+//
+// Terminal 2, this script, with the keys swapped:
+//   export MELODIUM_GROUP_ID=10101010-1010-1010-1010-101010101010
+//   melodium run distributed_computation.mel --port 6789 \
+//     --send_key 11111111-1111-1111-1111-111111111111 \
+//     --recv_key 22222222-2222-2222-2222-222222222222
+//
+// `--localhost` uses an embedded certificate for local testing.
+//
 // This is a standalone script (one `.mel` file, no Compo.toml), not a
-// project like every other example in this tutorial. A `DistributionEngine`
-// resolves its target treatment against the local engine's own compiled
-// collection, and a Compo.toml project only compiles what is reachable from
-// the entrypoint being run: `double` below is never directly instantiated
-// anywhere in `main`'s own graph (it is only referenced by name in
-// `Doubler`'s configuration), so a project build prunes it and the
-// `DistributionEngine` can never find it at runtime. A standalone script
-// compiles as a single unit with nothing pruned, so `double` stays
-// available. Point a `DistributionEngine` at a treatment you *do* also
-// instantiate locally somewhere and this limitation does not apply.
-//
-// Setup: two Mélodium engines:
-//
-//   1. Start a listening engine:
-//        melodium dist --localhost --port 6789 \
-//          --recv-key <uuid-A> --send-key <uuid-B>
-//
-//   2. Run this script, with the keys swapped (this side sends what the
-//      other side expects to receive, and vice versa):
-//        melodium run distributed_computation.mel \
-//          --port 6789 --send_key <uuid-A> --recv_key <uuid-B>
-//
-// `--localhost` uses an embedded certificate for local testing; generate the
-// UUIDs however is convenient (e.g. `python3 -c "import uuid; print(uuid.uuid4())"`).
-//
-// Both engines must share the same distribution group: export
-// MELODIUM_GROUP_ID (any UUID, e.g. from the same `python3` one-liner above)
-// to the same value before starting each one; two engines started without
-// it each pick their own random group and can never pair up.
+// project like every other example in this tutorial, because a
+// `DistributionEngine` resolves its target treatment against the local
+// engine's own compiled collection, while a Compo.toml project only
+// compiles what is reachable from the entrypoint being run: `double` below
+// is never directly instantiated anywhere in `main`'s own graph (it is only
+// referenced by name in `Doubler`'s configuration), so a project build
+// prunes it and the `DistributionEngine` can never find it at runtime. A
+// standalone script compiles as a single unit with nothing pruned, so
+// `double` stays available. Point a `DistributionEngine` at a treatment you
+// *do* also instantiate locally somewhere and this limitation does not
+// apply.
 //
 
 model Doubler() : DistributionEngine {

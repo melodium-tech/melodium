@@ -45,7 +45,7 @@ use json/value::fromStringMap
 //
 //   curl http://127.0.0.1:8080/health
 //   curl http://127.0.0.1:8080/whoami
-//   curl -X POST http://127.0.0.1:8080/greet -d '{"name":"Ada"}'
+//   curl -X POST http://127.0.0.1:8080/greet -d '{"name":"Sláine"}'
 //
 
 treatment main(const port: u16 = 8080)

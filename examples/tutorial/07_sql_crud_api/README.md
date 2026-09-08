@@ -18,6 +18,8 @@ curl http://127.0.0.1:8080/notes
 # 1) buy milk
 ```
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 ## How it is built
 
 | Model | Type | Purpose |
