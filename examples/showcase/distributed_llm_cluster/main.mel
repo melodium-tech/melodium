@@ -101,7 +101,7 @@ treatment server(
         max_duration        = 3600,
         memory              = 16384,
         cpu                 = 4000,
-        storage             = 32768,
+        storage             = 204800,
         edition             = _,
         arch                = _,
         volumes             = [],
@@ -197,7 +197,7 @@ treatment dispatchInfer[distributor: DistributionEngine]()
 // then serves every subsequent chat request (one per `distribute()`
 // call from `dispatchInfer`) against that same loaded model.
 treatment inferText(const repo_id: string)
-  model hub:     HfHub(repo_id=repo_id)
+  model hub:     HfHub(repo_id=repo_id, cache_dir="./hf-cache")
   model mistral: Mistral(max_new_tokens=256)
   input  prompt:   Stream<byte>
   output response: Stream<byte>
