@@ -47,7 +47,7 @@ distant (provision worker) ──▶ distrib start (connect) ──▶ HTTP serv
 
 ## Notable choices
 
-- **Scaling to an actual cluster** means provisioning several workers, each with its own `distant` + `DistributionEngine` pair, and load-balancing requests across them: the same `dispatchInfer` shape, repeated N times. This example provisions one worker for clarity; the fan-out itself is not implemented here.
+- **Scaling to an actual cluster** means provisioning several workers, each with its own `distant` + `DistributionEngine` pair, and load-balancing requests across them: the same `dispatchInfer` shape, repeated N times.
 - **`connection.started`**, as established in [06_http_server_api](../../tutorial/06_http_server_api/), gates the HTTP response, independent of whether or when the distributed round-trip completes.
 - **Credentials travel with the distribution, not the request**: the LLM API key is passed once as a `params` entry to `distrib::start` (`|dataMap([|dataEntry<string>(...), ...])`, note the explicit `<string>`: `std/data/map::|entry` is generic since `Map`, unlike `StringMap`, holds values of any type) and read by `inferText` on the worker side, not re-sent with every prompt.
 - **The remote treatment is just a treatment**: `inferText` reads bytes, decodes, calls `chat`, encodes, writes bytes; nothing about it is aware it is running on a different machine than the code that calls it via `dispatchInfer`.

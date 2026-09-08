@@ -124,10 +124,8 @@ treatment greet[http_server: HttpServer]() {
 }
 
 // Parses the request body as JSON, wraps it back with a canned message, and
-// replies with a new JSON object. There is no field-by-field access into a
-// parsed `Json` value in the `json` package (that needs the JavaScript
-// engine: see 08_javascript_transform); here the whole body is echoed back
-// as a single JSON string value instead of reaching into it.
+// replies with a new JSON object: the whole body is echoed back as one JSON
+// string value rather than read field by field.
 treatment respondGreeting()
   input  data: Stream<byte>
   output data: Stream<byte>

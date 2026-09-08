@@ -58,4 +58,4 @@ startup ─▶ connect ─▶ connected ─▶ createTable ─▶ start (HTTP)
 - **Casting in SQL to dodge a type-mapping guess**: when a value's exact Mélodium type coming back from a driver is uncertain, it is often simpler to coerce it to `string` in the query itself than to guess (and get it wrong silently, since `std/data/map::get<T>` returns `none` on a type mismatch, not an error).
 - **`connection.started` for both routes**: following the rule from [06_http_server_api](../06_http_server_api/), since `GET /notes` has no request body at all.
 
-Next: [08_javascript_transform](../08_javascript_transform/) introduces the JavaScript engine, including the field-by-field JSON access that `07_sql_crud_api` and `06_http_server_api` deliberately avoided.
+Next: [08_javascript_transform](../08_javascript_transform/) introduces the JavaScript engine, including field-by-field JSON access.

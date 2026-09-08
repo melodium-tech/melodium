@@ -23,8 +23,7 @@ use fs/local::writeTextLocal
 // JavaScript Transform
 //
 // Concepts introduced: the `JavaScriptEngine` model, transforming structured
-// data with JS: including the field-by-field JSON access that the `json`
-// package alone cannot do (see 06_http_server_api and 07_sql_crud_api).
+// data with JS, including field-by-field JSON access.
 //
 // Reads one JSON object per line, computes a letter grade from its `score`
 // field in JavaScript, and writes the graded records back out.

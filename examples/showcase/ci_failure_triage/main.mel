@@ -59,9 +59,7 @@ use fs/local::writeTextLocal
 
 // The deterministic classifier: reads a step's raw stdout/stderr and, with
 // no LLM call involved, decides whether it represents a real failure and
-// what kind. `statusOf` projects just the `status` field back out (see
-// showcase/smart_llm_router for why a second small call is the way to read
-// one field out of a result already computed in JS).
+// what kind. `statusOf` projects just the `status` field back out.
 model Classifier() : JavaScriptEngine {
     code = ${{function classify(log) {
         var signatures = [

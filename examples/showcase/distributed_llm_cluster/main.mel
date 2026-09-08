@@ -42,11 +42,9 @@ use distrib::recvStream
 // streams the LLM response back to the caller. The `ml` package (and any
 // GPU/API dependency it needs) only has to be available on the *worker*,
 // not on this front-end process: this is the same shape needed to spread
-// inference across a whole fleet of workers, just with one worker for
-// clarity. Scaling out is a matter of provisioning several workers (several
-// `distant` + `DistributionEngine` pairs) and load-balancing requests
-// across them; that fan-out is not implemented here to keep the example
-// readable.
+// inference across a whole fleet of workers, scaled out by provisioning
+// several workers (several `distant` + `DistributionEngine` pairs) and
+// load-balancing requests across them.
 //
 // This example requires a Mélodium Services API token and an LLM provider
 // API key. Set MELODIUM_API_TOKEN in the environment and run with

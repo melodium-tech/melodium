@@ -54,6 +54,5 @@ HfHub.fetch ──▶ Whisper.load ──▶ recordMono ──▶ Whisper.decode
 
 - **`connection.started` for `chat`**, exactly as established in [06_http_server_api](../../tutorial/06_http_server_api/): the response is gated on the connection being accepted, not on the body stream starting.
 - **A model subclass must set every parameter of its base model that has no default**: `RemoteLlm.temperature`/`top_p`/`timeout` have no default value, so `ChatLlm`/`VoiceLlm` set them to `_` (meaning "use the provider's own default") even though the example never overrides them; `melodium check` catches a missing one immediately.
-- **No `visionChat` entrypoint here.** The real `ml/remote/llm::visionChat` treatment takes raw image bytes as a single `Block<Vec<byte>>`, but there is currently no generic "collect an entire byte stream into one block" treatment in `std` to build that value from, say, an HTTP-fetched or locally-read image. Reaching into individual JSON/text values has the same kind of limit worked around with the JavaScript engine in [08_javascript_transform](../../tutorial/08_javascript_transform/); collecting a whole byte stream into one block has no such workaround in the current standard library, so it is left out rather than faked.
 
 Back to the [examples index](../../README.md).
