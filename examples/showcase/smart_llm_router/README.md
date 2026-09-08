@@ -24,6 +24,8 @@ The first request (short, factual) is routed to the `economy` tier; the second (
 
 `complexity_score` and `estimated_input_tokens` (built with arithmetic: `+=`, `Math.min`, `Math.ceil`) print with a trailing `.0`, even for whole numbers; `word_count` (read straight off `Array.length`) does not. JavaScript has no separate integer type, so this comes from how the embedded JS engine happens to represent each value internally, not from any rounding choice on Mélodium's side. Do not assume every numeric field here parses cleanly as an integer downstream without checking.
 
+*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
+
 ## How it is built
 
 | Model | Type | Purpose |
@@ -70,7 +72,5 @@ POST /chat body ──▶ collapse to one block ──▶ decide() (JS) ──�
 - **An empty prompt stream costs nothing.** Feeding all three tiers and letting the unchosen ones receive zero items is simpler than building a true N-way dynamic dispatch, and is free: an LLM treatment that never receives a prompt never calls the provider.
 - **Verify logic in isolation before wiring it into something you can't easily test** (here, real API calls): the same principle as `melodium run` over `melodium check` elsewhere in this tutorial, applied to a piece of business logic rather than a library treatment.
 - **`_` on a Rust-declared model parameter is not the same thing as `_` on a `.mel`-declared one.** The latter genuinely omits an `Option<T>`; the former can silently send a zero value instead. Prefer an explicit `|wrap<T>(value)` over `_` for a Rust-declared model's optional numeric parameters until this is fixed at the source.
-
-*Optional: add `--api-report` and a Mélodium Services API token (`MELODIUM_API_TOKEN`) to see this run's full trace on [Cadence.CI](https://cadence.ci/).*
 
 Back to the [examples index](../../README.md).
