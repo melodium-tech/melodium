@@ -1,0 +1,330 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logErrorMessage
+use std/flow::one
+use std/flow::stream
+use std/flow::trigger
+use std/flow::emit
+use std/flow::filterBlock
+use std/ops/bin::and
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/string_map::|entry
+use std/ops/option::|wrap
+use process/command::|command
+use work/resources/arch::Arch
+use work/resources/arch::|arm64
+use work/resources::|service_container
+use cicd/runners::CicdDispatchEngine
+use cicd/naive::simpleStep
+use cicd/naive::simpleStepWithInput
+use fs/local::writeLocal
+
+//
+// CI Pipeline
+//
+// A three-stage CI pipeline that runs entirely on provisioned cloud
+// containers, combining `cicd`, `work`, and `process`.
+//
+//   Stage 1, build:   rust:1.90-slim container; `cargo build --release`
+//                      produces a compiled binary, whose name is read from
+//                      the cloned repo's own Cargo.toml, streamed back
+//                      locally (works for any ordinary single-binary crate,
+//                      not just the one used as the default `repo_url`).
+//
+//   Stage 2, test:    rust:1.90-slim + postgres:16 service container; a
+//                      `psql` connectivity check exercises DATABASE_URL
+//                      against the sidecar before `cargo test` runs the
+//                      repo's own test suite (the default repo's tests do
+//                      not themselves touch the database; the sidecar's
+//                      reachability is what this stage actually proves).
+//
+//   Stage 3, package: debian:bookworm-slim container; bundles the binary
+//                      into a tar.gz archive and streams the archive back.
+//
+// Stages 1 and 2 run concurrently. Stage 3 starts only after both succeed.
+// The binary produced by stage 1 is piped directly into stage 3 as input data.
+//
+// `repo_url` defaults to a small, real, public Rust binary crate
+// (sharkdp/hexyl) chosen so this example runs end to end with nothing
+// beyond a Mélodium Services API token: no separate repo to prepare.
+// Override `repo_url` to build your own project instead; the binary-name
+// detection works for any simple, single-binary Cargo crate.
+//
+// This example requires a Mélodium Services API token (or a local
+// podman/docker compose setup, see `CicdDispatchEngine`'s `location`
+// parameter). Set MELODIUM_API_TOKEN in the environment and run with
+// --api-report; see https://cadence.ci/ to obtain a token and follow execution.
+//
+// Usage:
+//   export MELODIUM_API_TOKEN="my-api-token"
+//   melodium run --api-report Compo.toml
+//
+//   # or, to build a different repository:
+//   melodium run --api-report Compo.toml \
+//     --repo_url "https://github.com/your-org/your-project.git"
+//
+
+treatment main(
+    const repo_url: string = "https://github.com/sharkdp/hexyl.git",
+    const output:   string = "artifact.tar.gz"
+)
+  model dispatcher: CicdDispatchEngine()
+{
+    startup()
+    logStart: logInfoMessage(label="ci", message="pipeline started")
+    startup.trigger -> logStart.trigger
+
+    // Stage 1, build: compile release binary in a Rust container.
+    build[dispatcher=dispatcher](repo_url=repo_url)
+    startup.trigger -> build.trigger
+
+    buildFailed: logErrorMessage(label="build", message="build stage failed")
+    buildError:  logErrorMessage(label="build", message="build stage exited with error")
+    build.failed -> buildFailed.trigger
+    build.error  -> buildError.trigger
+
+    logBuildOk: logInfoMessage(label="build", message="build succeeded")
+    build.success -> logBuildOk.trigger
+
+    // Stage 2, test: run cargo test with a Postgres sidecar.
+    test[dispatcher=dispatcher](repo_url=repo_url)
+    startup.trigger -> test.trigger
+
+    testFailed: logErrorMessage(label="test", message="test stage failed")
+    testError:  logErrorMessage(label="test", message="tests did not pass")
+    test.failed -> testFailed.trigger
+    test.error  -> testError.trigger
+
+    logTestOk: logInfoMessage(label="test", message="all tests passed")
+    test.success -> logTestOk.trigger
+
+    // Abort logging: fire if any stage fails or errors (chain two one<void> for 4 signals).
+    failedOrError1: one<void>()
+    failedOrError2: one<void>()
+    build.failed -> failedOrError1.a
+    test.failed  -> failedOrError1.b
+    build.error  -> failedOrError2.a
+    test.error   -> failedOrError2.b
+
+    oneAnyFailed: one<void>()
+    failedOrError1.value -> oneAnyFailed.a
+    failedOrError2.value -> oneAnyFailed.b
+
+    logAbort: logErrorMessage(label="ci", message="pipeline aborted: skipping package stage")
+    oneAnyFailed.value -> logAbort.trigger
+
+    // Each stage's three mutually exclusive outcomes (`success`, `error`,
+    // `failed`) are turned into one *guaranteed* `Block<bool>` first (two
+    // chained `one<bool>()`, mirroring the abort-logging OR-gate above),
+    // so `and()` always has a real value on both sides.
+    buildSuccessTrue: emit<bool>(value=true)
+    buildErrorFalse:  emit<bool>(value=false)
+    buildFailedFalse: emit<bool>(value=false)
+    build.success -> buildSuccessTrue.trigger
+    build.error   -> buildErrorFalse.trigger
+    build.failed  -> buildFailedFalse.trigger
+
+    buildOkOrError: one<bool>()
+    buildSuccessTrue.emit -> buildOkOrError.a
+    buildErrorFalse.emit  -> buildOkOrError.b
+    buildOk: one<bool>()
+    buildOkOrError.value  -> buildOk.a
+    buildFailedFalse.emit -> buildOk.b
+
+    testSuccessTrue: emit<bool>(value=true)
+    testErrorFalse:  emit<bool>(value=false)
+    testFailedFalse: emit<bool>(value=false)
+    test.success -> testSuccessTrue.trigger
+    test.error   -> testErrorFalse.trigger
+    test.failed  -> testFailedFalse.trigger
+
+    testOkOrError: one<bool>()
+    testSuccessTrue.emit -> testOkOrError.a
+    testErrorFalse.emit  -> testOkOrError.b
+    testOk: one<bool>()
+    testOkOrError.value -> testOk.a
+    testFailedFalse.emit -> testOk.b
+
+    // Both guaranteed `Block<bool>` values, widened to one-item streams so
+    // `and()` (a stream treatment) can combine them, then collapsed back.
+    buildOkStream: stream<bool>()
+    testOkStream:  stream<bool>()
+    buildOk.value -> buildOkStream.block
+    testOk.value  -> testOkStream.block
+
+    bothOk: and<bool>()
+    buildOkStream.stream -> bothOk.a
+    testOkStream.stream  -> bothOk.b
+
+    bothOkLast: trigger<bool>()
+    bothOk.and -> bothOkLast.stream
+
+    // Stage 3, package: receives the binary from stage 1, bundles it into a tar.gz.
+    package[dispatcher=dispatcher](output=output)
+    packageGate: filterBlock<void>()
+    startup.trigger  -> packageGate.value
+    bothOkLast.last  -> packageGate.select
+    packageGate.accepted -> package.trigger
+    build.data           -> package.data
+
+    packageFailed: logErrorMessage(label="package", message="package stage failed")
+    packageError:  logErrorMessage(label="package", message="package stage exited with error")
+    package.failed -> packageFailed.trigger
+    package.error  -> packageError.trigger
+
+    // Write the final archive locally.
+    write: writeLocal(path=output)
+    package.data -> write.data
+
+    logDone:     logInfoMessage(label="ci", message="pipeline complete: artifact written")
+    writeFailed: logErrorMessage(label="write", message="write failed")
+    write.completed -> logDone.trigger
+    write.failed    -> writeFailed.trigger
+}
+
+// Stage 1: clone the repo and compile a release binary in a Rust container.
+// The binary's name is read back from the repo's own Cargo.toml (works for
+// any simple single-binary crate, not just the default `repo_url`), then
+// streamed back via `data` (read from /mnt/data/binary on the container).
+treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
+  input  trigger:  Block<void>
+  output started:  Block<void>
+  output success:  Block<void>
+  output error:    Block<void>
+  output failed:   Block<void>
+  output finished: Block<void>
+  output data:     Stream<byte>
+{
+    simpleStep[dispatcher=dispatcher](
+        name         = "build",
+        image        = "rust:1.90-slim",
+        cpu          = 2000,
+        memory       = 4096,
+        storage      = 8192,
+        arch         = |wrap<Arch>(|arm64()),
+        max_duration = 1800,
+        // `commands` runs each entry as a direct exec, never through a shell:
+        // `${REPO_URL}` is a real OS environment variable for the process
+        // (from `variables` below), but nothing expands `${...}` syntax
+        // unless the command running is itself a shell. Every entry that
+        // needs shell features (variable expansion, `&&`, `cd`, `2>&1`,
+        // `$(...)`) is wrapped in an explicit `sh -c`.
+        commands     = [
+            |command("sh", ["-c", "apt-get update -qq && apt-get install -y --no-install-recommends git"]),
+            |command("sh", ["-c", "git clone --depth 1 ${REPO_URL} /workspace"]),
+            |command("sh", ["-c", "cd /workspace && cargo build --release 2>&1"]),
+            |command("sh", ["-c", "BIN=$(grep -m1 '^name' /workspace/Cargo.toml | cut -d '\"' -f2) && cp \"/workspace/target/release/$BIN\" /mnt/data/binary"])
+        ],
+        variables    = |wrap<StringMap>(|map([|entry("REPO_URL", repo_url)])),
+        out_file     = "binary"
+    )
+
+    Self.trigger -> simpleStep.trigger
+    simpleStep.started  -> Self.started
+    simpleStep.success  -> Self.success
+    simpleStep.error    -> Self.error
+    simpleStep.failed   -> Self.failed
+    simpleStep.finished -> Self.finished
+    simpleStep.data     -> Self.data
+}
+
+// Stage 2: clone the repo, prove the Postgres sidecar is actually reachable
+// via DATABASE_URL with a `psql` connectivity check, then run `cargo test`.
+treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
+  input  trigger:  Block<void>
+  output started:  Block<void>
+  output success:  Block<void>
+  output error:    Block<void>
+  output failed:   Block<void>
+  output finished: Block<void>
+{
+    simpleStep[dispatcher=dispatcher](
+        name         = "test",
+        image        = "rust:1.90-slim",
+        cpu          = 2000,
+        memory       = 4096,
+        storage      = 8192,
+        arch         = |wrap<Arch>(|arm64()),
+        max_duration = 1800,
+        // `|service_container`'s `arch` has no "unspecified" option (unlike
+        // the main step's own `arch` above), so it must be pinned to
+        // something. It has to match the main step's `arch` exactly, or
+        // dispatch is rejected with "Architecture is not valid or
+        // consistent for run and all containers".
+        service_containers = [
+            |service_container(
+                "postgres",
+                2048,
+                2000,
+                4096,
+                |arm64(),
+                [],
+                "postgres:16",
+                _,
+                |wrap<StringMap>(|map([
+                    |entry("POSTGRES_USER",     "ci"),
+                    |entry("POSTGRES_PASSWORD", "ci"),
+                    |entry("POSTGRES_DB",       "ci_test")
+                ])),
+                _
+            )
+        ],
+        commands     = [
+            |command("sh", ["-c", "apt-get update -qq && apt-get install -y --no-install-recommends git postgresql-client"]),
+            |command("sh", ["-c", "git clone --depth 1 ${REPO_URL} /workspace"]),
+            |command("sh", ["-c", "psql \"${DATABASE_URL}\" -c \"SELECT 1;\""]),
+            |command("sh", ["-c", "cd /workspace && cargo test 2>&1"])
+        ],
+        variables    = |wrap<StringMap>(|map([
+            |entry("REPO_URL",     repo_url),
+            |entry("DATABASE_URL", "postgres://ci:ci@postgres/ci_test")
+        ]))
+    )
+
+    Self.trigger -> simpleStep.trigger
+    simpleStep.started  -> Self.started
+    simpleStep.success  -> Self.success
+    simpleStep.error    -> Self.error
+    simpleStep.failed   -> Self.failed
+    simpleStep.finished -> Self.finished
+}
+
+// Stage 3: receives the compiled binary as input bytes; bundles it into a tar.gz.
+// The archive is streamed back via `data`.
+treatment package[dispatcher: CicdDispatchEngine](const output: string)
+  input  trigger:  Block<void>
+  input  data:     Stream<byte>
+  output started:  Block<void>
+  output success:  Block<void>
+  output error:    Block<void>
+  output failed:   Block<void>
+  output finished: Block<void>
+  output data:     Stream<byte>
+{
+    simpleStepWithInput[dispatcher=dispatcher](
+        name         = "package",
+        image        = "debian:bookworm-slim",
+        cpu          = 500,
+        memory       = 512,
+        storage      = 2048,
+        max_duration = 300,
+        in_file      = "binary",
+        // Neither of these needs a shell: no variable expansion, no
+        // operators, so a direct exec of the plain argv works as-is.
+        commands     = [
+            |command("chmod", ["+x", "/mnt/data/binary"]),
+            |command("tar", ["-czf", "/mnt/data/artifact.tar.gz", "-C", "/mnt/data", "binary"])
+        ],
+        out_file     = "artifact.tar.gz"
+    )
+
+    Self.trigger -> simpleStepWithInput.trigger
+    Self.data    -> simpleStepWithInput.data
+    simpleStepWithInput.started  -> Self.started
+    simpleStepWithInput.success  -> Self.success
+    simpleStepWithInput.error    -> Self.error
+    simpleStepWithInput.failed   -> Self.failed
+    simpleStepWithInput.finished -> Self.finished
+    simpleStepWithInput.data     -> Self.data
+}

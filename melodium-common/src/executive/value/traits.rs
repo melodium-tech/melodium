@@ -1,6 +1,6 @@
 use super::Value;
 use crate::executive::DataTrait;
-use core::{convert::TryInto, fmt::Debug, hash::Hash};
+use core::{convert::TryInto, hash::Hash};
 use erased_serde::Serialize;
 use serde::ser::SerializeSeq;
 
@@ -2785,7 +2785,13 @@ impl DataTrait for Value {
     fn display(&self, mut f: &mut std::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         match self {
             Value::Data(data) => data.display(&mut f),
-            _ => self.fmt(f),
+            // `self.fmt(f)` here used to silently resolve to `derive(Debug)`'s
+            // `Debug::fmt` instead of the `Display::fmt` implemented below
+            // (both were once in scope in this file with a compatible
+            // signature, and plain `self.fmt(f)` isn't fussy about which):
+            // fully-qualifying gives every non-`Data` variant its own clean
+            // representation (e.g. `42`, not `I64(42)`).
+            other => <Value as core::fmt::Display>::fmt(other, f),
         }
     }
 }

@@ -477,7 +477,7 @@ pub async fn fit() {
     output count Stream<u128>
 )]
 pub async fn count() {
-    let mut i: u128 = 0;
+    let mut i: u128 = 1;
     while let Ok(iter) = stream.recv_many().await {
         let next_i = i + iter.len() as u128;
         check!(count.send_many_as((i..next_i).collect::<Vec<_>>()).await);

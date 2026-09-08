@@ -1,6 +1,25 @@
 use crate::engine::*;
 use melodium_core::common::executive::Level as LogLevel;
+use melodium_core::DataTrait;
 use melodium_macro::{mel_data, mel_function, mel_treatment};
+
+/// Formats a `Value` through its actual runtime `Display` implementation
+/// (`DataTrait::display`), rather than `Value`'s own `core::fmt::Display`,
+/// which renders `Data` values as a `/* TypeName */` placeholder meant for
+/// regenerating Mélodium source, not for user-facing logging.
+///
+/// `DataTrait::display`'s own fallback for non-`Data` variants used to
+/// silently resolve to the derived `Debug::fmt` instead of `Display::fmt`
+/// (only `Debug` was imported where it is implemented), printing e.g.
+/// `I64(42)` instead of `42` for every plain value, not just `Data` ones.
+/// Fixed at the source in `melodium-common`'s `impl DataTrait for Value`.
+struct RuntimeDisplay<'a>(&'a Value);
+
+impl std::fmt::Display for RuntimeDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        DataTrait::display(self.0, f)
+    }
+}
 
 /// Forward a stream of strings to the engine log at the given `level` under `label`.
 ///
@@ -99,7 +118,12 @@ pub async fn log_data_stream(level: Level, label: string) {
         for val in values {
             engine
                 .world()
-                .log(level.level, label.clone(), format!("{val}"), Some(track_id))
+                .log(
+                    level.level,
+                    label.clone(),
+                    format!("{}", RuntimeDisplay(&val)),
+                    Some(track_id),
+                )
                 .await;
         }
     }
@@ -126,7 +150,12 @@ pub async fn log_data_stream_label(level: Level) {
             for val in values {
                 engine
                     .world()
-                    .log(level.level, label.clone(), format!("{val}"), Some(track_id))
+                    .log(
+                        level.level,
+                        label.clone(),
+                        format!("{}", RuntimeDisplay(&val)),
+                        Some(track_id),
+                    )
                     .await;
             }
         }
@@ -145,7 +174,12 @@ pub async fn log_data_block(level: Level, label: string) {
     if let Ok(val) = display.recv_one().await {
         engine
             .world()
-            .log(level.level, label, format!("{val}"), Some(track_id))
+            .log(
+                level.level,
+                label,
+                format!("{}", RuntimeDisplay(&val)),
+                Some(track_id),
+            )
             .await;
     }
 }
@@ -166,7 +200,12 @@ pub async fn log_data_block_label(level: Level) {
         if let Ok(val) = display.recv_one().await {
             engine
                 .world()
-                .log(level.level, label, format!("{val}"), Some(track_id))
+                .log(
+                    level.level,
+                    label,
+                    format!("{}", RuntimeDisplay(&val)),
+                    Some(track_id),
+                )
                 .await;
         }
     }
