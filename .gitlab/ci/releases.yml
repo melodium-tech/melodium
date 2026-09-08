@@ -111,7 +111,7 @@ release:gitlab:
 
 release:publish:zips:
   stage: release
-  image: debian:bullseye
+  image: debian:trixie
   rules:
     - if: ( $CI_COMMIT_TAG )
   variables:
@@ -131,7 +131,7 @@ release:publish:zips:
 
 release:publish:installers:
   stage: release
-  image: debian:bullseye
+  image: debian:trixie
   rules:
     - if: ( $CI_COMMIT_TAG )
   variables:
@@ -158,7 +158,7 @@ release:publish:installers:
 
 release:publish:deb:
   stage: release
-  image: debian:bullseye
+  image: debian:trixie
   rules:
     - if: ( $CI_COMMIT_TAG )
   variables:
@@ -178,7 +178,7 @@ release:publish:deb:
 
 release:publish:doc:
   stage: release
-  image: debian:bullseye
+  image: debian:trixie
   rules:
     - if: ( $CI_COMMIT_TAG )
   variables:
@@ -197,7 +197,7 @@ release:publish:doc:
 
 release:publish:packages:
   stage: release
-  image: debian:bullseye
+  image: debian:trixie
   extends:
     - .release-packages
   variables:

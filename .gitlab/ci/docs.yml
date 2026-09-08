@@ -43,7 +43,7 @@ doc:melodium:reference:
 
 doc:melodium:doc:
   stage: doc
-  image: rust:bullseye
+  image: rust:trixie
   rules:
     - when: manual
       allow_failure: true

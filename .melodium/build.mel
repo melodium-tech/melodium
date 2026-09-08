@@ -135,7 +135,7 @@ treatment runnerBuild[cicd: CicdDispatchEngine, runner: CicdRunnerEngine](name: 
         memory=500,
         storage=1300,
         volumes=[|volume("compilation-result", 1000)],
-        containers=[|container("rust", rust_memory, 2, rust_storage, on, [|mount("compilation-result", "/mounted/result")], "rust:bullseye", _)],
+        containers=[|container("rust", rust_memory, 2, rust_storage, on, [|mount("compilation-result", "/mounted/result")], "rust:trixie", _)],
         stop_on_failure=false
     )
     Self.trigger -> setupRunner.trigger,ready -> Self.ready
