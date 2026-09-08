@@ -1,4 +1,4 @@
-# Distributed LLM Cluster: showcase
+# Distributed LLM Cluster
 
 Builds directly on [10_distributed_computation](../../tutorial/10_distributed_computation/)'s `distrib` primitives, adding `work/distant` to provision the remote engine on demand from Mélodium Services, instead of pointing at a `melodium dist` node started by hand.
 

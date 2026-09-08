@@ -32,7 +32,7 @@ use ml/remote/llm::chat as llmChat
 use fs/local::writeTextLocal
 
 //
-// CI Failure Triage: showcase
+// CI Failure Triage
 //
 // Two CI steps run on provisioned containers, each step's raw output is
 // deterministically classified by a small JavaScript function, and only

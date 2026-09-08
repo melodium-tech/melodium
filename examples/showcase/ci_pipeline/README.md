@@ -1,4 +1,4 @@
-# CI Pipeline: showcase
+# CI Pipeline
 
 A three-stage CI pipeline that runs entirely on provisioned cloud containers, combining `cicd`, `work`, and `process`.
 

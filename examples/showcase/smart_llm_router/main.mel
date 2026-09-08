@@ -34,7 +34,7 @@ use ml/remote/llm::RemoteLlm
 use ml/remote/llm::stream as llmStream
 
 //
-// Smart LLM Router: showcase
+// Smart LLM Router
 //
 // A JavaScript decision function reads each incoming prompt, estimates how
 // complex it actually is, and routes it to one of three pre-configured

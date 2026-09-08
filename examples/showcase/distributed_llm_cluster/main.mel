@@ -31,7 +31,7 @@ use distrib::sendStream
 use distrib::recvStream
 
 //
-// Distributed LLM Cluster: showcase
+// Distributed LLM Cluster
 //
 // Builds on 10_distributed_computation's `distrib` primitives, adding
 // `work/distant` to provision the remote engine on demand from Mélodium

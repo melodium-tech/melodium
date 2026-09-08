@@ -1,4 +1,4 @@
-# AI Voice Assistant: showcase
+# AI Voice Assistant
 
 Combines several `ml` capabilities from across the library: remote LLM chat, local speech-to-text, and remote text-to-speech.
 

@@ -1,4 +1,4 @@
-# CI Failure Triage: showcase
+# CI Failure Triage
 
 Two CI steps run on provisioned containers, and each step's raw output is deterministically classified by a small JavaScript function before anything else happens. Only the step the classifier actually flagged as failed is handed to a remote LLM for a plain-language diagnosis and a suggested fix; the step the classifier considers fine costs nothing beyond the classification itself, no LLM request is made for it at all.
 
