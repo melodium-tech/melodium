@@ -99,9 +99,9 @@ treatment server(
 
     provisionRunner: distant[distant_engine=runner](
         max_duration        = 3600,
-        memory              = 16384,
+        memory              = 32768,
         cpu                 = 4000,
-        storage             = 204800,
+        storage             = 32768,
         edition             = _,
         arch                = _,
         volumes             = [],
