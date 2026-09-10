@@ -615,9 +615,17 @@ pub async fn api_report(
     async_std::task::JoinHandle<()>,
     work_mel::reporting::StatusReporting,
 ) {
+    // Bounded as a last-resort safety net: `report_logs`/`report_debug` (see
+    // libs/work-mel/src/reporting.rs) now always drain their input promptly regardless of
+    // how the reporting endpoint is behaving, so this should stay far from full in
+    // practice. It exists in case that invariant is ever broken again, so a stuck consumer
+    // degrades to briefly slowing down log emission rather than growing without bound.
+    const REPORT_CHANNEL_CAPACITY: usize = 200_000;
     let (program_dump_sender, program_dump_receiver) = async_std::channel::bounded(1);
-    let (logs_report_sender, logs_report_receiver) = unbounded();
-    let (debug_report_sender, debug_report_receiver) = unbounded();
+    let (logs_report_sender, logs_report_receiver) =
+        async_std::channel::bounded(REPORT_CHANNEL_CAPACITY);
+    let (debug_report_sender, debug_report_receiver) =
+        async_std::channel::bounded(REPORT_CHANNEL_CAPACITY);
 
     let reporting_request = work_mel::reporting::ReportingRequest {
         run_id: *melodium_engine::execution_run_id(),

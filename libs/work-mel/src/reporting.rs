@@ -1,4 +1,6 @@
 use crate::api::{DistributionResponse, LocalEnd, LocalLaunched, ModeRequest, Request};
+#[cfg(feature = "real")]
+use async_std::channel::TrySendError;
 use async_std::channel::Receiver;
 use core::sync::atomic::{AtomicBool, Ordering};
 use melodium_core::common::{descriptor::Version, executive::Log};
@@ -311,6 +313,15 @@ pub async fn request_reporting(
     Err("Mock mode".to_string())
 }
 
+// How many completed batches (~5000 logs each) can be queued up waiting to reach the S3
+// endpoint before newly-completed batches get dropped instead of queued. This bounds
+// worst-case memory to roughly MAX_PENDING_BATCHES * one batch, instead of growing without
+// limit for as long as the endpoint stays unreachable: a batch stuck retrying (or a backlog
+// of batches behind it) must never make the loop below stop draining `logs`/`events`, since
+// that channel is fed by every running treatment with no backpressure of its own.
+#[cfg(feature = "real")]
+const MAX_PENDING_BATCHES: usize = 4;
+
 #[cfg(feature = "real")]
 pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
     let chunks_update_uri = format!(
@@ -319,59 +330,64 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
         run_id = melodium_engine::execution_run_id().to_string()
     );
 
-    match specs {
-        PushSpecs::PresignedPostS3 { uri, fields, path } => {
-            let mut buffer_logs = Vec::with_capacity(5000);
-            let mut timestamp = std::time::SystemTime::now();
-            let mut batch_index: u128 = 0;
-            while let Ok(log) = logs.recv().await {
-                buffer_logs.push(log);
-                if buffer_logs.len() >= 5000
-                    || timestamp.elapsed().unwrap_or_default().as_secs() >= 5
-                {
-                    let mut fields = fields.clone();
-                    fields.insert("key".to_string(), format!("{path}/logs_{batch_index}.json"));
+    let (uri, fields, path) = match specs {
+        PushSpecs::PresignedPostS3 { uri, fields, path } => (uri, fields, path),
+        _ => return,
+    };
 
-                    match send_logs_to_s3(&uri, fields, &buffer_logs).await {
-                        Ok(()) => {
-                            buffer_logs.clear();
-                            batch_index += 1;
+    // Uploading (including the retries in `send_logs_to_s3`) runs in its own task, so a
+    // slow or repeatedly failing upload never blocks draining `logs` below. Batches are
+    // uploaded one at a time, in order, so `batch_index`/`chunks_update` stay a correct,
+    // gapless count of what's actually on S3.
+    let (pending_tx, pending_rx) = async_std::channel::bounded::<Vec<Log>>(MAX_PENDING_BATCHES);
+    let uploader = async_std::task::spawn(async move {
+        let mut batch_index: u128 = 0;
+        while let Ok(batch) = pending_rx.recv().await {
+            let mut fields = fields.clone();
+            fields.insert("key".to_string(), format!("{path}/logs_{batch_index}.json"));
 
-                            if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
-                                eprintln!("Failed to send logs chunk to API: {err}");
-                            }
-                        }
-                        Err(err) => {
-                            eprintln!(
-                                "Failed to send logs to S3, will retry with next batch: {err}"
-                            );
-                        }
+            match send_logs_to_s3(&uri, fields, &batch).await {
+                Ok(()) => {
+                    batch_index += 1;
+                    if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                        eprintln!("Failed to send logs chunk to API: {err}");
                     }
-
-                    timestamp = std::time::SystemTime::now();
                 }
-            }
-            // Send any remaining logs
-            if !buffer_logs.is_empty() {
-                let mut fields = fields.clone();
-                fields.insert("key".to_string(), format!("{path}/logs_{batch_index}.json"));
-
-                match send_logs_to_s3(&uri, fields, &buffer_logs).await {
-                    Ok(()) => {
-                        batch_index += 1;
-
-                        if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
-                            eprintln!("Failed to send logs chunk to API: {err}");
-                        }
-                    }
-                    Err(err) => {
-                        eprintln!("Failed to send final logs batch to S3: {err}");
-                    }
+                Err(err) => {
+                    eprintln!(
+                        "Failed to send a batch of {} logs to S3, dropping it: {err}",
+                        batch.len()
+                    );
                 }
             }
         }
-        _ => {}
+    });
+
+    let mut buffer_logs = Vec::with_capacity(5000);
+    let mut timestamp = std::time::SystemTime::now();
+    let mut dropped: u64 = 0;
+    while let Ok(log) = logs.recv().await {
+        buffer_logs.push(log);
+        if buffer_logs.len() >= 5000 || timestamp.elapsed().unwrap_or_default().as_secs() >= 5 {
+            let batch = std::mem::replace(&mut buffer_logs, Vec::with_capacity(5000));
+            if let Err(TrySendError::Full(batch)) = pending_tx.try_send(batch) {
+                dropped += batch.len() as u64;
+                eprintln!(
+                    "Dropping {} logs ({dropped} total so far): {MAX_PENDING_BATCHES} batches already waiting to reach the reporting endpoint",
+                    batch.len()
+                );
+            }
+            timestamp = std::time::SystemTime::now();
+        }
     }
+    // Worth blocking on for this last one: no more producers are coming, so there is no
+    // draining left to protect, and a plain `send` gives the final batch its best chance
+    // of actually reaching the uploader instead of being dropped for an already-full queue.
+    if !buffer_logs.is_empty() {
+        let _ = pending_tx.send(buffer_logs).await;
+    }
+    drop(pending_tx);
+    let _ = uploader.await;
 }
 #[cfg(feature = "mock")]
 pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {}
@@ -384,65 +400,63 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
         run_id = melodium_engine::execution_run_id().to_string()
     );
 
-    match specs {
-        PushSpecs::PresignedPostS3 { uri, fields, path } => {
-            let mut buffer_events = Vec::with_capacity(5000);
-            let mut timestamp = std::time::SystemTime::now();
-            let mut batch_index: u128 = 0;
-            while let Ok(event) = events.recv().await {
-                buffer_events.push(melodium_share::Event::from(&event));
-                if buffer_events.len() >= 5000
-                    || timestamp.elapsed().unwrap_or_default().as_secs() >= 5
-                {
-                    let mut fields = fields.clone();
-                    fields.insert(
-                        "key".to_string(),
-                        format!("{path}/debug_{batch_index}.json"),
-                    );
+    let (uri, fields, path) = match specs {
+        PushSpecs::PresignedPostS3 { uri, fields, path } => (uri, fields, path),
+        _ => return,
+    };
 
-                    match send_debug_to_s3(&uri, fields, &buffer_events).await {
-                        Ok(()) => {
-                            buffer_events.clear();
-                            batch_index += 1;
+    // See report_logs: uploading runs in its own task so it can never block draining
+    // `events` below, and batches are still uploaded one at a time, in order.
+    let (pending_tx, pending_rx) =
+        async_std::channel::bounded::<Vec<melodium_share::Event>>(MAX_PENDING_BATCHES);
+    let uploader = async_std::task::spawn(async move {
+        let mut batch_index: u128 = 0;
+        while let Ok(batch) = pending_rx.recv().await {
+            let mut fields = fields.clone();
+            fields.insert(
+                "key".to_string(),
+                format!("{path}/debug_{batch_index}.json"),
+            );
 
-                            if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
-                                eprintln!("Failed to send debug chunk to API: {err}");
-                            }
-                        }
-                        Err(err) => {
-                            eprintln!(
-                                "Failed to send debug events to S3, will retry with next batch: {err}"
-                            );
-                        }
+            match send_debug_to_s3(&uri, fields, &batch).await {
+                Ok(()) => {
+                    batch_index += 1;
+                    if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                        eprintln!("Failed to send debug chunk to API: {err}");
                     }
-
-                    timestamp = std::time::SystemTime::now();
                 }
-            }
-            // Send any remaining logs
-            if !buffer_events.is_empty() {
-                let mut fields = fields.clone();
-                fields.insert(
-                    "key".to_string(),
-                    format!("{path}/debug_{batch_index}.json"),
-                );
-
-                match send_debug_to_s3(&uri, fields, &buffer_events).await {
-                    Ok(()) => {
-                        batch_index += 1;
-
-                        if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
-                            eprintln!("Failed to send debug chunk to API: {err}");
-                        }
-                    }
-                    Err(err) => {
-                        eprintln!("Failed to send final debug batch to S3: {err}");
-                    }
+                Err(err) => {
+                    eprintln!(
+                        "Failed to send a batch of {} debug events to S3, dropping it: {err}",
+                        batch.len()
+                    );
                 }
             }
         }
-        _ => {}
+    });
+
+    let mut buffer_events = Vec::with_capacity(5000);
+    let mut timestamp = std::time::SystemTime::now();
+    let mut dropped: u64 = 0;
+    while let Ok(event) = events.recv().await {
+        buffer_events.push(melodium_share::Event::from(&event));
+        if buffer_events.len() >= 5000 || timestamp.elapsed().unwrap_or_default().as_secs() >= 5 {
+            let batch = std::mem::replace(&mut buffer_events, Vec::with_capacity(5000));
+            if let Err(TrySendError::Full(batch)) = pending_tx.try_send(batch) {
+                dropped += batch.len() as u64;
+                eprintln!(
+                    "Dropping {} debug events ({dropped} total so far): {MAX_PENDING_BATCHES} batches already waiting to reach the reporting endpoint",
+                    batch.len()
+                );
+            }
+            timestamp = std::time::SystemTime::now();
+        }
     }
+    if !buffer_events.is_empty() {
+        let _ = pending_tx.send(buffer_events).await;
+    }
+    drop(pending_tx);
+    let _ = uploader.await;
 }
 #[cfg(feature = "mock")]
 pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::debug::Event>) {}
@@ -563,14 +577,15 @@ async fn send_logs_to_s3(
                 .unwrap(),
         );
 
-        result = CLIENT
-            .as_ref()?
-            .post(uri)
-            .multipart(form)
-            .send()
-            .await
-            .map(|_| ())
-            .map_err(|err| err.to_string());
+        result = match CLIENT.as_ref()?.post(uri).multipart(form).send().await {
+            Ok(response) if response.status().is_success() => Ok(()),
+            Ok(response) => {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                Err(format!("server responded {status}: {body}"))
+            }
+            Err(err) => Err(err.to_string()),
+        };
 
         if result.is_ok() {
             break;
@@ -601,14 +616,15 @@ async fn send_debug_to_s3(
                 .unwrap(),
         );
 
-        result = CLIENT
-            .as_ref()?
-            .post(uri)
-            .multipart(form)
-            .send()
-            .await
-            .map(|_| ())
-            .map_err(|err| err.to_string());
+        result = match CLIENT.as_ref()?.post(uri).multipart(form).send().await {
+            Ok(response) if response.status().is_success() => Ok(()),
+            Ok(response) => {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                Err(format!("server responded {status}: {body}"))
+            }
+            Err(err) => Err(err.to_string()),
+        };
         if result.is_ok() {
             break;
         }

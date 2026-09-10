@@ -9176,6 +9176,7 @@ dependencies = [
  "async-std",
  "async-trait",
  "async-walkdir",
+ "chrono",
  "compose_spec",
  "fs-mel",
  "futures",
