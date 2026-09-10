@@ -6,7 +6,7 @@ include:
   - local: /.gitlab/ci/docs.yml
   - local: /.gitlab/ci/packaging.yml
   - local: /.gitlab/ci/releases.yml
-  - component: gitlab.com/melodium/gitlab-ci/melodium@v0.10.2
+  - component: gitlab.com/melodium/gitlab-ci/melodium@v0.10.3
     rules:
       - if: '$CADENCE == "true"'
     inputs:
