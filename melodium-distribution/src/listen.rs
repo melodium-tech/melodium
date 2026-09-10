@@ -463,8 +463,18 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         .into_iter()
         .map(|(name, val)| (name, val.to_value(&collection).unwrap()))
         .collect();
-    let engine =
-        melodium_engine::new_engine(Arc::clone(&collection), Level::Trace, DebugLevel::Detailed);
+    // See the matching comment in melodium/src/lib.rs::launch: `DebugLevel::Detailed`
+    // clones every transmitted payload into debug events, which is unsafe for
+    // byte-heavy streams. This side already bounds its debug channel
+    // (`debug_channel_capacity`), so it degrades to backpressure rather than unbounded
+    // growth, but there is no reason to pay the cloning cost at all when nothing
+    // downstream asked for debug events.
+    let debug_level = if debug_senders.is_empty() {
+        DebugLevel::None
+    } else {
+        DebugLevel::Basic
+    };
+    let engine = melodium_engine::new_engine(Arc::clone(&collection), Level::Trace, debug_level);
     engine.set_auto_end(false);
 
     let (logs_sender, logs_receiver) = bounded(log_channel_capacity());
