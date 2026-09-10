@@ -1,6 +1,6 @@
 [package]
 name = "record-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -21,17 +21,18 @@ async-std = "1.13"
 async-channel = "2"
 cpal = { version = "0.17", optional = true }
 futures = "0.3.28"
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
-std-mel = { path = "../std-mel", version = "0.10.2" }
-audio-mel = { path = "../audio-mel", version = "0.10.2" }
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
+std-mel = { path = "../std-mel", version = "0.10.3" }
+audio-mel = { path = "../audio-mel", version = "0.10.3" }
 
 [features]
 mock = []
 plugin = []
 real = ["cpal"]
+"docs.rs" = ["mock", "std-mel/docs.rs", "audio-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 

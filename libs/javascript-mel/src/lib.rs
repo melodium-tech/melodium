@@ -133,14 +133,12 @@ pub async fn process(#[mel(content(javascript))] code: string) {
                             Ok(Ok(value)) => {
                                 check!(
                                     result
-                                        .send_one(
-                                            Some(Arc::new(Json(value)) as Arc<dyn Data>).into()
-                                        )
+                                        .send_one_as(Some(Arc::new(Json(value)) as Arc<dyn Data>))
                                         .await
                                 );
                             }
                             Ok(Err(_err)) => {
-                                check!(result.send_one(Option::<Arc<dyn Data>>::None.into()).await);
+                                check!(result.send_one_as(Option::<Arc<dyn Data>>::None).await);
                             }
                             Err(_) => {
                                 break 'main;

@@ -106,12 +106,12 @@ pub async fn is_positive() {
     {
         check!(
             positive
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
-                        .map(|val| val.signed_is_positive().into())
-                        .collect()
-                ))
+                        .map(|val| val.signed_is_positive())
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -145,12 +145,12 @@ pub async fn is_negative() {
     {
         check!(
             negative
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
-                        .map(|val| val.signed_is_negative().into())
-                        .collect()
-                ))
+                        .map(|val| val.signed_is_negative())
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -204,7 +204,7 @@ pub fn checked_add(a: N, b: N) -> Option<N> {
 )]
 pub async fn checked_add() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(sum.send_one(a.checked_add(&b).into()).await)
+        check!(sum.send_one_as(a.checked_add(&b)).await)
     }
 }
 
@@ -308,7 +308,7 @@ pub fn checked_sub(a: N, b: N) -> Option<N> {
 )]
 pub async fn checked_sub() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(diff.send_one(a.checked_sub(&b).into()).await)
+        check!(diff.send_one_as(a.checked_sub(&b)).await)
     }
 }
 
@@ -412,7 +412,7 @@ pub fn checked_mul(a: N, b: N) -> Option<N> {
 )]
 pub async fn checked_mul() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(prod.send_one(a.checked_mul(&b).into()).await)
+        check!(prod.send_one_as(a.checked_mul(&b)).await)
     }
 }
 
@@ -520,7 +520,7 @@ pub fn checked_div(a: N, b: N) -> Option<N> {
 )]
 pub async fn checked_div() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(quot.send_one(a.checked_div(&b).into()).await)
+        check!(quot.send_one_as(a.checked_div(&b)).await)
     }
 }
 
@@ -576,7 +576,7 @@ pub fn checked_rem(a: N, b: N) -> Option<N> {
 )]
 pub async fn checked_rem() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(rem.send_one(a.checked_rem(&b).into()).await)
+        check!(rem.send_one_as(a.checked_rem(&b)).await)
     }
 }
 
@@ -838,7 +838,7 @@ pub fn checked_euclid_div(a: N, b: N) -> Option<N> {
 )]
 pub async fn checked_euclid_div() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(quot.send_one(a.checked_euclid_div(&b).into()).await)
+        check!(quot.send_one_as(a.checked_euclid_div(&b)).await)
     }
 }
 
@@ -864,6 +864,6 @@ pub fn checked_euclid_rem(a: N, b: N) -> Option<N> {
 )]
 pub async fn checked_euclid_rem() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(rem.send_one(a.checked_euclid_rem(&b).into()).await)
+        check!(rem.send_one_as(a.checked_euclid_rem(&b)).await)
     }
 }

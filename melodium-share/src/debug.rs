@@ -361,9 +361,9 @@ impl From<&EngineDataContent> for DataContent {
 #[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
 #[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct ContextualEnvironment {
-    track_id: u64,
-    contexts: BTreeMap<String, Identifier>,
-    variables: BTreeMap<String, RawValue>,
+    pub track_id: u64,
+    pub contexts: BTreeMap<String, Identifier>,
+    pub variables: BTreeMap<String, RawValue>,
 }
 
 impl From<&EngineContextualEnvironment> for ContextualEnvironment {

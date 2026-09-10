@@ -1,6 +1,6 @@
 [package]
 name = "cicd-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -19,16 +19,17 @@ name = "cicd_mel"
 [dependencies]
 async-std = "1.13"
 dotenvy = "0.15"
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
-std-mel = { path = "../std-mel", version = "0.10.2" }
-http-mel = { path = "../http-mel", version = "0.10.2" }
-javascript-mel = { path = "../javascript-mel", version = "0.10.2" }
-json-mel = { path = "../json-mel", version = "0.10.2" }
-process-mel = { path = "../process-mel", version = "0.10.2" }
-fs-mel = { path = "../fs-mel", version = "0.10.2" }
-work-mel = { path = "../work-mel", version = "0.10.2" }
-distrib-mel = { path = "../distrib-mel", version = "0.10.2" }
+futures = "0.3"
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
+std-mel = { path = "../std-mel", version = "0.10.3" }
+http-mel = { path = "../http-mel", version = "0.10.3" }
+javascript-mel = { path = "../javascript-mel", version = "0.10.3" }
+json-mel = { path = "../json-mel", version = "0.10.3" }
+process-mel = { path = "../process-mel", version = "0.10.3" }
+fs-mel = { path = "../fs-mel", version = "0.10.3" }
+work-mel = { path = "../work-mel", version = "0.10.3" }
+distrib-mel = { path = "../distrib-mel", version = "0.10.3" }
 regex = "1.9.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.105"
@@ -37,9 +38,10 @@ serde_json = "1.0.105"
 mock = []
 plugin = []
 real = []
+"docs.rs" = ["mock", "std-mel/docs.rs", "http-mel/docs.rs", "javascript-mel/docs.rs", "json-mel/docs.rs", "process-mel/docs.rs", "fs-mel/docs.rs", "work-mel/docs.rs", "distrib-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

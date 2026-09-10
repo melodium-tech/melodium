@@ -7,13 +7,9 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output text Stream<string>
 )]
 pub async fn to_string() {
-    while let Ok(chars) = chars
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
-    {
+    while let Ok(chars) = chars.recv_many_as::<char>().await {
         check!(
-            text.send_one(chars.into_iter().collect::<String>().into())
+            text.send_one_as(chars.into_iter().collect::<String>())
                 .await
         );
     }
@@ -25,17 +21,13 @@ pub async fn to_string() {
     output chars Stream<char>
 )]
 pub async fn from_string() {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         let mut output = Vec::new();
         for text in text {
             output.extend(text.chars());
         }
 
-        check!(chars.send_many(output.into()).await);
+        check!(chars.send_many_as(output).await);
     }
 }
 
@@ -45,11 +37,7 @@ pub async fn from_string() {
     output encoded Stream<byte>
 )]
 pub async fn to_utf8() {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<char>().await {
         let mut output = Vec::new();
         for text in text {
             output.extend(text.to_string().as_bytes());

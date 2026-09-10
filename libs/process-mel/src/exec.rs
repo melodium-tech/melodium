@@ -112,27 +112,9 @@ pub struct Executor {
 )]
 pub async fn exec_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
-        executor.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Executor>()
-                .unwrap()
-        }),
-        command.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Command>()
-                .unwrap()
-        }),
-        environment.recv_one().await.map(|val| match val {
-            Value::Option(val) => val.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(*val)
-                    .unwrap()
-                    .downcast_arc::<Environment>()
-                    .unwrap()
-            }),
-            _ => unreachable!(),
-        }),
+        executor.recv_one_as::<Arc<Executor>>().await,
+        command.recv_one_as::<Arc<Command>>().await,
+        environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
         let mut send_terminated = false;
         executor
@@ -153,41 +135,41 @@ pub async fn exec_one_terminable() {
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = started.send_one(().into()).await;
+                        let _ = started.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = finished.send_one(().into()).await;
+                        let _ = finished.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = completed.send_one(().into()).await;
+                        let _ = completed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = failed.send_one(().into()).await;
+                        let _ = failed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|msg: String| {
                     Box::pin(async {
-                        let _ = error.send_one(msg.into()).await;
+                        let _ = error.send_one_as(msg).await;
                     })
                 }),
                 Box::new(|code: Option<i32>| {
                     Box::pin({
                         let exit = &exit;
                         async move {
-                            let _ = exit.send_one(code.into()).await;
+                            let _ = exit.send_one_as(code).await;
                         }
                     })
                 }),
             )
             .await;
         if send_terminated {
-            let _ = terminated.send_one(().into()).await;
+            let _ = terminated.send_one_as(()).await;
         }
     }
 }
@@ -219,31 +201,13 @@ pub async fn exec_one_terminable() {
 )]
 pub async fn exec_terminable() {
     if let (Ok(executor), Ok(environment)) = (
-        executor.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Executor>()
-                .unwrap()
-        }),
-        environment.recv_one().await.map(|val| match val {
-            Value::Option(val) => val.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(*val)
-                    .unwrap()
-                    .downcast_arc::<Environment>()
-                    .unwrap()
-            }),
-            _ => unreachable!(),
-        }),
+        executor.recv_one_as::<Arc<Executor>>().await,
+        environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
         let mut first = true;
         let mut success = true;
         let mut send_terminated = false;
-        while let Ok(command) = commands.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Command>()
-                .unwrap()
-        }) {
+        while let Ok(command) = commands.recv_one_as::<Arc<Command>>().await {
             executor
                 .executor
                 .exec(
@@ -263,7 +227,7 @@ pub async fn exec_terminable() {
                     Box::new(|| {
                         Box::pin(async {
                             if first {
-                                let _ = started.send_one(().into()).await;
+                                let _ = started.send_one_as(()).await;
                                 first = false;
                             }
                         })
@@ -277,14 +241,14 @@ pub async fn exec_terminable() {
                     }),
                     Box::new(|msg: String| {
                         Box::pin(async {
-                            let _ = error.send_one(msg.into()).await;
+                            let _ = error.send_one_as(msg).await;
                         })
                     }),
                     Box::new(|code: Option<i32>| {
                         Box::pin({
                             let exit = &exit;
                             async move {
-                                let _ = exit.send_one(code.into()).await;
+                                let _ = exit.send_one_as(code).await;
                             }
                         })
                     }),
@@ -295,13 +259,13 @@ pub async fn exec_terminable() {
             }
         }
         if success && !send_terminated {
-            let _ = completed.send_one(().into()).await;
+            let _ = completed.send_one_as(()).await;
         } else if !success && !send_terminated {
-            let _ = failed.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
         } else if send_terminated {
-            let _ = terminated.send_one(().into()).await;
+            let _ = terminated.send_one_as(()).await;
         }
-        let _ = finished.send_one(().into()).await;
+        let _ = finished.send_one_as(()).await;
     }
 }
 
@@ -338,27 +302,9 @@ pub async fn exec_terminable() {
 )]
 pub async fn spawn_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
-        executor.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Executor>()
-                .unwrap()
-        }),
-        command.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Command>()
-                .unwrap()
-        }),
-        environment.recv_one().await.map(|val| match val {
-            Value::Option(val) => val.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(*val)
-                    .unwrap()
-                    .downcast_arc::<Environment>()
-                    .unwrap()
-            }),
-            _ => unreachable!(),
-        }),
+        executor.recv_one_as::<Arc<Executor>>().await,
+        command.recv_one_as::<Arc<Command>>().await,
+        environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
         let mut send_terminated = false;
         executor
@@ -379,46 +325,38 @@ pub async fn spawn_one_terminable() {
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = started.send_one(().into()).await;
+                        let _ = started.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = finished.send_one(().into()).await;
+                        let _ = finished.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = completed.send_one(().into()).await;
+                        let _ = completed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = failed.send_one(().into()).await;
+                        let _ = failed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|msg: String| {
                     Box::pin(async {
-                        let _ = error.send_one(msg.into()).await;
+                        let _ = error.send_one_as(msg).await;
                     })
                 }),
                 Box::new(|code: Option<i32>| {
                     Box::pin({
                         let exit = &exit;
                         async move {
-                            let _ = exit.send_one(code.into()).await;
+                            let _ = exit.send_one_as(code).await;
                         }
                     })
                 }),
-                Box::new(|| {
-                    Box::pin(async {
-                        stdin
-                            .recv_many()
-                            .await
-                            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                            .map_err(|_| ())
-                    })
-                }),
+                Box::new(|| Box::pin(async { stdin.recv_many_as::<u8>().await.map_err(|_| ()) })),
                 Box::new(|| {
                     Box::pin(async {
                         stdin.close();
@@ -453,7 +391,7 @@ pub async fn spawn_one_terminable() {
             )
             .await;
         if send_terminated {
-            let _ = terminated.send_one(().into()).await;
+            let _ = terminated.send_one_as(()).await;
         }
     }
 }
@@ -490,21 +428,8 @@ pub async fn spawn_one_terminable() {
 )]
 pub async fn spawn_terminable() {
     if let (Ok(executor), Ok(environment)) = (
-        executor.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Executor>()
-                .unwrap()
-        }),
-        environment.recv_one().await.map(|val| match val {
-            Value::Option(val) => val.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(*val)
-                    .unwrap()
-                    .downcast_arc::<Environment>()
-                    .unwrap()
-            }),
-            _ => unreachable!(),
-        }),
+        executor.recv_one_as::<Arc<Executor>>().await,
+        environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
         let mut first = true;
         let mut success = true;
@@ -517,12 +442,7 @@ pub async fn spawn_terminable() {
         // never cloned) and can waste significant time - so stop here rather than
         // running the rest of the list regardless.
         let mut nonzero_exit = false;
-        while let Ok(command) = commands.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Command>()
-                .unwrap()
-        }) {
+        while let Ok(command) = commands.recv_one_as::<Arc<Command>>().await {
             executor
                 .executor
                 .spawn_out(
@@ -542,7 +462,7 @@ pub async fn spawn_terminable() {
                     Box::new(|| {
                         Box::pin(async {
                             if first {
-                                let _ = started.send_one(().into()).await;
+                                let _ = started.send_one_as(()).await;
                                 first = false;
                             }
                         })
@@ -556,7 +476,7 @@ pub async fn spawn_terminable() {
                     }),
                     Box::new(|msg: String| {
                         Box::pin(async {
-                            let _ = error.send_one(msg.into()).await;
+                            let _ = error.send_one_as(msg).await;
                         })
                     }),
                     Box::new(|code: Option<i32>| {
@@ -567,7 +487,7 @@ pub async fn spawn_terminable() {
                                 if code != Some(0) {
                                     *nonzero_exit = true;
                                 }
-                                let _ = exit.send_one(code.into()).await;
+                                let _ = exit.send_one_as(code).await;
                             }
                         })
                     }),
@@ -596,12 +516,12 @@ pub async fn spawn_terminable() {
             }
         }
         if success && !send_terminated {
-            let _ = completed.send_one(().into()).await;
+            let _ = completed.send_one_as(()).await;
         } else if !success && !send_terminated {
-            let _ = failed.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
         } else if send_terminated {
-            let _ = terminated.send_one(().into()).await;
+            let _ = terminated.send_one_as(()).await;
         }
-        let _ = finished.send_one(().into()).await;
+        let _ = finished.send_one_as(()).await;
     }
 }

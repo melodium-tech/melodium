@@ -42,11 +42,7 @@ pub async fn encode_mono_wav(sample_rate: u32) {
 
         // Future A: drain signal into samples_sender.
         let collect_fut = async move {
-            while let Ok(batch) = signal
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
-            {
+            while let Ok(batch) = signal.recv_many_as::<f32>().await {
                 if samples_sender.send(batch).await.is_err() {
                     break;
                 }
@@ -93,12 +89,11 @@ pub async fn encode_mono_wav(sample_rate: u32) {
             if let Ok(result) = result_receiver.recv().await {
                 match result {
                     Ok(bytes) => {
-                        let batch: VecDeque<u8> = bytes.into_iter().collect();
-                        let _ = data.send_many(batch.into()).await;
+                        let _ = data.send_many_as(bytes).await;
                     }
                     Err(msg) => {
-                        let _ = errors.send_one(msg.into()).await;
-                        let _ = failed.send_one(().into()).await;
+                        let _ = errors.send_one_as(msg).await;
+                        let _ = failed.send_one_as(()).await;
                     }
                 }
             }
@@ -110,13 +105,9 @@ pub async fn encode_mono_wav(sample_rate: u32) {
     {
         while signal.recv_many().await.is_ok() {}
         let _ = errors
-            .send_one(
-                "WAV encoding is not available in this build"
-                    .to_string()
-                    .into(),
-            )
+            .send_one_as("WAV encoding is not available in this build".to_string())
             .await;
-        let _ = failed.send_one(().into()).await;
+        let _ = failed.send_one_as(()).await;
     }
 }
 
@@ -159,11 +150,7 @@ pub async fn encode_mono_flac(sample_rate: u32) {
         let (result_sender, result_receiver) = bounded::<Result<Vec<u8>, String>>(1);
 
         let collect_fut = async move {
-            while let Ok(batch) = signal
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
-            {
+            while let Ok(batch) = signal.recv_many_as::<f32>().await {
                 if samples_sender.send(batch).await.is_err() {
                     break;
                 }
@@ -211,12 +198,11 @@ pub async fn encode_mono_flac(sample_rate: u32) {
             if let Ok(result) = result_receiver.recv().await {
                 match result {
                     Ok(bytes) => {
-                        let batch: VecDeque<u8> = bytes.into_iter().collect();
-                        let _ = data.send_many(batch.into()).await;
+                        let _ = data.send_many_as(bytes).await;
                     }
                     Err(msg) => {
-                        let _ = errors.send_one(msg.into()).await;
-                        let _ = failed.send_one(().into()).await;
+                        let _ = errors.send_one_as(msg).await;
+                        let _ = failed.send_one_as(()).await;
                     }
                 }
             }
@@ -228,12 +214,8 @@ pub async fn encode_mono_flac(sample_rate: u32) {
     {
         while signal.recv_many().await.is_ok() {}
         let _ = errors
-            .send_one(
-                "FLAC encoding is not available in this build"
-                    .to_string()
-                    .into(),
-            )
+            .send_one_as("FLAC encoding is not available in this build".to_string())
             .await;
-        let _ = failed.send_one(().into()).await;
+        let _ = failed.send_one_as(()).await;
     }
 }

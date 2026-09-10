@@ -96,13 +96,8 @@ pub fn get(map: Map, key: string) -> Option<T> {
     output value Stream<Option<T>>
 )]
 pub async fn get(key: string) {
-    while let Ok(map) = map.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<Map>()
-            .unwrap()
-    }) {
-        check!(value.send_one(map.map.get(&key).cloned().into()).await)
+    while let Ok(map) = map.recv_one_as::<Arc<Map>>().await {
+        check!(value.send_one_as(map.map.get(&key).cloned()).await)
     }
 }
 
@@ -123,15 +118,8 @@ pub fn insert(mut map: Map, key: string, value: T) -> Map {
     output map Stream<Map>
 )]
 pub async fn insert(key: string) {
-    while let (Ok(base), Ok(value)) = (
-        base.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Map>()
-                .unwrap()
-        }),
-        value.recv_one().await,
-    ) {
+    while let (Ok(base), Ok(value)) = (base.recv_one_as::<Arc<Map>>().await, value.recv_one().await)
+    {
         let mut new_map = Arc::unwrap_or_clone(base);
         new_map.map.insert(key.clone(), value);
         check!(map.send_one(Value::Data(Arc::new(new_map))).await)

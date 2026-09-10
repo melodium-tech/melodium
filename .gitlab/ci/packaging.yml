@@ -47,7 +47,7 @@ packaging:installers:deb:
 
 packaging:installers:sh:
   stage: packaging
-  image: debian:bullseye
+  image: debian:trixie
   extends:
     - .build-release
   needs:
@@ -121,7 +121,7 @@ packaging:installers:msi:
 
 packaging:zips:
   stage: packaging
-  image: debian:bullseye
+  image: debian:trixie
   extends: 
     - .build-release
   needs:

@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Adopting the new chunked, size-capped wire framing and bounded channel limits from `melodium-distribution` (#114, #115).
+- Fixing the client-side twin of the `CloseOutput`-before-pending-write race, mirroring the server-side fix in `melodium-distribution`.
+
 ## [v0.10.2] (2026-08-04)
 
 - Fixing `DistributionEngine::stop`/`continuous` hanging forever when `start` is never called (e.g. worker dispatch failing upstream).

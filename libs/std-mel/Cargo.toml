@@ -1,6 +1,6 @@
 [package]
 name = "std-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -19,9 +19,9 @@ name = "std_mel"
 [dependencies]
 async-std = "1.13"
 futures = "0.3.28"
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-engine = { path = "../../melodium-engine", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-engine = { path = "../../melodium-engine", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
 serde = { version = "1", features = ["derive"] }
 strfmt = "0.2.4"
 
@@ -29,9 +29,10 @@ strfmt = "0.2.4"
 mock = []
 plugin = []
 real = []
+"docs.rs" = ["mock"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = logs_live_flush
-#! version = 0.10.2
-#! require = std:0.10.2 process:0.10.2
+#! version = 0.10.3
+#! require = std:0.10.3 process:0.10.3
 
 use std/engine/util::startup
 use std/engine/log::logInfoMessage

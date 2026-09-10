@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- Making the distribution protocol more robust under load: capped wire frames, bounded log/debug channels, and a fix for a race that could silently drop the tail of a stream when a port closed while a same-port write was still in flight.
+- Adding a packed representation for homogeneous scalar arrays, reducing the memory footprint of large byte/numeric buffers.
+- Making value casting panic-free throughout the standard library instead of risking a panic on a type mismatch.
+- Reorganizing usage examples into `tutorial/` and `showcase/` directories with a top-level index.
+- Fixing the docs.rs build.
+- Building Linux release binaries against an older glibc baseline (Debian bullseye) for broader distribution compatibility.
+
 ## [v0.10.2] (2026-08-04)
 
 - Fixing several hangs/deadlocks in distributed execution: idle connections being torn down under load, `stop`/`continuous` blocking forever when a worker is never dispatched, and CI/CD steps hanging the engine when a runner fails to set up.

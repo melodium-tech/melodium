@@ -1,6 +1,6 @@
 [package]
 name = "melodium-common"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
@@ -25,6 +25,9 @@ semver = "1.0.17"
 serde = { version = "1", features = ["derive", "rc"] }
 uuid = { version = "1.7", features = ["serde"] }
 erased-serde = "0.4"
+
+[dev-dependencies]
+async-std = "1.13"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

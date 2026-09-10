@@ -1,3 +1,5 @@
+mod book;
+mod docs;
 mod reference;
 mod server;
 mod tools;

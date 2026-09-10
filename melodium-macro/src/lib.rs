@@ -237,6 +237,95 @@ fn into_mel_value_call(ty: &Vec<String>, inner_param: String) -> String {
     )
 }
 
+/// Whether the type chain starting here (already past its own leading `Vec`/`Option`, if
+/// any — see call sites) is made up entirely of scalars, bare generic parameters, and
+/// further `Vec`/`Option` nesting, with no custom `Data` type at any depth.
+///
+/// `Value`'s ordinary conversions (`From<Vec<T>>`, `GetData<Vec<T>>`, and their `Option`
+/// counterparts) already handle exactly this shape end-to-end — including
+/// auto-packing/auto-unpacking a packable primitive (ticket #116) — so codegen can
+/// delegate to them instead of hand-rolling a per-element match. A bare generic
+/// parameter (`#[mel_function] generic T ()`) is type-aliased to `Value` itself by this
+/// macro (see the `typedefs` codegen), and `GetData<Value> for Value`/`Value: Into<Value>`
+/// both hold trivially, so it composes with the same blanket impls as any other scalar —
+/// including `GetData<Vec<T>>`'s fallback to a per-element expand when `T` isn't one of
+/// `PackedArray`'s primitives, which is exactly what makes a `Vec<T>` of a bare generic
+/// (e.g. `contains(vector: Vec<T>, value: T)`) correctly accept a `Value::Packed` source
+/// instead of panicking. A custom `Data` type is the one case that still needs the
+/// `Arc<dyn Data>` wrapping/downcasting step the manual codegen below does inline (and
+/// can never legitimately arrive packed in the first place, since `PackedArray` only
+/// ever holds primitives).
+fn value_chain_is_native(mut iter: Iter<String>, generics: &Vec<&str>) -> bool {
+    match iter.next() {
+        Some(ty)
+            if matches!(
+                ty.as_str(),
+                "byte"
+                    | "bool"
+                    | "void"
+                    | "char"
+                    | "string"
+                    | "f32"
+                    | "f64"
+                    | "u8"
+                    | "u16"
+                    | "u32"
+                    | "u64"
+                    | "u128"
+                    | "i8"
+                    | "i16"
+                    | "i32"
+                    | "i64"
+                    | "i128"
+            ) =>
+        {
+            true
+        }
+        Some(ty) if ty == "Vec" || ty == "Option" => value_chain_is_native(iter, generics),
+        Some(ty) if generics.contains(&ty.as_str()) => true,
+        Some(_) => false,
+        None => false,
+    }
+}
+
+/// Like `into_rust_type`, but resolving a bare generic parameter name to `Value` (what it
+/// is actually type-aliased to, see `value_chain_is_native`) instead of treating it as a
+/// custom `Data` type. Kept separate from `into_rust_type` itself rather than adding a
+/// `generics` parameter there, since that function's other call sites are never reached
+/// with a chain containing a generic name and don't need this distinction.
+fn into_rust_type_resolving_generics(ty: &[String], generics: &Vec<&str>) -> String {
+    fn add_type(iter: &mut Iter<String>, generics: &Vec<&str>) -> String {
+        let mut desc = String::new();
+        if let Some(ty) = iter.next() {
+            match ty.as_str() {
+                "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
+                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "Vec"
+                | "Option" => {
+                    desc.push_str(ty);
+                }
+                generic if generics.contains(&generic) => {
+                    desc.push_str("melodium_core::common::executive::Value");
+                }
+                data => {
+                    desc.push_str("std::sync::Arc<dyn melodium_core::common::executive::Data");
+                    desc.push('>');
+                    let _ = data;
+                }
+            }
+
+            let next = add_type(iter, generics);
+            if !next.is_empty() {
+                desc.push('<');
+                desc.push_str(&next);
+                desc.push('>');
+            }
+        }
+        desc
+    }
+
+    add_type(&mut ty.iter(), generics)
+}
+
 fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) -> String {
     fn conv_value(iter: &mut Iter<String>, generics: &Vec<&str>) -> String {
         let conv;
@@ -248,6 +337,13 @@ fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) ->
                         "melodium_core::Value::{}(value)",
                         ty.to_case(Case::UpperCamel)
                     )
+                }
+                "Vec" if value_chain_is_native(iter.clone(), generics) => {
+                    // Delegates to the ordinary `Into<Value>` conversion (auto-packing
+                    // a packable primitive, see ticket #116) instead of hand-rolling a
+                    // per-element `Value::Vec(...)` — no call site, generated or
+                    // hand-written, needs to know `Packed` exists.
+                    conv = "melodium_core::Value::from(value)".to_string();
                 }
                 "Vec" => {
                     let deeper = conv_value(iter, generics);
@@ -290,6 +386,19 @@ fn convert_to_rust_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) -
                     conv = format!(
                         "melodium_core::common::executive::GetData::<{ty}>::try_data(value).unwrap()"
                     )
+                },
+            "Vec" if value_chain_is_native(iter.clone(), generics) => {
+                // Delegates to `GetData<Vec<T>>`, which already accepts both a boxed
+                // `Value::Vec` and a `Value::Packed` array (ticket #116) - unlike the
+                // hand-rolled match below, which only ever matched `Value::Vec` and
+                // would panic on a packed source. A custom `Data` element never arrives
+                // packed in the first place (see `value_chain_is_native`), so the
+                // manual match stays correct as the fallback for that case.
+                let inner: Vec<String> = iter.clone().cloned().collect();
+                conv = format!(
+                    "melodium_core::common::executive::GetData::<Vec<{}>>::try_data(value).unwrap()",
+                    into_rust_type_resolving_generics(&inner, generics)
+                );
                 },
             "Vec" => {
                 let deeper = conv_value(iter, generics);

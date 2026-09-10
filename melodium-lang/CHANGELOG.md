@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.3] (2026-09-08)
+
+- No changes in this crate.
+
 ## [v0.10.2] (2026-08-04)
 
 - No changes in this crate.

@@ -203,8 +203,7 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
         // Future B: forward captured mono chunks to the Mélodium signal output.
         let forward_fut = async {
             while let Ok(mono) = mono_receiver.recv().await {
-                let batch: VecDeque<f32> = mono.into_iter().collect();
-                if signal.send_many(batch.into()).await.is_err() {
+                if signal.send_many_as(mono).await.is_err() {
                     break;
                 }
             }
@@ -220,9 +219,9 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
         // Future D: forward error messages; trigger `failed` on the first fatal one.
         let error_fut = async {
             while let Ok((fatal, msg)) = err_receiver.recv().await {
-                let _ = errors.send_one(msg.into()).await;
+                let _ = errors.send_one_as(msg).await;
                 if fatal {
-                    let _ = failed.send_one(().into()).await;
+                    let _ = failed.send_one_as(()).await;
                     break;
                 }
             }
@@ -232,12 +231,11 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
     }
     #[cfg(feature = "mock")]
     if let Ok(_) = trigger.recv_one().await {
-        let _ = failed.send_one(().into()).await;
+        let _ = failed.send_one_as(()).await;
         let _ = errors
-            .send_one(
+            .send_one_as(
                 "Live recording is not available because the 'record' package is in mock mode"
-                    .to_string()
-                    .into(),
+                    .to_string(),
             )
             .await;
     }

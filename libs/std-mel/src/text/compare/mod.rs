@@ -15,19 +15,14 @@ pub fn contains(text: string, substring: string) -> bool {
     output contains Stream<bool>
 )]
 pub async fn contains(substring: string) {
-    while let Ok(values) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(values) = text.recv_many_as::<string>().await {
         check!(
             contains
-                .send_many(
+                .send_many_as(
                     values
                         .iter()
                         .map(|val| val.contains(&substring))
-                        .collect::<VecDeque<bool>>()
-                        .into()
+                        .collect::<Vec<bool>>()
                 )
                 .await
         )
@@ -40,18 +35,13 @@ pub async fn contains(substring: string) {
     output matches Stream<bool>
 )]
 pub async fn exact(pattern: string) {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values: TransmissionValue| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
-                .send_many(
+                .send_many_as(
                     text.into_iter()
                         .map(|txt| txt == pattern)
-                        .collect::<VecDeque<_>>()
-                        .into()
+                        .collect::<Vec<_>>()
                 )
                 .await
         );
@@ -70,18 +60,13 @@ pub fn exact(text: string, pattern: string) -> bool {
     output matches Stream<bool>
 )]
 pub async fn starts_with(pattern: string) {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values: TransmissionValue| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
-                .send_many(
+                .send_many_as(
                     text.into_iter()
                         .map(|txt| txt.starts_with(&pattern))
-                        .collect::<VecDeque<_>>()
-                        .into()
+                        .collect::<Vec<_>>()
                 )
                 .await
         );
@@ -100,18 +85,13 @@ pub fn starts_with(text: string, pattern: string) -> bool {
     output matches Stream<bool>
 )]
 pub async fn ends_with(pattern: string) {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
-                .send_many(
+                .send_many_as(
                     text.into_iter()
                         .map(|txt| txt.ends_with(&pattern))
-                        .collect::<VecDeque<_>>()
-                        .into()
+                        .collect::<Vec<_>>()
                 )
                 .await
         );

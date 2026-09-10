@@ -189,17 +189,17 @@ pub async fn transcribe() {
         if let Some(provider) = maybe_provider {
             match provider.transcribe(audio_bytes).await {
                 Ok(text) => {
-                    let _ = transcript.send_one(Value::String(text)).await;
+                    let _ = transcript.send_one_as(text).await;
                 }
                 Err(e) => {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(Value::String(e.to_string())).await;
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as(e.to_string()).await;
                 }
             }
         } else {
-            let _ = failed.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
             let _ = error
-                .send_one(Value::String("provider not initialized".into()))
+                .send_one_as("provider not initialized".to_string())
                 .await;
         }
     }
@@ -208,7 +208,7 @@ pub async fn transcribe() {
     {
         let _ = (&model_arc, &audio_bytes);
         let _ = transcript
-            .send_one(Value::String("[mock transcript]".into()))
+            .send_one_as("[mock transcript]".to_string())
             .await;
     }
 }
@@ -265,18 +265,7 @@ pub async fn transcribe() {
 pub async fn transcribe_continuous() {
     let model_arc = RemoteSttModel::into(stt);
 
-    while let Ok(val) = segments.recv_one().await {
-        let segment_bytes: Vec<u8> = match val {
-            Value::Vec(items) => items
-                .iter()
-                .filter_map(|v| match v {
-                    Value::Byte(b) => Some(*b),
-                    _ => None,
-                })
-                .collect(),
-            _ => continue,
-        };
-
+    while let Ok(segment_bytes) = segments.recv_one_as::<Vec<u8>>().await {
         if segment_bytes.is_empty() {
             continue;
         }
@@ -287,18 +276,18 @@ pub async fn transcribe_continuous() {
             if let Some(provider) = maybe_provider {
                 match provider.transcribe(segment_bytes).await {
                     Ok(text) => {
-                        check!(transcript.send_one(Value::String(text)).await);
+                        check!(transcript.send_one_as(text).await);
                     }
                     Err(e) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(Value::String(e.to_string())).await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as(e.to_string()).await;
                         break;
                     }
                 }
             } else {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
                 let _ = error
-                    .send_one(Value::String("provider not initialized".into()))
+                    .send_one_as("provider not initialized".to_string())
                     .await;
                 break;
             }
@@ -309,7 +298,7 @@ pub async fn transcribe_continuous() {
             let _ = (&model_arc, &segment_bytes);
             check!(
                 transcript
-                    .send_one(Value::String("[mock transcript]".into()))
+                    .send_one_as("[mock transcript]".to_string())
                     .await
             );
         }

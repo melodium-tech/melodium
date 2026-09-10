@@ -1,6 +1,6 @@
 [package]
 name = "encoding-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -17,17 +17,18 @@ crate-type = ["lib", "cdylib"]
 name = "encoding_mel"
 
 [dependencies]
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
 encoding_rs = "0.8"
 
 [features]
 mock = []
 plugin = []
 real = []
+"docs.rs" = ["mock"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

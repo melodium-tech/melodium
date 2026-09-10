@@ -75,7 +75,7 @@ pub async fn map() {
                 let _ = value.send_one(*val).await;
             }
             Value::Option(None) => {
-                let _ = none.send_one(().into()).await;
+                let _ = none.send_one_as(()).await;
             }
             _ => unreachable!(),
         }

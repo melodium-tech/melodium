@@ -26,9 +26,12 @@ pub async fn is_nan() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            nan.send_many(TransmissionValue::Bool(
-                values.into_iter().map(|val| val.float_is_nan()).collect()
-            ))
+            nan.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.float_is_nan())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -60,12 +63,12 @@ pub async fn is_finite() {
     {
         check!(
             finite
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| val.float_is_finite())
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -93,12 +96,12 @@ pub async fn is_infinite() {
     {
         check!(
             infinite
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| val.float_is_infinite())
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -130,12 +133,12 @@ pub async fn is_normal() {
     {
         check!(
             normal
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| val.float_is_normal())
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }
@@ -167,12 +170,12 @@ pub async fn is_subnormal() {
     {
         check!(
             subnormal
-                .send_many(TransmissionValue::Bool(
+                .send_many_as(
                     values
                         .into_iter()
                         .map(|val| val.float_is_subnormal())
-                        .collect()
-                ))
+                        .collect::<Vec<_>>()
+                )
                 .await
         )
     }

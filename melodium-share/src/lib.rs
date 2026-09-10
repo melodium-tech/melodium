@@ -23,6 +23,7 @@ mod model_instanciation_design;
 mod output;
 mod parameter;
 mod reporting;
+mod transmission;
 mod treatment;
 mod treatment_design;
 mod treatment_instanciation_design;
@@ -36,7 +37,10 @@ pub use context::Context;
 pub use data::Data;
 pub use data_trait::DataTrait;
 pub use data_type::DataType;
-pub use debug::Event;
+pub use debug::{
+    ContextualEnvironment, DataContent, Event, EventKind, HostTreatment, InfoTrack, TrackCreation,
+    TrackResult, TransmissionDetails,
+};
 pub use described_type::DescribedType;
 pub use entry::{Entry, EntryId, EntryKind};
 pub use error::{SharingError, SharingResult};
@@ -51,6 +55,7 @@ pub use model_instanciation_design::ModelInstanciationDesign;
 pub use output::Output;
 pub use parameter::Parameter;
 pub use reporting::ProgramDump;
+pub use transmission::TransmissionValue;
 pub use treatment::{Treatment, TreatmentImplementationKind};
 pub use treatment_design::TreatmentDesign;
 pub use treatment_instanciation_design::TreatmentInstanciationDesign;

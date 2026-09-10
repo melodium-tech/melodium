@@ -44,7 +44,7 @@ pub fn not_equal(a: T, b: T) -> bool {
 )]
 pub async fn equal() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(result.send_one(a.partial_equality_eq(&b).into()).await)
+        check!(result.send_one_as(a.partial_equality_eq(&b)).await)
     }
 }
 
@@ -57,7 +57,7 @@ pub async fn equal() {
 )]
 pub async fn not_equal() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(result.send_one(a.partial_equality_ne(&b).into()).await)
+        check!(result.send_one_as(a.partial_equality_ne(&b)).await)
     }
 }
 
@@ -78,7 +78,7 @@ pub fn gt(a: T, b: T) -> bool {
 )]
 pub async fn greater_than() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(is.send_one(a.partial_order_gt(&b).into()).await)
+        check!(is.send_one_as(a.partial_order_gt(&b)).await)
     }
 }
 
@@ -99,7 +99,7 @@ pub fn ge(a: T, b: T) -> bool {
 )]
 pub async fn greater_equal() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(is.send_one(a.partial_order_ge(&b).into()).await)
+        check!(is.send_one_as(a.partial_order_ge(&b)).await)
     }
 }
 
@@ -120,7 +120,7 @@ pub fn lt(a: T, b: T) -> bool {
 )]
 pub async fn lower_than() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(is.send_one(a.partial_order_lt(&b).into()).await)
+        check!(is.send_one_as(a.partial_order_lt(&b)).await)
     }
 }
 
@@ -141,7 +141,7 @@ pub fn le(a: T, b: T) -> bool {
 )]
 pub async fn lower_equal() {
     while let (Ok(a), Ok(b)) = (a.recv_one().await, b.recv_one().await) {
-        check!(is.send_one(a.partial_order_le(&b).into()).await)
+        check!(is.send_one_as(a.partial_order_le(&b)).await)
     }
 }
 

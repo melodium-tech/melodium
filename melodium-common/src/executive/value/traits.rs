@@ -1,6 +1,6 @@
 use super::Value;
 use crate::executive::DataTrait;
-use core::{convert::TryInto, fmt::Debug, hash::Hash};
+use core::{convert::TryInto, hash::Hash};
 use erased_serde::Serialize;
 use serde::ser::SerializeSeq;
 
@@ -2755,6 +2755,14 @@ impl DataTrait for Value {
             Value::Char(me) => me.hash(&mut state),
             Value::String(me) => me.hash(&mut state),
             Value::Vec(me) => me.iter().for_each(|elmt| elmt.hash(&mut state)),
+            // Hashes identically to the equivalent `Value::Vec` - `Packed` is purely an
+            // internal representation choice, invisible here just like everywhere else
+            // it's handled (`datatype()`, `Serialize`, `Display`, ...).
+            Value::Packed(me) => me
+                .clone()
+                .into_values()
+                .iter()
+                .for_each(|elmt| elmt.hash(&mut state)),
             Value::Option(me) => {
                 if let Some(elmt) = me {
                     elmt.hash(&mut state)
@@ -2777,7 +2785,13 @@ impl DataTrait for Value {
     fn display(&self, mut f: &mut std::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         match self {
             Value::Data(data) => data.display(&mut f),
-            _ => self.fmt(f),
+            // `self.fmt(f)` here used to silently resolve to `derive(Debug)`'s
+            // `Debug::fmt` instead of the `Display::fmt` implemented below
+            // (both were once in scope in this file with a compatible
+            // signature, and plain `self.fmt(f)` isn't fussy about which):
+            // fully-qualifying gives every non-`Data` variant its own clean
+            // representation (e.g. `42`, not `I64(42)`).
+            other => <Value as core::fmt::Display>::fmt(other, f),
         }
     }
 }
@@ -2818,6 +2832,105 @@ impl serde::Serialize for Value {
                 } else {
                     serializer.serialize_none()
                 }
+            }
+            // Mirrors `Value::Vec`'s encoding element-for-element, so a `Packed` array
+            // serializes identically to the equivalent boxed `Vec` — it's purely an
+            // internal representation choice. `U8`/`Byte` go through `serialize_bytes`
+            // (a native byte string) instead of a sequence, the same special case
+            // `Value::Byte` already gets above, just for the whole array at once rather
+            // than one byte at a time.
+            Value::Packed(super::PackedArray::U8(me))
+            | Value::Packed(super::PackedArray::Byte(me)) => serializer.serialize_bytes(me),
+            Value::Packed(super::PackedArray::I8(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::I16(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::I32(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::I64(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::I128(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::U16(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::U32(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::U64(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::U128(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::F32(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::F64(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::Bool(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::Char(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
             }
             Value::Data(data) => serde::Serialize::serialize(&data, serializer),
         }
@@ -2910,6 +3023,18 @@ impl core::fmt::Display for Value {
                 f,
                 "[{}]",
                 v.iter()
+                    .map(|val| ToString::to_string(val))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            // Prints identically to the equivalent `Value::Vec` — `Packed` is purely an
+            // internal representation choice, invisible here just like in `datatype()`.
+            Value::Packed(arr) => write!(
+                f,
+                "[{}]",
+                arr.clone()
+                    .into_values()
+                    .iter()
                     .map(|val| ToString::to_string(val))
                     .collect::<Vec<_>>()
                     .join(", ")

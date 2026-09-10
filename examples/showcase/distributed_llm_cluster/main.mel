@@ -1,0 +1,244 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logError
+use std/engine/log::logErrorMessage
+use std/engine/log::logErrors
+use std/flow::emit
+use std/flow::stream
+use std/flow::trigger
+use std/flow::release
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/map::|map as |dataMap
+use std/data/map::|entry as |dataEntry
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::decode
+use encoding::encode
+use ml/repos/hf::HfHub
+use ml/repos/hf::fetch
+use ml/models/mistral::Mistral
+use ml/models/mistral::load
+use ml/models/mistral::generate
+use work/distant::DistantEngine
+use work/distant::distant
+use distrib::DistributionEngine
+use distrib::start as distribStart
+use distrib::distribute
+use distrib::sendStream
+use distrib::recvStream
+
+//
+// Distributed LLM Cluster
+//
+// Builds on 10_distributed_computation's `distrib` primitives, adding
+// `work/distant` to provision a remote engine on demand from Mélodium
+// Services, which downloads a Mistral-7B checkpoint from the HuggingFace
+// Hub and loads it into memory with `ml/models/mistral`. The worker
+// actually runs the model itself: there is no third-party LLM API in
+// this example, only a Mélodium engine and downloaded weights.
+//
+// An HTTP server accepts POST /chat with a plain-text prompt body and
+// streams generated tokens back to the caller as they are produced. The
+// `ml` package, the downloaded weights, and the compute needed to run
+// them only have to be available on the *worker*, never on this
+// front-end process. The worker fetches and loads its model exactly
+// once, when `distribStart` first launches it there, and keeps serving
+// requests against that same loaded model afterwards, not once per
+// request, which would mean re-loading multi-gigabyte weights on every
+// single chat message.
+//
+// This example requires only a Mélodium Services API token (no LLM
+// provider API key: inference happens on the Mélodium-provisioned
+// worker, not against a hosted API). Set MELODIUM_API_TOKEN in the
+// environment and run with --api-report; see https://cadence.ci/ to
+// obtain a token and follow execution.
+//
+// Usage:
+//   export MELODIUM_API_TOKEN="my-melodium-services-token"
+//   melodium run --api-report Compo.toml --port 8080
+//
+//   curl -X POST http://127.0.0.1:8080/chat \
+//        -d "Explain the Mélodium dataflow model in one sentence."
+//
+// `distribStart.ready` only means the distribution *connection* to the
+// worker is up, not that its fetch+load of the model weights has
+// finished (which can take several minutes the first time they're
+// downloaded), and `generate` silently drops any prompt it receives
+// before `load` completes. Two things close that gap: on the worker,
+// `inferText` holds every incoming prompt behind `loadModel.loaded` with
+// `std/flow::release` instead of letting it reach `generate` early, so
+// nothing is ever dropped, a request just waits, and the front-end
+// sends one real (non-dropped, thanks to the above) warm-up request and
+// only opens the HTTP server once it has actually been answered, so no
+// client-facing request is ever routed to the worker before it's truly
+// ready either. Every step of this (provisioning, connecting, warming
+// up, serving) is logged.
+//
+
+treatment server(
+    const hf_repo_id: string = "mistralai/Mistral-7B-v0.1",
+    const port:       u16    = 8080
+)
+  model runner: DistantEngine(api_token=_, api_url=_)
+  model distributor: DistributionEngine(
+    treatment = "distributed_llm_cluster/main::inferText",
+    version   = "0.1.0"
+  )
+  model httpServer: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
+{
+    startup()
+    logStart: logInfoMessage(label="cloud", message="provisioning LLM worker…")
+    startup.trigger -> logStart.trigger
+
+    provisionRunner: distant[distant_engine=runner](
+        max_duration        = 3600,
+        memory              = 32768,
+        cpu                 = 4000,
+        storage             = 32768,
+        edition             = _,
+        arch                = _,
+        volumes             = [],
+        containers          = [],
+        service_containers  = [],
+        tags                = []
+    )
+    startup.trigger -> provisionRunner.trigger,access -> connectDistributor.access
+
+    distantErrors: logErrors(label="distant")
+    distantFailed: logErrorMessage(label="distant", message="worker provisioning failed")
+    provisionRunner.errors -> distantErrors.messages
+    provisionRunner.failed -> distantFailed.trigger
+
+    connectDistributor: distribStart[distributor=distributor](params=|dataMap([|dataEntry<string>("repo_id", hf_repo_id)]))
+
+    distribError:  logError(label="distrib")
+    distribFailed: logErrorMessage(label="distrib", message="distribution engine failed")
+    connectDistributor.error  -> distribError.message
+    connectDistributor.failed -> distribFailed.trigger
+
+    logConnected: logInfoMessage(label="distrib", message="worker connected, warming up…")
+    connectDistributor.ready -> logConnected.trigger
+
+    // Warm up the worker: send one real request and wait for its first
+    // response byte before considering it ready. The distrib connection
+    // being up (above) does not mean the model has finished loading;
+    // this does, since `waitForModel` in `inferText` holds this very
+    // request until it has.
+    warmupPrompt: emit<string>(value=" ")
+    connectDistributor.ready -> warmupPrompt.trigger
+    warmupStream: stream<string>()
+    warmupPrompt.emit -> warmupStream.block
+    warmupBytes: encode()
+    warmupStream.stream -> warmupBytes.text
+    warmupCall: dispatchInfer[distributor=distributor]()
+    warmupBytes.data -> warmupCall.prompt
+    warmupDone: trigger<byte>()
+    warmupCall.response -> warmupDone.stream
+    logWarm: logInfoMessage(label="mistral", message="worker model ready")
+    warmupDone.start -> logWarm.trigger
+
+    // The HTTP server only starts accepting traffic once the worker has
+    // actually answered the warm-up request (real model readiness, not
+    // just a live distrib connection).
+    startHttp: start[http_server=httpServer]()
+    logReady:  logInfoMessage(label="server", message="HTTP server ready")
+    warmupDone.start -> startHttp.trigger
+    warmupDone.start -> logReady.trigger
+
+    connection[http_server=httpServer](method=|post(), route="/chat")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    dispatchInfer[distributor=distributor]()
+    connection.data -> dispatchInfer.prompt,response -> connection.data
+}
+
+// Sends the prompt bytes to the remote `inferText` treatment and streams
+// the response back, the same three-step handshake as
+// 10_distributed_computation: allocate a distribution_id, send input,
+// receive output, tagged by name. Used both for the warm-up request and
+// for every real chat request, bound to the worker's `DistributionEngine`.
+treatment dispatchInfer[distributor: DistributionEngine]()
+  input  prompt:   Stream<byte>
+  output response: Stream<byte>
+{
+    trig: trigger<byte>()
+    dist: distribute[distributor=distributor]()
+    Self.prompt -> trig.stream,start -> dist.trigger
+
+    sendPrompt:   sendStream<byte>[distributor=distributor](name="prompt")
+    recvResponse: recvStream<byte>[distributor=distributor](name="response")
+    dist.distribution_id -> sendPrompt.distribution_id
+    dist.distribution_id -> recvResponse.distribution_id
+
+    Self.prompt       -> sendPrompt.data
+    recvResponse.data -> Self.response
+
+    distErr:    logError(label="distrib")
+    distFailed: logErrorMessage(label="distrib", message="failed to distribute request")
+    dist.error  -> distErr.message
+    dist.failed -> distFailed.trigger
+}
+
+// The treatment executed remotely: launched exactly once, when
+// `distribStart` connects to it (its own `startup()` below fires at that
+// point, not once per request). It fetches the model weights from the
+// HuggingFace Hub and loads them into a `Mistral` model a single time,
+// then serves every subsequent chat request (one per `distribute()`
+// call from `dispatchInfer`) against that same loaded model.
+treatment inferText(const repo_id: string)
+  model hub:     HfHub(repo_id=repo_id, cache_dir="./hf-cache")
+  model mistral: Mistral(max_new_tokens=256)
+  input  prompt:   Stream<byte>
+  output response: Stream<byte>
+{
+    startup()
+    logFetching: logInfoMessage(label="mistral-fetch", message="fetching model weights from HuggingFace Hub…")
+    fetchWeights: fetch[hub=hub]()
+    loadModel:    load[mistral=mistral]()
+    startup.trigger          -> logFetching.trigger
+    startup.trigger          -> fetchWeights.trigger
+    fetchWeights.safetensors -> loadModel.safetensors
+    fetchWeights.tokenizer   -> loadModel.tokenizer
+
+    fetchErr:    logError(label="mistral-fetch")
+    fetchFailed: logErrorMessage(label="mistral-fetch", message="failed to fetch model weights from HuggingFace Hub")
+    fetchWeights.error  -> fetchErr.message
+    fetchWeights.failed -> fetchFailed.trigger
+
+    loadErr:    logError(label="mistral-load")
+    loadFailed: logErrorMessage(label="mistral-load", message="failed to load model weights")
+    loadModel.error  -> loadErr.message
+    loadModel.failed -> loadFailed.trigger
+
+    logLoaded: logInfoMessage(label="mistral", message="model loaded, ready to generate")
+    loadModel.loaded -> logLoaded.trigger
+
+    // Every request's prompt bytes wait here until the model has finished
+    // loading, instead of reaching `generate` (which would otherwise
+    // silently drop them) too early: nothing is dropped, a request that
+    // arrives during load just queues until `loadModel.loaded` fires. This
+    // gate is reached once, at the worker's `startup()`, not once per
+    // request.
+    waitForModel: release<byte>()
+    loadModel.loaded -> waitForModel.leverage
+    Self.prompt      -> waitForModel.data
+
+    decodePrompt: decode()
+    waitForModel.released -> decodePrompt.data,text -> generateReply.prompt
+
+    generateReply: generate[mistral=mistral]()
+
+    encodeResponse: encode()
+    generateReply.generated -> encodeResponse.text,data -> Self.response
+}

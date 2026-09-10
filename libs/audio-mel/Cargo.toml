@@ -1,6 +1,6 @@
 [package]
 name = "audio-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -19,9 +19,9 @@ name = "audio_mel"
 [dependencies]
 async-channel = "2"
 futures = "0.3.28"
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
-std-mel = { path = "../std-mel", version = "0.10.2" }
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
+std-mel = { path = "../std-mel", version = "0.10.3" }
 serde = "1.0.185"
 serde_json = "1.0.105"
 
@@ -48,8 +48,9 @@ optional = true
 mock = []
 plugin = []
 real = ["async-std", "symphonia", "hound", "flacenc"]
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 

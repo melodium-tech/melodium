@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = distribution_engine_stop_without_start
-#! version = 0.10.2
-#! require = std:0.10.2 distrib:0.10.2
+#! version = 0.10.3
+#! require = std:0.10.3 distrib:0.10.3
 
 use std/engine/util::startup
 use distrib::DistributionEngine
@@ -16,7 +16,7 @@ use distrib::stop
 // `start()` attempt would wait forever on a signal nothing would ever send,
 // hanging the whole program. The program must now terminate on its own.
 treatment main()
-  model distributor: DistributionEngine(treatment="distribution_engine_stop_without_start::echo", version="0.10.2")
+  model distributor: DistributionEngine(treatment="distribution_engine_stop_without_start::echo", version="0.10.3")
 {
     startup()
     stopNow: stop[distributor=distributor]()

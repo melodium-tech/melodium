@@ -1,6 +1,6 @@
 [package]
 name = "sql-mel"
-version = "0.10.2"
+version = "0.10.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -18,18 +18,19 @@ name = "sql_mel"
 
 [dependencies]
 async-std = {version="1.13", features=["unstable"]}
-melodium-core = { path = "../../melodium-core", version = "0.10.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
-std-mel = { path = "../std-mel", version = "0.10.2" }
+melodium-core = { path = "../../melodium-core", version = "0.10.3" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
+std-mel = { path = "../std-mel", version = "0.10.3" }
 sqlx = { version = "0.8" }
 
 [features]
 mock = []
 plugin = []
 real = ["sqlx/runtime-async-std", "sqlx/postgres", "sqlx/mysql", "sqlx/tls-rustls"]
+"docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]
-features = ["mock"]
+features = ["docs.rs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
