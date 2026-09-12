@@ -325,6 +325,7 @@ pub async fn launch(
     parameters: HashMap<String, Value>,
     log_path: Option<PathBuf>,
     debug_path: Option<PathBuf>,
+    debug_level: Option<DebugLevel>,
     enable_reports: bool,
     enable_status: bool,
     tags: Option<Vec<String>>,
@@ -338,14 +339,17 @@ pub async fn launch(
     // grow to 8+ GB RSS and OOM-kill from copying a single 300 MB file with a debug
     // listener attached (e.g. via --api-report), even though the copy itself is under
     // 100 MB/s of extra RSS with no listener attached at all. `Basic` still gives full
-    // track lifecycle and per-transmission `Count` visibility at negligible cost, so it's
-    // used whenever something will actually consume debug events; `None` otherwise, to
-    // not pay even that when nothing is listening.
-    let debug_level = if debug_path.is_some() || enable_reports || enable_status {
-        DebugLevel::Basic
-    } else {
-        DebugLevel::None
-    };
+    // track lifecycle and per-transmission `Count` visibility at negligible cost, so unless
+    // the caller explicitly picked a level, it's used whenever something will actually
+    // consume debug events, and `None` otherwise, to not pay even that when nothing is
+    // listening.
+    let debug_level = debug_level.unwrap_or_else(|| {
+        if debug_path.is_some() || enable_reports || enable_status {
+            DebugLevel::Basic
+        } else {
+            DebugLevel::None
+        }
+    });
     let engine = melodium_engine::new_engine(collection, Level::Trace, debug_level);
 
     let mut monitoring: futures::stream::FuturesUnordered<async_std::task::JoinHandle<()>> =

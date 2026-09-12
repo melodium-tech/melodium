@@ -131,6 +131,7 @@ pub async fn launch_listen(
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
+    debug_level: Option<DebugLevel>,
     program_dump_sender: Option<Sender<ProgramDump>>,
     launched: Option<
         Box<
@@ -180,6 +181,7 @@ pub async fn launch_listen(
         max_duration,
         logs_senders,
         debug_senders,
+        debug_level,
         program_dump_sender,
         launched,
         ended,
@@ -200,6 +202,7 @@ pub async fn launch_listen_localcert(
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
+    debug_level: Option<DebugLevel>,
     program_dump_sender: Option<Sender<ProgramDump>>,
     launched: Option<
         Box<
@@ -225,6 +228,7 @@ pub async fn launch_listen_localcert(
         max_duration,
         logs_senders,
         debug_senders,
+        debug_level,
         program_dump_sender,
         launched,
         ended,
@@ -245,6 +249,7 @@ pub async fn launch_listen_unsecure(
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
+    debug_level: Option<DebugLevel>,
     program_dump_sender: Option<Sender<ProgramDump>>,
     launched: Option<
         Box<
@@ -289,6 +294,7 @@ pub async fn launch_listen_unsecure(
         max_duration,
         logs_senders,
         debug_senders,
+        debug_level,
         program_dump_sender,
         launched,
         ended,
@@ -308,6 +314,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
+    debug_level: Option<DebugLevel>,
     program_dump_sender: Option<Sender<ProgramDump>>,
     launched: Option<
         Box<
@@ -468,12 +475,14 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     // byte-heavy streams. This side already bounds its debug channel
     // (`debug_channel_capacity`), so it degrades to backpressure rather than unbounded
     // growth, but there is no reason to pay the cloning cost at all when nothing
-    // downstream asked for debug events.
-    let debug_level = if debug_senders.is_empty() {
-        DebugLevel::None
-    } else {
-        DebugLevel::Basic
-    };
+    // downstream asked for debug events - unless the caller explicitly picked a level.
+    let debug_level = debug_level.unwrap_or_else(|| {
+        if debug_senders.is_empty() {
+            DebugLevel::None
+        } else {
+            DebugLevel::Basic
+        }
+    });
     let engine = melodium_engine::new_engine(Arc::clone(&collection), Level::Trace, debug_level);
     engine.set_auto_end(false);
 
