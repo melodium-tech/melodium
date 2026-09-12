@@ -313,14 +313,57 @@ pub async fn request_reporting(
     Err("Mock mode".to_string())
 }
 
-// How many completed batches (~5000 logs each) can be queued up waiting to reach the S3
-// endpoint before newly-completed batches get dropped instead of queued. This bounds
-// worst-case memory to roughly MAX_PENDING_BATCHES * one batch, instead of growing without
-// limit for as long as the endpoint stays unreachable: a batch stuck retrying (or a backlog
-// of batches behind it) must never make the loop below stop draining `logs`/`events`, since
-// that channel is fed by every running treatment with no backpressure of its own.
+const DEFAULT_REPORT_BATCH_SIZE: usize = 5000;
+const DEFAULT_REPORT_BATCH_INTERVAL_SECS: u64 = 5;
+const DEFAULT_REPORT_MAX_PENDING_BATCHES: usize = 4;
+
+/// How many logs/debug events are batched together before being handed off for upload,
+/// whichever of `report_batch_size`/`report_batch_interval` is reached first. Overridable
+/// through `MELODIUM_REPORT_BATCH_SIZE`.
 #[cfg(feature = "real")]
-const MAX_PENDING_BATCHES: usize = 4;
+fn report_batch_size() -> usize {
+    static SIZE: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *SIZE.get_or_init(|| {
+        std::env::var("MELODIUM_REPORT_BATCH_SIZE")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_REPORT_BATCH_SIZE)
+    })
+}
+
+/// Maximum time a batch is left accumulating before being handed off for upload even if
+/// `report_batch_size` hasn't been reached. Overridable through
+/// `MELODIUM_REPORT_BATCH_INTERVAL_SECS`.
+#[cfg(feature = "real")]
+fn report_batch_interval() -> std::time::Duration {
+    static INTERVAL: std::sync::OnceLock<std::time::Duration> = std::sync::OnceLock::new();
+    *INTERVAL.get_or_init(|| {
+        std::time::Duration::from_secs(
+            std::env::var("MELODIUM_REPORT_BATCH_INTERVAL_SECS")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(DEFAULT_REPORT_BATCH_INTERVAL_SECS),
+        )
+    })
+}
+
+// How many completed batches (~`report_batch_size` logs each) can be queued up waiting to
+// reach the S3 endpoint before newly-completed batches get dropped instead of queued. This
+// bounds worst-case memory to roughly `report_max_pending_batches` * one batch, instead of
+// growing without limit for as long as the endpoint stays unreachable: a batch stuck
+// retrying (or a backlog of batches behind it) must never make the loop below stop draining
+// `logs`/`events`, since that channel is fed by every running treatment with no backpressure
+// of its own. Overridable through `MELODIUM_REPORT_MAX_PENDING_BATCHES`.
+#[cfg(feature = "real")]
+fn report_max_pending_batches() -> usize {
+    static MAX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *MAX.get_or_init(|| {
+        std::env::var("MELODIUM_REPORT_MAX_PENDING_BATCHES")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_REPORT_MAX_PENDING_BATCHES)
+    })
+}
 
 #[cfg(feature = "real")]
 pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
@@ -339,7 +382,9 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
     // slow or repeatedly failing upload never blocks draining `logs` below. Batches are
     // uploaded one at a time, in order, so `batch_index`/`chunks_update` stay a correct,
     // gapless count of what's actually on S3.
-    let (pending_tx, pending_rx) = async_std::channel::bounded::<Vec<Log>>(MAX_PENDING_BATCHES);
+    let max_pending_batches = report_max_pending_batches();
+    let batch_size = report_batch_size();
+    let (pending_tx, pending_rx) = async_std::channel::bounded::<Vec<Log>>(max_pending_batches);
     let uploader = async_std::task::spawn(async move {
         let mut batch_index: u128 = 0;
         while let Ok(batch) = pending_rx.recv().await {
@@ -363,17 +408,18 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
         }
     });
 
-    let mut buffer_logs = Vec::with_capacity(5000);
+    let mut buffer_logs = Vec::with_capacity(batch_size);
     let mut timestamp = std::time::SystemTime::now();
     let mut dropped: u64 = 0;
     while let Ok(log) = logs.recv().await {
         buffer_logs.push(log);
-        if buffer_logs.len() >= 5000 || timestamp.elapsed().unwrap_or_default().as_secs() >= 5 {
-            let batch = std::mem::replace(&mut buffer_logs, Vec::with_capacity(5000));
+        if buffer_logs.len() >= batch_size || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
+        {
+            let batch = std::mem::replace(&mut buffer_logs, Vec::with_capacity(batch_size));
             if let Err(TrySendError::Full(batch)) = pending_tx.try_send(batch) {
                 dropped += batch.len() as u64;
                 eprintln!(
-                    "Dropping {} logs ({dropped} total so far): {MAX_PENDING_BATCHES} batches already waiting to reach the reporting endpoint",
+                    "Dropping {} logs ({dropped} total so far): {max_pending_batches} batches already waiting to reach the reporting endpoint",
                     batch.len()
                 );
             }
@@ -407,8 +453,10 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
 
     // See report_logs: uploading runs in its own task so it can never block draining
     // `events` below, and batches are still uploaded one at a time, in order.
+    let max_pending_batches = report_max_pending_batches();
+    let batch_size = report_batch_size();
     let (pending_tx, pending_rx) =
-        async_std::channel::bounded::<Vec<melodium_share::Event>>(MAX_PENDING_BATCHES);
+        async_std::channel::bounded::<Vec<melodium_share::Event>>(max_pending_batches);
     let uploader = async_std::task::spawn(async move {
         let mut batch_index: u128 = 0;
         while let Ok(batch) = pending_rx.recv().await {
@@ -435,17 +483,18 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
         }
     });
 
-    let mut buffer_events = Vec::with_capacity(5000);
+    let mut buffer_events = Vec::with_capacity(batch_size);
     let mut timestamp = std::time::SystemTime::now();
     let mut dropped: u64 = 0;
     while let Ok(event) = events.recv().await {
         buffer_events.push(melodium_share::Event::from(&event));
-        if buffer_events.len() >= 5000 || timestamp.elapsed().unwrap_or_default().as_secs() >= 5 {
-            let batch = std::mem::replace(&mut buffer_events, Vec::with_capacity(5000));
+        if buffer_events.len() >= batch_size || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
+        {
+            let batch = std::mem::replace(&mut buffer_events, Vec::with_capacity(batch_size));
             if let Err(TrySendError::Full(batch)) = pending_tx.try_send(batch) {
                 dropped += batch.len() as u64;
                 eprintln!(
-                    "Dropping {} debug events ({dropped} total so far): {MAX_PENDING_BATCHES} batches already waiting to reach the reporting endpoint",
+                    "Dropping {} debug events ({dropped} total so far): {max_pending_batches} batches already waiting to reach the reporting endpoint",
                     batch.len()
                 );
             }
