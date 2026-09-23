@@ -14,6 +14,23 @@ use std::{collections::HashMap, sync::RwLock};
 use std::{collections::HashSet, sync::Arc};
 use std::{net::IpAddr, path::PathBuf};
 
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+enum DebugLevelArg {
+    None,
+    Basic,
+    Detailed,
+}
+
+impl From<DebugLevelArg> for melodium_engine::debug::DebugLevel {
+    fn from(value: DebugLevelArg) -> Self {
+        match value {
+            DebugLevelArg::None => melodium_engine::debug::DebugLevel::None,
+            DebugLevelArg::Basic => melodium_engine::debug::DebugLevel::Basic,
+            DebugLevelArg::Detailed => melodium_engine::debug::DebugLevel::Detailed,
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
 struct Cli {
@@ -44,6 +61,14 @@ struct Run {
     #[clap(long)]
     /// Write debug to path.
     debug: Option<PathBuf>,
+    #[clap(long, value_enum)]
+    /// Debug event detail level to capture. If not set, defaults to `basic` when something
+    /// will consume debug events (--debug path given, or --api-report enabled), `none`
+    /// otherwise. `detailed` additionally captures the full value of every data
+    /// transmission: safe only for small-scale local debugging, since for a Stream<byte>
+    /// moving real data (a compiled binary, a tarball, ...) it duplicates the entire data
+    /// volume into debug events.
+    debug_level: Option<DebugLevelArg>,
     #[clap(long, default_value_t = false)]
     /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
     api_report: bool,
@@ -162,6 +187,14 @@ struct Dist {
     #[clap(long)]
     /// Write debug to path.
     debug: Option<PathBuf>,
+    #[clap(long, value_enum)]
+    /// Debug event detail level to capture. If not set, defaults to `basic` when something
+    /// will consume debug events (--debug path given, or --api-report enabled), `none`
+    /// otherwise. `detailed` additionally captures the full value of every data
+    /// transmission: safe only for small-scale local debugging, since for a Stream<byte>
+    /// moving real data (a compiled binary, a tarball, ...) it duplicates the entire data
+    /// volume into debug events.
+    debug_level: Option<DebugLevelArg>,
     #[clap(long, default_value_t = false)]
     /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
     api_report: bool,
@@ -275,6 +308,7 @@ pub fn main() {
             force_entry: None,
             logs: None,
             debug: None,
+            debug_level: None,
             api_report: false,
             api_report_disable_logs: false,
             api_report_disable_status: false,
@@ -366,6 +400,7 @@ fn run(args: Run) {
             params,
             args.logs,
             args.debug,
+            args.debug_level.map(Into::into),
             args.api_report && !args.api_report_disable_logs,
             args.api_report && !args.api_report_disable_status,
             entry_name.map(|name| vec![format!("entrypoint={name}")]),
@@ -672,6 +707,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    args.debug_level.map(Into::into),
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
@@ -707,6 +743,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    args.debug_level.map(Into::into),
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
@@ -733,6 +770,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    args.debug_level.map(Into::into),
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
@@ -775,6 +813,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    args.debug_level.map(Into::into),
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
@@ -798,6 +837,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    args.debug_level.map(Into::into),
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
