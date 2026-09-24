@@ -50,10 +50,11 @@ to `target/release/melodium-mcp`.
 
 `list_library_elements`, `describe_element`, and `search_reference` operate
 on the full standard library collection, loaded once at startup and reused
-across calls. `get_language_guide` and `get_cicd_migration_guide` serve the
-same reference documents shipped as the `melodium` Claude Code skill
-(`skills/melodium/`), and `search_book`/`read_book_chapter` serve a vendored
-copy of the [Mélodium book](https://gitlab.com/melodium/book) (see
+across calls. `get_language_guide` and `get_cicd_migration_guide` serve a
+vendored copy (see `melodium-mcp/guides/README.md`) of the same reference
+documents shipped as the `melodium` Claude Code skill (`skills/melodium/`),
+and `search_book`/`read_book_chapter` serve a vendored copy of the
+[Mélodium book](https://gitlab.com/melodium/book) (see
 `melodium-mcp/book/README.md`) — both embedded into the binary at compile
 time, so no network access is required at runtime.
 

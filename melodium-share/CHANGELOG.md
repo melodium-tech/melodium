@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- No changes in this crate.
+
 ## [v0.10.3] (2026-09-08)
 
 - Adding a wire-serializable `TransmissionValue`, keeping a whole stream batch as one CBOR-encoded unit instead of re-encoding it tick by tick (#114).

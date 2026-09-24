@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- Decoupling `report_logs`/`report_debug` from the S3 upload path: uploading now runs in its own task, so a slow or repeatedly failing upload no longer blocks draining logs/debug events off the channel every running treatment feeds. A batch that fails to reach the reporting endpoint is dropped instead of retried inline.
+- Bounding the queue of batches waiting to reach the reporting endpoint (`MELODIUM_REPORT_MAX_PENDING_BATCHES`, default 4): once full, newly completed batches are dropped instead of growing memory without limit. Batch size and interval are now also overridable via `MELODIUM_REPORT_BATCH_SIZE` and `MELODIUM_REPORT_BATCH_INTERVAL_SECS`.
+
 ## [v0.10.3] (2026-09-08)
 
 - Adapting to `melodium-common`'s new panic-free value casting and packed-array APIs (no behavior change).

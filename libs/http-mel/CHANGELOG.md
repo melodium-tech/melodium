@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- No changes in this crate.
+
 ## [v0.10.3] (2026-09-08)
 
 - Documenting that `http_server`'s `status`/`headers`/`data` outputs must be driven from `started`, not from a trigger derived from `data`, since a request with no body never emits on `data`.

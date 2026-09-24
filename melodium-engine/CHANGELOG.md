@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- No changes in this crate.
+
 ## [v0.10.3] (2026-09-08)
 
 - Adding byte-size watermark flow control to transmission `Output`, blocking the producer only once buffered data crosses a threshold instead of on every full receiver slot (overridable via `MELODIUM_TRANSMISSION_MAX_BUFFERED_BYTES`) (#112).

@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- No changes in this crate.
+
 ## [v0.10.3] (2026-09-08)
 
 - Updating `candle-core`, `candle-nn`, and `candle-transformers` to 0.11.

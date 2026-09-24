@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- No changes in this crate.
+
 ## [v0.10.3] (2026-09-08)
 
 - Re-exporting `InputExt`, `OutputExt`, and `PackedArray` from `melodium-common`.

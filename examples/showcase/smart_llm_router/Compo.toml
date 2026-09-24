@@ -2,13 +2,13 @@ name    = "smart_llm_router"
 version = "0.1.0"
 
 [dependencies]
-std        = "0.10.3"
-http       = "0.10.3"
-net        = "0.10.3"
-encoding   = "0.10.3"
-json       = "0.10.3"
-javascript = "0.10.3"
-ml         = "0.10.3"
+std        = "0.10.4"
+http       = "0.10.4"
+net        = "0.10.4"
+encoding   = "0.10.4"
+json       = "0.10.4"
+javascript = "0.10.4"
+ml         = "0.10.4"
 
 [entrypoints]
 main = "smart_llm_router/main::chat"

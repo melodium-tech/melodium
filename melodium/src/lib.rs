@@ -325,11 +325,32 @@ pub async fn launch(
     parameters: HashMap<String, Value>,
     log_path: Option<PathBuf>,
     debug_path: Option<PathBuf>,
+    debug_level: Option<DebugLevel>,
     enable_reports: bool,
     enable_status: bool,
     tags: Option<Vec<String>>,
 ) -> LogicResult<()> {
-    let engine = melodium_engine::new_engine(collection, Level::Trace, DebugLevel::Detailed);
+    // `DebugLevel::Detailed` makes every `Output::send_many`/`send_one` clone the full
+    // transmitted payload into a `DataContent::Values` debug event (see
+    // melodium-engine/src/transmission/output.rs) instead of just a `Count`. For a
+    // `Stream<byte>` moving meaningful data (a compiled binary, a tarball, ...), that
+    // duplicates the entire data volume into `World`'s internal debug channel, which is
+    // unbounded and has no byte-size-aware cap downstream either - confirmed locally to
+    // grow to 8+ GB RSS and OOM-kill from copying a single 300 MB file with a debug
+    // listener attached (e.g. via --api-report), even though the copy itself is under
+    // 100 MB/s of extra RSS with no listener attached at all. `Basic` still gives full
+    // track lifecycle and per-transmission `Count` visibility at negligible cost, so unless
+    // the caller explicitly picked a level, it's used whenever something will actually
+    // consume debug events, and `None` otherwise, to not pay even that when nothing is
+    // listening.
+    let debug_level = debug_level.unwrap_or_else(|| {
+        if debug_path.is_some() || enable_reports || enable_status {
+            DebugLevel::Basic
+        } else {
+            DebugLevel::None
+        }
+    });
+    let engine = melodium_engine::new_engine(collection, Level::Trace, debug_level);
 
     let mut monitoring: futures::stream::FuturesUnordered<async_std::task::JoinHandle<()>> =
         futures::stream::FuturesUnordered::new();
@@ -600,6 +621,26 @@ pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
     }
 }
 
+const DEFAULT_REPORT_CHANNEL_CAPACITY: usize = 200_000;
+
+/// Bounded as a last-resort safety net: `report_logs`/`report_debug` (see
+/// libs/work-mel/src/reporting.rs) now always drain their input promptly regardless of how
+/// the reporting endpoint is behaving, so this should stay far from full in practice. It
+/// exists in case that invariant is ever broken again, so a stuck consumer degrades to
+/// briefly slowing down log emission rather than growing without bound. Overridable through
+/// `MELODIUM_REPORT_CHANNEL_CAPACITY`.
+#[cfg(not(target_os = "unknown"))]
+#[cfg(feature = "work-mel")]
+fn report_channel_capacity() -> usize {
+    static CAPACITY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *CAPACITY.get_or_init(|| {
+        std::env::var("MELODIUM_REPORT_CHANNEL_CAPACITY")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_REPORT_CHANNEL_CAPACITY)
+    })
+}
+
 // TODO for WASM
 #[cfg(not(target_os = "unknown"))]
 #[cfg(feature = "work-mel")]
@@ -616,8 +657,10 @@ pub async fn api_report(
     work_mel::reporting::StatusReporting,
 ) {
     let (program_dump_sender, program_dump_receiver) = async_std::channel::bounded(1);
-    let (logs_report_sender, logs_report_receiver) = unbounded();
-    let (debug_report_sender, debug_report_receiver) = unbounded();
+    let (logs_report_sender, logs_report_receiver) =
+        async_std::channel::bounded(report_channel_capacity());
+    let (debug_report_sender, debug_report_receiver) =
+        async_std::channel::bounded(report_channel_capacity());
 
     let reporting_request = work_mel::reporting::ReportingRequest {
         run_id: *melodium_engine::execution_run_id(),

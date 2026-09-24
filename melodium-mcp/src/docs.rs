@@ -1,13 +1,12 @@
 //! AI-facing guides bundled into the server: the Mélodium language/runtime
-//! model, and CI/CD migration references. These are the same reference
-//! documents shipped as the `melodium` Claude Code skill, embedded here so
-//! any MCP client (not just Claude Code) can retrieve them.
+//! model, and CI/CD migration references. These are a vendored copy (see
+//! `guides/README.md`) of the same reference documents shipped as the
+//! `melodium` Claude Code skill, embedded here so any MCP client (not just
+//! Claude Code) can retrieve them.
 
-const LANGUAGE_GUIDE_RAW: &str = include_str!("../../skills/melodium/SKILL.md");
-const GITHUB_MIGRATION_GUIDE: &str =
-    include_str!("../../skills/melodium/references/github-migration.md");
-const GITLAB_MIGRATION_GUIDE: &str =
-    include_str!("../../skills/melodium/references/gitlab-migration.md");
+const LANGUAGE_GUIDE_RAW: &str = include_str!("../guides/SKILL.md");
+const GITHUB_MIGRATION_GUIDE: &str = include_str!("../guides/references/github-migration.md");
+const GITLAB_MIGRATION_GUIDE: &str = include_str!("../guides/references/gitlab-migration.md");
 
 /// The language/runtime guide, with its Claude Code-specific YAML
 /// frontmatter (name/description/allowed-tools/...) stripped.

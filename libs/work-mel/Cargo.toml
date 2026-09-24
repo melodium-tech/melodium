@@ -1,6 +1,6 @@
 [package]
 name = "work-mel"
-version = "0.10.3"
+version = "0.10.4"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -22,14 +22,14 @@ async-trait = "0.1.71"
 async-walkdir = "2.0"
 futures = "0.3.28"
 generic-async-http-client = { version = "0.7.0", features = ["use_async_h1", "rustls_ring"], optional = true }
-std-mel = { path = "../std-mel", version = "0.10.3" }
-fs-mel = { path = "../fs-mel", version = "0.10.3" }
-melodium-core = { path = "../../melodium-core", version = "0.10.3" }
-melodium-engine = { path = "../../melodium-engine", version = "0.10.3" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.3" }
-melodium-share = { path = "../../melodium-share", version = "0.10.3" }
-net-mel = { path = "../net-mel", version = "0.10.3" }
-process-mel = { path = "../process-mel", version = "0.10.3" }
+std-mel = { path = "../std-mel", version = "0.10.4" }
+fs-mel = { path = "../fs-mel", version = "0.10.4" }
+melodium-core = { path = "../../melodium-core", version = "0.10.4" }
+melodium-engine = { path = "../../melodium-engine", version = "0.10.4" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.4" }
+melodium-share = { path = "../../melodium-share", version = "0.10.4" }
+net-mel = { path = "../net-mel", version = "0.10.4" }
+process-mel = { path = "../process-mel", version = "0.10.4" }
 regex = { version = "1.9.1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -43,6 +43,7 @@ k8s-openapi = { version = "0.23.0", features = ["v1_31"], optional = true }
 
 [dev-dependencies]
 async-std = { version = "1.13", features = ["attributes"] }
+chrono = "0.4"
 
 [features]
 default = []

@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- No longer defaulting execution debug level to `Detailed`, which cloned every transmitted payload into debug events and could grow memory without bound on byte-heavy streams; now defaults to `Basic` when something will consume debug events (`--debug` path given, or `--api-report` enabled) and `None` otherwise, overridable with the new `--debug-level` option.
+- Bounding the internal log/debug channels feeding `--api-report` as a last-resort safety net (overridable via `MELODIUM_REPORT_CHANNEL_CAPACITY`), now that `report_logs`/`report_debug` always drain promptly regardless of how the reporting endpoint behaves.
+
 ## [v0.10.3] (2026-09-08)
 
 - Making the distribution protocol more robust under load: capped wire frames, bounded log/debug channels, and a fix for a race that could silently drop the tail of a stream when a port closed while a same-port write was still in flight.
