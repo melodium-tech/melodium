@@ -2,11 +2,11 @@ name    = "sql_crud_api"
 version = "0.1.0"
 
 [dependencies]
-std      = "0.10.3"
-http     = "0.10.3"
-net      = "0.10.3"
-sql      = "0.10.3"
-encoding = "0.10.3"
+std      = "0.10.4"
+http     = "0.10.4"
+net      = "0.10.4"
+sql      = "0.10.4"
+encoding = "0.10.4"
 
 [entrypoints]
 main = "sql_crud_api/main::main"

@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- No changes in this crate.
+
 ## [v0.10.3] (2026-09-08)
 
 - Adding `Value::Packed`, a packed representation for homogeneous scalar arrays (`byte`, numeric, `bool`, `char` vectors), avoiding the per-element `Value` enum overhead a boxed `Vec<Value>` costs (#116).

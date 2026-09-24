@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.10.4] (2026-09-24)
+
+- Adding a `debug_level: Option<DebugLevel>` parameter to `launch_listen`, `launch_listen_localcert`, and `launch_listen_unsecure`, so callers can pick the debug event detail level instead of always running at `Detailed`, which cloned every transmitted payload into debug events. Defaults to `Basic` when debug senders are given and `None` otherwise.
+
 ## [v0.10.3] (2026-09-08)
 
 - Adding chunked, size-capped wire framing: a hard ceiling on a single frame (previously trusting a peer's claimed length up to ~4 GiB) and a soft target for splitting large batches, both overridable (`MELODIUM_DIST_PROTOCOL_MAX_FRAME_BYTES`, `MELODIUM_DIST_PROTOCOL_MAX_BATCH_CHUNK_BYTES`) (#114).
