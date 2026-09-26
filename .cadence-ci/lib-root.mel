@@ -17,9 +17,10 @@ treatment main(
     const gitlab_sha: string,
     const gitlab_ref: string,
     const gitlab_pipeline_id: string,
-    const repository_url: string
+    const repository_url: string,
+    const dispatch_location: string = "api"
 )
-  model dispatcher: CicdDispatchEngine(location="api")
+  model dispatcher: CicdDispatchEngine(location=dispatch_location)
 {
     startup()
 
@@ -37,7 +38,7 @@ treatment main(
 
     buildX86_64Gnu: buildTarget[cicd=dispatcher](
         target="x86_64-unknown-linux-gnu",
-        image="rust:1.91-bookworm",
+        image="rust:1.98-trixie",
         arch=|amd64(),
         cargo_args="--no-default-features --features desktop-edition",
         environment_variables=|map([]),
@@ -66,7 +67,7 @@ treatment main(
 
     testX86_64Gnu: testTarget[cicd=dispatcher](
         target="x86_64-unknown-linux-gnu",
-        test_image="debian:bookworm",
+        test_image="debian:trixie",
         arch=|amd64(),
         gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
@@ -90,7 +91,7 @@ treatment main(
 
     buildI686Gnu: buildTarget[cicd=dispatcher](
         target="i686-unknown-linux-gnu",
-        image="rust:1.91-bookworm",
+        image="rust:1.98-trixie",
         arch=|amd64(),
         cargo_args="",
         environment_variables=|map([|entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")]),
@@ -119,7 +120,7 @@ treatment main(
 
     testI686Gnu: testTarget[cicd=dispatcher](
         target="i686-unknown-linux-gnu",
-        test_image="debian:bookworm",
+        test_image="debian:trixie",
         arch=|amd64(),
         extra_install_script="dpkg --add-architecture i386 && apt-get update && apt-get install -y libc6:i386 libstdc++6:i386 && ",
         gitlab_token=gitlab_token,
@@ -144,7 +145,7 @@ treatment main(
 
     buildAarch64Gnu: buildTarget[cicd=dispatcher](
         target="aarch64-unknown-linux-gnu",
-        image="rust:1.91-bookworm",
+        image="rust:1.98-trixie",
         arch=|arm64(),
         cargo_args="--no-default-features --features desktop-edition",
         environment_variables=|map([]),
@@ -173,7 +174,7 @@ treatment main(
 
     testAarch64Gnu: testTarget[cicd=dispatcher](
         target="aarch64-unknown-linux-gnu",
-        test_image="debian:bookworm",
+        test_image="debian:trixie",
         arch=|arm64(),
         gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,

@@ -7,6 +7,8 @@ cicd = "^0.10.3"
 process = "^0.10.3"
 work = "^0.10.3"
 fs = "^0.10.3"
+regex = "^0.10.3"
 
 [entrypoints]
 main = "cadence_ci::main"
+local_smoke = "cadence_ci/local_smoke_test::localSmokeTest"

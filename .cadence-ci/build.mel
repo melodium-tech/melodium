@@ -1,10 +1,12 @@
 use cicd/naive::simpleStep
 use cicd/runners::CicdDispatchEngine
 use process/command::|command
+use regex::|replace
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/flow::one
+use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
 use std/text/compose::|format
 use work/resources/arch::Arch
@@ -32,7 +34,9 @@ treatment buildTarget[cicd: CicdDispatchEngine](
   output failed: Block<void>
 {
     compile: simpleStep[dispatcher=cicd](
-        name=target,
+        // Container/hostname-safe display name: the "compose" dispatch backend reuses this
+        // as a hostname (RFC 1123: no underscores), unlike the actual `--target` triple below.
+        name=|unwrap_or<string>(|replace(target, "_", "-"), target),
         image=image,
         arch=|wrap<Arch>(arch),
         cpu=container_cpu,

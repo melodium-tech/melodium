@@ -9,11 +9,13 @@ use cicd/steps::stepOnWithInput
 use process/command::|command
 use process/environment::Environment
 use process/environment::|environment
+use regex::|replace
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/flow::closeBlock
 use std/flow::one
+use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
 use std/text/compose::|format
 use work/resources::|container
@@ -37,7 +39,7 @@ treatment unitTests[cicd: CicdDispatchEngine](
 {
     unitTest: simpleStep[dispatcher=cicd](
         name="unit-tests",
-        image="rust:1.91-bookworm",
+        image="rust:1.98-trixie",
         arch=|wrap<Arch>(|amd64()),
         cpu=6000, memory=10000, storage=50000,
         commands=[
@@ -84,14 +86,15 @@ treatment buildTesters[cicd: CicdDispatchEngine](
   output failed: Block<void>
 {
     testers: simpleStep[dispatcher=cicd](
-        name=|format("testers-{target}", |entry("target", target)),
-        image="rust:1.91-bookworm",
+        // Container/hostname-safe name; see buildTarget's `compile` for why.
+        name=|format("testers-{target}", |entry("target", |unwrap_or<string>(|replace(target, "_", "-"), target))),
+        image="rust:1.98-trixie",
         arch=|wrap<Arch>(arch),
         cpu=6000, memory=10000, storage=20000,
         variables=|wrap<StringMap>(environment_variables),
         commands=[
             |command("sh", ["-c", |format(
-                ${{set -x; {pre_commands}git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source/tests/testers && cargo build --locked --target {target} && for f in ../*.mel; do tar --append --file testers.tar "$f"; done && for f in target/{target}/debug/*; do if [ -f "$f" ] && [ -x "$f" ]; then tar --append --file testers.tar "$f"; fi; done && gzip testers.tar && mv testers.tar.gz /mnt/data/testers.tar.gz}},
+                ${{set -x; {pre_commands}git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source/tests/testers && cargo build --locked --target {target} && for f in ../*.mel; do tar --append --transform 's,.*/,,' --file testers.tar "$f"; done && for f in target/{target}/debug/*; do if [ -f "$f" ] && [ -x "$f" ]; then tar --append --transform 's,.*/,,' --file testers.tar "$f"; fi; done && gzip testers.tar && mv testers.tar.gz /mnt/data/testers.tar.gz}},
                 |map([
                     |entry("pre_commands", pre_commands),
                     |entry("ref", ref),
@@ -153,7 +156,8 @@ treatment testTarget[cicd: CicdDispatchEngine](
     noCancel: closeBlock<void>()
 
     setupRunner[dispatcher=cicd, runner=runner](
-        name=|format("test-{target}", |entry("target", target)),
+        // Container/hostname-safe name; see buildTarget's `compile` for why.
+        name=|format("test-{target}", |entry("target", |unwrap_or<string>(|replace(target, "_", "-"), target))),
         cpu=200, memory=200, storage=1500,
         arch=|wrap<Arch>(arch),
         volumes=[|volume("binaries", 700)],
