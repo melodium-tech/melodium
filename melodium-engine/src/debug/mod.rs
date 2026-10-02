@@ -5,8 +5,8 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use melodium_common::{
-    descriptor::{Model, Treatment},
-    executive::{Context, ModelId, TrackId, Value},
+    descriptor::{Identifier, Model, Treatment},
+    executive::{Context, ModelId, SecretId, TrackId, Value},
 };
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
@@ -107,6 +107,29 @@ pub enum EventKind {
         run_id: Uuid,
         text: String,
         //event: Box<Event>,
+    },
+    SecretRevealed {
+        secret_id: SecretId,
+        secret_name: String,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<TrackId>,
+    },
+    SecretDenied {
+        secret_id: SecretId,
+        secret_name: String,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<TrackId>,
+        reason: String,
+    },
+    SecretResolveFailed {
+        secret_id: SecretId,
+        secret_name: String,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<TrackId>,
+        error: String,
     },
 }
 

@@ -1,5 +1,5 @@
 use crate::descriptor::{DataType, Treatment as TreatmentDescriptor};
-use crate::executive::{Input, Model, Output, TrackFuture, Value};
+use crate::executive::{Input, Model, Output, SecretAccess, TrackFuture, Value};
 use core::fmt::Debug;
 use core::future::Future;
 use core::pin::Pin;
@@ -18,6 +18,7 @@ pub trait Treatment: Debug + Sync + Send {
     fn prepare(
         &self,
         track_id: usize,
+        secret_access: SecretAccess,
         start: Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
         finish: Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
     ) -> Vec<TrackFuture>;

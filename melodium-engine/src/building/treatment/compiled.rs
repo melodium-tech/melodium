@@ -8,7 +8,7 @@ use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{Status, Treatment as TreatmentDescriptor};
-use melodium_common::executive::{TrackId, Treatment};
+use melodium_common::executive::{SecretAccess, TrackId, Treatment, World as ExecutiveWorld};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -205,6 +205,13 @@ impl BuilderTrait for Builder {
             }
         });
 
+        let secret_access = SecretAccess::new(
+            &(Arc::clone(&world) as Arc<dyn ExecutiveWorld>),
+            descriptor.identifier().clone(),
+            Some(build_sample.label.clone()),
+            Some(environment.track_id()),
+        );
+
         match &build_sample.host_treatment {
             HostTreatment::Treatment(host_descriptor) => {
                 let host_build = world
@@ -260,7 +267,8 @@ impl BuilderTrait for Builder {
                     .map(|(name, input)| (name.to_string(), vec![input.clone()]))
                     .collect();
 
-                let prepared_futures = treatment.prepare(environment.track_id(), start, finish);
+                let prepared_futures =
+                    treatment.prepare(environment.track_id(), secret_access, start, finish);
                 result.prepared_futures.extend(prepared_futures);
                 result.prepared_futures.extend(host_build.prepared_futures);
             }
@@ -310,6 +318,7 @@ impl BuilderTrait for Builder {
 
                 result.prepared_futures.extend(treatment.prepare(
                     environment.track_id(),
+                    secret_access,
                     start,
                     finish,
                 ));

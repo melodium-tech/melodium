@@ -2,7 +2,7 @@ use crate::{DataType, DescribedType, Identifier, SecretPolicy, SharingError, Sha
 use cbor4ii::core::utils::SliceReader;
 use melodium_common::{
     descriptor::{Collection, Entry as CommonEntry, Identifier as CommonIdentifier},
-    executive::{Secret as CommonSecret, Value as CommonValue},
+    executive::{Secret as CommonSecret, SecretOrigin, Value as CommonValue},
 };
 use melodium_engine::{design::Value as DesignedValue, LogicError};
 use serde::{Deserialize, Serialize};
@@ -30,6 +30,29 @@ impl Value {
         scope: &CommonIdentifier,
     ) -> SharingResult<DesignedValue> {
         match self {
+            // A design keeps secrets as locators, never as values.
+            Value::Raw(RawValue::Secret {
+                name,
+                datatype,
+                policy,
+                locator,
+            }) => {
+                let secret = match (datatype.to_datatype(collection), locator) {
+                    (Some(datatype), Some(locator)) => CommonSecret::new(
+                        name.clone(),
+                        datatype,
+                        policy.into(),
+                        SecretOrigin::Locator(locator.clone()),
+                    )
+                    .ok(),
+                    _ => None,
+                };
+                if let Some(secret) = secret {
+                    SharingResult::new_success(DesignedValue::Raw(CommonValue::Secret(secret)))
+                } else {
+                    SharingResult::new_failure(SharingError::data_serialization_error(19))
+                }
+            }
             Value::Raw(val) => {
                 if let Some(value) = val.to_value(collection) {
                     SharingResult::new_success(DesignedValue::Raw(value))
@@ -580,6 +603,30 @@ mod secret_tests {
             .to_value(&collection)
             .is_none());
         assert!(TryInto::<CommonValue>::try_into(&raw).is_err());
+    }
+
+    #[test]
+    fn designs_keep_locator_secrets_only() {
+        let collection = Collection::new();
+        let scope = CommonIdentifier::new(vec!["root".to_string()], "Scope");
+
+        let locator: RawValue = secret(SecretOrigin::Locator("env:DB_PASSWORD".to_string())).into();
+        match Value::Raw(locator).to_value(&collection, &scope).success() {
+            Some(DesignedValue::Raw(CommonValue::Secret(secret))) => {
+                assert_eq!(secret.name(), "db_password");
+                assert_eq!(secret.locator(), Some("env:DB_PASSWORD"));
+                assert_eq!(secret.datatype(), &CommonDataType::String);
+            }
+            other => panic!("locator secret expected, got {other:?}"),
+        }
+
+        let inline: RawValue = secret(SecretOrigin::Inline(CommonValue::String(
+            SENTINEL.to_string(),
+        )))
+        .into();
+        assert!(Value::Raw(inline)
+            .to_value(&collection, &scope)
+            .is_failure());
     }
 
     #[test]

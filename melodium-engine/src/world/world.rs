@@ -1,3 +1,4 @@
+use super::secret_sources::{EnvironmentSource, FileSource};
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 use crate::building::HostTreatment;
 use crate::building::{
@@ -26,8 +27,9 @@ use melodium_common::descriptor::{
 };
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
-    Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput, ResultStatus,
-    TrackCreationCallback, TrackFuture, TrackId, Value, World as ExecutiveWorld,
+    Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput, ResultStatus, Secret,
+    SecretAudit, SecretAuditOutcome, SecretSource, TrackCreationCallback, TrackFuture, TrackId,
+    Value, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -42,6 +44,7 @@ pub struct World {
 
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
+    secret_sources: RwLock<HashMap<String, Arc<dyn SecretSource>>>,
 
     builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
@@ -117,6 +120,16 @@ impl World {
             auto_reference: me.clone(),
             models: RwLock::new(Vec::new()),
             sources: RwLock::new(HashMap::new()),
+            secret_sources: RwLock::new(HashMap::from([
+                (
+                    "env".to_string(),
+                    Arc::new(EnvironmentSource) as Arc<dyn SecretSource>,
+                ),
+                (
+                    "file".to_string(),
+                    Arc::new(FileSource) as Arc<dyn SecretSource>,
+                ),
+            ])),
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main: RwLock::new(None),
@@ -778,6 +791,29 @@ impl Engine for World {
             self.closing.store(true, Ordering::Relaxed);
         }
     }
+
+    async fn check_secrets(&self, secrets: Vec<(String, Secret)>) -> LogicResult<()> {
+        let world = self.auto_reference.upgrade().unwrap() as Arc<dyn ExecutiveWorld>;
+        let mut errors = Vec::new();
+        for (parameter, secret) in secrets {
+            if let Err(error) = secret.check_resolution(&world).await {
+                errors.push(LogicError::unresolvable_secret(
+                    251,
+                    parameter,
+                    error.to_string(),
+                ));
+            }
+        }
+
+        if errors.is_empty() {
+            LogicResult::new_success(())
+        } else {
+            let failure = errors.remove(0);
+            let mut result = LogicResult::new_failure(failure);
+            result.errors_mut().extend(errors);
+            result
+        }
+    }
 }
 
 #[async_trait]
@@ -930,5 +966,71 @@ impl ExecutiveWorld for World {
     async fn wait_no_more_tracks(&self) {
         let mut receiver = self.no_more_tracks_receiver.clone();
         let _ = receiver.next().await;
+    }
+
+    fn secret_source(&self, scheme: &str) -> Option<Arc<dyn SecretSource>> {
+        self.secret_sources.read().unwrap().get(scheme).cloned()
+    }
+
+    fn add_secret_source(&self, scheme: &str, source: Arc<dyn SecretSource>) -> Result<(), ()> {
+        match self
+            .secret_sources
+            .write()
+            .unwrap()
+            .entry(scheme.to_string())
+        {
+            Entry::Occupied(_) => Err(()),
+            Entry::Vacant(entry) => {
+                entry.insert(source);
+                Ok(())
+            }
+        }
+    }
+
+    async fn secret_audit(&self, audit: SecretAudit) {
+        if audit.outcome != SecretAuditOutcome::Revealed {
+            self.log(
+                LogLevel::Error,
+                "secret".to_string(),
+                audit.to_string(),
+                audit.track_id,
+            )
+            .await;
+        }
+
+        let SecretAudit {
+            secret_id,
+            secret_name,
+            element,
+            label,
+            track_id,
+            outcome,
+        } = audit;
+        let kind = match outcome {
+            SecretAuditOutcome::Revealed => EventKind::SecretRevealed {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+            },
+            SecretAuditOutcome::Denied(reason) => EventKind::SecretDenied {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+                reason,
+            },
+            SecretAuditOutcome::ResolveFailed(error) => EventKind::SecretResolveFailed {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+                error,
+            },
+        };
+        let _ = self.debug_sender.send(Event::new(kind)).await;
     }
 }

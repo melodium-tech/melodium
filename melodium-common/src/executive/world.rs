@@ -1,7 +1,8 @@
 use crate::{
     descriptor::Collection,
     executive::{
-        Context, ContinuousFuture, Input, Level, Log, ModelId, Output, Outputs, TrackFuture, Value,
+        Context, ContinuousFuture, Input, Level, Log, ModelId, Output, Outputs, SecretAudit,
+        SecretSource, TrackFuture, Value,
     },
 };
 use async_trait::async_trait;
@@ -43,4 +44,11 @@ pub trait World: Debug + Send + Sync {
     /// track will ever run again, instead of waiting forever or relying on
     /// an arbitrary timeout.
     async fn wait_no_more_tracks(&self);
+    /// Gives the secret source registered for `scheme`.
+    fn secret_source(&self, scheme: &str) -> Option<Arc<dyn SecretSource>>;
+    /// Registers a secret source for `scheme`, failing if one is already registered.
+    fn add_secret_source(&self, scheme: &str, source: Arc<dyn SecretSource>) -> Result<(), ()>;
+    /// Records an access to a secret, as a debug event, and also in the log
+    /// for denials and resolution failures.
+    async fn secret_audit(&self, audit: SecretAudit);
 }

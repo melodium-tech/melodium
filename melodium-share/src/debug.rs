@@ -110,6 +110,29 @@ pub enum EventKind {
         text: String,
         //event: Box<Event>,
     },
+    SecretRevealed {
+        secret_id: u64,
+        secret_name: String,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<u64>,
+    },
+    SecretDenied {
+        secret_id: u64,
+        secret_name: String,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<u64>,
+        reason: String,
+    },
+    SecretResolveFailed {
+        secret_id: u64,
+        secret_name: String,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<u64>,
+        error: String,
+    },
 }
 
 impl From<&EngineEventKind> for EventKind {
@@ -229,6 +252,49 @@ impl From<&EngineEventKind> for EventKind {
             EngineEventKind::Distant { run_id, text } => EventKind::Distant {
                 run_id: *run_id,
                 text: text.clone(),
+            },
+            EngineEventKind::SecretRevealed {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+            } => EventKind::SecretRevealed {
+                secret_id: *secret_id,
+                secret_name: secret_name.clone(),
+                element: element.into(),
+                label: label.clone(),
+                track_id: track_id.map(|id| id as u64),
+            },
+            EngineEventKind::SecretDenied {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+                reason,
+            } => EventKind::SecretDenied {
+                secret_id: *secret_id,
+                secret_name: secret_name.clone(),
+                element: element.into(),
+                label: label.clone(),
+                track_id: track_id.map(|id| id as u64),
+                reason: reason.clone(),
+            },
+            EngineEventKind::SecretResolveFailed {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+                error,
+            } => EventKind::SecretResolveFailed {
+                secret_id: *secret_id,
+                secret_name: secret_name.clone(),
+                element: element.into(),
+                label: label.clone(),
+                track_id: track_id.map(|id| id as u64),
+                error: error.clone(),
             },
         }
     }

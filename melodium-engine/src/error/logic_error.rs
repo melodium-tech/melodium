@@ -34,6 +34,8 @@ pub enum LogicErrorKind {
     },
     /// A parameter with wrong or missing value was given for launch.
     LaunchWrongParameter { parameter: String },
+    /// A secret given for launch cannot be resolved.
+    UnresolvableSecret { parameter: String, error: String },
     /// The launch cannot be done through model-requiring treatment.
     LaunchTreatmentExpectModel { wrong_identifier: Identifier },
     /// No direct track exist for id.
@@ -286,6 +288,7 @@ impl Display for LogicErrorKind {
                     write!(f, "Launch must be done using a treatment, but no valid identifier is provided")
                 },
             LogicErrorKind::LaunchWrongParameter { parameter } => write!(f, "Parameter '{parameter}' has no valid value for launch"),
+            LogicErrorKind::UnresolvableSecret { parameter, error } => write!(f, "Secret of parameter '{parameter}' cannot be resolved: {error}"),
             LogicErrorKind::LaunchTreatmentExpectModel {wrong_identifier} => write!(f, "Launch must be done with a treatment that does not require model, but '{wrong_identifier}' expect some model"),
             LogicErrorKind::NoDirectTrack { id } => write!(f, "No directly instancied track exist for id {id}"),
             LogicErrorKind::UnexistingVariable {identifier,
@@ -438,6 +441,15 @@ impl LogicError {
             id,
             design_reference: None,
             kind: LogicErrorKind::LaunchWrongParameter { parameter },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnresolvableSecret`] kind.
+    pub fn unresolvable_secret(id: u32, parameter: String, error: String) -> Self {
+        Self {
+            id,
+            design_reference: None,
+            kind: LogicErrorKind::UnresolvableSecret { parameter, error },
         }
     }
 
