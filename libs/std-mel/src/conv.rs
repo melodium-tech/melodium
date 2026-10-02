@@ -63,6 +63,8 @@ pub fn to_bytes(value: T) -> Vec<byte> {
                 Some(val) => to_bytes(*val),
                 None => Vec::new(),
             },
+            // Like `Data`, a secret maps to an empty buffer, its content is never exposed.
+            Value::Secret(_) => Vec::new(),
             Value::Data(_) => Vec::new(),
         }
     }
@@ -138,6 +140,8 @@ fn value_to_byte(value: Value) -> Value {
             Some(val) => value_to_byte(*val),
             None => Value::Vec(Vec::new()),
         },
+        // Like `Data`, a secret maps to an empty buffer, its content is never exposed.
+        Value::Secret(_) => Value::Vec(Vec::new()),
         Value::Data(_) => Value::Vec(Vec::new()),
     }
 }

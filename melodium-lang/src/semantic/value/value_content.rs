@@ -302,6 +302,7 @@ impl ValueContent {
                     me.make_executive_value(&inner_type)?,
                 )))),
             },
+            DataType::Secret(_) => Err("Secret cannot be build from script".to_string()),
             DataType::Data(_) => Err("Object cannot be build from script".to_string()),
         }
     }
@@ -340,6 +341,27 @@ mod tests {
                 .make_executive_value(&DataType::I8)
                 .unwrap(),
             ExecutiveValue::I8(123)
+        );
+    }
+
+    #[test]
+    fn test_secret_values_cannot_be_written() {
+        let secret = DataType::Secret(Box::new(DataType::String));
+        for datatype in [
+            secret.clone(),
+            DataType::Vec(Box::new(secret.clone())),
+            DataType::Option(Box::new(secret)),
+        ] {
+            assert!(ValueContent::String("env:DB_PASSWORD".to_string())
+                .make_executive_value(&datatype)
+                .is_err());
+        }
+        assert!(
+            ValueContent::Array(vec![ValueContent::String("value".to_string())])
+                .make_executive_value(&DataType::Vec(Box::new(DataType::Secret(Box::new(
+                    DataType::String
+                )))))
+                .is_err()
         );
     }
 }

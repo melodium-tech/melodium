@@ -30,6 +30,7 @@ pub enum DescribedType {
 
     Vec(Box<DescribedType>),
     Option(Box<DescribedType>),
+    Secret(Box<DescribedType>),
 
     Data(Box<Arc<dyn Data>>),
 
@@ -39,7 +40,9 @@ pub enum DescribedType {
 impl DescribedType {
     pub fn contains_generic(&self) -> bool {
         match self {
-            DescribedType::Option(me) | DescribedType::Vec(me) => me.contains_generic(),
+            DescribedType::Option(me) | DescribedType::Vec(me) | DescribedType::Secret(me) => {
+                me.contains_generic()
+            }
             DescribedType::Generic(_) => true,
             _ => false,
         }
@@ -64,7 +67,9 @@ impl DescribedType {
             | DescribedType::Byte
             | DescribedType::Char
             | DescribedType::String => true,
-            DescribedType::Option(d) | DescribedType::Vec(d) => d.contains_core(),
+            DescribedType::Option(d) | DescribedType::Vec(d) | DescribedType::Secret(d) => {
+                d.contains_core()
+            }
             DescribedType::Data(_) => false,
             DescribedType::Generic(_) => false,
         }
@@ -89,7 +94,9 @@ impl DescribedType {
             | DescribedType::Byte
             | DescribedType::Char
             | DescribedType::String => false,
-            DescribedType::Option(d) | DescribedType::Vec(d) => d.contains_data(),
+            DescribedType::Option(d) | DescribedType::Vec(d) | DescribedType::Secret(d) => {
+                d.contains_data()
+            }
             DescribedType::Data(_) => true,
             DescribedType::Generic(_) => false,
         }
@@ -97,14 +104,18 @@ impl DescribedType {
 
     pub fn final_type(&self) -> &DescribedType {
         match self {
-            DescribedType::Vec(inner) | DescribedType::Option(inner) => inner,
+            DescribedType::Vec(inner)
+            | DescribedType::Option(inner)
+            | DescribedType::Secret(inner) => inner,
             other => other,
         }
     }
 
     pub fn final_type_mut(&mut self) -> &mut DescribedType {
         match self {
-            DescribedType::Vec(inner) | DescribedType::Option(inner) => inner,
+            DescribedType::Vec(inner)
+            | DescribedType::Option(inner)
+            | DescribedType::Secret(inner) => inner,
             other => other,
         }
     }
@@ -174,6 +185,9 @@ impl DescribedType {
             DescribedType::Vec(me) => me
                 .to_datatype(generics)
                 .map(|dt| DataType::Vec(Box::new(dt))),
+            DescribedType::Secret(me) => me
+                .to_datatype(generics)
+                .map(|dt| DataType::Secret(Box::new(dt))),
             DescribedType::Generic(generic) => generics
                 .get(&generic.name)
                 .and_then(|me| me.to_datatype(&HashMap::new())),
@@ -240,6 +254,9 @@ impl From<&DataType> for DescribedType {
             DataType::Option(inner) => {
                 DescribedType::Option(Box::new(DescribedType::from(&**inner)))
             }
+            DataType::Secret(inner) => {
+                DescribedType::Secret(Box::new(DescribedType::from(&**inner)))
+            }
             DataType::Data(obj) => DescribedType::Data(Box::new(Arc::clone(obj))),
         }
     }
@@ -271,6 +288,7 @@ impl From<DataType> for DescribedType {
             DataType::String => DescribedType::String,
             DataType::Vec(inner) => DescribedType::Vec(Box::new(DescribedType::from(*inner))),
             DataType::Option(inner) => DescribedType::Option(Box::new(DescribedType::from(*inner))),
+            DataType::Secret(inner) => DescribedType::Secret(Box::new(DescribedType::from(*inner))),
             DataType::Data(obj) => DescribedType::Data(Box::new(obj)),
         }
     }
@@ -298,6 +316,7 @@ impl Display for DescribedType {
             DescribedType::String => write!(f, "string"),
             DescribedType::Vec(inner) => write!(f, "Vec<{inner}>"),
             DescribedType::Option(inner) => write!(f, "Option<{inner}>"),
+            DescribedType::Secret(inner) => write!(f, "Secret<{inner}>"),
             DescribedType::Data(obj) => write!(f, "{}", obj.identifier().name()),
             DescribedType::Generic(gen) => write!(f, "{}", gen),
         }

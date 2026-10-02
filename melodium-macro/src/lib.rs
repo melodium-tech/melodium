@@ -16,6 +16,11 @@ use syn::{
     PathArguments, ReturnType, Type,
 };
 
+/// `Secret<T>` is described like any other type, but Rust elements only receive
+/// and send secrets through inputs and outputs for now.
+const SECRET_VALUES_UNSUPPORTED: &str =
+    "Secret is only supported for inputs and outputs of Rust elements";
+
 fn into_mel_type(ty: &Type) -> Vec<String> {
     match ty {
         Type::Path(path) => {
@@ -25,7 +30,7 @@ fn into_mel_type(ty: &Type) -> Vec<String> {
             let mut desc = Vec::new();
             desc.push(text_ty.clone());
             match text_ty.as_str() {
-                "Vec" | "Option" => {
+                "Vec" | "Option" | "Secret" => {
                     if let PathArguments::AngleBracketed(ab) = &ty.arguments {
                         if let GenericArgument::Type(ty) = ab.args.first().expect("Type expected") {
                             desc.append(&mut into_mel_type(ty));
@@ -57,7 +62,7 @@ fn into_mel_datatype(ty: &Vec<String>) -> String {
                     desc.push_str("melodium_core::common::descriptor::DataType::");
                     desc.push_str(&ty.to_case(Case::UpperCamel));
                 }
-                "Vec" | "Option" => {
+                "Vec" | "Option" | "Secret" => {
                     desc.push_str("melodium_core::common::descriptor::DataType::");
                     desc.push_str(ty.as_str());
                     desc.push_str("(Box::new(");
@@ -89,7 +94,7 @@ fn into_mel_described_type(ty: &Vec<String>, generics: &Vec<String>) -> String {
                     desc.push_str("melodium_core::common::descriptor::DescribedType::");
                     desc.push_str(&ty.to_case(Case::UpperCamel));
                 }
-                "Vec" | "Option" => {
+                "Vec" | "Option" | "Secret" => {
                     desc.push_str("melodium_core::common::descriptor::DescribedType::");
                     desc.push_str(ty.as_str());
                     desc.push_str("(Box::new(");
@@ -122,6 +127,7 @@ fn into_rust_type(ty: &Vec<String>, as_dyn_if_data: bool) -> String {
         let mut desc = String::new();
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+                "Secret" => panic!("{}", SECRET_VALUES_UNSUPPORTED),
                 "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
                 | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "Vec"
                 | "Option" => {
@@ -157,6 +163,7 @@ fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
         let mut desc = String::new();
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+                "Secret" => panic!("{}", SECRET_VALUES_UNSUPPORTED),
                 "Vec" => {
                     desc.push_str("melodium_core::common::executive::Value::Vec(vec![");
                     let next = add_value(iter, lit);
@@ -298,6 +305,7 @@ fn into_rust_type_resolving_generics(ty: &[String], generics: &Vec<&str>) -> Str
         let mut desc = String::new();
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+                "Secret" => panic!("{}", SECRET_VALUES_UNSUPPORTED),
                 "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
                 | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "Vec"
                 | "Option" => {
@@ -331,6 +339,7 @@ fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) ->
         let conv;
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+                "Secret" => panic!("{}", SECRET_VALUES_UNSUPPORTED),
                 "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
                 | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
                     conv = format!(
@@ -381,6 +390,7 @@ fn convert_to_rust_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) -
         let conv;
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+            "Secret" => panic!("{}", SECRET_VALUES_UNSUPPORTED),
             "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
                 | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
                     conv = format!(
@@ -682,7 +692,7 @@ fn config_ty(mut ts: &mut IntoIterTokenStream) -> Vec<String> {
         let ty = ty.to_string();
         list.push(ty.clone());
         match ty.as_str() {
-            "Vec" | "Option" => {
+            "Vec" | "Option" | "Secret" => {
                 ts.next(); // <
                 list.append(&mut config_ty(&mut ts));
                 ts.next(); // >

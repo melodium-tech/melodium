@@ -13,8 +13,9 @@ use async_std::io::{Read, Write};
 #[cfg(feature = "real")]
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
-use common::descriptor::{Entry, Treatment};
+use common::descriptor::{DataType, Entry, Treatment};
 use common::descriptor::{Identifier, Version};
+use common::executive::{Level, TrackId};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
@@ -217,6 +218,22 @@ impl DistributionEngine {
         params: HashMap<String, Value>,
     ) -> Result<(), String> {
         let model = self.model.upgrade().unwrap();
+
+        // Secrets cannot be sent to a distant engine yet, this is refused rather than
+        // sending them without their value.
+        if let Some(name) = params
+            .iter()
+            .find_map(|(name, value)| value.contains_secret().then_some(name))
+        {
+            let message = format!(
+                "Cannot distribute, parameter '{name}' contains a secret, and secrets cannot be sent to distant engines"
+            );
+            model
+                .world()
+                .log(Level::Error, "distrib".to_string(), message.clone(), None)
+                .await;
+            return Err(message);
+        }
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
             Ok(id) => match Version::from_str(&model.get_version()) {
@@ -1106,6 +1123,11 @@ pub async fn send_stream(name: string) {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
+        if refuse_secret(&model, &S, &name, track_id).await {
+            distributor.close_input(&distribution_id, &name).await;
+            return;
+        }
+
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             // Converts the already-packed local batch directly into the wire batch
@@ -1151,6 +1173,11 @@ pub async fn send_block(name: string) {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
+        if refuse_secret(&model, &S, &name, track_id).await {
+            distributor.close_input(&distribution_id, &name).await;
+            return;
+        }
+
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             if let Ok(data) = data.recv_one().await {
@@ -1171,6 +1198,33 @@ pub async fn send_block(name: string) {
                 distributor.close_input(&distribution_id, &name).await;
             }
         }
+    }
+}
+
+/// Logs an error and tells to refuse sending if `datatype` contains a secret.
+///
+/// Secrets cannot be sent to a distant engine yet, this is refused rather than
+/// sending them without their value.
+#[cfg(feature = "real")]
+async fn refuse_secret(
+    model: &DistributionEngineModel,
+    datatype: &DataType,
+    name: &str,
+    track_id: TrackId,
+) -> bool {
+    if datatype.contains_secret() {
+        model
+            .world()
+            .log(
+                Level::Error,
+                "distrib".to_string(),
+                format!("Cannot send '{name}', type {datatype} contains a secret, and secrets cannot be sent to distant engines"),
+                Some(track_id),
+            )
+            .await;
+        true
+    } else {
+        false
     }
 }
 
