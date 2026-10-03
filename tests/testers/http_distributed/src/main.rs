@@ -14,10 +14,8 @@ fn main() {
         .arg("--localhost")
         .arg("--port")
         .arg("28014")
-        .arg("--recv-key")
-        .arg("d0bf1006-a851-50eb-b32b-5f443d642ce6")
-        .arg("--send-key")
-        .arg("9a1bed00-1051-565e-b418-f3b32462620d")
+        .env("MELODIUM_DIST_RECV_KEY", "d0bf1006-a851-50eb-b32b-5f443d642ce6")
+        .env("MELODIUM_DIST_SEND_KEY", "9a1bed00-1051-565e-b418-f3b32462620d")
         .spawn()
         .expect("failed to launch Mélodium executable");
     let mut melodium = Command::new("melodium")

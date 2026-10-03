@@ -372,9 +372,10 @@ Built with `melodium jeu build <project_dir> <output.jeu>`. Already bzip2-compre
 - `--packages <pkg>` — document specific packages by name (repeatable).
 - `--file <file>` — document a single `.mel` or `.jeu` package file.
 
-`melodium dist --port <port> --recv-key <uuid> --send-key <uuid> [--ip <ip>] [--localhost] [--disable-tls] [--certificate <pem>] [--key <pem>] [--wait <secs>] [--duration <secs>] [--logs <path>] [--debug <path>] [--api-report ...]`
-- `--localhost` — listen on localhost using the embedded certificate (when `--ip` isn't set).
-- `--disable-tls` — run without TLS.
+`melodium dist --port <port> [--recv-key-file <path>] [--send-key-file <path>] [--ip <ip>] [--localhost] [--disable-tls [--allow-plain-tcp]] [--certificate <pem>] [--key <pem>] [--wait <secs>] [--duration <secs>] [--logs <path>] [--debug <path>] [--api-report ...]`
+- Keys (UUIDs) are read from `--recv-key-file`/`--send-key-file`, or else from the `MELODIUM_DIST_RECV_KEY`/`MELODIUM_DIST_SEND_KEY` environment variables. `--recv-key`/`--send-key` still take them as arguments, with a warning, as other local users can read process arguments.
+- `--localhost`: listen on localhost using the embedded certificate (when `--ip` isn't set). That certificate is the same in every binary, so it only protects against other machines.
+- `--disable-tls`: run without TLS, sending everything readable. Refused on addresses other than loopback ones unless `--allow-plain-tcp` is given.
 - `--wait <secs>` — how long to wait for a distant engine to connect.
 - `--duration <secs>` — maximum duration allowed for the work.
 - `--api-report` and its `--api-report-disable-*` variants behave as in `run`.
