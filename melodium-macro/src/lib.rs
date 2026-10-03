@@ -221,19 +221,15 @@ fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
                     }
                     desc.push_str("])");
                 }
+                // `none` is the only literal of an absent option.
+                "Option" if lit == "none" => {
+                    desc.push_str("melodium_core::common::executive::Value::Option(None)");
+                }
                 "Option" => {
                     let next = add_value(iter, lit);
-                    if !next.is_empty() {
-                        desc.push_str(
-                            "melodium_core::common::executive::Value::Option(Some(Box::new(",
-                        );
-                        desc.push_str(&next);
-                        desc.push_str(")))");
-                    } else {
-                        desc.push_str(
-                            "melodium_core::common::executive::Value::Option(Box::new(None))",
-                        );
-                    }
+                    desc.push_str("melodium_core::common::executive::Value::Option(Some(Box::new(");
+                    desc.push_str(&next);
+                    desc.push_str(")))");
                 }
                 mel_ty => {
                     desc.push_str("melodium_core::common::executive::Value::");
@@ -526,12 +522,17 @@ fn config_param(
     }
 
     if let Some(TokenTree::Ident(name)) = next {
-        (
-            name.to_string(),
-            config_ty(ts),
-            config_optional_value(ts),
-            attributes,
-        )
+        let ty = config_ty(ts);
+        let default = config_optional_value(ts);
+        // For an `Option<T>`, `none` gives a default of none rather than no default,
+        // since there is no other value it could stand for.
+        let default = match default {
+            None if ty.first().map(|ty| ty == "Option").unwrap_or(false) => {
+                Some("none".to_string())
+            }
+            default => default,
+        };
+        (name.to_string(), ty, default, attributes)
     } else {
         panic!(
             "Name identity expected, found: {}",
