@@ -220,6 +220,21 @@ impl Client {
 
     async fn reveal(&self, secret: Secret) -> Result<String, String> {
         let model = self.model()?;
+        // Reading it would need the login it is used for.
+        let own_locators = format!("{}:", model.get_source());
+        if std::iter::once(secret.clone())
+            .chain(secret.derived_from())
+            .any(|secret| {
+                secret
+                    .locator()
+                    .map(|locator| locator.starts_with(&own_locators))
+                    .unwrap_or(false)
+            })
+        {
+            return Err(format!(
+                "secret {secret} cannot come from the vault it authenticates to"
+            ));
+        }
         secret
             .reveal_str(&model.secret_access(), |value| value.to_string())
             .await

@@ -298,6 +298,28 @@ fn vault_secrets_are_read_with_a_token() {
 }
 
 #[test]
+fn credentials_cannot_come_from_the_same_vault() {
+    let (address, requests) = vault_server(false);
+    let (logs, _) = run(
+        &address,
+        "auth = \"jwt\", role = \"app\", jwt = \"vault:kv/data/app/db#password\"",
+    );
+
+    let error = logs
+        .iter()
+        .find(|log| log.label == "password-error")
+        .unwrap_or_else(|| panic!("no password error in {:?}", logs));
+    assert!(
+        error
+            .message
+            .contains("cannot come from the vault it authenticates to"),
+        "{}",
+        error.message
+    );
+    assert!(requests.lock().unwrap().is_empty());
+}
+
+#[test]
 fn refused_tokens_are_renewed_once() {
     let (address, requests) = vault_server(true);
     let (_, events) = run(&address, "auth = \"jwt\", role = \"app\", cache_ttl = 0");
