@@ -17,12 +17,15 @@ name = "melodium_engine"
 
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.10.4" }
+aho-corasick = "1.1"
 async-std = { version = "1.13", features = ["unstable"] }
 async-trait = "0.1.71"
+base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["now"] }
 downcast-rs = "1.2.0"
 futures = "0.3.28"
 lazy_static = "1.4"
+percent-encoding = "2.3"
 serde = { version = "1", features = ["derive"] }
 stacker = "0.1"
 uuid = { version = "1.7", features = ["v4", "fast-rng"] }

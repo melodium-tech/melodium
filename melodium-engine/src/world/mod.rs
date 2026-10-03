@@ -1,3 +1,4 @@
+mod masking;
 mod secret_sources;
 mod source_entry;
 mod track;

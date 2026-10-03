@@ -7,7 +7,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use core::fmt::Debug;
-use std::{collections::HashMap, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 pub type TrackId = usize;
@@ -51,4 +51,9 @@ pub trait World: Debug + Send + Sync {
     /// Records an access to a secret, as a debug event, and also in the log
     /// for denials and resolution failures.
     async fn secret_audit(&self, audit: SecretAudit);
+    /// Registers a value revealed from the secret named `secret_name`,
+    /// masked from then on in log messages and remote debug text.
+    fn add_masked_value(&self, secret_name: &str, value: &Value);
+    /// Gives `text` with every registered revealed value masked.
+    fn mask<'a>(&self, text: &'a str) -> Cow<'a, str>;
 }

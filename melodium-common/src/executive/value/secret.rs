@@ -380,7 +380,7 @@ impl Secret {
         match &*self.0.origin {
             SecretOrigin::Inline(_) => Ok(()),
             _ => self
-                .resolve(&**world)
+                .resolve(&**world, false)
                 .await
                 .map(|_| ())
                 .map_err(SecretError::ResolveFailed),
@@ -420,14 +420,16 @@ impl Secret {
         }
 
         if let SecretOrigin::Inline(value) = &*self.0.origin {
+            world.add_masked_value(&self.0.name, value);
             world
                 .secret_audit(audit(SecretAuditOutcome::Revealed))
                 .await;
             return Ok(f(value));
         }
 
-        match self.resolve(&*world).await {
+        match self.resolve(&*world, true).await {
             Ok(value) => {
+                world.add_masked_value(&self.0.name, &value);
                 // The value of a derived secret exposes the values it is computed from.
                 for input in self.derived_from() {
                     world
@@ -448,9 +450,14 @@ impl Secret {
         }
     }
 
+    /// Resolves the value of the secret.
+    ///
+    /// When `revealing`, the values of the secrets it is derived from are registered
+    /// on the world for masking, the caller having to register the resolved value.
     fn resolve<'a>(
         &'a self,
         world: &'a dyn World,
+        revealing: bool,
     ) -> Pin<Box<dyn Future<Output = core::result::Result<Value, String>> + Send + 'a>> {
         Box::pin(async move {
             let value = match &*self.0.origin {
@@ -466,12 +473,14 @@ impl Secret {
                 SecretOrigin::Derived { inputs, derivation } => {
                     let mut values = Vec::with_capacity(inputs.len());
                     for input in inputs {
-                        values.push(
-                            input
-                                .resolve(world)
-                                .await
-                                .map_err(|error| format!("{input}: {error}"))?,
-                        );
+                        let value = input
+                            .resolve(world, revealing)
+                            .await
+                            .map_err(|error| format!("{input}: {error}"))?;
+                        if revealing {
+                            world.add_masked_value(input.name(), &value);
+                        }
+                        values.push(value);
                     }
                     derivation.derive(&values)?
                 }

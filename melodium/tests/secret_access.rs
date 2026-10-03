@@ -1,12 +1,14 @@
 //! Secrets given as parameters are resolved when revealed, every reveal is recorded
 //! as a debug event with the identity of the revealing element, refused and failed
 //! ones are also logged, and failures surface as errors of the revealing element.
+//! Revealed values are masked in logs, so they are checked through the data
+//! sent by `reveal`, captured in detailed debug events.
 
 use async_std::channel::unbounded;
 use melodium::{load_raw, LoadingConfig};
 use melodium_common::descriptor::DataType;
 use melodium_common::executive::{Level, Log, Secret, Value};
-use melodium_engine::debug::{DebugLevel, Event, EventKind};
+use melodium_engine::debug::{DataContent, DebugLevel, Event, EventKind};
 use std::{collections::HashMap, path::PathBuf, process::Command, sync::Arc};
 
 const SCRIPT: &str = r#"#!/usr/bin/env melodium
@@ -68,7 +70,7 @@ fn run(params: HashMap<String, Value>) -> (Vec<Log>, Vec<Event>) {
     .expect("script loads");
     let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
 
-    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Basic);
+    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Detailed);
     let (logs_sender, logs_receiver) = unbounded();
     let (debug_sender, debug_receiver) = unbounded();
     engine.add_logs_listener(logs_sender);
@@ -89,6 +91,22 @@ fn run(params: HashMap<String, Value>) -> (Vec<Log>, Vec<Event>) {
         events.push(event);
     }
     (logs, events)
+}
+
+/// Values sent by the `value` output of the instance labelled `label`.
+fn revealed(events: &[Event], label: &str) -> Vec<Value> {
+    events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            EventKind::DataSent {
+                output,
+                data: DataContent::Values { values },
+                ..
+            } if output.label == label && output.name == "value" => Some(values.clone()),
+            _ => None,
+        })
+        .flatten()
+        .collect()
 }
 
 fn log<'a>(logs: &'a [Log], label: &str) -> Option<&'a Log> {
@@ -139,8 +157,13 @@ fn reveals_are_recorded_with_accessor_identity() {
 
     // The trailing newline of the file is removed.
     assert_eq!(
-        log(&logs, "token").expect("token revealed").message,
-        "token-sentinel"
+        revealed(&events, "revealToken"),
+        vec![Value::String("token-sentinel".to_string())]
+    );
+    // Once revealed, the value is masked in logs.
+    assert_eq!(
+        log(&logs, "token").expect("token logged").message,
+        "<secret \"token\">"
     );
     assert!(events.iter().any(|event| matches!(
         &event.kind,
@@ -179,13 +202,13 @@ fn missing_sources_are_errors_of_the_revealing_element() {
 #[test]
 fn environment_secrets_are_resolved_when_revealed() {
     std::env::set_var("SECRET_ACCESS_TEST_TOKEN", "environment-sentinel");
-    let (logs, _) = run(HashMap::from([(
+    let (_, events) = run(HashMap::from([(
         "token".to_string(),
         Value::String("env:SECRET_ACCESS_TEST_TOKEN".to_string()),
     )]));
     assert_eq!(
-        log(&logs, "token").expect("token revealed").message,
-        "environment-sentinel"
+        revealed(&events, "revealToken"),
+        vec![Value::String("environment-sentinel".to_string())]
     );
 }
 
@@ -210,7 +233,8 @@ fn secret_parameters_take_locators_on_the_command_line() {
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(output.status.success(), "{}", stdout);
-    assert!(stdout.contains("token-sentinel"), "{}", stdout);
+    assert!(stdout.contains("token: <secret \"token\">"), "{}", stdout);
+    assert!(!stdout.contains("token-sentinel"), "{}", stdout);
     assert!(!stdout.contains("password-sentinel"), "{}", stdout);
     assert!(stdout.contains(&format!("secret \"file:{}\" denied", password.display())));
 
@@ -309,9 +333,11 @@ fn std_secret_conceals_names_and_narrows() {
     .expect("script loads");
     let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
 
-    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::None);
+    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Detailed);
     let (logs_sender, logs_receiver) = unbounded();
+    let (debug_sender, debug_receiver) = unbounded();
     engine.add_logs_listener(logs_sender);
+    engine.add_debug_listener(debug_sender);
     assert!(engine.genesis(&entrypoint, HashMap::new()).is_success());
     async_std::task::block_on(async {
         engine.live().await;
@@ -321,10 +347,18 @@ fn std_secret_conceals_names_and_narrows() {
     while let Ok(log) = logs_receiver.try_recv() {
         logs.push(log);
     }
+    let mut events = Vec::new();
+    while let Ok(event) = debug_receiver.try_recv() {
+        events.push(event);
+    }
 
     assert_eq!(
-        log(&logs, "concealed").expect("revealed").message,
-        "concealed-sentinel"
+        revealed(&events, "revealValue"),
+        vec![Value::String("concealed-sentinel".to_string())]
+    );
+    assert_eq!(
+        log(&logs, "concealed").expect("logged").message,
+        "<secret \"runtime\">"
     );
     assert!(log(&logs, "conceal-error")
         .expect("conceal error")

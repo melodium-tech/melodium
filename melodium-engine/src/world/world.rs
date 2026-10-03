@@ -1,3 +1,4 @@
+use super::masking::Masking;
 use super::secret_sources::{EnvironmentSource, FileSource};
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 use crate::building::HostTreatment;
@@ -31,6 +32,7 @@ use melodium_common::executive::{
     SecretAudit, SecretAuditOutcome, SecretSource, TrackCreationCallback, TrackFuture, TrackId,
     Value, World as ExecutiveWorld,
 };
+use std::borrow::Cow;
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -45,6 +47,7 @@ pub struct World {
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
     secret_sources: RwLock<HashMap<String, Arc<dyn SecretSource>>>,
+    masking: Masking,
 
     builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
@@ -130,6 +133,7 @@ impl World {
                     Arc::new(FileSource) as Arc<dyn SecretSource>,
                 ),
             ])),
+            masking: Masking::new(),
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main: RwLock::new(None),
@@ -669,6 +673,9 @@ impl Engine for World {
         // callers that treat `live()` returning as "everything has been delivered"
         // (e.g. reporting listeners, or an "ended" signal sent right after) are correct.
         join!(logs_transmission, debug_transmission);
+
+        // Nothing can be logged anymore, revealed values are not needed for masking.
+        me.masking.clear();
     }
 
     async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()> {
@@ -942,8 +949,8 @@ impl ExecutiveWorld for World {
     ) {
         let log = Log {
             level,
-            label,
-            message,
+            label: self.masking.mask(&label).into_owned(),
+            message: self.masking.mask(&message).into_owned(),
             track_id,
             timestamp: Utc::now(),
             run_id: Some(*crate::execution_run_id()),
@@ -952,13 +959,16 @@ impl ExecutiveWorld for World {
         let _ = self.logs_sender.send(log).await;
     }
 
-    async fn inject_log(&self, log: Log) -> Result<(), ()> {
+    async fn inject_log(&self, mut log: Log) -> Result<(), ()> {
+        log.label = self.masking.mask(&log.label).into_owned();
+        log.message = self.masking.mask(&log.message).into_owned();
         self.logs_sender.send(log).await.map_err(|_| ())
     }
 
     async fn inject_debug(&self, run_id: Uuid, data: String) -> Result<(), ()> {
+        let text = self.masking.mask(&data).into_owned();
         self.debug_sender
-            .send(Event::new(EventKind::Distant { run_id, text: data }))
+            .send(Event::new(EventKind::Distant { run_id, text }))
             .await
             .map_err(|_| ())
     }
@@ -985,6 +995,14 @@ impl ExecutiveWorld for World {
                 Ok(())
             }
         }
+    }
+
+    fn add_masked_value(&self, secret_name: &str, value: &Value) {
+        self.masking.add(secret_name, value);
+    }
+
+    fn mask<'a>(&self, text: &'a str) -> Cow<'a, str> {
+        self.masking.mask(text)
     }
 
     async fn secret_audit(&self, audit: SecretAudit) {
@@ -1032,5 +1050,67 @@ impl ExecutiveWorld for World {
             },
         };
         let _ = self.debug_sender.send(Event::new(kind)).await;
+    }
+}
+
+#[cfg(test)]
+mod masking_tests {
+    use super::*;
+
+    #[test]
+    fn remote_logs_and_debug_texts_are_masked() {
+        let world = World::new(
+            Arc::new(Collection::new()),
+            LogLevel::Info,
+            DebugLevel::Basic,
+        );
+        ExecutiveWorld::add_masked_value(
+            &*world,
+            "token",
+            &Value::String("remote-sentinel-token".to_string()),
+        );
+
+        block_on(async {
+            ExecutiveWorld::log(
+                &*world,
+                LogLevel::Error,
+                "local".to_string(),
+                "refused remote-sentinel-token".to_string(),
+                None,
+            )
+            .await;
+            ExecutiveWorld::inject_log(
+                &*world,
+                Log {
+                    level: LogLevel::Error,
+                    label: "remote".to_string(),
+                    message: "refused remote-sentinel-token".to_string(),
+                    track_id: None,
+                    timestamp: Utc::now(),
+                    run_id: None,
+                    group_id: None,
+                },
+            )
+            .await
+            .unwrap();
+            ExecutiveWorld::inject_debug(
+                &*world,
+                Uuid::new_v4(),
+                "{\"text\": \"remote-sentinel-token\"}".to_string(),
+            )
+            .await
+            .unwrap();
+        });
+
+        for _ in 0..2 {
+            let log = world.logs_receiver.try_recv().unwrap();
+            assert_eq!(log.message, "refused <secret \"token\">");
+        }
+        match world.debug_receiver.try_recv().unwrap().kind {
+            EventKind::Distant { text, .. } => {
+                assert_eq!(text, "{\"text\": \"<secret \"token\">\"}")
+            }
+            other => panic!("distant event expected, got {:?}", other),
+        }
     }
 }

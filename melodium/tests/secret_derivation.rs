@@ -1,10 +1,12 @@
 //! Secrets derived from other secrets are built without revealing anything,
 //! computed when revealed, and get the most restrictive policy of their inputs.
+//! Revealed values are masked in logs, so they are checked through the data
+//! sent by `reveal`, captured in detailed debug events.
 
 use async_std::channel::unbounded;
 use melodium::{load_raw, LoadingConfig};
 use melodium_common::executive::{Level, Log, Value};
-use melodium_engine::debug::{DebugLevel, Event, EventKind};
+use melodium_engine::debug::{DataContent, DebugLevel, Event, EventKind};
 use std::{collections::HashMap, sync::Arc};
 
 const SCRIPT: &str = r#"#!/usr/bin/env melodium
@@ -92,7 +94,7 @@ fn run() -> (Vec<Log>, Vec<Event>) {
     .expect("script loads");
     let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
 
-    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Basic);
+    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Detailed);
     let (logs_sender, logs_receiver) = unbounded();
     let (debug_sender, debug_receiver) = unbounded();
     engine.add_logs_listener(logs_sender);
@@ -135,15 +137,50 @@ fn message<'a>(logs: &'a [Log], label: &str) -> &'a str {
 fn derived_secrets_are_computed_when_revealed() {
     let (logs, events) = run();
 
-    assert_eq!(message(&logs, "bearer"), format!("Bearer {TOKEN}"));
-    assert_eq!(
-        message(&logs, "repository"),
-        "https://gitlab-ci-token:to%3Ak%2Fen%401@gitlab.com/group/project.git"
-    );
-    // base64 of "ci:to:k/en@1"
-    assert_eq!(message(&logs, "basic"), "Y2k6dG86ay9lbkAx");
-    // base64 of "to:k/en@1"
-    assert_eq!(message(&logs, "bytes"), "dG86ay9lbkAx");
+    let revealed: Vec<Value> = events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            EventKind::DataSent {
+                output,
+                data: DataContent::Values { values },
+                ..
+            } if output.label == "revealSecret" && output.name == "value" => Some(values.clone()),
+            _ => None,
+        })
+        .flatten()
+        .collect();
+    let expected = [
+        format!("Bearer {TOKEN}"),
+        "https://gitlab-ci-token:to%3Ak%2Fen%401@gitlab.com/group/project.git".to_string(),
+        // base64 of "ci:to:k/en@1"
+        "Y2k6dG86ay9lbkAx".to_string(),
+        // base64 of "to:k/en@1"
+        "dG86ay9lbkAx".to_string(),
+    ];
+    for value in &expected {
+        assert!(
+            revealed.contains(&Value::String(value.clone())),
+            "{} not in {:?}",
+            value,
+            revealed
+        );
+    }
+
+    // Revealed values, and the values they come from, are masked in logs.
+    for label in ["bearer", "repository", "basic", "bytes"] {
+        let logged = message(&logs, label);
+        assert!(
+            logged.starts_with("<secret \"") && logged.ends_with("\">"),
+            "{}",
+            logged
+        );
+    }
+    for log in &logs {
+        assert!(!log.message.contains(TOKEN), "{}", log.message);
+        for value in &expected {
+            assert!(!log.message.contains(value.as_str()), "{}", log.message);
+        }
+    }
 
     // Building derived secrets reveals nothing: every reveal comes from `reveal`,
     // and revealing a derived secret also records the secrets it comes from.
