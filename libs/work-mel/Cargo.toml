@@ -33,6 +33,7 @@ process-mel = { path = "../process-mel", version = "0.10.4" }
 regex = { version = "1.9.1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+zeroize = "1.9"
 serde_yaml = "0.9"
 uuid = { version = "1.5.0", features = ["serde", "v4", "fast-rng"] }
 compose_spec = "0.3.0"

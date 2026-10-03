@@ -3,6 +3,7 @@ use crate::api;
 use crate::resources::arch::*;
 use crate::resources::*;
 use core::time::Duration;
+use melodium_core::common::{descriptor::DataType, executive::Secret as ExecutiveSecret};
 use melodium_core::*;
 use melodium_macro::{mel_function, mel_model, mel_treatment};
 use std::{
@@ -10,6 +11,7 @@ use std::{
     sync::{Arc, RwLock, Weak},
 };
 use uuid::Uuid;
+use zeroize::Zeroizing;
 
 #[derive(Debug)]
 /// Model for requesting and connecting to a distant Mélodium worker.
@@ -20,20 +22,20 @@ use uuid::Uuid;
 ///
 /// - `location`: where to submit the request: `"api"` (default) for Mélodium Services, or `"compose"` for a local Docker/Podman Compose deployment.
 /// - `api_url`: base URL of the Mélodium Services API; defaults to the built-in endpoint.
-/// - `api_token`: authentication token for the API; can also be set via the `MELODIUM_API_TOKEN` environment variable.
+/// - `api_token`: authentication token for the API (such as `"env:MELODIUM_API_TOKEN"`); defaults to the `MELODIUM_API_TOKEN` environment variable when it is set.
 ///
 /// Use the `distant` treatment to trigger a worker request.
 #[mel_model(
     param location string "api"
     param api_url Option<string> none
-    param api_token Option<string> none
+    param api_token Option<Secret<string>> none
     initialize initialize
 )]
 pub struct DistantEngine {
     model: Weak<DistantEngineModel>,
     location: RwLock<Option<String>>,
     api_url: RwLock<Option<String>>,
-    api_token: RwLock<Option<String>>,
+    api_token: RwLock<Option<ExecutiveSecret>>,
 }
 
 impl DistantEngine {
@@ -53,7 +55,11 @@ impl DistantEngine {
         let api_url = model
             .get_api_url()
             .or_else(|| Some(crate::API_URL.to_string()));
-        let api_token = model.get_api_token().or_else(|| crate::API_TOKEN.clone());
+        let api_token = model.get_api_token().or_else(|| {
+            std::env::var_os("MELODIUM_API_TOKEN").and_then(|_| {
+                ExecutiveSecret::from_locator("env:MELODIUM_API_TOKEN", DataType::String).ok()
+            })
+        });
 
         self.location.write().unwrap().replace(location);
         if let Some(api_url) = api_url {
@@ -102,6 +108,28 @@ impl DistantEngine {
         Err("Mock mode, nothing to do".to_string())
     }
 
+    /// Reveals the API token as an `Authorization` header value.
+    #[cfg(feature = "real")]
+    async fn authorization(&self) -> Result<Option<Zeroizing<String>>, String> {
+        let api_token = self.api_token.read().unwrap().clone();
+        match api_token {
+            Some(api_token) => api_token
+                .reveal_str(
+                    &self.model.upgrade().unwrap().secret_access(),
+                    |api_token| {
+                        let mut value = String::with_capacity(7 + api_token.len());
+                        value.push_str("Bearer ");
+                        value.push_str(api_token);
+                        Zeroizing::new(value)
+                    },
+                )
+                .await
+                .map(Some)
+                .map_err(|error| format!("API token: {error}")),
+            None => Ok(None),
+        }
+    }
+
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     #[cfg(feature = "real")]
@@ -121,17 +149,15 @@ impl DistantEngine {
         let mut run_api_id = None;
         let mut api_errors = Vec::new();
 
-        let (api_url, api_token) = (
-            self.api_url.read().unwrap().clone(),
-            self.api_token.read().unwrap().clone(),
-        );
+        let api_url = self.api_url.read().unwrap().clone();
+        let api_token = self.authorization().await?;
         if let (Some(api_url), Some(api_token)) = (&api_url, &api_token) {
             match generic_async_http_client::Request::post(&format!(
                 "{api_url}/execution/run/start"
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
-            .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+            .add_header("Authorization", api_token.as_bytes())
             .map_err(|err| err.to_string())?
             .add_header("Content-Type", "application/json")
             .map_err(|err| err.to_string())?
@@ -180,7 +206,7 @@ impl DistantEngine {
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
-            .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+            .add_header("Authorization", api_token.as_bytes())
             .map_err(|err| err.to_string())?
             .add_header("Content-Type", "application/json")
             .map_err(|err| err.to_string())?
@@ -233,10 +259,7 @@ impl DistantEngine {
                                     "{api_url}/execution/run/ended"
                                 ))
                                 .add_header("User-Agent", crate::USER_AGENT)?
-                                .add_header(
-                                    "Authorization",
-                                    format!("Bearer {api_token}").as_bytes(),
-                                )?
+                                .add_header("Authorization", api_token.as_bytes())?
                                 .add_header("Content-Type", "application/json")?
                                 .body(
                                     serde_json::to_string(&api::LocalEnd {
@@ -275,10 +298,7 @@ impl DistantEngine {
                                     "{api_url}/execution/run/ended"
                                 ))
                                 .add_header("User-Agent", crate::USER_AGENT)?
-                                .add_header(
-                                    "Authorization",
-                                    format!("Bearer {api_token}").as_bytes(),
-                                )?
+                                .add_header("Authorization", api_token.as_bytes())?
                                 .add_header("Content-Type", "application/json")?
                                 .body(
                                     serde_json::to_string(&api::LocalEnd {
@@ -308,10 +328,7 @@ impl DistantEngine {
                                     "{api_url}/execution/run/ended"
                                 ))
                                 .add_header("User-Agent", crate::USER_AGENT)?
-                                .add_header(
-                                    "Authorization",
-                                    format!("Bearer {api_token}").as_bytes(),
-                                )?
+                                .add_header("Authorization", api_token.as_bytes())?
                                 .add_header("Content-Type", "application/json")?
                                 .body(
                                     serde_json::to_string(&api::LocalEnd {
@@ -370,17 +387,15 @@ impl DistantEngine {
         ),
         String,
     > {
-        let (api_url, api_token) = (
-            self.api_url.read().unwrap().clone(),
-            self.api_token.read().unwrap().clone(),
-        );
+        let api_url = self.api_url.read().unwrap().clone();
+        let api_token = self.authorization().await?;
         if let (Some(api_url), Some(api_token)) = (api_url, api_token) {
             match generic_async_http_client::Request::post(&format!(
                 "{api_url}/execution/run/start"
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
-            .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+            .add_header("Authorization", api_token.as_bytes())
             .map_err(|err| err.to_string())?
             .add_header("Content-Type", "application/json")
             .map_err(|err| err.to_string())?
@@ -401,10 +416,7 @@ impl DistantEngine {
                                         ))
                                         .add_header("User-Agent", crate::USER_AGENT)
                                         .map_err(|err| err.to_string())?
-                                        .add_header(
-                                            "Authorization",
-                                            format!("Bearer {api_token}").as_bytes(),
-                                        )
+                                        .add_header("Authorization", api_token.as_bytes())
                                         .map_err(|err| err.to_string())?
                                         .exec()
                                         .await
@@ -548,8 +560,34 @@ pub async fn distant(
     let model = DistantEngineModel::into(distant_engine);
     let distant = model.inner();
 
+    // Pull secrets are only revealed to be sent with the request.
+    let mut pull_secrets = Vec::new();
+    for secret in containers
+        .iter()
+        .map(|cont| &cont.1)
+        .chain(service_containers.iter().map(|cont| &cont.1))
+    {
+        pull_secrets.push(match secret {
+            Some(secret) => {
+                match secret
+                    .reveal_str(&secret_access, |value| Zeroizing::new(value.to_string()))
+                    .await
+                {
+                    Ok(value) => Some(value),
+                    Err(error) => {
+                        let _ = failed.send_one_as(()).await;
+                        let _ = errors.send_one_as(format!("pull secret: {error}")).await;
+                        return;
+                    }
+                }
+            }
+            None => None,
+        });
+    }
+    let mut pull_secrets = pull_secrets.into_iter();
+
     let key = Uuid::new_v4();
-    let start = api::Request {
+    let mut start = api::Request {
         edition: Some(edition.unwrap_or_else(|| "scratch".to_string())),
         max_duration: Some(max_duration),
         memory: Some(memory),
@@ -572,6 +610,16 @@ pub async fn distant(
         tags: tags,
         local_exec: false,
     };
+    for container in &mut start.containers {
+        if let Some(Some(pull_secret)) = pull_secrets.next() {
+            container.pull_secret = pull_secret.to_string();
+        }
+    }
+    for container in &mut start.service_containers {
+        if let Some(Some(pull_secret)) = pull_secrets.next() {
+            container.pull_secret = pull_secret.to_string();
+        }
+    }
 
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {

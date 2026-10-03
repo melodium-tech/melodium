@@ -11,6 +11,9 @@ use process/command::|command
 use process/command::|raw_commands
 use process/environment::Environment
 use process/environment::|environment
+use process/environment::|with_secret_variables
+use std/data/map::Map
+use std/data/map::|map as |secret_map
 use std/data/string_map::StringMap
 use std/data/string_map::|map
 use std/flow::one
@@ -34,7 +37,8 @@ use work/resources/arch::Arch
 /**
 Run a CI/CD step on the local machine.
 
-Executes `commands` sequentially on the local executor with the optional `variables` environment.
+Executes `commands` sequentially on the local executor with the optional `variables` environment,
+and `secret_variables` whose values are `Secret<string>` revealed only to run commands.
 Wraps `localStepTerminable` with a fixed terminate signal (no external cancellation).
 
 CI/CD service state reporting is controlled by `report`, `github`, and `gitlab` flags,
@@ -49,14 +53,15 @@ treatment localStep(
   name: string,
   commands: Vec<Command>,
   variables: Option<StringMap> = _,
+  secret_variables: Option<Map> = _,
   report: bool = true,
   github: bool = false,
   gitlab: bool = false,
-  github_token: string = "",
+  const github_token: Secret<string> = "env:GITHUB_TOKEN",
   github_project: string = "",
   github_sha: string = "",
   gitlab_root_url: string = "https://gitlab.com/api/v4",
-  gitlab_token: string = "",
+  const gitlab_token: Secret<string> = "env:GITLAB_TOKEN",
   gitlab_project_id: string = "",
   gitlab_sha: string = "",
   gitlab_ref: string = "",
@@ -77,6 +82,7 @@ treatment localStep(
         name=name,
         commands=commands,
         variables=variables,
+        secret_variables=secret_variables,
         report=report,
         github=github,
         gitlab=gitlab,
@@ -114,14 +120,15 @@ treatment localStepTerminable(
   name: string,
   commands: Vec<Command>,
   variables: Option<StringMap> = _,
+  secret_variables: Option<Map> = _,
   report: bool = true,
   github: bool = false,
   gitlab: bool = false,
-  github_token: string = "",
+  const github_token: Secret<string> = "env:GITHUB_TOKEN",
   github_project: string = "",
   github_sha: string = "",
   gitlab_root_url: string = "https://gitlab.com/api/v4",
-  gitlab_token: string = "",
+  const gitlab_token: Secret<string> = "env:GITLAB_TOKEN",
   gitlab_project_id: string = "",
   gitlab_sha: string = "",
   gitlab_ref: string = "",
@@ -142,7 +149,7 @@ treatment localStepTerminable(
     spawnCommands(label=name)
 
     emitExecutorName: emit<Option<string>>(value=_)
-    emitEnvironment: emit<Option<Environment>>(value=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)))
+    emitEnvironment: emit<Option<Environment>>(value=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))))
     emitCommands: emit<Vec<Command>>(value=commands)
     streamCommands: stream<Vec<Command>>()
     flattenCommands: flatten<Command>()
@@ -201,6 +208,10 @@ The runner configuration values are:
 
 The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `out_file` can be written.
 
+`commands` run with `variables` and `secret_variables` as environment variables, the values of `secret_variables`
+being `Secret<string>` revealed only to run them, never put in command arguments.
+The image is pulled with `pull_secret`, revealed only to request the container.
+
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
@@ -223,8 +234,9 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
     max_duration: u32 = 3600,
     service_containers: Vec<ServiceContainer> = [],
     image: string,
-    pull_secret: Option<string> = _,
+    pull_secret: Option<Secret<string>> = _,
     variables: Option<StringMap> = _,
+    secret_variables: Option<Map> = _,
     commands: Vec<Command>,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
@@ -232,11 +244,11 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
     report: bool = true,
     github: bool = false,
     gitlab: bool = false,
-    github_token: string = "",
+    const github_token: Secret<string> = "env:GITHUB_TOKEN",
     github_project: string = "",
     github_sha: string = "",
     gitlab_root_url: string = "https://gitlab.com/api/v4",
-    gitlab_token: string = "",
+    const gitlab_token: Secret<string> = "env:GITLAB_TOKEN",
     gitlab_project_id: string = "",
     gitlab_sha: string = "",
     gitlab_ref: string = "",
@@ -266,6 +278,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
         image=image,
         pull_secret=pull_secret,
         variables=variables,
+        secret_variables=secret_variables,
         commands=commands,
         out_storage=out_storage,
         out_file=out_file,
@@ -315,6 +328,10 @@ The runner configuration values are:
 
 The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `out_file` can be written.
 
+`commands` run with `variables` and `secret_variables` as environment variables, the values of `secret_variables`
+being `Secret<string>` revealed only to run them, never put in command arguments.
+The image is pulled with `pull_secret`, revealed only to request the container.
+
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
@@ -337,8 +354,9 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
     max_duration: u32 = 3600,
     service_containers: Vec<ServiceContainer> = [],
     image: string,
-    pull_secret: Option<string> = _,
+    pull_secret: Option<Secret<string>> = _,
     variables: Option<StringMap> = _,
+    secret_variables: Option<Map> = _,
     commands: Vec<Command>,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
@@ -346,11 +364,11 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
     report: bool = true,
     github: bool = false,
     gitlab: bool = false,
-    github_token: string = "",
+    const github_token: Secret<string> = "env:GITHUB_TOKEN",
     github_project: string = "",
     github_sha: string = "",
     gitlab_root_url: string = "https://gitlab.com/api/v4",
-    gitlab_token: string = "",
+    const gitlab_token: Secret<string> = "env:GITLAB_TOKEN",
     gitlab_project_id: string = "",
     gitlab_sha: string = "",
     gitlab_ref: string = "",
@@ -388,7 +406,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
         name=name,
         executor_name=|wrap<string>(name),
         commands=commands,
-        environment=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)),
+        environment=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))),
         out_file=out_file,
         out_filesystem="data"
     )
@@ -461,6 +479,10 @@ The runner configuration values are:
 
 The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `in_file` and `out_file` can be written (`in_file="some.txt"` meaning file `"/mnt/data/some.txt"`).
 
+`commands` run with `variables` and `secret_variables` as environment variables, the values of `secret_variables`
+being `Secret<string>` revealed only to run them, never put in command arguments.
+The image is pulled with `pull_secret`, revealed only to request the container.
+
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
@@ -483,8 +505,9 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
     max_duration: u32 = 3600,
     service_containers: Vec<ServiceContainer> = [],
     image: string,
-    pull_secret: Option<string> = _,
+    pull_secret: Option<Secret<string>> = _,
     variables: Option<StringMap> = _,
+    secret_variables: Option<Map> = _,
     commands: Vec<Command>,
     in_file: string,
     out_storage: Option<u32> = _,
@@ -493,11 +516,11 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
     report: bool = true,
     github: bool = false,
     gitlab: bool = false,
-    github_token: string = "",
+    const github_token: Secret<string> = "env:GITHUB_TOKEN",
     github_project: string = "",
     github_sha: string = "",
     gitlab_root_url: string = "https://gitlab.com/api/v4",
-    gitlab_token: string = "",
+    const gitlab_token: Secret<string> = "env:GITLAB_TOKEN",
     gitlab_project_id: string = "",
     gitlab_sha: string = "",
     gitlab_ref: string = "",
@@ -527,6 +550,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
         image=image,
         pull_secret=pull_secret,
         variables=variables,
+        secret_variables=secret_variables,
         commands=commands,
         in_file=in_file,
         out_storage=out_storage,
@@ -577,6 +601,10 @@ The runner configuration values are:
 
 The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `in_file` and `out_file` can be written (`in_file="some.txt"` meaning file `"/mnt/data/some.txt"`).
 
+`commands` run with `variables` and `secret_variables` as environment variables, the values of `secret_variables`
+being `Secret<string>` revealed only to run them, never put in command arguments.
+The image is pulled with `pull_secret`, revealed only to request the container.
+
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
@@ -599,8 +627,9 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
     max_duration: u32 = 3600,
     service_containers: Vec<ServiceContainer> = [],
     image: string,
-    pull_secret: Option<string> = _,
+    pull_secret: Option<Secret<string>> = _,
     variables: Option<StringMap> = _,
+    secret_variables: Option<Map> = _,
     commands: Vec<Command>,
     in_file: string,
     out_storage: Option<u32> = _,
@@ -609,11 +638,11 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
     report: bool = true,
     github: bool = false,
     gitlab: bool = false,
-    github_token: string = "",
+    const github_token: Secret<string> = "env:GITHUB_TOKEN",
     github_project: string = "",
     github_sha: string = "",
     gitlab_root_url: string = "https://gitlab.com/api/v4",
-    gitlab_token: string = "",
+    const gitlab_token: Secret<string> = "env:GITLAB_TOKEN",
     gitlab_project_id: string = "",
     gitlab_sha: string = "",
     gitlab_ref: string = "",
@@ -652,7 +681,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
         name=name,
         executor_name=|wrap<string>(name),
         commands=commands,
-        environment=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)),
+        environment=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))),
         in_file=|wrap<string>(in_file),
         in_filesystem="data",
         out_file=out_file,

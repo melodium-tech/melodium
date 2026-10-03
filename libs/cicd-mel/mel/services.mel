@@ -25,8 +25,10 @@ forwards the corresponding state to GitHub and/or GitLab commit status APIs depe
 - `name`: the status context name shown in the CI/CD interface.
 - `description`: optional human-readable description attached to the status.
 - `log_response`: when `true`, logs the raw API response body at info level.
-- `github_token`, `github_project`, `github_sha`: credentials and target for GitHub status API.
-- `gitlab_root_url`, `gitlab_token`, `gitlab_project_id`, `gitlab_sha`, `gitlab_ref`, `gitlab_pipeline_id`: credentials and target for GitLab commit status API.
+- `github_token`, `github_project`, `github_sha`: credentials and target for GitHub status API, the token being `env:GITHUB_TOKEN` unless given.
+- `gitlab_root_url`, `gitlab_token`, `gitlab_project_id`, `gitlab_sha`, `gitlab_ref`, `gitlab_pipeline_id`: credentials and target for GitLab commit status API, the token being `env:GITLAB_TOKEN` unless given.
+
+Tokens are only revealed when a state is reported.
 
 ⚠️ GitHub and GitLab both reject (or silently drop) a state registration query received while a
 previous one for the same commit is still in flight, so each provider's queries are sent strictly
@@ -39,11 +41,11 @@ treatment setServiceState(
     report: bool = true,
     github: bool = false,
     gitlab: bool = false,
-    github_token: string = "",
+    const github_token: Secret<string> = "env:GITHUB_TOKEN",
     github_project: string = "",
     github_sha: string = "",
     gitlab_root_url: string = "https://gitlab.com/api/v4",
-    gitlab_token: string = "",
+    const gitlab_token: Secret<string> = "env:GITLAB_TOKEN",
     gitlab_project_id: string = "",
     gitlab_sha: string = "",
     gitlab_ref: string = "",

@@ -1,6 +1,10 @@
 use http/client/util::post as simplePost
 use http/client::post
 use http/client::HttpClient
+use std/data/map::Map
+use std/data/map::|map as |secret_map
+use std/data/map::|entry as |secret_entry
+use std/secret::|format as |secret_format
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
@@ -239,16 +243,22 @@ When `log_response` is `true`, the raw response body is logged.
 `finished` is emitted once the request has completed, regardless of outcome, so callers can
 sequence successive status updates.
 */
-treatment postGithubState(token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
+treatment postGithubState(const token: Secret<string>, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
     output finished: Block<void>
 {
     post: simplePost(
         headers=|wrap<StringMap>(|map([
             |entry("Accept", "application/vnd.github+json"),
-            |entry("Authorization", |format("Bearer {token}", |entry("token", token))),
             |entry("Content-Type", "application/json"),
             |entry("X-GitHub-Api-Version", "2022-11-28")
+        ])),
+        secret_headers=|wrap<Map>(|secret_map([
+            |secret_entry<Secret<string>>("Authorization", |secret_format(
+                "Bearer {token}",
+                |secret_map([|secret_entry<Secret<string>>("token", token)]),
+                "github_authorization"
+            ))
         ])),
         url=|format("https://api.github.com/repos/{project}/statuses/{sha}",
                 |map([
