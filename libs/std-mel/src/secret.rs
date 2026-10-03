@@ -8,13 +8,23 @@
 //! The policy of a secret is set when it is created, and can only be narrowed afterwards.
 //! By default, a secret stays on the engine that holds it, any element may reveal it,
 //! and the plain `reveal` treatment may not.
+//!
+//! Secrets can be derived from other secrets (formatted, encoded) without revealing them:
+//! a derived secret is computed when revealed, and gets the most restrictive combination
+//! of the policies of the secrets it comes from.
 
+use crate::data::map::*;
+use base64::Engine;
 use melodium_core::common::descriptor::DataType;
 use melodium_core::common::executive::{
-    Secret as ExecutiveSecret, SecretOrigin, SecretPolicy, SecretReveal, SecretTransmission,
+    Secret as ExecutiveSecret, SecretDerivation, SecretOrigin, SecretPolicy, SecretReveal,
+    SecretTransmission,
 };
 use melodium_core::*;
 use melodium_macro::{mel_function, mel_treatment};
+use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Secret read from the environment variable `variable` when revealed.
 #[mel_function]
@@ -144,6 +154,212 @@ pub fn forbid_plain_reveal(secret: Secret<T>) -> Secret<T> {
     })
 }
 
+/// Gives the bytes of a string or bytes value.
+fn value_bytes(value: &Value) -> Option<std::borrow::Cow<'_, [u8]>> {
+    match value {
+        Value::String(text) => Some(std::borrow::Cow::Borrowed(text.as_bytes())),
+        Value::Packed(PackedArray::Byte(bytes)) | Value::Packed(PackedArray::U8(bytes)) => {
+            Some(std::borrow::Cow::Borrowed(bytes.as_slice()))
+        }
+        Value::Vec(values) => values
+            .iter()
+            .map(|value| match value {
+                Value::Byte(byte) | Value::U8(byte) => Some(*byte),
+                _ => None,
+            })
+            .collect::<Option<Vec<u8>>>()
+            .map(std::borrow::Cow::Owned),
+        _ => None,
+    }
+}
+
+/// Template filled with plain strings and string secrets.
+#[derive(Debug)]
+struct FormatDerivation {
+    template: String,
+    plain_entries: HashMap<String, String>,
+    /// Entries given by the input secrets, in their order.
+    secret_entries: Vec<String>,
+    /// Entries that are neither strings nor string secrets.
+    invalid_entries: Vec<String>,
+}
+
+impl SecretDerivation for FormatDerivation {
+    fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
+        if let Some(entry) = self.invalid_entries.first() {
+            return Err(format!(
+                "entry '{entry}' is neither a string nor a Secret<string>"
+            ));
+        }
+        let mut entries = self.plain_entries.clone();
+        for (entry, value) in self.secret_entries.iter().zip(inputs) {
+            match value {
+                Value::String(text) => {
+                    entries.insert(entry.clone(), text.clone());
+                }
+                _ => return Err(format!("entry '{entry}' is not a string")),
+            }
+        }
+        // strfmt errors may quote formatted content, so only their kind is kept.
+        strfmt::strfmt(&self.template, &entries)
+            .map(Value::String)
+            .map_err(|err| match err {
+                strfmt::FmtError::Invalid(_) => "the template is not valid".to_string(),
+                strfmt::FmtError::KeyError(_) => {
+                    "the template uses an entry that is not given".to_string()
+                }
+                strfmt::FmtError::TypeError(_) => {
+                    "the template has an invalid placeholder format".to_string()
+                }
+            })
+    }
+}
+
+#[derive(Debug)]
+struct Base64Derivation;
+
+impl SecretDerivation for Base64Derivation {
+    fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
+        let bytes = inputs
+            .first()
+            .and_then(value_bytes)
+            .ok_or_else(|| "base64 needs a string or bytes".to_string())?;
+        Ok(Value::String(
+            base64::engine::general_purpose::STANDARD.encode(bytes),
+        ))
+    }
+}
+
+/// Every character except the unreserved ones of RFC 3986 (`A-Z a-z 0-9 - . _ ~`).
+const URL_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
+
+#[derive(Debug)]
+struct UrlEncodeDerivation;
+
+impl SecretDerivation for UrlEncodeDerivation {
+    fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
+        match inputs.first() {
+            Some(Value::String(text)) => Ok(Value::String(
+                utf8_percent_encode(text, URL_COMPONENT).to_string(),
+            )),
+            _ => Err("URL encoding needs a string".to_string()),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct BytesDerivation;
+
+impl SecretDerivation for BytesDerivation {
+    fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
+        match inputs.first() {
+            Some(Value::String(text)) => Ok(Value::Packed(PackedArray::Byte(Arc::new(
+                text.as_bytes().to_vec(),
+            )))),
+            _ => Err("bytes conversion needs a string".to_string()),
+        }
+    }
+}
+
+/// Secret made of `template` filled with `entries`, computed when revealed.
+///
+/// `template` contains braced placeholders, such as `"Bearer {token}"`.
+/// `entries` maps placeholders to `string` values or `Secret<string>` values,
+/// built with `std/data/map::|map` and `|entry`.
+/// The secret is named `name`, and gets the most restrictive combination
+/// of the policies of the secrets in `entries`.
+///
+/// Revealing fails if a placeholder has no entry, or if an entry is neither
+/// a `string` nor a `Secret<string>`.
+#[mel_function]
+pub fn format(template: string, entries: Map, name: string) -> Secret<string> {
+    let mut plain_entries = HashMap::new();
+    let mut secret_entries = Vec::new();
+    let mut invalid_entries = Vec::new();
+    let mut inputs = Vec::new();
+    for (entry, value) in entries.map {
+        match value {
+            Value::String(text) => {
+                plain_entries.insert(entry, text);
+            }
+            Value::Secret(secret) if secret.datatype() == &DataType::String => {
+                secret_entries.push(entry);
+                inputs.push(secret);
+            }
+            _ => invalid_entries.push(entry),
+        }
+    }
+    ExecutiveSecret::derive(
+        name,
+        DataType::String,
+        inputs,
+        Arc::new(FormatDerivation {
+            template,
+            plain_entries,
+            secret_entries,
+            invalid_entries,
+        }),
+    )
+    .unwrap()
+}
+
+/// Secret made of the base64 encoding (standard, padded) of a string secret, computed when revealed.
+///
+/// Such as the credentials of HTTP Basic authentication: `|base64(|format("{user}:{password}", ...), ...)`.
+#[mel_function]
+pub fn base64(secret: Secret<string>, name: string) -> Secret<string> {
+    ExecutiveSecret::derive(
+        name,
+        DataType::String,
+        vec![secret],
+        Arc::new(Base64Derivation),
+    )
+    .unwrap()
+}
+
+/// Secret made of the base64 encoding (standard, padded) of a bytes secret, computed when revealed.
+#[mel_function]
+pub fn base64_bytes(secret: Secret<Vec<byte>>, name: string) -> Secret<string> {
+    ExecutiveSecret::derive(
+        name,
+        DataType::String,
+        vec![secret],
+        Arc::new(Base64Derivation),
+    )
+    .unwrap()
+}
+
+/// Secret made of the URL encoding of a string secret, computed when revealed.
+///
+/// Every character except `A-Z a-z 0-9 - . _ ~` is percent-encoded,
+/// so the result fits in any URL part, such as credentials: `https://{user}:{password}@host`.
+#[mel_function]
+pub fn url_encode(secret: Secret<string>, name: string) -> Secret<string> {
+    ExecutiveSecret::derive(
+        name,
+        DataType::String,
+        vec![secret],
+        Arc::new(UrlEncodeDerivation),
+    )
+    .unwrap()
+}
+
+/// Secret made of the UTF-8 bytes of a string secret, computed when revealed.
+#[mel_function]
+pub fn to_bytes(secret: Secret<string>, name: string) -> Secret<Vec<byte>> {
+    ExecutiveSecret::derive(
+        name,
+        DataType::Vec(Box::new(DataType::Byte)),
+        vec![secret],
+        Arc::new(BytesDerivation),
+    )
+    .unwrap()
+}
+
 /// Conceals a value into a secret.
 ///
 /// Intended for values only known at runtime, such as a token given by an API response.
@@ -215,5 +431,85 @@ pub async fn reveal() {
                 let _ = error.send_one(err.to_string().into()).await;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SENTINEL: &str = "s3cr3t:value/@";
+
+    #[test]
+    fn format_fills_plain_and_secret_entries() {
+        let derivation = FormatDerivation {
+            template: "{scheme}://{user}:{password}@host".to_string(),
+            plain_entries: HashMap::from([
+                ("scheme".to_string(), "https".to_string()),
+                ("user".to_string(), "ci".to_string()),
+            ]),
+            secret_entries: vec!["password".to_string()],
+            invalid_entries: Vec::new(),
+        };
+        assert_eq!(
+            derivation.derive(&[Value::String(SENTINEL.to_string())]),
+            Ok(Value::String(format!("https://ci:{SENTINEL}@host")))
+        );
+    }
+
+    #[test]
+    fn format_errors_never_show_values() {
+        let missing = FormatDerivation {
+            template: "{missing} {password}".to_string(),
+            plain_entries: HashMap::new(),
+            secret_entries: vec!["password".to_string()],
+            invalid_entries: Vec::new(),
+        };
+        let invalid_format = FormatDerivation {
+            template: "{password:>.3e}".to_string(),
+            plain_entries: HashMap::new(),
+            secret_entries: vec!["password".to_string()],
+            invalid_entries: Vec::new(),
+        };
+        let invalid_entry = FormatDerivation {
+            template: "{password}".to_string(),
+            plain_entries: HashMap::new(),
+            secret_entries: vec!["password".to_string()],
+            invalid_entries: vec!["count".to_string()],
+        };
+        for derivation in [missing, invalid_format, invalid_entry] {
+            let error = derivation
+                .derive(&[Value::String(SENTINEL.to_string())])
+                .unwrap_err();
+            assert!(!error.contains(SENTINEL), "leaked in {error}");
+        }
+    }
+
+    #[test]
+    fn encodings() {
+        let value = Value::String(SENTINEL.to_string());
+        assert_eq!(
+            UrlEncodeDerivation.derive(&[value.clone()]),
+            Ok(Value::String("s3cr3t%3Avalue%2F%40".to_string()))
+        );
+        assert_eq!(
+            UrlEncodeDerivation.derive(&[Value::String("aZ09-._~ é".to_string())]),
+            Ok(Value::String("aZ09-._~%20%C3%A9".to_string()))
+        );
+        assert_eq!(
+            Base64Derivation.derive(&[Value::String("ci:password".to_string())]),
+            Ok(Value::String("Y2k6cGFzc3dvcmQ=".to_string()))
+        );
+        let bytes = BytesDerivation.derive(&[value]).unwrap();
+        assert_eq!(
+            bytes,
+            Value::Packed(PackedArray::Byte(Arc::new(SENTINEL.as_bytes().to_vec())))
+        );
+        assert_eq!(bytes.datatype(), DataType::Vec(Box::new(DataType::Byte)));
+        assert_eq!(
+            Base64Derivation.derive(&[Value::Vec(vec![Value::Byte(0xff), Value::Byte(0)])]),
+            Ok(Value::String("/wA=".to_string()))
+        );
+        assert!(Base64Derivation.derive(&[Value::U64(1)]).is_err());
     }
 }

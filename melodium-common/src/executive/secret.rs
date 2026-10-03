@@ -16,6 +16,17 @@ pub trait SecretSource: Debug + Send + Sync {
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String>;
 }
 
+/// Computes the value of a derived secret from the values of its input secrets.
+///
+/// Derivations are built by functions, they describe an operation and never hold
+/// any secret value themselves.
+pub trait SecretDerivation: Debug + Send + Sync {
+    /// Gives the derived value from `inputs`, the values of the input secrets, in order.
+    ///
+    /// Errors must describe what failed without including any part of the values.
+    fn derive(&self, inputs: &[Value]) -> Result<Value, String>;
+}
+
 /// Identity of an element revealing secrets.
 ///
 /// Rust elements get one from `#[mel_treatment]` (as `secret_access`)

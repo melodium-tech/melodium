@@ -29,7 +29,9 @@ pub use log::{Level, Log};
 pub use model::{Model, ModelId};
 pub use output::{Output, OutputExt, Outputs};
 pub use result_status::ResultStatus;
-pub use secret::{SecretAccess, SecretAudit, SecretAuditOutcome, SecretError, SecretSource};
+pub use secret::{
+    SecretAccess, SecretAudit, SecretAuditOutcome, SecretDerivation, SecretError, SecretSource,
+};
 pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};
 pub use treatment::Treatment;
 pub use value::{

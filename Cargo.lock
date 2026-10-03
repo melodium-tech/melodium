@@ -7278,10 +7278,12 @@ name = "std-mel"
 version = "0.10.4"
 dependencies = [
  "async-std",
+ "base64 0.22.1",
  "futures",
  "melodium-core",
  "melodium-engine",
  "melodium-macro",
+ "percent-encoding",
  "serde",
  "strfmt",
 ]

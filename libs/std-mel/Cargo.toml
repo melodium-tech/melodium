@@ -18,10 +18,12 @@ name = "std_mel"
 
 [dependencies]
 async-std = "1.13"
+base64 = "0.22"
 futures = "0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.10.4" }
 melodium-engine = { path = "../../melodium-engine", version = "0.10.4" }
 melodium-macro = { path = "../../melodium-macro", version = "0.10.4" }
+percent-encoding = "2.3"
 serde = { version = "1", features = ["derive"] }
 strfmt = "0.2.4"
 
