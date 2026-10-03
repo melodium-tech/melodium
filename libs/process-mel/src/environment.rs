@@ -166,12 +166,17 @@ pub fn environment(
 /// Add secret variables to `environment`.
 ///
 /// Each entry of `secret_variables` gives the `Secret<string>` value of a variable, revealed
-/// only when a command is run, and never put in command arguments. Running a command fails if
-/// an entry is not a `Secret<string>`. Variables given here replace those of the same name.
+/// only when a command is run, and never put in command arguments. Entries can also be
+/// `Option<Secret<string>>`, as given by `std/secret::|locate`. Running a command fails if
+/// an entry holds no `Secret<string>`. Variables given here replace those of the same name.
 #[mel_function]
 pub fn with_secret_variables(mut environment: Environment, secret_variables: Map) -> Environment {
     for (name, value) in secret_variables.map {
         let secret = match value {
+            Value::Option(Some(value)) => match *value {
+                Value::Secret(secret) if secret.datatype() == &DataType::String => Some(secret),
+                _ => None,
+            },
             Value::Secret(secret) if secret.datatype() == &DataType::String => Some(secret),
             _ => None,
         };

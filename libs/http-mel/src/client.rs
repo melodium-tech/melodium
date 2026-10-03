@@ -24,7 +24,8 @@ pub const USER_AGENT: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 /// - `tcp_no_delay`: TCP `NO_DELAY` field.
 /// - `headers`: Headers to add in requests made with this client.
 /// - `secret_headers`: Headers to add in requests made with this client, whose values are
-/// `Secret<string>`, such as `Authorization`. They are revealed by the treatment making each request.
+/// `Secret<string>` (or `Option<Secret<string>>`, as given by `std/secret::|locate`), such as
+/// `Authorization`. They are revealed by the treatment making each request.
 ///
 /// The default headers are `Accept: */*` and `User-Agent: http-mel/<version>`
 #[mel_model(
@@ -96,8 +97,13 @@ impl HttpClient {
             if !header_name.is_valid() {
                 return Err(format!("'{name}' is not a valid header name"));
             }
-            let Value::Secret(secret) = value else {
-                return Err(format!("secret header '{name}' is not a Secret<string>"));
+            let secret = match value {
+                Value::Secret(secret) => secret,
+                Value::Option(Some(value)) => match value.as_ref() {
+                    Value::Secret(secret) => secret,
+                    _ => return Err(format!("secret header '{name}' is not a Secret<string>")),
+                },
+                _ => return Err(format!("secret header '{name}' is not a Secret<string>")),
             };
             secret
                 .reveal_str(access, |content| {

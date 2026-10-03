@@ -18,6 +18,7 @@ use std/data/string_map::|map
 use std/ops::|condition
 use std/ops/option::|wrap
 use std/secret::|from_environment
+use std/secret::|locate
 use process/command::|command
 use process/environment::Environment
 use process/environment::|environment
@@ -38,7 +39,7 @@ treatment main(const directory: string, const plain_entry: bool = false)
                     plain_entry,
                     |secret_map([|secret_entry<string>("PLAIN", "not a secret")]),
                     |secret_map([
-                        |secret_entry<Secret<string>>("TOKEN", |from_environment("PROCESS_TEST_TOKEN", "token"))
+                        |secret_entry<Option<Secret<string>>>("TOKEN", |locate<string>("env:PROCESS_TEST_TOKEN", "token", "local", false))
                     ])
                 )
             ),
