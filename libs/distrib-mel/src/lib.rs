@@ -256,6 +256,25 @@ impl DistributionEngine {
             for ipaddr in access.addresses.iter() {
                 let addrs = SocketAddr::new(*ipaddr, access.port);
 
+                // Plain TCP sends everything readable, authentication keys included.
+                if access.disable_tls {
+                    if !ipaddr.is_loopback() && !access.allow_plain_tcp {
+                        error_message = Some(format!(
+                            "plain TCP is refused for {ipaddr}, TLS is required for addresses other than loopback ones"
+                        ));
+                        continue;
+                    }
+                    model
+                        .world()
+                        .log(
+                            common::executive::Level::Warning,
+                            "distrib".to_string(),
+                            format!("connecting to {addrs} without TLS"),
+                            None,
+                        )
+                        .await;
+                }
+
                 match TcpStream::connect(&addrs).await {
                     Ok(stream) => {
                         if access.disable_tls {
