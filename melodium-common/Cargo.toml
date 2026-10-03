@@ -25,6 +25,7 @@ semver = "1.0.17"
 serde = { version = "1", features = ["derive", "rc"] }
 uuid = { version = "1.7", features = ["serde"] }
 erased-serde = "0.4"
+zeroize = "1.9"
 
 [dev-dependencies]
 async-std = "1.13"

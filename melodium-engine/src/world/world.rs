@@ -27,10 +27,10 @@ use melodium_common::descriptor::{
     Collection, Entry as CollectionEntry, Flow, Identifier, Treatment,
 };
 use melodium_common::executive::{
-    Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
-    Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput, ResultStatus, Secret,
-    SecretAudit, SecretAuditOutcome, SecretSource, TrackCreationCallback, TrackFuture, TrackId,
-    Value, World as ExecutiveWorld,
+    register_wipe, Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback,
+    Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput,
+    ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretSource, TrackCreationCallback,
+    TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::borrow::Cow;
 use std::collections::{hash_map::Entry, HashMap};
@@ -47,7 +47,7 @@ pub struct World {
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
     secret_sources: RwLock<HashMap<String, Arc<dyn SecretSource>>>,
-    masking: Masking,
+    masking: Arc<Masking>,
 
     builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
@@ -133,7 +133,11 @@ impl World {
                     Arc::new(FileSource) as Arc<dyn SecretSource>,
                 ),
             ])),
-            masking: Masking::new(),
+            masking: {
+                let masking = Arc::new(Masking::new());
+                register_wipe(Arc::downgrade(&masking) as Weak<dyn Wipe>);
+                masking
+            },
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main: RwLock::new(None),

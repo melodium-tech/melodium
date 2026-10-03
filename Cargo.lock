@@ -4675,6 +4675,7 @@ dependencies = [
  "serde",
  "serde_json",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -4732,6 +4733,7 @@ dependencies = [
  "signal-hook-async-std",
  "stacker",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -7292,6 +7294,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "strfmt",
+ "zeroize",
 ]
 
 [[package]]
@@ -8542,6 +8545,7 @@ dependencies = [
  "melodium-macro",
  "percent-encoding",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

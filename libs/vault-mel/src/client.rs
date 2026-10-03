@@ -2,14 +2,26 @@ use crate::VaultModel;
 use async_std::sync::Mutex;
 use generic_async_http_client::Request;
 use melodium_core::common::descriptor::DataType;
-use melodium_core::common::executive::{PackedArray, Secret, Value};
+use melodium_core::common::executive::{count_wiped, PackedArray, Secret, Value, Wipe};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use serde_json::{Map, Value as Json};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
+use zeroize::Zeroize;
 
 const USER_AGENT: &str = concat!("vault-mel/", env!("CARGO_PKG_VERSION"));
+
+/// Overwrites the strings of a JSON value and leaves it null.
+fn wipe_json(json: &mut Json) {
+    match json {
+        Json::String(text) => text.zeroize(),
+        Json::Array(values) => values.iter_mut().for_each(wipe_json),
+        Json::Object(values) => values.values_mut().for_each(wipe_json),
+        _ => {}
+    }
+    *json = Json::Null;
+}
 
 /// Error of a request to the server, never containing secret values.
 enum RequestError {
@@ -38,6 +50,28 @@ pub struct Client {
     model: Weak<VaultModel>,
     token: Mutex<Option<Token>>,
     cache: Mutex<HashMap<String, Cached>>,
+}
+
+impl Wipe for Client {
+    fn wipe(&self) -> bool {
+        // A state in use is left to its user, wiped when dropped by `forget`.
+        match (self.token.try_lock(), self.cache.try_lock()) {
+            (Some(mut token), Some(mut cache)) => {
+                let wiped = Self::wipe_state(&mut token, &mut cache);
+                if wiped {
+                    count_wiped();
+                }
+                wiped
+            }
+            _ => false,
+        }
+    }
+}
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        self.wipe();
+    }
 }
 
 // Token and cached secrets are never shown.
@@ -113,34 +147,53 @@ impl Client {
         Ok(data)
     }
 
-    /// Forgets the client token and the cached secrets.
+    /// Forgets the client token and the cached secrets, overwriting them.
     pub async fn forget(&self) {
-        *self.token.lock().await = None;
-        self.cache.lock().await.clear();
+        let mut token = self.token.lock().await;
+        let mut cache = self.cache.lock().await;
+        if Self::wipe_state(&mut token, &mut cache) {
+            count_wiped();
+        }
+    }
+
+    /// Overwrites the token and the cached secrets not in use, giving whether there were any.
+    fn wipe_state(token: &mut Option<Token>, cache: &mut HashMap<String, Cached>) -> bool {
+        let wiped = token.is_some() || !cache.is_empty();
+        if let Some((mut token, _)) = token.take() {
+            token.zeroize();
+        }
+        for (_, (_, mut data)) in cache.drain() {
+            if let Some(data) = Arc::get_mut(&mut data) {
+                data.values_mut().for_each(wipe_json);
+            }
+        }
+        wiped
     }
 
     async fn fetch(&self, path: &str) -> Result<Arc<Map<String, Json>>, String> {
-        let token = self.client_token(false).await?;
+        let mut token = self.client_token(false).await?;
         let response = match self.get(path, &token).await {
             // An expired or revoked token gets one new login.
             Err(RequestError::Status(403, _)) if self.model()?.get_auth() != "token" => {
-                let token = self.client_token(true).await?;
+                token.zeroize();
+                token = self.client_token(true).await?;
                 self.get(path, &token).await
             }
             other => other,
-        }
-        .map_err(RequestError::message)?;
-
-        let data = response
-            .get("data")
-            .and_then(Json::as_object)
-            .ok_or_else(|| format!("vault secret '{path}' has no data"))?;
-        // Key/value version 2 nests the secret data with its metadata.
-        let data = match (data.get("data"), data.get("metadata")) {
-            (Some(Json::Object(data)), Some(_)) => data,
-            _ => data,
         };
-        Ok(Arc::new(data.clone()))
+        token.zeroize();
+        let mut response = response.map_err(RequestError::message)?;
+
+        // Key/value version 2 nests the secret data with its metadata.
+        let data = response.get("data").and_then(Json::as_object).map(|data| {
+            match (data.get("data"), data.get("metadata")) {
+                (Some(Json::Object(data)), Some(_)) => data.clone(),
+                _ => data.clone(),
+            }
+        });
+        wipe_json(&mut response);
+        data.map(Arc::new)
+            .ok_or_else(|| format!("vault secret '{path}' has no data"))
     }
 
     async fn get(&self, path: &str, token: &str) -> Result<Json, RequestError> {
@@ -176,12 +229,13 @@ impl Client {
             }
             Err(err) => return Err(RequestError::Other(format!("vault request failed: {err}"))),
         };
-        let body = response
+        let mut body = response
             .content()
             .await
             .map_err(|err| RequestError::Other(format!("vault response failed: {err}")))?;
         // Parsing errors are not reported as is, they can quote the content.
-        let json = serde_json::from_slice::<Json>(&body).ok();
+        let mut json = serde_json::from_slice::<Json>(&body).ok();
+        body.zeroize();
         if (200..300).contains(&status) {
             json.ok_or_else(|| RequestError::Other("vault response is not valid JSON".to_string()))
         } else {
@@ -200,6 +254,9 @@ impl Client {
                 .filter(|errors| !errors.is_empty())
                 .map(|errors| format!(": {errors}"))
                 .unwrap_or_default();
+            if let Some(json) = json.as_mut() {
+                wipe_json(json);
+            }
             Err(RequestError::Status(status, errors))
         }
     }
@@ -269,6 +326,7 @@ impl Client {
                 ));
             }
         };
+        let mut body = body;
         let mount = match (model.get_auth_mount(), auth.as_str()) {
             (mount, _) if !mount.is_empty() => mount,
             (_, "github") => "jwt".to_string(),
@@ -281,29 +339,29 @@ impl Client {
             mount.trim_matches('/')
         ))
         .json(&body)
-        .map_err(|err| err.to_string())?;
-        let response = self
-            .send(request)
+        .map_err(|err| err.to_string());
+        wipe_json(&mut body);
+        let mut response = self
+            .send(request?)
             .await
             .map_err(|err| format!("vault login failed, {}", err.message()))?;
 
-        let auth = response
-            .get("auth")
-            .ok_or_else(|| "vault login gave no token".to_string())?;
+        let auth = response.get("auth");
         let token = auth
-            .get("client_token")
+            .and_then(|auth| auth.get("client_token"))
             .and_then(Json::as_str)
-            .ok_or_else(|| "vault login gave no token".to_string())?
-            .to_string();
-        model
-            .world()
-            .add_masked_value("vault token", &Value::String(token.clone()));
+            .map(str::to_string);
         // Renewed a bit before it expires, a lease of 0 never expires.
         let renew_at = auth
-            .get("lease_duration")
+            .and_then(|auth| auth.get("lease_duration"))
             .and_then(Json::as_u64)
             .filter(|lease| *lease > 0)
             .map(|lease| Instant::now() + Duration::from_secs(lease) * 9 / 10);
+        wipe_json(&mut response);
+        let token = token.ok_or_else(|| "vault login gave no token".to_string())?;
+        model
+            .world()
+            .add_masked_value("vault token", &Value::String(token.clone()));
         Ok((token, renew_at))
     }
 
@@ -323,19 +381,21 @@ impl Client {
                 utf8_percent_encode(&audience, NON_ALPHANUMERIC)
             )
         };
-        let request_token = self.reveal(model.get_github_token()).await?;
+        let mut authorization = format!("bearer {}", self.reveal(model.get_github_token()).await?);
         let request = Request::get(&url)
-            .add_header("Authorization", format!("bearer {request_token}").as_str())
-            .map_err(|err| err.to_string())?;
-        let response = self
-            .send(request)
+            .add_header("Authorization", authorization.as_str())
+            .map_err(|err| err.to_string());
+        authorization.zeroize();
+        let mut response = self
+            .send(request?)
             .await
             .map_err(|err| format!("GitHub OIDC token request failed, {}", err.message()))?;
         let token = response
             .get("value")
             .and_then(Json::as_str)
-            .ok_or_else(|| "GitHub OIDC token request gave no token".to_string())?
-            .to_string();
+            .map(str::to_string);
+        wipe_json(&mut response);
+        let token = token.ok_or_else(|| "GitHub OIDC token request gave no token".to_string())?;
         model
             .world()
             .add_masked_value("GitHub OIDC token", &Value::String(token.clone()));

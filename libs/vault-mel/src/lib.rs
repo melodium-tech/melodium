@@ -74,14 +74,19 @@ use std::sync::{Arc, Weak};
 pub struct Vault {
     model: Weak<VaultModel>,
     #[cfg(feature = "real")]
-    client: client::Client,
+    client: Arc<client::Client>,
 }
 
 impl Vault {
     fn new(model: Weak<VaultModel>) -> Self {
         Self {
             #[cfg(feature = "real")]
-            client: client::Client::new(model.clone()),
+            client: {
+                let client = Arc::new(client::Client::new(model.clone()));
+                melodium_core::common::executive::register_wipe(Arc::downgrade(&client)
+                    as std::sync::Weak<dyn melodium_core::common::executive::Wipe>);
+                client
+            },
             model,
         }
     }
