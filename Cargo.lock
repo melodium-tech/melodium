@@ -4723,6 +4723,8 @@ dependencies = [
  "lazy_static",
  "melodium-common",
  "serde",
+ "signal-hook",
+ "signal-hook-async-std",
  "stacker",
  "uuid",
 ]
