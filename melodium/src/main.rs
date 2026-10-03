@@ -64,8 +64,8 @@ struct Run {
     #[clap(long, value_enum)]
     /// Debug event detail level to capture. If not set, defaults to `basic` when something
     /// will consume debug events (--debug path given, or --api-report enabled), `none`
-    /// otherwise. `detailed` additionally captures the full value of every data
-    /// transmission: safe only for small-scale local debugging, since for a Stream<byte>
+    /// otherwise. `detailed` additionally captures parameter values and the full value of
+    /// every data transmission: safe only for small-scale local debugging, since for a Stream<byte>
     /// moving real data (a compiled binary, a tarball, ...) it duplicates the entire data
     /// volume into debug events.
     debug_level: Option<DebugLevelArg>,
@@ -190,8 +190,8 @@ struct Dist {
     #[clap(long, value_enum)]
     /// Debug event detail level to capture. If not set, defaults to `basic` when something
     /// will consume debug events (--debug path given, or --api-report enabled), `none`
-    /// otherwise. `detailed` additionally captures the full value of every data
-    /// transmission: safe only for small-scale local debugging, since for a Stream<byte>
+    /// otherwise. `detailed` additionally captures parameter values and the full value of
+    /// every data transmission: safe only for small-scale local debugging, since for a Stream<byte>
     /// moving real data (a compiled binary, a tarball, ...) it duplicates the entire data
     /// volume into debug events.
     debug_level: Option<DebugLevelArg>,
