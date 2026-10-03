@@ -1,5 +1,6 @@
 use super::Value;
 use crate::descriptor::DataType;
+use crate::executive::secret::current_secret_wire;
 use crate::executive::{
     count_wiped, register_wipe, wipe_value, PackedArray, SecretAccess, SecretAudit,
     SecretAuditOutcome, SecretDerivation, SecretError, Wipe, World,
@@ -644,6 +645,8 @@ impl PartialEq for Secret {
     }
 }
 
+impl Eq for Secret {}
+
 impl Debug for Secret {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         f.debug_struct("Secret")
@@ -658,6 +661,40 @@ impl Debug for Secret {
 impl Display for Secret {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "<secret {:?}>", self.0.name)
+    }
+}
+
+/// Refused, except inside data values crossing to a distant engine, where the secret wire
+/// set by the distribution layer writes it following its transmission policy.
+impl serde::Serialize for Secret {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        current_secret_wire(|wire| match wire.map(|wire| wire.write(self)) {
+            Some(Ok(written)) => erased_serde::serialize(&*written, serializer),
+            Some(Err(error)) => Err(<S::Error as serde::ser::Error>::custom(error)),
+            None => Err(<S::Error as serde::ser::Error>::custom(format!(
+                "{self} cannot be serialized"
+            ))),
+        })
+    }
+}
+
+/// Refused, except inside data values received from a distant engine.
+impl<'de> serde::Deserialize<'de> for Secret {
+    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        current_secret_wire(|wire| match wire {
+            Some(wire) => wire
+                .read(&mut <dyn erased_serde::Deserializer>::erase(deserializer))
+                .map_err(<D::Error as serde::de::Error>::custom),
+            None => Err(<D::Error as serde::de::Error>::custom(
+                "secrets can only be received from a distant engine",
+            )),
+        })
     }
 }
 
@@ -759,6 +796,49 @@ mod tests {
         assert!(DataTrait::serialize(&value, &mut serializer).is_err());
         drop(serializer);
         assert!(output.is_empty());
+    }
+
+    #[test]
+    fn secrets_inside_data_only_cross_through_a_wire() {
+        use crate::executive::{with_secret_wire, SecretWire};
+
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct Holder {
+            token: Secret,
+        }
+
+        /// Writes the name, and reads it back as an `env:` locator.
+        struct NameWire;
+        impl SecretWire for NameWire {
+            fn write(
+                &self,
+                secret: &Secret,
+            ) -> core::result::Result<Box<dyn erased_serde::Serialize + '_>, String> {
+                Ok(Box::new(secret.name().to_string()))
+            }
+            fn read<'de>(
+                &self,
+                deserializer: &mut dyn erased_serde::Deserializer<'de>,
+            ) -> core::result::Result<Secret, String> {
+                let name: String =
+                    erased_serde::deserialize(deserializer).map_err(|e| e.to_string())?;
+                Ok(Secret::from_locator(&format!("env:{name}"), DataType::String).unwrap())
+            }
+        }
+
+        let holder = Holder {
+            token: inline_secret(),
+        };
+        let error = serde_json::to_string(&holder).unwrap_err().to_string();
+        assert!(!error.contains(SENTINEL), "leaked in {}", error);
+
+        let wire: Box<dyn SecretWire> = Box::new(NameWire);
+        let json = with_secret_wire(&wire, || serde_json::to_string(&holder)).unwrap();
+        assert_eq!(json, r#"{"token":"db_password"}"#);
+
+        assert!(serde_json::from_str::<Holder>(&json).is_err());
+        let received: Holder = with_secret_wire(&wire, || serde_json::from_str(&json)).unwrap();
+        assert_eq!(received.token.locator(), Some("env:db_password"));
     }
 
     #[test]

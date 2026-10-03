@@ -12,7 +12,7 @@ use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use melodium_macro::check;
 use process_mel::{
     command::Command,
-    environment::{environment_variable_regex, Environment},
+    environment::{environment_variable_regex, Environment, RevealedSecrets},
     exec::*,
 };
 use regex::{Captures, Replacer};
@@ -167,6 +167,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -208,6 +209,15 @@ impl ExecutorEngine for ContainerExecutor {
                 }
             }
 
+            // The client takes their values from its own environment, out of its arguments.
+            for (name, _) in &secrets.variables {
+                arguments.push("--env".to_string());
+                arguments.push(name.clone());
+            }
+            if secrets.stdin.is_some() && !arguments.iter().any(|arg| arg == "--interactive") {
+                arguments.push("--interactive".to_string());
+            }
+
             arguments.push(self.container_name.clone());
 
             arguments.push(command.command.clone());
@@ -216,7 +226,17 @@ impl ExecutorEngine for ContainerExecutor {
 
             match async_std::process::Command::new(self.executor_entrypoint.clone())
                 .args(arguments)
-                .stdin(Stdio::null())
+                .envs(
+                    secrets
+                        .variables
+                        .iter()
+                        .map(|(name, value)| (name, value.as_str())),
+                )
+                .stdin(if secrets.stdin.is_some() {
+                    Stdio::piped()
+                } else {
+                    Stdio::null()
+                })
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
@@ -225,6 +245,7 @@ impl ExecutorEngine for ContainerExecutor {
                     use futures::{pin_mut, select, FutureExt};
 
                     started().await;
+                    write_secret_stdin(child.stdin.take(), secrets).await;
 
                     let mut to_terminate = false;
 
@@ -281,6 +302,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -329,6 +351,15 @@ impl ExecutorEngine for ContainerExecutor {
                 }
             }
 
+            // The client takes their values from its own environment, out of its arguments.
+            for (name, _) in &secrets.variables {
+                arguments.push("--env".to_string());
+                arguments.push(name.clone());
+            }
+            if secrets.stdin.is_some() && !arguments.iter().any(|arg| arg == "--interactive") {
+                arguments.push("--interactive".to_string());
+            }
+
             arguments.push(self.container_name.clone());
 
             arguments.push(command.command.clone());
@@ -337,6 +368,12 @@ impl ExecutorEngine for ContainerExecutor {
 
             match async_std::process::Command::new(self.executor_entrypoint.clone())
                 .args(arguments)
+                .envs(
+                    secrets
+                        .variables
+                        .iter()
+                        .map(|(name, value)| (name, value.as_str())),
+                )
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -356,9 +393,18 @@ impl ExecutorEngine for ContainerExecutor {
 
                         let write_stdin = async {
                             if let Some(mut child_stdin) = child_stdin {
-                                while let Ok(data) = stdin().await {
-                                    check!(child_stdin.write_all(&data).await);
-                                    check!(child_stdin.flush().await);
+                                let input_written = match &secrets.stdin {
+                                    Some(input) => {
+                                        child_stdin.write_all(input.as_bytes()).await.is_ok()
+                                            && child_stdin.flush().await.is_ok()
+                                    }
+                                    None => true,
+                                };
+                                if input_written {
+                                    while let Ok(data) = stdin().await {
+                                        check!(child_stdin.write_all(&data).await);
+                                        check!(child_stdin.flush().await);
+                                    }
                                 }
 
                                 let _ = child_stdin.close().await;
@@ -458,6 +504,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -503,6 +550,15 @@ impl ExecutorEngine for ContainerExecutor {
                 }
             }
 
+            // The client takes their values from its own environment, out of its arguments.
+            for (name, _) in &secrets.variables {
+                arguments.push("--env".to_string());
+                arguments.push(name.clone());
+            }
+            if secrets.stdin.is_some() && !arguments.iter().any(|arg| arg == "--interactive") {
+                arguments.push("--interactive".to_string());
+            }
+
             arguments.push(self.container_name.clone());
 
             arguments.push(command.command.clone());
@@ -511,13 +567,24 @@ impl ExecutorEngine for ContainerExecutor {
 
             match async_std::process::Command::new(self.executor_entrypoint.clone())
                 .args(arguments)
-                .stdin(Stdio::null())
+                .envs(
+                    secrets
+                        .variables
+                        .iter()
+                        .map(|(name, value)| (name, value.as_str())),
+                )
+                .stdin(if secrets.stdin.is_some() {
+                    Stdio::piped()
+                } else {
+                    Stdio::null()
+                })
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
             {
                 Ok(mut child) => {
                     started().await;
+                    write_secret_stdin(child.stdin.take(), secrets).await;
 
                     let mut to_terminate = false;
 
@@ -922,5 +989,17 @@ impl FileSystemEngine for ContainerFileSystem {
             let _ = errors("Mock mode".to_string()).await;
             let _ = finished().await;
         }
+    }
+}
+
+/// Writes the secret input, if any, to `stdin`, then closes it.
+#[cfg(feature = "real")]
+async fn write_secret_stdin(
+    stdin: Option<async_std::process::ChildStdin>,
+    secrets: &RevealedSecrets,
+) {
+    if let (Some(mut stdin), Some(input)) = (stdin, &secrets.stdin) {
+        let _ = stdin.write_all(input.as_bytes()).await;
+        let _ = stdin.close().await;
     }
 }

@@ -26,6 +26,7 @@ regex = "1.9.1"
 std-mel = { path = "../std-mel", version = "0.10.4" }
 serde = "1.0.185"
 shlex = "1.3"
+zeroize = "1.9"
 
 [features]
 mock = []

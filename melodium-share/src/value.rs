@@ -3,16 +3,18 @@ use cbor4ii::core::utils::SliceReader;
 use melodium_common::{
     descriptor::{Collection, Entry as CommonEntry, Identifier as CommonIdentifier},
     executive::{
-        wipe_value, Secret as CommonSecret, SecretAccess, SecretError, SecretOrigin,
-        SecretTransfer, Value as CommonValue,
+        wipe_value, with_secret_wire, Data as CommonData, Secret as CommonSecret, SecretAccess,
+        SecretError, SecretId, SecretOrigin, SecretTransfer, SecretWire, Value as CommonValue,
     },
 };
 use melodium_engine::{design::Value as DesignedValue, LogicError};
 use serde::{Deserialize, Serialize};
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, HashMap},
     future::Future,
     pin::Pin,
+    rc::Rc,
     sync::Arc,
 };
 use zeroize::Zeroize;
@@ -218,6 +220,103 @@ pub enum RawValue {
     Data(Identifier, Option<Vec<u8>>),
 }
 
+/// Tells if `value` may hold secrets, directly or inside data values.
+pub(crate) fn may_hold_secrets(value: &CommonValue) -> bool {
+    match value {
+        CommonValue::Secret(_) | CommonValue::Data(_) => true,
+        CommonValue::Vec(values) => values.iter().any(may_hold_secrets),
+        CommonValue::Option(Some(value)) => may_hold_secrets(value),
+        _ => false,
+    }
+}
+
+/// Gives the secrets met when serializing `data`, and its serialization if there are none.
+fn collect_secrets(data: &Arc<dyn CommonData>) -> (Vec<CommonSecret>, Option<Vec<u8>>) {
+    let found = Rc::new(RefCell::new(Vec::new()));
+    let wire: Box<dyn SecretWire> = Box::new(CollectSecrets(Rc::clone(&found)));
+    let serialized = with_secret_wire(&wire, || cbor4ii::serde::to_vec(Vec::new(), data)).ok();
+    let secrets = found.take();
+    let plain = if secrets.is_empty() { serialized } else { None };
+    (secrets, plain)
+}
+
+/// Serializes `data`, writing its secrets as converted in `written`.
+fn write_secrets(
+    data: &Arc<dyn CommonData>,
+    written: HashMap<SecretId, RawValue>,
+) -> Option<Vec<u8>> {
+    let wire: Box<dyn SecretWire> = Box::new(WriteSecrets(written));
+    with_secret_wire(&wire, || cbor4ii::serde::to_vec(Vec::new(), data)).ok()
+}
+
+/// Notes the secrets met, writing nothing usable.
+struct CollectSecrets(Rc<RefCell<Vec<CommonSecret>>>);
+
+impl SecretWire for CollectSecrets {
+    fn write(
+        &self,
+        secret: &CommonSecret,
+    ) -> Result<Box<dyn erased_serde::Serialize + '_>, String> {
+        self.0.borrow_mut().push(secret.clone());
+        Ok(Box::new(()))
+    }
+
+    fn read<'de>(
+        &self,
+        _deserializer: &mut dyn erased_serde::Deserializer<'de>,
+    ) -> Result<CommonSecret, String> {
+        Err("secrets are not read while collected".to_string())
+    }
+}
+
+/// Writes secrets as converted by `RawValue::to_wire`.
+struct WriteSecrets(HashMap<SecretId, RawValue>);
+
+impl SecretWire for WriteSecrets {
+    fn write(
+        &self,
+        secret: &CommonSecret,
+    ) -> Result<Box<dyn erased_serde::Serialize + '_>, String> {
+        self.0
+            .get(&secret.id())
+            .map(|raw| Box::new(raw) as Box<dyn erased_serde::Serialize>)
+            .ok_or_else(|| format!("{secret} was not converted to be sent"))
+    }
+
+    fn read<'de>(
+        &self,
+        _deserializer: &mut dyn erased_serde::Deserializer<'de>,
+    ) -> Result<CommonSecret, String> {
+        Err("secrets are not read while written".to_string())
+    }
+}
+
+/// Reads secrets written by `WriteSecrets` on the sending engine.
+///
+/// Secrets of custom data types cannot be read this way, as no collection is at hand.
+struct ReadSecrets;
+
+impl SecretWire for ReadSecrets {
+    fn write(
+        &self,
+        secret: &CommonSecret,
+    ) -> Result<Box<dyn erased_serde::Serialize + '_>, String> {
+        Err(format!("{secret} cannot be written while secrets are read"))
+    }
+
+    fn read<'de>(
+        &self,
+        deserializer: &mut dyn erased_serde::Deserializer<'de>,
+    ) -> Result<CommonSecret, String> {
+        let raw: RawValue =
+            erased_serde::deserialize(deserializer).map_err(|error| error.to_string())?;
+        match raw.from_wire(&Collection::new()) {
+            Some(CommonValue::Secret(secret)) => Ok(secret),
+            _ => Err("invalid secret received".to_string()),
+        }
+    }
+}
+
 /// Value of a secret sent by value to a distant engine, that `Debug` never shows,
 /// overwritten when dropped (best effort, as for `melodium_common::executive::wipe_value`).
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -280,7 +379,8 @@ impl RawValue {
     }
 
     /// Converts a value to send to a distant engine, each secret following its transmission
-    /// policy (see `Secret::transmit`) for the element designated by `access`.
+    /// policy (see `Secret::transmit`) for the element designated by `access`, including
+    /// secrets held inside data values.
     ///
     /// Secrets sent by reference only carry their locator, and those sent by value carry
     /// their resolved value. Fails on the first secret refused.
@@ -306,17 +406,35 @@ impl RawValue {
                     }
                     Ok(raw)
                 }
-                CommonValue::Vec(values) if value.contains_secret() => {
+                CommonValue::Vec(values) if may_hold_secrets(value) => {
                     let mut raw = Vec::with_capacity(values.len());
                     for value in values {
                         raw.push(Self::to_wire(value, access, encrypted).await?);
                     }
                     Ok(RawValue::Vec(raw))
                 }
-                CommonValue::Option(Some(inner)) if inner.contains_secret() => {
+                CommonValue::Option(Some(inner)) if may_hold_secrets(inner) => {
                     Ok(RawValue::Option(Some(Box::new(
                         Self::to_wire(inner, access, encrypted).await?,
                     ))))
+                }
+                CommonValue::Data(data) => {
+                    let identifier = data.descriptor().identifier().into();
+                    let (secrets, plain) = collect_secrets(data);
+                    if secrets.is_empty() {
+                        return Ok(RawValue::Data(identifier, plain));
+                    }
+                    let mut written = HashMap::with_capacity(secrets.len());
+                    for secret in secrets {
+                        if !written.contains_key(&secret.id()) {
+                            let id = secret.id();
+                            let raw =
+                                Self::to_wire(&CommonValue::Secret(secret), access, encrypted)
+                                    .await?;
+                            written.insert(id, raw);
+                        }
+                    }
+                    Ok(RawValue::Data(identifier, write_secrets(data, written)))
                 }
                 other => Ok(other.into()),
             }
@@ -362,6 +480,10 @@ impl RawValue {
             RawValue::Option(Some(value)) => Some(CommonValue::Option(Some(Box::new(
                 value.from_wire(collection)?,
             )))),
+            RawValue::Data(..) => {
+                let wire: Box<dyn SecretWire> = Box::new(ReadSecrets);
+                with_secret_wire(&wire, || self.to_value(collection))
+            }
             other => other.to_value(collection),
         }
     }

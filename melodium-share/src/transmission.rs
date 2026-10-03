@@ -380,7 +380,8 @@ impl From<CommonTransmissionValue> for TransmissionValue {
 
 impl TransmissionValue {
     /// Converts a batch to send to a distant engine, each secret following its transmission
-    /// policy, as `RawValue::to_wire` does. Batches without secrets convert as `From` does.
+    /// policy, as `RawValue::to_wire` does, including secrets held inside data values.
+    /// Batches without secrets nor data values convert as `From` does.
     pub async fn to_wire(
         value: CommonTransmissionValue,
         access: &SecretAccess,
@@ -388,7 +389,7 @@ impl TransmissionValue {
     ) -> Result<TransmissionValue, SecretError> {
         match value {
             CommonTransmissionValue::Other(values)
-                if values.iter().any(|value| value.contains_secret()) =>
+                if values.iter().any(crate::value::may_hold_secrets) =>
             {
                 let mut raw = Vec::with_capacity(values.len());
                 for value in &values {

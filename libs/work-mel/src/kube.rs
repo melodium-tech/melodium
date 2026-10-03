@@ -13,7 +13,7 @@ use kube::{api::AttachParams, Api, Client};
 use melodium_macro::check;
 use process_mel::{
     command::Command,
-    environment::{environment_variable_regex, Environment},
+    environment::{environment_variable_regex, Environment, RevealedSecrets},
     exec::*,
 };
 use regex::{Captures, Replacer};
@@ -175,6 +175,7 @@ impl ExecutorEngine for KubeExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -209,14 +210,19 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
 
-            env_command.push(command.command.clone());
-
             env_command
         } else {
-            vec![command.command.clone()]
+            Vec::new()
         };
 
-        full_command.extend(command.arguments.clone());
+        // Secret variables are read from the standard input, out of the arguments.
+        full_command.extend(
+            secrets.shell_command(
+                std::iter::once(command.command.clone())
+                    .chain(command.arguments.iter().cloned())
+                    .collect(),
+            ),
+        );
 
         eprintln!("Running command '{full_command:?}'");
 
@@ -224,7 +230,9 @@ impl ExecutorEngine for KubeExecutor {
             .exec(
                 &self.pod,
                 full_command,
-                &AttachParams::default().container(self.container_full_name.clone()),
+                &AttachParams::default()
+                    .container(self.container_full_name.clone())
+                    .stdin(secrets.has_input()),
             )
             .await
         {
@@ -232,6 +240,7 @@ impl ExecutorEngine for KubeExecutor {
                 use futures::{pin_mut, select, FutureExt};
 
                 started().await;
+                write_secret_input(&mut process, secrets).await;
 
                 let mut to_terminate = false;
                 {
@@ -313,6 +322,7 @@ impl ExecutorEngine for KubeExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -353,14 +363,19 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
 
-            env_command.push(command.command.clone());
-
             env_command
         } else {
-            vec![command.command.clone()]
+            Vec::new()
         };
 
-        full_command.extend(command.arguments.clone());
+        // Secret variables are read from the standard input, out of the arguments.
+        full_command.extend(
+            secrets.shell_command(
+                std::iter::once(command.command.clone())
+                    .chain(command.arguments.iter().cloned())
+                    .collect(),
+            ),
+        );
 
         eprintln!("Running command '{full_command:?}'");
 
@@ -394,9 +409,17 @@ impl ExecutorEngine for KubeExecutor {
                     started().await;
 
                     let write_stdin = async {
-                        while let Ok(data) = stdin().await {
-                            check!(process_stdin.write_all(&data).await);
-                            check!(process_stdin.flush().await);
+                        let input_written = !secrets.has_input()
+                            || (process_stdin
+                                .write_all(&secrets.shell_input())
+                                .await
+                                .is_ok()
+                                && process_stdin.flush().await.is_ok());
+                        if input_written {
+                            while let Ok(data) = stdin().await {
+                                check!(process_stdin.write_all(&data).await);
+                                check!(process_stdin.flush().await);
+                            }
                         }
                     }
                     .fuse();
@@ -511,6 +534,7 @@ impl ExecutorEngine for KubeExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -549,14 +573,19 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
 
-            env_command.push(command.command.clone());
-
             env_command
         } else {
-            vec![command.command.clone()]
+            Vec::new()
         };
 
-        full_command.extend(command.arguments.clone());
+        // Secret variables are read from the standard input, out of the arguments.
+        full_command.extend(
+            secrets.shell_command(
+                std::iter::once(command.command.clone())
+                    .chain(command.arguments.iter().cloned())
+                    .collect(),
+            ),
+        );
 
         eprintln!("Running command '{full_command:?}'");
 
@@ -566,7 +595,7 @@ impl ExecutorEngine for KubeExecutor {
                 full_command,
                 &AttachParams::default()
                     .container(self.container_full_name.clone())
-                    .stdin(false)
+                    .stdin(secrets.has_input())
                     .stdout(true)
                     .stderr(true),
             )
@@ -574,6 +603,7 @@ impl ExecutorEngine for KubeExecutor {
         {
             Ok(mut process) => {
                 let mut to_terminate = false;
+                write_secret_input(&mut process, secrets).await;
                 if let (Some(status_waiter), Some(process_stdout), Some(process_stderr)) =
                     (process.take_status(), process.stdout(), process.stderr())
                 {
@@ -961,6 +991,17 @@ impl FileSystemEngine for KubeFileSystem {
             completed().await;
         } else {
             failed().await;
+        }
+    }
+}
+
+/// Writes the secret variables and input, if any, to the standard input of `process`,
+/// then closes it.
+async fn write_secret_input(process: &mut kube::api::AttachedProcess, secrets: &RevealedSecrets) {
+    if secrets.has_input() {
+        if let Some(mut process_stdin) = process.stdin() {
+            let _ = process_stdin.write_all(&secrets.shell_input()).await;
+            let _ = process_stdin.shutdown().await;
         }
     }
 }

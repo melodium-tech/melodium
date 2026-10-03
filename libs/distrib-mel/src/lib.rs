@@ -1162,26 +1162,23 @@ pub async fn send_stream(name: string) {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
-        let secrets = S.contains_secret();
         let encrypted = distributor.encrypted();
 
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             // Converts the already-packed local batch directly into the wire batch
             // type, preserving whatever shape `recv_many` produced instead of exploding
-            // it into one `Value`/`RawValue` per tick first.
+            // it into one `Value`/`RawValue` per tick first. Secrets, including those
+            // held inside data values, follow their transmission policy.
             while let Ok(data) = data.recv_many().await {
-                let data = if secrets {
+                let data =
                     match WireTransmissionValue::to_wire(data, &secret_access, encrypted).await {
                         Ok(data) => data,
                         Err(error) => {
                             log_secret_refusal(&model, &name, error, track_id).await;
                             break;
                         }
-                    }
-                } else {
-                    data.into()
-                };
+                    };
                 if sender.send(data).await.is_err() {
                     voluntary_close = false;
                     break;

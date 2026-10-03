@@ -2932,11 +2932,9 @@ impl serde::Serialize for Value {
                 }
                 ser.end()
             }
-            // Secrets are refused on every serialized output; transmitting one between
-            // engines goes through the policy-aware conversion of the distribution layer.
-            Value::Secret(secret) => Err(<S::Error as serde::ser::Error>::custom(format!(
-                "{secret} cannot be serialized"
-            ))),
+            // Secrets are refused on every serialized output, except data values crossing
+            // to a distant engine, see `Secret` serialization.
+            Value::Secret(secret) => serde::Serialize::serialize(secret, serializer),
             Value::Data(data) => serde::Serialize::serialize(&data, serializer),
         }
     }
