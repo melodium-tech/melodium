@@ -1,17 +1,18 @@
 use crate::method::*;
 use crate::status::*;
 use async_ringbuf::AsyncHeapRb;
-use melodium_core::*;
+use melodium_core::{common::executive::SecretAccess, *};
 use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::sync::{Arc, Weak};
+use std_mel::data::map::*;
 use std_mel::data::string_map::*;
 use trillium::HeaderName;
 use trillium::HeaderValue;
 use trillium::KnownHeaderName;
 use trillium_client::Url;
-use trillium_client::{Body, Client};
+use trillium_client::{Body, Client, Conn};
 
 pub const USER_AGENT: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 
@@ -22,12 +23,15 @@ pub const USER_AGENT: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 /// - `base_url`: The base URL for a client. All request URLs will be relative to this URL.
 /// - `tcp_no_delay`: TCP `NO_DELAY` field.
 /// - `headers`: Headers to add in requests made with this client.
+/// - `secret_headers`: Headers to add in requests made with this client, whose values are
+/// `Secret<string>`, such as `Authorization`. They are revealed by the treatment making each request.
 ///
 /// The default headers are `Accept: */*` and `User-Agent: http-mel/<version>`
 #[mel_model(
     param base_url Option<string> none
     param tcp_no_delay bool true
     param headers StringMap none
+    param secret_headers Option<Map> none
     initialize initialization
 )]
 #[derive(Debug)]
@@ -61,6 +65,13 @@ impl HttpClient {
                     client = client.with_base(url);
                 }
             }
+            for (name, content) in &model.get_headers().map {
+                let header_name = HeaderName::from(name.to_string());
+                let header_content = HeaderValue::from(content.to_string());
+                if header_name.is_valid() && header_content.is_valid() {
+                    client = client.with_default_header(header_name.to_owned(), header_content);
+                }
+            }
 
             *self.client.write().unwrap() = Some(Arc::new(client));
         }
@@ -68,6 +79,43 @@ impl HttpClient {
 
     fn client(&self) -> Option<Arc<Client>> {
         self.client.read().unwrap().clone()
+    }
+
+    /// Reveals the secret headers into `conn`, on behalf of `access`.
+    async fn add_secret_headers(
+        &self,
+        conn: &mut Conn,
+        access: &SecretAccess,
+    ) -> Result<(), String> {
+        let model = self.model.upgrade().unwrap();
+        let Some(secret_headers) = model.get_secret_headers() else {
+            return Ok(());
+        };
+        for (name, value) in &secret_headers.map {
+            let header_name = HeaderName::from(name.to_string());
+            if !header_name.is_valid() {
+                return Err(format!("'{name}' is not a valid header name"));
+            }
+            let Value::Secret(secret) = value else {
+                return Err(format!("secret header '{name}' is not a Secret<string>"));
+            };
+            secret
+                .reveal_str(access, |content| {
+                    let header_content = HeaderValue::from(content.to_string());
+                    if header_content.is_valid() {
+                        conn.request_headers_mut()
+                            .insert(header_name.to_owned(), header_content);
+                        Ok(())
+                    } else {
+                        Err(format!(
+                            "secret header '{name}' is not a valid header value"
+                        ))
+                    }
+                })
+                .await
+                .map_err(|error| format!("secret header '{name}': {error}"))??;
+        }
+        Ok(())
     }
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
@@ -105,13 +153,15 @@ pub async fn request(method: HttpMethod) {
         url.recv_one_as::<string>().await,
         req_headers.recv_one_as::<Arc<StringMap>>().await,
     ) {
-        if let Some(client) = HttpClientModel::into(client).inner().client() {
+        let model = HttpClientModel::into(client);
+        let http_client = model.inner();
+        if let Some(client) = http_client.client() {
             match client
                 .base()
                 .map(|base_url| base_url.join(&url))
                 .unwrap_or_else(|| Url::parse(&url))
             {
-                Ok(url) => match {
+                Ok(url) => match async {
                     let mut conn = client.build_conn(method.0, url);
                     for (name, content) in &req_headers.map {
                         let header_name = HeaderName::from(name.to_string());
@@ -123,7 +173,10 @@ pub async fn request(method: HttpMethod) {
                             }
                         }
                     }
-                    conn
+                    http_client
+                        .add_secret_headers(&mut conn, &secret_access)
+                        .await?;
+                    conn.await.map_err(|err| err.to_string())
                 }
                 .await
                 {
@@ -237,7 +290,9 @@ pub async fn request_with_body(method: HttpMethod) {
         url.recv_one_as::<string>().await,
         req_headers.recv_one_as::<Arc<StringMap>>().await,
     ) {
-        if let Some(client) = HttpClientModel::into(client).inner().client() {
+        let model = HttpClientModel::into(client);
+        let http_client = model.inner();
+        if let Some(client) = http_client.client() {
             match client
                 .base()
                 .map(|base_url| base_url.join(&url))
@@ -248,22 +303,24 @@ pub async fn request_with_body(method: HttpMethod) {
                     let (mut in_prod, in_cons) = in_body_buf.split();
 
                     let conn_doing = async {
-                        {
-                            let mut conn = client.build_conn(method.0, url);
+                        let mut conn = client.build_conn(method.0, url);
 
-                            for (name, content) in &req_headers.map {
-                                let header_name = HeaderName::from(name.to_string());
-                                if header_name.is_valid() {
-                                    let header_content = HeaderValue::from(content.to_string());
-                                    if header_content.is_valid() {
-                                        conn.request_headers_mut()
-                                            .insert(header_name.to_owned(), header_content);
-                                    }
+                        for (name, content) in &req_headers.map {
+                            let header_name = HeaderName::from(name.to_string());
+                            if header_name.is_valid() {
+                                let header_content = HeaderValue::from(content.to_string());
+                                if header_content.is_valid() {
+                                    conn.request_headers_mut()
+                                        .insert(header_name.to_owned(), header_content);
                                 }
                             }
-                            conn.with_body(Body::new_streaming(in_cons, None))
                         }
-                        .await
+                        http_client
+                            .add_secret_headers(&mut conn, &secret_access)
+                            .await?;
+                        conn.with_body(Body::new_streaming(in_cons, None))
+                            .await
+                            .map_err(|err| err.to_string())
                     };
                     let body_transmission = async {
                         while let Ok(body_data) = body

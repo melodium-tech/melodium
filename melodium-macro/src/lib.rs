@@ -2106,7 +2106,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let context: ItemStruct = parse(item).unwrap();
+    let mut context: ItemStruct = parse(item).unwrap();
     let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
@@ -2150,6 +2150,11 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     } else {
         panic!("Named field expected")
+    }
+    if let Fields::Named(fields_named) = &mut context.fields {
+        for field in fields_named.named.iter_mut() {
+            into_rust_secret_types(&mut field.ty);
+        }
     }
 
     let description;

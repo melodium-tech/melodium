@@ -3,7 +3,13 @@ use crate::status::*;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer, AsyncRb};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use core::{fmt::Debug, mem::MaybeUninit};
-use melodium_core::{common::executive::ResultStatus, *};
+use melodium_core::{
+    common::{
+        descriptor::DataType,
+        executive::{ResultStatus, Secret, SecretOrigin, SecretPolicy},
+    },
+    *,
+};
 use melodium_macro::{mel_context, mel_model, mel_treatment};
 use net_mel::ip::*;
 use ringbuf::SharedRb;
@@ -32,6 +38,12 @@ pub const SERVER: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 /// - `path`: the path called by the request.
 /// - `parameters`: the parameters from the route.
 /// - `method`: the HTTP method used by the request.
+/// - `authorization`: the `Authorization` header, if any.
+/// - `cookie`: the `Cookie` header, if any.
+///
+/// `Authorization` and `Cookie` are only given as secrets, and are left out of the request headers.
+/// They come from the client, so the plain `std/secret::reveal` treatment may reveal them,
+/// for example to compare a token, and they are masked in logs once revealed.
 #[mel_context]
 pub struct HttpRequest {
     pub id: u128,
@@ -39,6 +51,28 @@ pub struct HttpRequest {
     pub path: string,
     pub parameters: StringMap,
     pub method: HttpMethod,
+    pub authorization: Option<Secret<string>>,
+    pub cookie: Option<Secret<string>>,
+}
+
+/// Headers of incoming requests only given as secrets.
+const SECRET_HEADERS: [KnownHeaderName; 2] =
+    [KnownHeaderName::Authorization, KnownHeaderName::Cookie];
+
+/// Gives the `header` of an incoming request as a secret named after it.
+fn secret_header(conn: &Conn, header: KnownHeaderName) -> Option<Secret> {
+    conn.request_headers().get_str(header).and_then(|value| {
+        Secret::new(
+            header.as_ref().to_lowercase(),
+            DataType::String,
+            SecretPolicy {
+                plain_reveal: true,
+                ..SecretPolicy::default()
+            },
+            SecretOrigin::Inline(Value::String(value.to_string())),
+        )
+        .ok()
+    })
 }
 
 type AsyncProducerStatus =
@@ -199,6 +233,8 @@ impl HttpServer {
                                     .collect(),
                             ),
                             method: (*method).clone(),
+                            authorization: secret_header(&conn, KnownHeaderName::Authorization),
+                            cookie: secret_header(&conn, KnownHeaderName::Cookie),
                         };
 
                         let params = {
@@ -225,6 +261,11 @@ impl HttpServer {
                         let incoming_headers = conn
                             .request_headers()
                             .iter()
+                            .filter(|(name, _)| {
+                                !SECRET_HEADERS.iter().any(|secret| {
+                                    name.as_ref().eq_ignore_ascii_case(secret.as_ref())
+                                })
+                            })
                             .filter_map(|(name, value)| {
                                 value
                                     .as_str()
