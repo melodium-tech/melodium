@@ -1184,10 +1184,10 @@ async fn tls_stream(
     };
     use futures_rustls::TlsConnector;
 
+    let mut root_certificates = melodium_certs::ROOT_CERTIFICATE;
     let mut root_store = RootCertStore::empty();
     root_store.add_parsable_certificates(
-        rustls_pemfile::certs(&mut melodium_certs::ROOT_CERTIFICATE.as_slice())
-            .filter_map(|cert| cert.ok()),
+        rustls_pemfile::certs(&mut root_certificates).filter_map(|cert| cert.ok()),
     );
     let config = ClientConfig::builder_with_protocol_versions(&[&TLS13])
         .with_root_certificates(root_store)

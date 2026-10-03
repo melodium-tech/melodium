@@ -33,8 +33,8 @@ use std::{
 };
 use uuid::Uuid;
 
-const CERTIFICATE_CHAIN: &[u8; 4715] = include_bytes!("../melodium-chain.pem");
-const LOCALHOST_KEY: &[u8; 3272] = include_bytes!("../melodium-localhost.key.pem");
+const CERTIFICATE_CHAIN: &[u8] = include_bytes!("../melodium-chain.pem");
+const LOCALHOST_KEY: &[u8] = include_bytes!("../melodium-localhost.key.pem");
 const DEFAULT_TEARDOWN_TIMEOUT_SECS: u64 = 60;
 /// Number of attempts made to send a keepalive `Probe` before treating the connection as
 /// genuinely dead. See the comment at the probe retry loop for why a single failure isn't
@@ -218,8 +218,8 @@ pub async fn launch_listen_localcert(
 ) -> bool {
     launch_listen(
         bind,
-        CERTIFICATE_CHAIN.as_slice(),
-        LOCALHOST_KEY.as_slice(),
+        CERTIFICATE_CHAIN,
+        LOCALHOST_KEY,
         version,
         expect_key,
         emit_key,

@@ -4693,6 +4693,7 @@ dependencies = [
  "ciborium",
  "futures",
  "futures-rustls",
+ "melodium-certs",
  "melodium-common",
  "melodium-engine",
  "melodium-loader",
