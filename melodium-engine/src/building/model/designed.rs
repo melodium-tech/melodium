@@ -59,7 +59,7 @@ impl BuilderTrait for Builder {
 
         world.send_debug(Event::new(crate::debug::EventKind::ModelBuilt {
             model: Arc::clone(&descriptor) as Arc<dyn ModelDescriptor>,
-            parameters: remastered_environment.variables().clone(),
+            parameters: world.debug_values(remastered_environment.variables()),
             host_treatment: host_treatment.clone(),
             host_build,
             label: label.clone(),

@@ -331,6 +331,32 @@ impl World {
         }
     }
 
+    /// Gives parameter values for debug events: as they are at detailed level,
+    /// void otherwise, so that values are only written out when asked for.
+    pub fn debug_values(&self, values: &HashMap<String, Value>) -> HashMap<String, Value> {
+        match self.debug_level {
+            DebugLevel::Detailed => values.clone(),
+            DebugLevel::Basic | DebugLevel::None => values
+                .keys()
+                .map(|name| (name.clone(), Value::Void(())))
+                .collect(),
+        }
+    }
+
+    /// Gives an environment for debug events, its variables following `debug_values`.
+    pub fn debug_environment(&self, environment: &ContextualEnvironment) -> ContextualEnvironment {
+        match self.debug_level {
+            DebugLevel::Detailed => environment.clone(),
+            DebugLevel::Basic | DebugLevel::None => {
+                let mut debug_environment = environment.base_on();
+                for name in environment.variables().keys() {
+                    debug_environment.add_variable(name, Value::Void(()));
+                }
+                debug_environment
+            }
+        }
+    }
+
     pub fn send_debug(&self, event: Event) {
         let _ = self.debug_sender.send_blocking(event);
     }
@@ -967,7 +993,7 @@ impl ExecutiveWorld for World {
                 creation: TrackCreation::Source {
                     source: source.to_string(),
                     model_id: id,
-                    parameters: params.clone(),
+                    parameters: self.debug_values(params),
                     contexts,
                 },
             }))

@@ -155,7 +155,7 @@ impl BuilderTrait for Builder {
 
         world.send_debug(Event::new(EventKind::TreatmentBuilt {
             treatment: treatment.descriptor(),
-            environment: environment.clone(),
+            environment: world.debug_environment(environment),
             host_treatment: build_sample.host_treatment.clone(),
             host_build: build_sample.host_build_id,
             build_id: build,
