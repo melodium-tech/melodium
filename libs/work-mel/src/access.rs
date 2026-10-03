@@ -29,3 +29,26 @@ pub fn new_access(ip: Vec<Ip>, port: u16, remote_key: string, self_key: string) 
         allow_plain_tcp: false,
     })
 }
+
+/// Build an `Access` value for a worker listening without TLS (`melodium dist --disable-tls`).
+///
+/// Everything is sent readable, authentication keys included, so only loopback addresses
+/// are accepted. Secrets cannot be sent by value over such a connection.
+///
+/// - `ip`: list of IP addresses the worker can be reached on, loopback ones only.
+/// - `port`: TCP port the worker listens on.
+/// - `remote_key`: UUID identifying the remote side (as a string).
+/// - `self_key`: UUID identifying the local side (as a string).
+///
+/// ⚠️ Malformed UUID strings are silently replaced with the nil UUID.
+#[mel_function]
+pub fn new_plain_access(ip: Vec<Ip>, port: u16, remote_key: string, self_key: string) -> Access {
+    Access(api::CommonAccess {
+        addresses: ip.into_iter().map(|ip| ip.0).collect(),
+        port,
+        remote_key: Uuid::from_str(&remote_key).unwrap_or_default(),
+        self_key: Uuid::from_str(&self_key).unwrap_or_default(),
+        disable_tls: true,
+        allow_plain_tcp: false,
+    })
+}

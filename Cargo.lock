@@ -4822,6 +4822,7 @@ dependencies = [
 name = "melodium-share"
 version = "0.10.4"
 dependencies = [
+ "async-std",
  "cbor4ii",
  "chrono",
  "erased-serde",
@@ -4833,6 +4834,7 @@ dependencies = [
  "tsify",
  "uuid",
  "wasm-bindgen",
+ "zeroize",
 ]
 
 [[package]]

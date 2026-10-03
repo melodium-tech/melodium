@@ -13,9 +13,9 @@ use async_std::io::{Read, Write};
 #[cfg(feature = "real")]
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
-use common::descriptor::{DataType, Entry, Treatment};
+use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
-use common::executive::{Level, TrackId};
+use common::executive::{Level, SecretAccess, SecretError, TrackId};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
@@ -34,7 +34,7 @@ use melodium_distribution::{
     InputData, Instanciate, InstanciateStatus, LoadAndLaunch, Message, Protocol,
 };
 use melodium_macro::{mel_model, mel_package, mel_treatment};
-use melodium_share::{Collection, TransmissionValue as WireTransmissionValue};
+use melodium_share::{Collection, RawValue, TransmissionValue as WireTransmissionValue};
 use std::{
     collections::HashMap,
     sync::{Arc, Weak},
@@ -157,6 +157,7 @@ pub struct DistributionEngine {
     protocol_ready_fired: AtomicBool,
     stop_requested: AtomicBool,
     distant_run_id: AsyncRwLock<Option<Uuid>>,
+    encrypted: AtomicBool,
 }
 
 impl DistributionEngine {
@@ -172,6 +173,7 @@ impl DistributionEngine {
             protocol_ready_fired: AtomicBool::new(false),
             stop_requested: AtomicBool::new(false),
             distant_run_id: AsyncRwLock::new(None),
+            encrypted: AtomicBool::new(false),
         }
     }
 }
@@ -197,17 +199,24 @@ impl DistributionEngine {
         }
     }
 
+    /// Tells if the connection to the distant engine is encrypted, which secrets sent
+    /// by value require.
+    pub fn encrypted(&self) -> bool {
+        self.encrypted.load(Ordering::SeqCst)
+    }
+
     pub async fn start(
         &self,
         access: &work_mel::api::CommonAccess,
         params: HashMap<String, Value>,
+        secret_access: &SecretAccess,
     ) -> Result<(), String> {
         if self.start_attempted.swap(true, Ordering::SeqCst) {
             self.wait_protocol_ready().await;
             return Ok(());
         }
 
-        let result = self.do_start(access, params).await;
+        let result = self.do_start(access, params, secret_access).await;
         self.fire_protocol_ready();
         result
     }
@@ -216,23 +225,29 @@ impl DistributionEngine {
         &self,
         access: &work_mel::api::CommonAccess,
         params: HashMap<String, Value>,
+        secret_access: &SecretAccess,
     ) -> Result<(), String> {
         let model = self.model.upgrade().unwrap();
 
-        // Secrets cannot be sent to a distant engine yet, this is refused rather than
-        // sending them without their value.
-        if let Some(name) = params
-            .iter()
-            .find_map(|(name, value)| value.contains_secret().then_some(name))
-        {
-            let message = format!(
-                "Cannot distribute, parameter '{name}' contains a secret, and secrets cannot be sent to distant engines"
-            );
-            model
-                .world()
-                .log(Level::Error, "distrib".to_string(), message.clone(), None)
-                .await;
-            return Err(message);
+        // Secrets follow their transmission policy, values only cross over TLS.
+        let encrypted = !access.disable_tls;
+        let mut parameters = HashMap::with_capacity(params.len());
+        for (name, value) in &params {
+            match RawValue::to_wire(value, secret_access, encrypted).await {
+                Ok(value) => {
+                    parameters.insert(name.clone(), value);
+                }
+                Err(error) => {
+                    let message = format!(
+                        "Cannot distribute, parameter '{name}' cannot be sent to the distant engine, {error}"
+                    );
+                    model
+                        .world()
+                        .log(Level::Error, "distrib".to_string(), message.clone(), None)
+                        .await;
+                    return Err(message);
+                }
+            }
         }
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
@@ -301,6 +316,7 @@ impl DistributionEngine {
             }
 
             if let Some(protocol) = protocol {
+                self.encrypted.store(encrypted, Ordering::SeqCst);
                 match protocol
                     .send_message(Message::AskDistribution(AskDistribution {
                         melodium_version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap(),
@@ -354,10 +370,7 @@ impl DistributionEngine {
                     .send_message(Message::LoadAndLaunch(LoadAndLaunch {
                         collection: shared_collection,
                         entrypoint: (&entrypoint).into(),
-                        parameters: params
-                            .into_iter()
-                            .map(|(name, value)| (name, value.into()))
-                            .collect(),
+                        parameters,
                     }))
                     .await
                 {
@@ -929,6 +942,10 @@ impl DistributionEngine {
 /// connection parameters. The treatment also takes arbitrary `params` that are
 /// forwarded as launch parameters to the remote side.
 ///
+/// Secrets in `params` follow their transmission policy: `local` ones make the start
+/// fail, `reference` ones send only their locator, resolved by the remote engine with
+/// its own sources, and `value` ones send their value, over TLS only.
+///
 /// On a successful start the treatment sends a unit token on `ready`.
 /// If the engine cannot be started it emits a signal on `failed` followed by
 /// an error message on `error` and triggers a fuse of the distributor so that
@@ -948,7 +965,7 @@ pub async fn start(params: Map) {
 
     #[cfg(feature = "real")]
     if let Ok(access) = access.recv_one_as::<Arc<Access>>().await {
-        match distributor.start(&access.0, params).await {
+        match distributor.start(&access.0, params, &secret_access).await {
             Ok(_) => {
                 let _ = ready.send_one_as(()).await;
             }
@@ -1130,6 +1147,9 @@ pub async fn recv_block(name: string) {
 /// Values received on `data` are serialized and forwarded to the remote
 /// treatment. The treatment handles automatic closing of the remote input when
 /// the stream ends or an error occurs.
+///
+/// Secrets follow their transmission policy, as for `start` parameters: sending
+/// stops at the first secret refused, with an error logged.
 #[mel_treatment(
     model distributor DistributionEngine
     generic S (Serialize)
@@ -1142,10 +1162,8 @@ pub async fn send_stream(name: string) {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
-        if refuse_secret(&model, &S, &name, track_id).await {
-            distributor.close_input(&distribution_id, &name).await;
-            return;
-        }
+        let secrets = S.contains_secret();
+        let encrypted = distributor.encrypted();
 
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
@@ -1153,7 +1171,17 @@ pub async fn send_stream(name: string) {
             // type, preserving whatever shape `recv_many` produced instead of exploding
             // it into one `Value`/`RawValue` per tick first.
             while let Ok(data) = data.recv_many().await {
-                let data: WireTransmissionValue = data.into();
+                let data = if secrets {
+                    match WireTransmissionValue::to_wire(data, &secret_access, encrypted).await {
+                        Ok(data) => data,
+                        Err(error) => {
+                            log_secret_refusal(&model, &name, error, track_id).await;
+                            break;
+                        }
+                    }
+                } else {
+                    data.into()
+                };
                 if sender.send(data).await.is_err() {
                     voluntary_close = false;
                     break;
@@ -1180,6 +1208,9 @@ pub async fn send_stream(name: string) {
 ///
 /// The provided `data` block is consumed once, serialized and sent to the
 /// remote side. The remote input is closed after transmission.
+///
+/// Secrets follow their transmission policy, as for `start` parameters: a refused
+/// secret is not sent, and an error is logged.
 #[mel_treatment(
     model distributor DistributionEngine
     generic S (Serialize)
@@ -1192,25 +1223,30 @@ pub async fn send_block(name: string) {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
-        if refuse_secret(&model, &S, &name, track_id).await {
-            distributor.close_input(&distribution_id, &name).await;
-            return;
-        }
+        let encrypted = distributor.encrypted();
 
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             if let Ok(data) = data.recv_one().await {
-                let data: WireTransmissionValue = TransmissionValue::new(data).into();
-                if sender.send(data).await.is_err() {
-                    voluntary_close = false;
-                } else {
-                    if distributor
-                        .send_data(&distribution_id, &name)
-                        .await
-                        .is_err()
-                    {
-                        voluntary_close = false;
+                match WireTransmissionValue::to_wire(
+                    TransmissionValue::new(data),
+                    &secret_access,
+                    encrypted,
+                )
+                .await
+                {
+                    Ok(data) => {
+                        if sender.send(data).await.is_err() {
+                            voluntary_close = false;
+                        } else if distributor
+                            .send_data(&distribution_id, &name)
+                            .await
+                            .is_err()
+                        {
+                            voluntary_close = false;
+                        }
                     }
+                    Err(error) => log_secret_refusal(&model, &name, error, track_id).await,
                 }
             }
             if voluntary_close {
@@ -1220,31 +1256,23 @@ pub async fn send_block(name: string) {
     }
 }
 
-/// Logs an error and tells to refuse sending if `datatype` contains a secret.
-///
-/// Secrets cannot be sent to a distant engine yet, this is refused rather than
-/// sending them without their value.
+/// Logs that `name` could not be sent to the distant engine because of a secret.
 #[cfg(feature = "real")]
-async fn refuse_secret(
+async fn log_secret_refusal(
     model: &DistributionEngineModel,
-    datatype: &DataType,
     name: &str,
+    error: SecretError,
     track_id: TrackId,
-) -> bool {
-    if datatype.contains_secret() {
-        model
-            .world()
-            .log(
-                Level::Error,
-                "distrib".to_string(),
-                format!("Cannot send '{name}', type {datatype} contains a secret, and secrets cannot be sent to distant engines"),
-                Some(track_id),
-            )
-            .await;
-        true
-    } else {
-        false
-    }
+) {
+    model
+        .world()
+        .log(
+            Level::Error,
+            "distrib".to_string(),
+            format!("Cannot send '{name}' to the distant engine, {error}"),
+            Some(track_id),
+        )
+        .await;
 }
 
 #[cfg(feature = "real")]

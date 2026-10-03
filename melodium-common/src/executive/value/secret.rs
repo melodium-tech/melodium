@@ -145,6 +145,16 @@ impl Debug for SecretOrigin {
     }
 }
 
+/// What crosses to a distant engine for a secret.
+///
+/// Holds plaintext for a value transfer, so it has no `Debug`.
+pub enum SecretTransfer {
+    /// The locator, resolved by the distant engine with its own sources.
+    Reference(String),
+    /// The resolved value.
+    Value(Value),
+}
+
 /// Value of an inline secret, wiped once the secret is dropped, or before the process exits.
 struct InlineValue(Mutex<Option<Value>>);
 
@@ -429,6 +439,69 @@ impl Secret {
         f: impl FnOnce(&Value) -> R + Send,
     ) -> core::result::Result<R, SecretError> {
         self.access(access, true, f).await
+    }
+
+    /// Gives what crosses to a distant engine for the secret, following its transmission
+    /// policy, for the element designated by `access`:
+    /// - `local` secrets are refused;
+    /// - `reference` secrets give their locator, those without locator are refused;
+    /// - `value` secrets give their resolved value, over an encrypted connection only.
+    ///
+    /// Transmissions and refusals are recorded on the world, refusals also in the log.
+    pub async fn transmit(
+        &self,
+        access: &SecretAccess,
+        encrypted: bool,
+    ) -> core::result::Result<SecretTransfer, SecretError> {
+        let world = access.world().ok_or(SecretError::WorldEnded)?;
+        let audit = |outcome| SecretAudit {
+            secret_id: self.0.id,
+            secret_name: self.0.name.clone(),
+            element: access.element().clone(),
+            label: access.label().map(str::to_string),
+            track_id: access.track_id(),
+            outcome,
+        };
+
+        let transmission = self.0.policy.transmission;
+        let denial = match transmission {
+            SecretTransmission::Local => Some("its policy keeps it on this engine"),
+            SecretTransmission::Reference if self.locator().is_none() => {
+                Some("it has no locator to send by reference")
+            }
+            SecretTransmission::Value if !encrypted => {
+                Some("its value can only be sent over an encrypted connection")
+            }
+            _ => None,
+        };
+        if let Some(reason) = denial {
+            world
+                .secret_audit(audit(SecretAuditOutcome::Denied(reason.to_string())))
+                .await;
+            return Err(SecretError::Denied(reason.to_string()));
+        }
+
+        let transfer = match self.locator() {
+            Some(locator) if transmission == SecretTransmission::Reference => {
+                SecretTransfer::Reference(locator.to_string())
+            }
+            _ => match self.resolve(&*world, true).await {
+                Ok(value) => {
+                    world.add_masked_value(&self.0.name, &value);
+                    SecretTransfer::Value(value)
+                }
+                Err(error) => {
+                    world
+                        .secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
+                        .await;
+                    return Err(SecretError::ResolveFailed(error));
+                }
+            },
+        };
+        world
+            .secret_audit(audit(SecretAuditOutcome::Transmitted(transmission)))
+            .await;
+        Ok(transfer)
     }
 
     /// Resolves the value of the secret and drops it right away,

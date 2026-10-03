@@ -1,5 +1,5 @@
 use crate::descriptor::{DataType, Identifier};
-use crate::executive::{SecretId, TrackId, Value, World};
+use crate::executive::{SecretId, SecretTransmission, TrackId, Value, World};
 use async_trait::async_trait;
 use core::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Weak};
@@ -85,6 +85,8 @@ impl Debug for SecretAccess {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SecretAuditOutcome {
     Revealed,
+    /// Sent to a distant engine, by reference or by value.
+    Transmitted(SecretTransmission),
     Denied(String),
     ResolveFailed(String),
 }
@@ -110,6 +112,11 @@ impl Display for SecretAudit {
             SecretAuditOutcome::Revealed => {
                 write!(f, "secret {:?} revealed to {accessor}", self.secret_name)
             }
+            SecretAuditOutcome::Transmitted(transmission) => write!(
+                f,
+                "secret {:?} sent by {transmission} to a distant engine by {accessor}",
+                self.secret_name
+            ),
             SecretAuditOutcome::Denied(reason) => write!(
                 f,
                 "secret {:?} denied to {accessor}: {reason}",

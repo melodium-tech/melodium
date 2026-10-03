@@ -37,7 +37,7 @@ pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionVa
 pub use treatment::Treatment;
 pub use value::{
     GetData, PackedArray, Secret, SecretId, SecretOrigin, SecretPolicy, SecretReveal,
-    SecretTransmission, Value,
+    SecretTransfer, SecretTransmission, Value,
 };
 pub use wipe::{count_wiped, register_wipe, wipe_all, wipe_value, wiped_count, Wipe};
 pub use world::{DirectCreationCallback, TrackCreationCallback, TrackId, World};

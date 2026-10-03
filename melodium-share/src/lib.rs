@@ -61,5 +61,5 @@ pub use transmission::TransmissionValue;
 pub use treatment::{Treatment, TreatmentImplementationKind};
 pub use treatment_design::TreatmentDesign;
 pub use treatment_instanciation_design::TreatmentInstanciationDesign;
-pub use value::{RawValue, Value};
+pub use value::{RawValue, SecretValue, Value};
 pub use variability::Variability;

@@ -29,8 +29,8 @@ use melodium_common::descriptor::{
 use melodium_common::executive::{
     register_wipe, Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback,
     Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput,
-    ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretSource, TrackCreationCallback,
-    TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
+    ResultStatus, Secret, SecretAccess, SecretAudit, SecretAuditOutcome, SecretSource,
+    TrackCreationCallback, TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::borrow::Cow;
 use std::collections::{hash_map::Entry, HashMap};
@@ -841,6 +841,20 @@ impl Engine for World {
     async fn log(&self, level: LogLevel, label: String, message: String) {
         ExecutiveWorld::log(self, level, label, message, None).await
     }
+
+    fn secret_access(
+        &self,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<TrackId>,
+    ) -> SecretAccess {
+        SecretAccess::new(
+            &(self.auto_reference.upgrade().unwrap() as Arc<dyn ExecutiveWorld>),
+            element,
+            label,
+            track_id,
+        )
+    }
 }
 
 #[async_trait]
@@ -1026,7 +1040,11 @@ impl ExecutiveWorld for World {
     }
 
     async fn secret_audit(&self, audit: SecretAudit) {
-        if audit.outcome != SecretAuditOutcome::Revealed {
+        // Reveals and transmissions are only recorded as debug events.
+        if matches!(
+            audit.outcome,
+            SecretAuditOutcome::Denied(_) | SecretAuditOutcome::ResolveFailed(_)
+        ) {
             ExecutiveWorld::log(
                 self,
                 LogLevel::Error,
@@ -1052,6 +1070,14 @@ impl ExecutiveWorld for World {
                 element,
                 label,
                 track_id,
+            },
+            SecretAuditOutcome::Transmitted(transmission) => EventKind::SecretTransmitted {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+                transmission: transmission.to_string(),
             },
             SecretAuditOutcome::Denied(reason) => EventKind::SecretDenied {
                 secret_id,

@@ -1,6 +1,8 @@
 use crate::RawValue;
 use melodium_common::descriptor::Collection;
-use melodium_common::executive::TransmissionValue as CommonTransmissionValue;
+use melodium_common::executive::{
+    SecretAccess, SecretError, TransmissionValue as CommonTransmissionValue,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -377,13 +379,34 @@ impl From<CommonTransmissionValue> for TransmissionValue {
 }
 
 impl TransmissionValue {
+    /// Converts a batch to send to a distant engine, each secret following its transmission
+    /// policy, as `RawValue::to_wire` does. Batches without secrets convert as `From` does.
+    pub async fn to_wire(
+        value: CommonTransmissionValue,
+        access: &SecretAccess,
+        encrypted: bool,
+    ) -> Result<TransmissionValue, SecretError> {
+        match value {
+            CommonTransmissionValue::Other(values)
+                if values.iter().any(|value| value.contains_secret()) =>
+            {
+                let mut raw = Vec::with_capacity(values.len());
+                for value in &values {
+                    raw.push(RawValue::to_wire(value, access, encrypted).await?);
+                }
+                Ok(TransmissionValue::Other(raw))
+            }
+            value => Ok(value.into()),
+        }
+    }
+
     /// Converts back to the in-process batch type. Takes a `&Collection` because the one
     /// variant that can hold custom `Data` values (`Other`, via `RawValue::Data`) needs it
-    /// to find the right deserializer — exactly like `RawValue::to_value` does for a
-    /// single value. Every other variant is plain primitives and never fails; `Other`
-    /// fails (returns `None`) if any element can't be resolved against `collection`,
-    /// mirroring `RawValue::to_value`'s own failure shape rather than silently dropping
-    /// unresolvable elements.
+    /// to find the right deserializer, exactly like `RawValue::from_wire` does for a
+    /// single value, secrets included. Every other variant is plain primitives and never
+    /// fails; `Other` fails (returns `None`) if any element can't be resolved against
+    /// `collection`, mirroring `RawValue::from_wire`'s own failure shape rather than
+    /// silently dropping unresolvable elements.
     pub fn to_transmission_value(self, collection: &Collection) -> Option<CommonTransmissionValue> {
         Some(match self {
             TransmissionValue::Void(v) => CommonTransmissionValue::Void(v.into()),
@@ -451,7 +474,7 @@ impl TransmissionValue {
             TransmissionValue::Other(v) => {
                 let mut values = std::collections::VecDeque::with_capacity(v.len());
                 for value in v {
-                    values.push_back(value.to_value(collection)?);
+                    values.push_back(value.from_wire(collection)?);
                 }
                 CommonTransmissionValue::Other(values)
             }

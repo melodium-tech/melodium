@@ -2,14 +2,20 @@ use crate::{DataType, DescribedType, Identifier, SecretPolicy, SharingError, Sha
 use cbor4ii::core::utils::SliceReader;
 use melodium_common::{
     descriptor::{Collection, Entry as CommonEntry, Identifier as CommonIdentifier},
-    executive::{Secret as CommonSecret, SecretOrigin, Value as CommonValue},
+    executive::{
+        wipe_value, Secret as CommonSecret, SecretAccess, SecretError, SecretOrigin,
+        SecretTransfer, Value as CommonValue,
+    },
 };
 use melodium_engine::{design::Value as DesignedValue, LogicError};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
+    future::Future,
+    pin::Pin,
     sync::Arc,
 };
+use zeroize::Zeroize;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -36,9 +42,10 @@ impl Value {
                 datatype,
                 policy,
                 locator,
+                value,
             }) => {
-                let secret = match (datatype.to_datatype(collection), locator) {
-                    (Some(datatype), Some(locator)) => CommonSecret::new(
+                let secret = match (datatype.to_datatype(collection), locator, value) {
+                    (Some(datatype), Some(locator), None) => CommonSecret::new(
                         name.clone(),
                         datatype,
                         policy.into(),
@@ -194,7 +201,8 @@ pub enum RawValue {
     Vec(Vec<RawValue>),
     Option(Option<Box<RawValue>>),
 
-    /// Description of a secret, never carrying its value.
+    /// Description of a secret, carrying its value only when sent by value
+    /// to a distant engine (see `RawValue::to_wire`).
     ///
     /// `datatype` is the type of the value held (`T` for a `Secret<T>`),
     /// and `locator` is set when the value is resolved from a source.
@@ -203,9 +211,30 @@ pub enum RawValue {
         datatype: DataType,
         policy: SecretPolicy,
         locator: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        value: Option<SecretValue>,
     },
 
     Data(Identifier, Option<Vec<u8>>),
+}
+
+/// Value of a secret sent by value to a distant engine, that `Debug` never shows,
+/// overwritten when dropped (best effort, as for `melodium_common::executive::wipe_value`).
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[serde(transparent)]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+pub struct SecretValue(pub Box<RawValue>);
+
+impl std::fmt::Debug for SecretValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("<secret value>")
+    }
+}
+
+impl Drop for SecretValue {
+    fn drop(&mut self) {
+        self.0.wipe();
+    }
 }
 
 impl RawValue {
@@ -244,9 +273,155 @@ impl RawValue {
                 None => CommonValue::Option(None),
                 Some(value) => CommonValue::Option(Some(Box::new(value.to_value(collection)?))),
             }),
-            // Secrets are rebuilt by the policy-aware conversion of the distribution layer.
+            // Secrets are rebuilt by `from_wire`, the policy-aware conversion of the distribution layer.
             RawValue::Secret { .. } => None,
             other => other.try_into().ok(),
+        }
+    }
+
+    /// Converts a value to send to a distant engine, each secret following its transmission
+    /// policy (see `Secret::transmit`) for the element designated by `access`.
+    ///
+    /// Secrets sent by reference only carry their locator, and those sent by value carry
+    /// their resolved value. Fails on the first secret refused.
+    pub fn to_wire<'a>(
+        value: &'a CommonValue,
+        access: &'a SecretAccess,
+        encrypted: bool,
+    ) -> Pin<Box<dyn Future<Output = Result<RawValue, SecretError>> + Send + 'a>> {
+        Box::pin(async move {
+            match value {
+                CommonValue::Secret(secret) => {
+                    let transfer = secret.transmit(access, encrypted).await?;
+                    let mut raw: RawValue = secret.into();
+                    if let RawValue::Secret { locator, value, .. } = &mut raw {
+                        match transfer {
+                            SecretTransfer::Reference(reference) => *locator = Some(reference),
+                            SecretTransfer::Value(mut plain) => {
+                                *locator = None;
+                                *value = Some(SecretValue(Box::new((&plain).into())));
+                                wipe_value(&mut plain);
+                            }
+                        }
+                    }
+                    Ok(raw)
+                }
+                CommonValue::Vec(values) if value.contains_secret() => {
+                    let mut raw = Vec::with_capacity(values.len());
+                    for value in values {
+                        raw.push(Self::to_wire(value, access, encrypted).await?);
+                    }
+                    Ok(RawValue::Vec(raw))
+                }
+                CommonValue::Option(Some(inner)) if inner.contains_secret() => {
+                    Ok(RawValue::Option(Some(Box::new(
+                        Self::to_wire(inner, access, encrypted).await?,
+                    ))))
+                }
+                other => Ok(other.into()),
+            }
+        })
+    }
+
+    /// Converts a value received from a distant engine.
+    ///
+    /// Secrets keep the policy they were sent with: those sent by reference resolve their
+    /// locator with the sources of this engine, and those sent by value hold it inline.
+    pub fn from_wire(&self, collection: &Collection) -> Option<CommonValue> {
+        match self {
+            RawValue::Secret {
+                name,
+                datatype,
+                policy,
+                locator,
+                value,
+            } => {
+                let origin = match (value, locator) {
+                    (Some(SecretValue(value)), _) => {
+                        SecretOrigin::Inline(value.from_wire(collection)?)
+                    }
+                    (None, Some(locator)) => SecretOrigin::Locator(locator.clone()),
+                    (None, None) => return None,
+                };
+                CommonSecret::new(
+                    name.clone(),
+                    datatype.to_datatype(collection)?,
+                    policy.into(),
+                    origin,
+                )
+                .ok()
+                .map(CommonValue::Secret)
+            }
+            RawValue::Vec(v) => Some({
+                let mut vec = Vec::with_capacity(v.len());
+                for val in v {
+                    vec.push(val.from_wire(collection)?);
+                }
+                CommonValue::Vec(vec)
+            }),
+            RawValue::Option(Some(value)) => Some(CommonValue::Option(Some(Box::new(
+                value.from_wire(collection)?,
+            )))),
+            other => other.to_value(collection),
+        }
+    }
+
+    /// Overwrites what this value holds, keeping its shape.
+    fn wipe(&mut self) {
+        match self {
+            RawValue::Void(_) => {}
+            RawValue::I8(n) => n.zeroize(),
+            RawValue::I16(n) => n.zeroize(),
+            RawValue::I32(n) => n.zeroize(),
+            RawValue::I64(n) => n.zeroize(),
+            RawValue::I128(n) => n.zeroize(),
+            RawValue::U8(n) => n.zeroize(),
+            RawValue::U16(n) => n.zeroize(),
+            RawValue::U32(n) => n.zeroize(),
+            RawValue::U64(n) => n.zeroize(),
+            RawValue::U128(n) => n.zeroize(),
+            RawValue::F32(n) => n.zeroize(),
+            RawValue::F64(n) => n.zeroize(),
+            RawValue::Bool(b) => b.zeroize(),
+            RawValue::Byte(b) => b.zeroize(),
+            RawValue::Char(c) => c.zeroize(),
+            RawValue::String(s) => s.zeroize(),
+            RawValue::Vec(values) => values.iter_mut().for_each(RawValue::wipe),
+            RawValue::Option(value) => {
+                if let Some(value) = value {
+                    value.wipe();
+                }
+            }
+            // Its value, if any, is wiped when dropped.
+            RawValue::Secret { .. } => {}
+            RawValue::Data(_, data) => data.zeroize(),
+        }
+    }
+
+    /// Gives this value without the values of secrets sent by value,
+    /// for what is kept or shown beyond the transport itself.
+    pub fn without_secret_values(&self) -> RawValue {
+        match self {
+            RawValue::Secret {
+                name,
+                datatype,
+                policy,
+                locator,
+                value: _,
+            } => RawValue::Secret {
+                name: name.clone(),
+                datatype: datatype.clone(),
+                policy: policy.clone(),
+                locator: locator.clone(),
+                value: None,
+            },
+            RawValue::Vec(values) => {
+                RawValue::Vec(values.iter().map(RawValue::without_secret_values).collect())
+            }
+            RawValue::Option(Some(value)) => {
+                RawValue::Option(Some(Box::new(value.without_secret_values())))
+            }
+            other => other.clone(),
         }
     }
 
@@ -262,8 +437,18 @@ impl RawValue {
                 RawValue::String(value) => value.len(),
                 RawValue::Vec(values) => values.iter().map(RawValue::estimated_size).sum(),
                 RawValue::Option(Some(value)) => value.estimated_size(),
-                RawValue::Secret { name, locator, .. } => {
-                    name.len() + locator.as_ref().map(String::len).unwrap_or(0)
+                RawValue::Secret {
+                    name,
+                    locator,
+                    value,
+                    ..
+                } => {
+                    name.len()
+                        + locator.as_ref().map(String::len).unwrap_or(0)
+                        + value
+                            .as_ref()
+                            .map(|SecretValue(value)| value.estimated_size())
+                            .unwrap_or(0)
                 }
                 RawValue::Data(_, value) => value.as_ref().map(Vec::len).unwrap_or(0),
                 _ => 0,
@@ -373,6 +558,7 @@ impl From<&CommonSecret> for RawValue {
             datatype: secret.datatype().into(),
             policy: secret.policy().into(),
             locator: secret.locator().map(str::to_string),
+            value: None,
         }
     }
 }
@@ -566,6 +752,7 @@ mod secret_tests {
                 plain_reveal: false,
             },
             locator: None,
+            value: None,
         };
 
         let by_ref: RawValue = (&value).into();
@@ -636,5 +823,264 @@ mod secret_tests {
         let long: RawValue =
             secret(SecretOrigin::Inline(CommonValue::String("a".repeat(4096)))).into();
         assert_eq!(short.estimated_size(), long.estimated_size());
+    }
+}
+
+#[cfg(test)]
+mod secret_wire_tests {
+    use super::*;
+    use crate::SecretTransmission;
+    use async_std::task::block_on;
+    use melodium_common::{
+        descriptor::DataType as CommonDataType,
+        executive::{
+            Level, SecretPolicy as CommonSecretPolicy,
+            SecretTransmission as CommonSecretTransmission,
+            TransmissionValue as CommonTransmissionValue,
+        },
+    };
+    use melodium_engine::{debug::DebugLevel, Engine};
+
+    const SENTINEL: &str = "s3cr3t-wire-sentinel";
+
+    fn engine() -> Arc<dyn Engine> {
+        melodium_engine::new_engine(Arc::new(Collection::new()), Level::Info, DebugLevel::None)
+    }
+
+    fn access(engine: &Arc<dyn Engine>) -> SecretAccess {
+        engine.secret_access(
+            CommonIdentifier::new(vec!["test".to_string()], "sender"),
+            None,
+            None,
+        )
+    }
+
+    fn secret(transmission: CommonSecretTransmission, origin: SecretOrigin) -> CommonValue {
+        CommonValue::Secret(
+            CommonSecret::new(
+                "token".to_string(),
+                CommonDataType::String,
+                CommonSecretPolicy {
+                    transmission,
+                    ..CommonSecretPolicy::default()
+                },
+                origin,
+            )
+            .unwrap(),
+        )
+    }
+
+    fn inline(transmission: CommonSecretTransmission) -> CommonValue {
+        secret(
+            transmission,
+            SecretOrigin::Inline(CommonValue::String(SENTINEL.to_string())),
+        )
+    }
+
+    fn contains_sentinel(raw: &RawValue) -> bool {
+        let cbor = cbor4ii::serde::to_vec(Vec::new(), raw).unwrap();
+        cbor.windows(SENTINEL.len())
+            .any(|window| window == SENTINEL.as_bytes())
+    }
+
+    #[test]
+    fn local_secrets_are_refused() {
+        let engine = engine();
+        let access = access(&engine);
+        for encrypted in [false, true] {
+            assert!(matches!(
+                block_on(RawValue::to_wire(
+                    &inline(CommonSecretTransmission::Local),
+                    &access,
+                    encrypted
+                )),
+                Err(SecretError::Denied(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn references_carry_the_locator_only() {
+        let engine = engine();
+        let access = access(&engine);
+        // Never resolved by the sender, so the variable does not need to exist.
+        let value = secret(
+            CommonSecretTransmission::Reference,
+            SecretOrigin::Locator("env:MELODIUM_SHARE_WIRE_TEST_UNSET".to_string()),
+        );
+        let raw = block_on(RawValue::to_wire(&value, &access, false)).unwrap();
+        assert!(matches!(
+            &raw,
+            RawValue::Secret { locator: Some(locator), value: None, policy, .. }
+                if locator == "env:MELODIUM_SHARE_WIRE_TEST_UNSET"
+                    && policy.transmission == SecretTransmission::Reference
+        ));
+
+        match raw.from_wire(&Collection::new()) {
+            Some(CommonValue::Secret(received)) => {
+                assert_eq!(received.name(), "token");
+                assert_eq!(
+                    received.locator(),
+                    Some("env:MELODIUM_SHARE_WIRE_TEST_UNSET")
+                );
+                assert_eq!(
+                    received.policy().transmission,
+                    CommonSecretTransmission::Reference
+                );
+            }
+            other => panic!("secret expected, got {other:?}"),
+        }
+
+        assert!(matches!(
+            block_on(RawValue::to_wire(
+                &inline(CommonSecretTransmission::Reference),
+                &access,
+                true
+            )),
+            Err(SecretError::Denied(_))
+        ));
+    }
+
+    #[test]
+    fn values_cross_encrypted_connections_only() {
+        let engine = engine();
+        let access = access(&engine);
+        let value = inline(CommonSecretTransmission::Value);
+
+        assert!(matches!(
+            block_on(RawValue::to_wire(&value, &access, false)),
+            Err(SecretError::Denied(_))
+        ));
+
+        let raw = block_on(RawValue::to_wire(&value, &access, true)).unwrap();
+        assert!(matches!(
+            &raw,
+            RawValue::Secret {
+                locator: None,
+                value: Some(_),
+                ..
+            }
+        ));
+        assert!(contains_sentinel(&raw));
+        assert!(!format!("{raw:?}").contains(SENTINEL));
+        assert!(!contains_sentinel(&raw.without_secret_values()));
+
+        let received = raw.from_wire(&Collection::new()).unwrap();
+        let back = block_on(RawValue::to_wire(&received, &access, true)).unwrap();
+        assert_eq!(back, raw);
+    }
+
+    #[test]
+    fn values_are_resolved_by_the_sender() {
+        let engine = engine();
+        let access = access(&engine);
+        std::env::set_var("MELODIUM_SHARE_WIRE_TEST_VALUE", SENTINEL);
+        let value = secret(
+            CommonSecretTransmission::Value,
+            SecretOrigin::Locator("env:MELODIUM_SHARE_WIRE_TEST_VALUE".to_string()),
+        );
+        let raw = block_on(RawValue::to_wire(&value, &access, true)).unwrap();
+        assert!(matches!(
+            &raw,
+            RawValue::Secret {
+                locator: None,
+                value: Some(SecretValue(value)),
+                ..
+            } if **value == RawValue::String(SENTINEL.to_string())
+        ));
+    }
+
+    #[test]
+    fn containers_and_batches_carry_secrets() {
+        let engine = engine();
+        let access = access(&engine);
+        let collection = Collection::new();
+
+        let vec = CommonValue::Vec(vec![
+            inline(CommonSecretTransmission::Value),
+            inline(CommonSecretTransmission::Value),
+        ]);
+        let raw = block_on(RawValue::to_wire(&vec, &access, true)).unwrap();
+        assert!(contains_sentinel(&raw));
+        assert!(matches!(
+            raw.from_wire(&collection),
+            Some(CommonValue::Vec(values)) if values.len() == 2 && values.iter().all(|value| matches!(value, CommonValue::Secret(_)))
+        ));
+
+        let option = CommonValue::Option(Some(Box::new(inline(CommonSecretTransmission::Local))));
+        assert!(block_on(RawValue::to_wire(&option, &access, true)).is_err());
+
+        let batch = CommonTransmissionValue::Other(
+            vec![
+                inline(CommonSecretTransmission::Value),
+                inline(CommonSecretTransmission::Value),
+            ]
+            .into(),
+        );
+        let wire = block_on(crate::TransmissionValue::to_wire(batch, &access, true)).unwrap();
+        let received = wire.to_transmission_value(&collection).unwrap();
+        assert_eq!(received.len(), 2);
+
+        let plain =
+            CommonTransmissionValue::Other(vec![CommonValue::String("a".to_string())].into());
+        assert_eq!(
+            block_on(crate::TransmissionValue::to_wire(
+                plain.clone(),
+                &access,
+                false
+            ))
+            .unwrap(),
+            plain.into()
+        );
+    }
+
+    #[test]
+    fn wiping_overwrites_values_and_keeps_their_shape() {
+        let mut raw = RawValue::Vec(vec![
+            RawValue::String(SENTINEL.to_string()),
+            RawValue::U64(42),
+            RawValue::Option(Some(Box::new(RawValue::Char('s')))),
+        ]);
+        raw.wipe();
+        assert_eq!(
+            raw,
+            RawValue::Vec(vec![
+                RawValue::String(String::new()),
+                RawValue::U64(0),
+                RawValue::Option(Some(Box::new(RawValue::Char('\0')))),
+            ])
+        );
+    }
+
+    #[test]
+    fn designs_refuse_secret_values() {
+        let engine = engine();
+        let access = access(&engine);
+        let raw = block_on(RawValue::to_wire(
+            &inline(CommonSecretTransmission::Value),
+            &access,
+            true,
+        ))
+        .unwrap();
+        let raw = match raw {
+            RawValue::Secret {
+                name,
+                datatype,
+                policy,
+                value,
+                ..
+            } => RawValue::Secret {
+                name,
+                datatype,
+                policy,
+                locator: Some("env:MELODIUM_SHARE_WIRE_TEST_UNSET".to_string()),
+                value,
+            },
+            other => other,
+        };
+        let scope = CommonIdentifier::new(vec!["root".to_string()], "Scope");
+        assert!(Value::Raw(raw)
+            .to_value(&Collection::new(), &scope)
+            .is_failure());
     }
 }
