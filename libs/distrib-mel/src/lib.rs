@@ -548,7 +548,7 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        let world = self.model.upgrade().map(|model| model.world().clone());
+        let world = self.model.upgrade().map(|model| model.world());
 
         // `start()` may never be called at all - e.g. the treatment
         // instance responsible for it never receives its `access` input, so

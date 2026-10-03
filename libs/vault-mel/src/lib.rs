@@ -99,7 +99,7 @@ impl Vault {
             )
             .is_err()
         {
-            let world = Arc::clone(model.world());
+            let world = model.world();
             async_std::task::block_on(async move {
                 world
                     .log(
@@ -193,7 +193,7 @@ pub async fn get(name: string) {
             SecretOrigin::Locator(format!("{}:{path}", model.get_source())),
         ) {
             Ok(created) => created
-                .check_resolution(model.world())
+                .check_resolution(&model.world())
                 .await
                 .map(|_| created),
             Err(err) => Err(err),
