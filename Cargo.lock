@@ -4728,6 +4728,8 @@ dependencies = [
  "melodium-common",
  "percent-encoding",
  "serde",
+ "signal-hook",
+ "signal-hook-async-std",
  "stacker",
  "uuid",
 ]

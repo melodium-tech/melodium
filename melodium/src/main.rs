@@ -420,6 +420,9 @@ fn run(args: Run) {
         if launch.is_failure() {
             std::process::exit(1);
         }
+        if let Some(Some(interruption)) = launch.success() {
+            std::process::exit(interruption.exit_code());
+        }
     } else {
         std::process::exit(1);
     }
@@ -868,6 +871,9 @@ fn dist(args: Dist) {
         }
     }
 
+    // An interrupted node exits with the code of the signal, once its work is written out.
+    let interruption = melodium_engine::interruption::last_interruption();
+
     async_std::task::block_on(async move {
         use futures::StreamExt;
         // `monitoring` only drains once every logs/debug forwarding task (including
@@ -892,9 +898,13 @@ fn dist(args: Dist) {
                 "{}: monitoring tasks did not complete in time, forcing exit",
                 "warning".bold().yellow()
             );
-            std::process::exit(0);
+            std::process::exit(interruption.map(|i| i.exit_code()).unwrap_or(0));
         }
     });
+
+    if let Some(interruption) = interruption {
+        std::process::exit(interruption.exit_code());
+    }
 }
 
 #[cfg(feature = "doc")]
