@@ -7057,6 +7057,8 @@ dependencies = [
  "melodium-macro",
  "sqlx",
  "std-mel",
+ "url",
+ "zeroize",
 ]
 
 [[package]]

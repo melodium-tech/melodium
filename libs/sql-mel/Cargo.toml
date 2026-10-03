@@ -22,6 +22,8 @@ melodium-core = { path = "../../melodium-core", version = "0.10.4" }
 melodium-macro = { path = "../../melodium-macro", version = "0.10.4" }
 std-mel = { path = "../std-mel", version = "0.10.4" }
 sqlx = { version = "0.8" }
+url = "2.5"
+zeroize = "1.9"
 
 [features]
 mock = []

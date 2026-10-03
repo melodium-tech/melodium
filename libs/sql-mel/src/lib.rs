@@ -22,6 +22,16 @@ use std::{
     sync::{Arc, Weak},
 };
 use std_mel::data::map::*;
+use url::Url;
+use zeroize::Zeroize;
+
+/// Gives `url` with `password` set, percent-encoded.
+fn with_password(url: &str, password: &str) -> Result<String, String> {
+    let mut url = Url::parse(url).map_err(|error| format!("invalid database URL: {error}"))?;
+    url.set_password(Some(password))
+        .map_err(|_| "a password cannot be set in this database URL".to_string())?;
+    Ok(url.into())
+}
 
 fn postgres_bind_replace(mut sql_to_bind: String, bind_symbol: &str) -> String {
     let bind_num = sql_to_bind.matches(bind_symbol).count();
@@ -33,6 +43,21 @@ fn postgres_bind_replace(mut sql_to_bind: String, bind_symbol: &str) -> String {
     }
 
     sql_to_bind
+}
+
+/// Refuses bindings holding secrets: their value only goes to the database once revealed.
+fn refuse_secret_bindings(bindings: &[String], bind: &Map) -> Result<(), String> {
+    match bindings.iter().find(|binding| {
+        bind.map
+            .get(*binding)
+            .map(Value::contains_secret)
+            .unwrap_or(false)
+    }) {
+        Some(binding) => Err(format!(
+            "binding '{binding}' holds a secret, which is only stored once revealed"
+        )),
+        None => Ok(()),
+    }
 }
 
 fn bind_value<'q>(
@@ -69,7 +94,7 @@ fn bind_value<'q>(
             None => query.bind(None::<bool>),
             Some(v) => bind_value(query, v),
         },
-        // A secret content is never bound, same as a `Data` that cannot be turned into string.
+        // Refused beforehand by `refuse_secret_bindings`.
         Value::Secret(_) => query.bind(None::<bool>),
         Value::Data(d) => {
             if value
@@ -136,6 +161,8 @@ fn get_row_as_map(row: &AnyRow) -> Map {
 /// Supports PostgreSQL, MySQL, MariaDB, and SQLite via a unified driver.
 ///
 /// - `url`: database connection URL (e.g. `"postgresql://user@host/db"`).
+/// - `password`: password put into `url` when connecting, replacing any password it holds
+/// (e.g. `"env:DB_PASSWORD"`).
 /// - `max_connections`: maximum number of simultaneous connections (default `10`).
 /// - `min_connections`: minimum number of idle connections to keep open (default `0`).
 /// - `acquire_timeout`: milliseconds to wait before failing to acquire a connection (default `10000`).
@@ -148,6 +175,7 @@ fn get_row_as_map(row: &AnyRow) -> Map {
 /// `closed` fires a track when the pool is drained.
 #[mel_model(
     param url string none
+    param password Option<Secret<string>> none
     param max_connections u32 10
     param min_connections u32 0
     param acquire_timeout u64 10000
@@ -188,7 +216,7 @@ impl SqlPool {
 
         let mut pool_lock = self.pool.write().await;
         if pool_lock.is_none() {
-            match AnyPoolOptions::new()
+            let options = AnyPoolOptions::new()
                 .max_connections(model.get_max_connections())
                 .min_connections(model.get_min_connections())
                 .acquire_timeout(Duration::from_millis(model.get_acquire_timeout()))
@@ -201,9 +229,25 @@ impl SqlPool {
                     model
                         .get_max_lifetime()
                         .map(|millis| Duration::from_millis(millis)),
-                )
-                .connect_lazy(&model.get_url())
-            {
+                );
+            let pool = match model.get_password() {
+                // The password only lives in the URL given to the pool options.
+                Some(password) => password
+                    .reveal_str(&model.secret_access(), |password| {
+                        let mut url = with_password(&model.get_url(), password)?;
+                        let pool = options
+                            .connect_lazy(&url)
+                            .map_err(|error| error.to_string());
+                        url.zeroize();
+                        pool
+                    })
+                    .await
+                    .unwrap_or_else(|error| Err(error.to_string())),
+                None => options
+                    .connect_lazy(&model.get_url())
+                    .map_err(|error| error.to_string()),
+            };
+            match pool {
                 Ok(pool) => {
                     *pool_lock = Some(AsyncArc::new(pool));
                     model
@@ -221,8 +265,7 @@ impl SqlPool {
                         )
                         .await;
                 }
-                Err(error) => {
-                    let err = error.to_string();
+                Err(err) => {
                     model
                         .new_failure(
                             None,
@@ -438,24 +481,31 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
                     "postgres" | "postgresql" => postgres_bind_replace(sql, &bind_symbol),
                     _ => sql,
                 };
-                let mut query = sqlx::query(&sql);
+                let result = match refuse_secret_bindings(&bindings, &bind) {
+                    Ok(()) => {
+                        let mut query = sqlx::query(&sql);
 
-                for binding in &bindings {
-                    if let Some(val) = bind.map.get(binding) {
-                        query = bind_value(query, val);
-                    } else {
-                        query = query.bind(None::<bool>);
+                        for binding in &bindings {
+                            if let Some(val) = bind.map.get(binding) {
+                                query = bind_value(query, val);
+                            } else {
+                                query = query.bind(None::<bool>);
+                            }
+                        }
+
+                        query.execute(&*pool).await.map_err(|err| err.to_string())
                     }
-                }
+                    Err(err) => Err(err),
+                };
 
-                match query.execute(&*pool).await {
+                match result {
                     Ok(result) => {
                         let _ = completed.send_one_as(()).await;
                         let _ = affected.send_one_as(result.rows_affected()).await;
                     }
                     Err(err) => {
                         let _ = failed.send_one_as(()).await;
-                        let _ = error.send_one_as(err.to_string()).await;
+                        let _ = error.send_one_as(err).await;
                     }
                 }
             }
@@ -517,23 +567,30 @@ pub async fn execute_each(
                     "postgres" | "postgresql" => postgres_bind_replace(sql.clone(), &bind_symbol),
                     _ => sql.clone(),
                 };
-                let mut query = sqlx::query(&sql);
+                let result = match refuse_secret_bindings(&bindings, &bind) {
+                    Ok(()) => {
+                        let mut query = sqlx::query(&sql);
 
-                for binding in &bindings {
-                    if let Some(val) = bind.map.get(binding) {
-                        query = bind_value(query, val);
-                    } else {
-                        query = query.bind(None::<bool>);
+                        for binding in &bindings {
+                            if let Some(val) = bind.map.get(binding) {
+                                query = bind_value(query, val);
+                            } else {
+                                query = query.bind(None::<bool>);
+                            }
+                        }
+
+                        query.execute(&*pool).await.map_err(|err| err.to_string())
                     }
-                }
+                    Err(err) => Err(err),
+                };
 
-                match query.execute(&*pool).await {
+                match result {
                     Ok(result) => {
                         let _ = affected.send_one_as(result.rows_affected()).await;
                     }
                     Err(error) => {
                         success = false;
-                        let _ = errors.send_one_as(error.to_string()).await;
+                        let _ = errors.send_one_as(error).await;
                         if stop_on_failure {
                             break;
                         }
@@ -627,6 +684,19 @@ pub async fn execute_batch(
                     break;
                 }
 
+                if let Err(error) = full_batch
+                    .iter()
+                    .try_for_each(|b| refuse_secret_bindings(&bindings, b))
+                {
+                    success = false;
+                    let _ = errors.send_one_as(error).await;
+                    if stop_on_failure {
+                        break 'main;
+                    } else {
+                        continue 'main;
+                    }
+                }
+
                 let mut query = query_builder
                     .push({
                         let batch = std::iter::repeat(batch.as_str())
@@ -718,6 +788,13 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
                     "postgres" | "postgresql" => postgres_bind_replace(sql, &bind_symbol),
                     _ => sql,
                 };
+                if let Err(error) = refuse_secret_bindings(&bindings, &bind) {
+                    let _ = failed.send_one_as(()).await;
+                    let _ = errors.send_one_as(error).await;
+                    let _ = finished.send_one_as(()).await;
+                    return;
+                }
+
                 let mut query = sqlx::query(&sql);
 
                 for binding in &bindings {
@@ -824,6 +901,19 @@ pub async fn fetch_batch(
                     break;
                 }
 
+                if let Err(error) = full_batch
+                    .iter()
+                    .try_for_each(|b| refuse_secret_bindings(&bindings, b))
+                {
+                    success = false;
+                    let _ = errors.send_one_as(error).await;
+                    if stop_on_failure {
+                        break 'main;
+                    } else {
+                        continue 'main;
+                    }
+                }
+
                 let mut query = query_builder
                     .push({
                         let batch = std::iter::repeat(batch.as_str())
@@ -883,3 +973,59 @@ pub async fn fetch_batch(
 }
 
 mel_package!();
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn password_is_set_percent_encoded() {
+        assert_eq!(
+            with_password("postgresql://app@db.local:5432/main", "p@ss:w/rd").unwrap(),
+            "postgresql://app:p%40ss%3Aw%2Frd@db.local:5432/main"
+        );
+    }
+
+    #[test]
+    fn password_replaces_the_one_in_url() {
+        assert_eq!(
+            with_password("mysql://app:old@db.local/main", "new").unwrap(),
+            "mysql://app:new@db.local/main"
+        );
+    }
+
+    #[test]
+    fn secret_bindings_are_refused() {
+        use melodium_core::common::{
+            descriptor::DataType,
+            executive::{Secret, SecretOrigin, SecretPolicy},
+        };
+        let secret = Value::Secret(
+            Secret::new(
+                "token".to_string(),
+                DataType::String,
+                SecretPolicy::default(),
+                SecretOrigin::Inline(Value::String("t0ken-sentinel".to_string())),
+            )
+            .unwrap(),
+        );
+        let bind = Map::new_with(HashMap::from([
+            ("name".to_string(), Value::String("app".to_string())),
+            ("token".to_string(), Value::Option(Some(Box::new(secret)))),
+        ]));
+
+        assert!(refuse_secret_bindings(&["name".to_string()], &bind).is_ok());
+        let error =
+            refuse_secret_bindings(&["name".to_string(), "token".to_string()], &bind).unwrap_err();
+        assert!(error.contains("'token'"), "{error}");
+        assert!(!error.contains("t0ken-sentinel"), "{error}");
+    }
+
+    #[test]
+    fn errors_never_quote_the_password() {
+        for url in ["not a url", "sqlite:data.db"] {
+            let error = with_password(url, "p4ssw0rd-sentinel").unwrap_err();
+            assert!(!error.contains("p4ssw0rd-sentinel"), "{error}");
+        }
+    }
+}
