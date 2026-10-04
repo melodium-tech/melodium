@@ -188,6 +188,39 @@ fn value_bytes(value: &Value) -> Option<std::borrow::Cow<'_, [u8]>> {
     }
 }
 
+/// Sorts the entries of `|format`: plain strings, names and values of string secrets,
+/// and names of invalid entries.
+fn format_entries(
+    entries: Map,
+) -> (
+    HashMap<String, String>,
+    Vec<String>,
+    Vec<String>,
+    Vec<ExecutiveSecret>,
+) {
+    let mut plain_entries = HashMap::new();
+    let mut secret_entries = Vec::new();
+    let mut invalid_entries = Vec::new();
+    let mut inputs = Vec::new();
+    for (entry, value) in entries.map {
+        let value = match value {
+            Value::Option(Some(value)) => *value,
+            value => value,
+        };
+        match value {
+            Value::String(text) => {
+                plain_entries.insert(entry, text);
+            }
+            Value::Secret(secret) if secret.datatype() == &DataType::String => {
+                secret_entries.push(entry);
+                inputs.push(secret);
+            }
+            _ => invalid_entries.push(entry),
+        }
+    }
+    (plain_entries, secret_entries, invalid_entries, inputs)
+}
+
 /// Template filled with plain strings and string secrets.
 #[derive(Debug)]
 struct FormatDerivation {
@@ -294,8 +327,8 @@ impl SecretDerivation for BytesDerivation {
 /// Secret made of `template` filled with `entries`, computed when revealed.
 ///
 /// `template` contains braced placeholders, such as `"Bearer {token}"`.
-/// `entries` maps placeholders to `string` values or `Secret<string>` values,
-/// built with `std/data/map::|map` and `|entry`.
+/// `entries` maps placeholders to `string` values or `Secret<string>` values, possibly in
+/// an option such as given by `|locate`, built with `std/data/map::|map` and `|entry`.
 /// The secret is named `name`, and gets the most restrictive combination
 /// of the policies of the secrets in `entries`.
 ///
@@ -303,22 +336,7 @@ impl SecretDerivation for BytesDerivation {
 /// a `string` nor a `Secret<string>`.
 #[mel_function]
 pub fn format(template: string, entries: Map, name: string) -> Secret<string> {
-    let mut plain_entries = HashMap::new();
-    let mut secret_entries = Vec::new();
-    let mut invalid_entries = Vec::new();
-    let mut inputs = Vec::new();
-    for (entry, value) in entries.map {
-        match value {
-            Value::String(text) => {
-                plain_entries.insert(entry, text);
-            }
-            Value::Secret(secret) if secret.datatype() == &DataType::String => {
-                secret_entries.push(entry);
-                inputs.push(secret);
-            }
-            _ => invalid_entries.push(entry),
-        }
-    }
+    let (plain_entries, secret_entries, invalid_entries, inputs) = format_entries(entries);
     ExecutiveSecret::derive(
         name,
         DataType::String,
@@ -481,6 +499,30 @@ mod tests {
             derivation.derive(&[Value::String(SENTINEL.to_string())]),
             Ok(Value::String(format!("https://ci:{SENTINEL}@host")))
         );
+    }
+
+    #[test]
+    fn format_takes_entries_in_options() {
+        let secret = ExecutiveSecret::from_locator("env:TOKEN", DataType::String).unwrap();
+        let entries = Map::new_with(HashMap::from([
+            (
+                "token".to_string(),
+                Value::Option(Some(Box::new(Value::Secret(secret.clone())))),
+            ),
+            (
+                "user".to_string(),
+                Value::Option(Some(Box::new(Value::String("ci".to_string())))),
+            ),
+            ("none".to_string(), Value::Option(None)),
+        ]));
+        let (plain, secret_entries, invalid, inputs) = format_entries(entries);
+        assert_eq!(
+            plain,
+            HashMap::from([("user".to_string(), "ci".to_string())])
+        );
+        assert_eq!(secret_entries, vec!["token".to_string()]);
+        assert_eq!(invalid, vec!["none".to_string()]);
+        assert_eq!(inputs, vec![secret]);
     }
 
     #[test]
