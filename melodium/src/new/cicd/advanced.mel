@@ -26,7 +26,7 @@ use work/resources::|mount
 /**
   `main` treatment, used as `advanced` entrypoint as defined in `Compo.toml`.
 
-  - `api_token`: service key provided to access Mélodium work distribution API;
+  - `api_token`: locator of the service key used to access Mélodium work distribution API (such as `"env:MELODIUM_API_TOKEN"`), the `MELODIUM_API_TOKEN` environment variable being used when not given;
   - `work_location`: location where dispatched runners take place (default throught API, can be set to `"compose"` for local run);
   - `output_directory`: directory where output files (including logs) are wrote;
   - `repository_clone_url`: URL to process Git clone;
@@ -34,7 +34,7 @@ use work/resources::|mount
 
   All the other parameters are present to handle integration with CI services.
 */
-treatment main(const api_token: string, const work_location: string = "api", repository_clone_url: string, repository_clone_ref: string, ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_sha: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+treatment main(const api_token: Option<Secret<string>> = _, const work_location: string = "api", repository_clone_url: string, repository_clone_ref: string, const ci_service_token: Option<Secret<string>> = _, ci_service_project: string = "", ci_service_ref: string = "", ci_service_sha: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
   // Model used to dispatch work among Mélodium engines.
   model cicd: CicdDispatchEngine(api_token=api_token, location=work_location)
 {
@@ -57,8 +57,7 @@ treatment build[cicd: CicdDispatchEngine](repository_clone_url: string, reposito
 {
     setupRunner[
         dispatcher=cicd,
-        runner=runner,
-        logger=logger
+        runner=runner
     ](
         name="build",
         cpu=10,
@@ -106,8 +105,7 @@ treatment test[cicd: CicdDispatchEngine]()
 {
     setupRunner[
         dispatcher=cicd,
-        runner=runner,
-        logger=logger
+        runner=runner
     ](
         name="test",
         cpu=10,
