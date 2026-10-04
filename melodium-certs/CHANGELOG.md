@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Breaking: `ROOT_CERTIFICATE` is a `&[u8]`, so that the file can hold the new root next to the current one during a renewal, both being trusted; the README describes the renewal and its order (#128).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

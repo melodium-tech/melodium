@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Testing that the embedded certificates do not expire within 90 days (#128).
+
 ## [v0.10.4] (2026-09-24)
 
 - Adding a `debug_level: Option<DebugLevel>` parameter to `launch_listen`, `launch_listen_localcert`, and `launch_listen_unsecure`, so callers can pick the debug event detail level instead of always running at `Detailed`, which cloned every transmitted payload into debug events. Defaults to `Basic` when debug senders are given and `None` otherwise.
