@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Adding secret environment variables (`|with_secret_variables`) and a secret standard input (`|with_secret_stdin`) to `Environment`, revealed by the treatment running commands and never put in command arguments (#136).
+- Breaking: `ExecutorEngine` methods take the revealed secrets (#136).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

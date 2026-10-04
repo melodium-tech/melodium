@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Adding the `Secret<T>` type, refusing nested secrets (S0189), and locator string literals for secret parameters (#133, #134).
+- Writing secret parameter defaults back as locators in restitution (#134).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

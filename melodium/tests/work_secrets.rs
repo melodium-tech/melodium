@@ -9,7 +9,7 @@ use std::time::Duration;
 const SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = pull_secret
 #! version = 0.1.0
-#! require = std:0.10.4 work:0.10.4
+#! require = std:0.11.0 work:0.11.0
 
 use std/engine/util::startup
 use std/engine/log::logErrors

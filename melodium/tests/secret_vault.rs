@@ -111,8 +111,8 @@ fn vault_server(revoke_first: bool) -> (String, Arc<Mutex<Vec<String>>>) {
 
 const SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = secret_vault
-#! version = 0.10.4
-#! require = std:0.10.4 vault:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0 vault:0.11.0
 
 use std/engine/util::startup
 use std/flow::emit
@@ -351,8 +351,8 @@ fn refused_tokens_are_renewed_once() {
 
 const SQL_SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = secret_vault_sql
-#! version = 0.10.4
-#! require = std:0.10.4 vault:0.10.4 sql:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0 vault:0.11.0 sql:0.11.0
 
 use std/engine/util::startup
 use std/engine/log::logError

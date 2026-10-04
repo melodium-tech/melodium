@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = process_distributed
-#! version = 0.10.1
-#! require = std:0.10.1 work:0.10.1 distrib:0.10.1 fs:0.10.1 net:0.10.1
+#! version = 0.11.0
+#! require = std:0.11.0 work:0.11.0 distrib:0.11.0 fs:0.11.0 net:0.11.0
 
 use std/flow::emit
 use std/flow::stream
@@ -15,7 +15,7 @@ use work/access::|new_access
 use fs/local::writeTextLocal
 
 treatment main(const distrib_port: u16, var remote_key: string, var self_key: string, const message: string = "Pingouin")
-  model distributor: DistributionEngine(treatment="process_distributed::echo", version="0.10.1")
+  model distributor: DistributionEngine(treatment="process_distributed::echo", version="0.11.0")
 {
     startup()
     emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], distrib_port, remote_key, self_key))

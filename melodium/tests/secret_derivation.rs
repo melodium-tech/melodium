@@ -11,8 +11,8 @@ use std::{collections::HashMap, sync::Arc};
 
 const SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = secret_derivation
-#! version = 0.10.4
-#! require = std:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0
 
 use std/engine/util::startup
 use std/flow::emit

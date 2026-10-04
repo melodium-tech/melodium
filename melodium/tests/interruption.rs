@@ -22,8 +22,8 @@ fn sleeper(duration: &str) -> PathBuf {
         &format!(
             r#"#!/usr/bin/env melodium
 #! name = sleeper
-#! version = 0.10.4
-#! require = std:0.10.4 process:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0 process:0.11.0
 
 use std/engine/util::startup
 use process/command::|command
@@ -125,8 +125,8 @@ fn models_end_within_the_grace_period() {
         "server",
         r#"#!/usr/bin/env melodium
 #! name = server
-#! version = 0.10.4
-#! require = http:0.10.4 net:0.10.4 std:0.10.4
+#! version = 0.11.0
+#! require = http:0.11.0 net:0.11.0 std:0.11.0
 
 use http/server::HttpServer
 use http/server::start

@@ -30,7 +30,7 @@ melodium:melodium_gitlab:
   rules:
     - if: '$MELODIUM == "true"'
   image:
-    name: registry.gitlab.com/melodium/melodium:alpine-0.10.4
+    name: registry.gitlab.com/melodium/melodium:alpine-0.11.0
     entrypoint: [""]
   script:
     - mkdir -p "$CI_PROJECT_DIR/results/logs"

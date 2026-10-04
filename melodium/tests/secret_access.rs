@@ -13,8 +13,8 @@ use std::{collections::HashMap, path::PathBuf, process::Command, sync::Arc};
 
 const SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = secret_access
-#! version = 0.10.4
-#! require = std:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0
 
 use std/engine/util::startup
 use std/flow::emit
@@ -274,8 +274,8 @@ fn locator_literals_build_secrets_with_default_policy() {
 
 const STD_SECRET_SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = std_secret
-#! version = 0.10.4
-#! require = std:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0
 
 use std/engine/util::startup
 use std/flow::emit

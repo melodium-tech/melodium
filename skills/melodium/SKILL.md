@@ -2,7 +2,7 @@
 name: melodium
 description: Manage Mélodium technology and language. Use when dealing with Mélodium code, if "melodium" is mentionned, or in projects with 'Compo.toml' file, or '.mel' files.
 license: EUPL-1.2
-compatibility: Requires Mélodium 0.10.0+
+compatibility: Requires Mélodium 0.11.0+
 allowed-tools: Bash(melodium check *)
 ---
 
@@ -293,9 +293,9 @@ name    = "my_project"
 version = "0.1.0"
 
 [dependencies]
-std  = "0.10.4"
-http = "0.10.4"
-fs   = "0.10.4"
+std  = "0.11.0"
+http = "0.11.0"
+fs   = "0.11.0"
 
 [entrypoints]
 main   = "my_project/main::main"
@@ -303,8 +303,8 @@ server = "my_project/server::serve"
 ```
 
 - `std` must be declared explicitly even though it is the standard library.
-- Version strings follow SemVer compatibility rules (Cargo-style): `"0.10.4"` allows `>=0.10.4, <0.11.0`.
-- Other operators: `~0.10.4` (patch only), `0.10.*` (wildcard), `>= 0.9, < 0.11` (range).
+- Version strings follow SemVer compatibility rules (Cargo-style): `"0.11.0"` allows `>=0.11.0, <0.12.0`.
+- Other operators: `~0.11.0` (patch only), `0.11.*` (wildcard), `>= 0.10, < 0.12` (range).
 
 ### Entrypoints
 
@@ -324,7 +324,7 @@ Single-file scripts with a mandatory shebang and metadata header:
 #!/usr/bin/env melodium
 #! name    = my_script
 #! version = 0.1.0
-#! require = std:0.10.4 fs:0.10.4
+#! require = std:0.11.0 fs:0.11.0
 
 // Usual Mélodium code…
 // Must have exactly one treatment named "main".

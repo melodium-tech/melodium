@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Supporting `Secret<T>` in elements: `secret_access` in treatments, `secret_access()` in models, and secret fields in contexts (#134, #136).
+- Allowing `none` defaults for `Option<T>` parameters of Rust-declared elements (#123).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

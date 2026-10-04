@@ -32,8 +32,8 @@ fn secrets_flow_through_ports() {
     load(
         r#"#!/usr/bin/env melodium
 #! name = secret_ports
-#! version = 0.10.4
-#! require = std:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0
 
 treatment forward()
   input secret: Block<Secret<string>>
@@ -58,8 +58,8 @@ fn secrets_do_not_satisfy_trait_bounds() {
     let errors = load(
         r#"#!/usr/bin/env melodium
 #! name = secret_trait_bound
-#! version = 0.10.4
-#! require = std:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0
 
 use std/conv::toString
 
@@ -91,9 +91,9 @@ fn secrets_can_be_given_to_generic_distribution_treatments() {
     load(
         r#"#!/usr/bin/env melodium
 #! name = secret_send
-#! version = 0.10.4
-#! require = std:0.10.4
-#! require = distrib:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0
+#! require = distrib:0.11.0
 
 use distrib::DistributionEngine
 use distrib::sendBlock
@@ -121,8 +121,8 @@ fn secrets_cannot_be_nested() {
     let errors = load(
         r#"#!/usr/bin/env melodium
 #! name = secret_nested
-#! version = 0.10.4
-#! require = std:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0
 
 treatment forward()
   input secret: Block<Vec<Secret<Option<Secret<string>>>>>

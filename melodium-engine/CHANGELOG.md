@@ -1,6 +1,15 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Adding the `env:` and `file:` secret sources, the secret audit as debug events (and log lines for refusals and failures), and the masking of revealed values in logs (#134, #137).
+- Adding `Engine::check_secrets` and `Engine::secret_access`, breaking for `Engine` implementors (#134, #139).
+- Ending runs gracefully on SIGINT, SIGTERM and SIGHUP through `interruption::live_until_interrupted` (#131).
+- Fixing models keeping their world alive through a reference cycle: models hold it weakly, and `world()` gives an owned `Arc` (#132).
+- Wiping the masking registry once the last log is delivered, and before exit (#140).
+- Keeping parameter values out of model build, treatment build and track creation debug events below `DebugLevel::Detailed`, which give the parameter names with void values; the program dump keeps the values (#129).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

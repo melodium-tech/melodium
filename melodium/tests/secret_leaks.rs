@@ -75,7 +75,7 @@ fn standalone_script(directory: &Path) -> PathBuf {
     std::fs::write(
         &script,
         format!(
-            "#!/usr/bin/env melodium\n#! name = secret_leaks\n#! version = 0.1.0\n#! require = std:0.10.4 process:0.10.4\n\n{SCRIPT}"
+            "#!/usr/bin/env melodium\n#! name = secret_leaks\n#! version = 0.1.0\n#! require = std:0.11.0 process:0.11.0\n\n{SCRIPT}"
         ),
     )
     .unwrap();
@@ -271,7 +271,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
     std::fs::create_dir_all(&package).unwrap();
     std::fs::write(
         package.join("Compo.toml"),
-        "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.10.4\"\nprocess = \"0.10.4\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
+        "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.11.0\"\nprocess = \"0.11.0\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
     )
     .unwrap();
     std::fs::write(package.join("lib-root.mel"), SCRIPT).unwrap();

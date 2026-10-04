@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Sending secrets in launch parameters and `send*` data following their transmission policy, values only over TLS (#139).
+- Breaking: refusing plain TCP to addresses other than loopback ones unless the access allows it, and warning about plain TCP otherwise (#130).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

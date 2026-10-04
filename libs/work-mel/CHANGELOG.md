@@ -1,6 +1,13 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Taking the `DistantEngine` API token as a secret, by default the `MELODIUM_API_TOKEN` environment variable, and container pull secrets as secrets (#136).
+- Giving secret variables to commands run in containers (`--env NAME`) and Kubernetes pods (read by a shell from standard input) (#136).
+- Adding `|new_plain_access` for workers listening without TLS on loopback addresses (#139).
+- Giving Compose distribution engines their keys through the environment instead of their arguments, and allowing plain TCP to them over the network local to the host (#130).
+
 ## [v0.10.4] (2026-09-24)
 
 - Decoupling `report_logs`/`report_debug` from the S3 upload path: uploading now runs in its own task, so a slow or repeatedly failing upload no longer blocks draining logs/debug events off the channel every running treatment feeds. A batch that fails to reach the reporting endpoint is dropped instead of retried inline.

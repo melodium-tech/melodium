@@ -1,6 +1,12 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Adding `secret_headers` to `HttpClient` and to the client helpers, revealed for each request (#136).
+- Fixing `HttpClient` ignoring its `headers` parameter.
+- Breaking: the `Authorization` and `Cookie` headers of incoming requests are only given as `@HttpRequest` secrets, out of the request headers (#136).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

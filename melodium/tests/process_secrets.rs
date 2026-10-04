@@ -7,7 +7,7 @@ use std::process::{Command, Output};
 const SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = process_secrets
 #! version = 0.1.0
-#! require = std:0.10.4 process:0.10.4
+#! require = std:0.11.0 process:0.11.0
 
 use std/engine/util::startup
 use std/engine/log::logError

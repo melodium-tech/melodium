@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = distributed_computation
 #! version = 0.1.0
-#! require = std:0.10.* net:0.10.* work:0.10.* distrib:0.10.*
+#! require = std:0.11.* net:0.11.* work:0.11.* distrib:0.11.*
 
 use std/engine/util::startup
 use std/engine/log::logInfoMessage

@@ -10,7 +10,7 @@ use std::time::Duration;
 const SERVER: &str = r#"#!/usr/bin/env melodium
 #! name = http_secrets_server
 #! version = 0.1.0
-#! require = std:0.10.4 http:0.10.4 net:0.10.4 encoding:0.10.4
+#! require = std:0.11.0 http:0.11.0 net:0.11.0 encoding:0.11.0
 
 use std/engine/util::startup
 use std/engine/log::logInfo
@@ -89,7 +89,7 @@ treatment authorization()
 const CLIENT: &str = r#"#!/usr/bin/env melodium
 #! name = http_secrets_client
 #! version = 0.1.0
-#! require = std:0.10.4 http:0.10.4
+#! require = std:0.11.0 http:0.11.0
 
 use std/engine/util::startup
 use std/engine/log::logError

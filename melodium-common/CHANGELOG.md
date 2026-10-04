@@ -1,6 +1,14 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Adding the `Secret<T>` type (`Value::Secret`, `DataType::Secret`): sensitive values holding where they come from (a locator, a derivation or an inline value), revealed only through `Secret::reveal*` on behalf of a `SecretAccess`, following their policy (transmission, reveal, plain reveal) (#133, #134, #135).
+- Adding the `SecretSource` and `SecretDerivation` traits, and the secret audit (`SecretAudit`) (#134, #135).
+- Adding `Secret::transmit` for secrets sent to distant engines, and `SecretWire` for secrets held inside data values (#139, #136).
+- Adding the `wipe` module: plaintext held from secrets is overwritten once not needed, and before the process exits (#140).
+- Breaking: `Treatment::prepare` takes a `SecretAccess`, and the `World` trait has `secret_source`, `add_secret_source`, `secret_audit`, `add_masked_value` and `mask` (#134, #137).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

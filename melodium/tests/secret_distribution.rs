@@ -15,7 +15,7 @@ use std::time::Duration;
 const SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = secret_distribution
 #! version = 0.1.0
-#! require = std:0.10.4 net:0.10.4 work:0.10.4 distrib:0.10.4
+#! require = std:0.11.0 net:0.11.0 work:0.11.0 distrib:0.11.0
 
 use std/engine/util::startup
 use std/engine/log::logInfo
@@ -114,7 +114,7 @@ treatment probe(token: Option<Secret<string>>)
 const ENVIRONMENT_SCRIPT: &str = r#"#!/usr/bin/env melodium
 #! name = secret_environment
 #! version = 0.1.0
-#! require = std:0.10.4 net:0.10.4 work:0.10.4 distrib:0.10.4 process:0.10.4
+#! require = std:0.11.0 net:0.11.0 work:0.11.0 distrib:0.11.0 process:0.11.0
 
 use std/engine/util::startup
 use std/engine/log::logError
