@@ -1,21 +1,13 @@
 use cicd/runners::CicdDispatchEngine
-use std/text/compose::|format
-use std/data/string_map::|entry
 use std/engine/util::startup
+use std/ops/option::|wrap
 use local/ci::archs
 
-treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, ref: string, test: bool = false, pipeline: string = "", sha: string = "", on_github: bool = false, on_gitlab: bool = false)
-  model cicd: CicdDispatchEngine(key=key, address="local")
+treatment main(const key: Secret<string>, out_directory: string, repository_url: string, const ci_token: Secret<string>, project: string, ref: string, test: bool = false, pipeline: string = "", sha: string = "", on_github: bool = false, on_gitlab: bool = false)
+  model cicd: CicdDispatchEngine(api_token=|wrap<Secret<string>>(key))
 {
     startup()
 
-    allLogs: logs()
-    stopLogs: stop()
-    logConsole: console(timestamp=true)
-    writeAllLogs(file=|format("{out_directory}/logs/full.log", |entry("out_directory", out_directory)))
-    allLogs.all -> logConsole.logs
-    allLogs.all -> writeAllLogs.logs
-
     archs[cicd=cicd](release=true, build=true, test=test, out_directory=out_directory, repository_url=repository_url, report_service_token=ci_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab)
-    startup.trigger -> archs.trigger,finished -> stopLogs.trigger
+    startup.trigger -> archs.trigger
 }

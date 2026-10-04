@@ -13,7 +13,7 @@ use cicd/services/github::|error as |github_error
 use std/flow::passBlock
 use std/ops/bin::|and
 
-treatment setServiceState(report: bool, gitlab_root_url: string, token: string, project: string, sha: string, ref: string, pipeline: string, name: string, description: string, on_github: bool, on_gitlab: bool)
+treatment setServiceState(report: bool, gitlab_root_url: string, const token: Secret<string>, project: string, sha: string, ref: string, pipeline: string, name: string, description: string, on_github: bool, on_gitlab: bool)
   input pending: Block<void>
   input running: Block<void>
   input success: Block<void>
