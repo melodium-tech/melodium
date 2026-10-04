@@ -17,6 +17,7 @@ use std/data/map/block::entry as blockMapEntry
 use std/data/string_map::entry
 use std/data/string_map::insert
 use std/ops/option::unwrapOr
+use std/ops/option::|wrap
 use http/server::HttpServer
 use http/server::start
 use http/server::connection
@@ -40,33 +41,37 @@ use sql::fetch
 //
 // Concepts introduced: a `SqlPool` model shared across requests, `fetch`
 // versus `execute`, combining a database model with an HTTP server model in
-// the same program.
+// the same program, and a database password given as a secret.
 //
 // A tiny "notes" API backed by PostgreSQL:
 //   POST /notes  → body is the note's plain text; stores it
 //   GET  /notes  → lists every note as "id) text" lines
 //
 // This example needs a reachable PostgreSQL database. Point `db_url` at
-// any Postgres instance to try it.
+// any Postgres instance to try it. The password is a secret, read from the
+// `DB_PASSWORD` environment variable unless `db_password` locates it
+// elsewhere, such as `file:/run/secrets/db_password`.
 //
 // Usage:
-//   melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
+//   DB_PASSWORD=... melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
 //
 //   curl -X POST http://127.0.0.1:8080/notes -d "buy milk"
 //   curl http://127.0.0.1:8080/notes
 //
 
-model AppDb(const db_url: string) : SqlPool {
+model AppDb(const db_url: string, const db_password: Secret<string>) : SqlPool {
     url             = db_url
+    password        = |wrap<Secret<string>>(db_password)
     min_connections = 1
     max_connections = 5
 }
 
 treatment main(
-    const db_url: string = "postgresql://postgres@localhost/notes_db",
-    const port:   u16    = 8080
+    const db_url:      string         = "postgresql://postgres@localhost/notes_db",
+    const db_password: Secret<string> = "env:DB_PASSWORD",
+    const port:        u16            = 8080
 )
-  model db:     AppDb(db_url=db_url)
+  model db:     AppDb(db_url=db_url, db_password=db_password)
   model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
 {
     startup()

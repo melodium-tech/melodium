@@ -23,7 +23,8 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | `jobs.<job>.environment` | Deployment protection rules are outside Mélodium scope |
 | `jobs.<job>.permissions` | Handled by the caller passing the appropriate token |
 | `on: push` / triggers | Entry-point treatment inputs |
-| `secrets` / `env` | Parameters passed to treatments |
+| `secrets` | `Secret<string>` parameters, see [Secrets](#secrets) |
+| `env` | Parameters passed to treatments |
 | `step.continue-on-error` | `continue_on_error` parameter of `runAction`, chain `continue` output |
 | `step.timeout-minutes` | No direct equivalent per step; apply `max_duration` at runner level |
 | Status reporting | `postGithubState` / `postGithubStateContext` |
@@ -175,13 +176,50 @@ step1.failed -> Self.failed
 
 ---
 
+## Secrets
+
+`secrets.*` values become `Secret<string>` parameters. A secret holds where its value comes from, such as `env:GITHUB_TOKEN`, and only the elements using it reveal it: its value never appears in parameters, logs, reports or command arguments.
+
+The workflow gives secrets to the job environment, and passes locators, never values:
+
+```yaml
+- name: Mélodium CI
+  run: melodium run .melodium/Compo.toml main --github_token env:GITHUB_TOKEN --sha "${{ github.sha }}"
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Secret parameters given to models (and through them, as the status tokens of steps) are `const`. The status token of steps and `setServiceState`, `github_token`, defaults to `env:GITHUB_TOKEN`.
+
+Commands get secrets as environment variables with `secret_variables`, never through their arguments. Steps running on workers need secrets allowed to be sent to them by value, which `std/secret::|locate` sets explicitly. Secrets with the default policy stay on the engine holding them, and sending them to a worker fails with an explicit error.
+
+```mel
+use std/data/map::Map
+use std/data/map::|map as |secret_map
+use std/data/map::|entry as |secret_entry
+use std/secret::|locate
+
+simpleStep[dispatcher=dispatcher](
+    name="publish",
+    image="node:20",
+    commands=[|command("npm", ["publish"])],
+    secret_variables=|wrap<Map>(|secret_map([
+        |secret_entry<Option<Secret<string>>>("NPM_TOKEN", |locate<string>("env:NPM_TOKEN", "npm_token", "value", false))
+    ]))
+)
+```
+
+⚠️ `${{ secrets.X }}` expressions evaluated by the contexts engine (`runAction`, `postGithubStateContext`, `githubStringEval`) give plain strings, and the `secrets` context given to `prepareContexts` is plain JSON. Leave secrets out of the contexts JSON, and give them as `Secret<string>` parameters instead.
+
+---
+
 ## Job dispatch — `simpleStep`
 
 For container-based jobs (equivalent to `runs-on: ubuntu-latest` with a docker image), use `simpleStep`. It manages the full lifecycle: spawning a runner, executing commands, reporting status, and stopping the runner.
 
 ```mel
 treatment myJob[dispatcher: CicdDispatchEngine](
-    github_token: string,
+    const github_token: Secret<string>,
     github_project: string,
     github_sha: string
 )
@@ -224,11 +262,13 @@ treatment myJob[dispatcher: CicdDispatchEngine](
 | `arch` | `_` | Target architecture (`Option<Arch>`) |
 | `service_containers` | `[]` | Side-car containers |
 | `variables` | `_` | Environment variables (`Option<StringMap>`) |
+| `secret_variables` | `_` | Environment variables whose values are secrets (`Option<Map>` of `Secret<string>`), see [Secrets](#secrets) |
+| `pull_secret` | `_` | Registry credentials as a Docker configuration JSON (`Option<Secret<string>>`) |
 | `commands` | required | List of `Command` to run sequentially |
 | `out_file` | `_` | File to stream back through `data` output after success |
 | `report` | `true` | Enable service state reporting |
 | `github` | `false` | Report to GitHub commit status API |
-| `github_token` | `""` | GitHub token |
+| `github_token` | `"env:GITHUB_TOKEN"` | GitHub token allowed to set commit statuses (`const Secret<string>`) |
 | `github_project` | `""` | `owner/repo` |
 | `github_sha` | `""` | Commit SHA |
 
@@ -269,6 +309,8 @@ postGithubState(
 )
 ```
 
+`token` is a `const Secret<string>`, sent as the `Authorization` header when the request is made.
+
 `state` is a `StepState` value, constructed with functions `|pending()`, `|success()`, `|failure()`, `|error()`.
 
 The treatment automatically includes a `target_url` pointing to the Mélodium execution dashboard.
@@ -285,7 +327,7 @@ postGithubStateContext[contexts=contexts](
 )
 ```
 
-The API URL and `Authorization` header are resolved by evaluating `${{ github.api_url }}` and `${{ secrets.GITHUB_TOKEN }}` through the engine.
+The API URL and `Authorization` header are resolved by evaluating `${{ github.api_url }}` and `${{ secrets.GITHUB_TOKEN }}` through the engine. The token is then a plain string: prefer `postGithubState` with a `Secret<string>` token (see [Secrets](#secrets)).
 
 ---
 
@@ -371,15 +413,15 @@ action_contexts: JavaScriptEngine()
 
 replicateContextsWithInputs[main_contexts=contexts, action_contexts=action_contexts](
     inputs=|map([
-        |entry("token", github_token),
-        |entry("ref", branch)
+        |entry("ref", branch),
+        |entry("fetch-depth", "1")
     ])
 )
 
 // then use action_contexts for runAction inside the action
 ```
 
-This gives the action its own `inputs` variable while inheriting `github` and `runner` from the parent context. Input values in the `inputs` map are evaluated through `main_contexts` before injection (so they may contain `${{ }}` expressions).
+This gives the action its own `inputs` variable while inheriting `github` and `runner` from the parent context. Input values in the `inputs` map are evaluated through `main_contexts` before injection (so they may contain `${{ }}` expressions). Inputs are plain strings: give credentials to the action steps as `secret_variables` instead.
 
 ---
 
@@ -396,7 +438,7 @@ use cicd/runners::CicdDispatchEngine
 
 treatment buildJob[dispatcher: CicdDispatchEngine](
     github_contexts: string,
-    github_token: string,
+    const github_token: Secret<string>,
     github_project: string,
     github_sha: string
 )
@@ -456,7 +498,7 @@ The dispatcher spawns remote workers.
 ```mel
 model myDispatcher: CicdDispatchEngine(
     location="api",           // "api" (default) or "compose" for local testing
-    api_token=_,              // uses engine default if none
+    api_token=_,              // Option<Secret<string>>: the MELODIUM_API_TOKEN environment variable if none
     api_url=_                 // uses engine default if none
 )
 ```
@@ -617,7 +659,7 @@ For `runAction` specifically: `completed` means exit code `0`, `failed` means no
 
 **Streaming artifacts without upload/download.** The `data: Stream<byte>` output of one step can be piped directly into `simpleStepWithInput.data` of the next. No artifact storage, no size limits imposed by the CI platform, no separate upload/download steps.
 
-**Type-safe parameters.** Secrets and configuration values are typed treatment parameters (`string`, `u32`, `bool`, `Option<T>`), not stringly-typed YAML variables that silently coerce. A missing required parameter is a compile error, not a runtime blank string.
+**Type-safe parameters.** Secrets and configuration values are typed treatment parameters (`Secret<string>`, `string`, `u32`, `bool`, `Option<T>`), not stringly-typed YAML variables that silently coerce. A missing required parameter is a compile error, not a runtime blank string. Secrets are only revealed by the elements using them, never in command arguments, and masked in logs.
 
 **Conditional logic without expression hacks.** GitHub Actions `if:` expressions are string-evaluated JavaScript. In Mélodium, conditions are `filterBlock<void>()` and `passBlock<void>()` wired at the data-flow level — no quoting rules, no `fromJSON()` workarounds, no `${{ }}` injection risk.
 

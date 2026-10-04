@@ -15,6 +15,7 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | Stage ordering | Sequential wiring between treatments |
 | `needs:` / `dependencies:` | Sequential wiring; artifact data flows via `data` stream |
 | `variables:` | Parameters passed to treatments |
+| Masked or protected variables, `CI_JOB_TOKEN` | `Secret<string>` parameters, see [Secrets](#secrets) |
 | `image:` | `image` parameter of `simpleStep` |
 | `services:` | `service_containers` parameter of `simpleStep` |
 | `artifacts:` | `out_file` + `data` stream output; `simpleStepWithInput` to consume |
@@ -69,13 +70,79 @@ use work/resources::|mount
 
 ---
 
+## Secrets
+
+CI/CD variables holding credentials (masked or protected variables, `CI_JOB_TOKEN`) become `Secret<string>` parameters. A secret holds where its value comes from, such as `env:GITLAB_TOKEN`, and only the elements using it reveal it: its value never appears in parameters, logs, reports or command arguments.
+
+`.gitlab-ci.yml` passes locators, never values. GitLab gives CI/CD variables to the job as environment variables:
+
+```yaml
+script:
+  - melodium run .melodium/Compo.toml main --gitlab_token env:GITLAB_TOKEN --project "$CI_PROJECT_ID"
+```
+
+Secret parameters given to models (and through them, as the status tokens of steps) are `const`. The status token of steps and `setServiceState`, `gitlab_token`, defaults to `env:GITLAB_TOKEN`.
+
+Commands get secrets as environment variables with `secret_variables`, never through their arguments. Steps running on workers need secrets allowed to be sent to them by value, which `std/secret::|locate` sets explicitly. Secrets with the default policy stay on the engine holding them, and sending them to a worker fails with an explicit error.
+
+```mel
+use std/data/map::Map
+use std/data/map::|map as |secret_map
+use std/data/map::|entry as |secret_entry
+use std/secret::|locate
+
+simpleStep[dispatcher=dispatcher](
+    name="publish",
+    image="node:20",
+    commands=[|command("npm", ["publish"])],
+    secret_variables=|wrap<Map>(|secret_map([
+        |secret_entry<Option<Secret<string>>>("NPM_TOKEN", |locate<string>("env:NPM_TOKEN", "npm_token", "value", false))
+    ]))
+)
+```
+
+### `CI_JOB_TOKEN` in repository URLs
+
+`CI_REPOSITORY_URL` holds the job token, which `git clone` would then show in its arguments. Clone from `$CI_PROJECT_URL.git`, without credentials, and give git the token through secret variables (`GIT_CONFIG_*` needs git 2.31 or later):
+
+```mel
+use std/secret::|format as |secret_format
+use std/secret::|base64
+
+simpleStep[dispatcher=dispatcher](
+    name="build",
+    image="rust:latest",
+    variables=|wrap<StringMap>(|map([
+        |entry("GIT_CONFIG_COUNT", "1"),
+        |entry("GIT_CONFIG_KEY_0", "http.extraHeader")
+    ])),
+    secret_variables=|wrap<Map>(|secret_map([
+        |secret_entry<Secret<string>>("GIT_CONFIG_VALUE_0", |secret_format(
+            "Authorization: Basic {credentials}",
+            |secret_map([|secret_entry<Secret<string>>("credentials", |base64(
+                |secret_format(
+                    "gitlab-ci-token:{token}",
+                    |secret_map([|secret_entry<Option<Secret<string>>>("token", |locate<string>("env:CI_JOB_TOKEN", "job_token", "value", false))]),
+                    "job_credentials"
+                ),
+                "job_credentials_base64"
+            ))]),
+            "git_authorization"
+        ))
+    ])),
+    commands=[|command("git", ["clone", "--depth", "1", repository_url, "project"])]
+)
+```
+
+---
+
 ## Running a job — `simpleStep`
 
 `simpleStep` is the primary treatment for container-based jobs (`image:` in GitLab CI). It manages the full lifecycle: spawning a runner, executing commands, reporting status to GitLab, and stopping the runner.
 
 ```mel
 treatment buildJob[dispatcher: CicdDispatchEngine](
-    gitlab_token: string,
+    const gitlab_token: Secret<string>,
     gitlab_project_id: string,
     gitlab_sha: string,
     gitlab_ref: string,
@@ -123,13 +190,15 @@ treatment buildJob[dispatcher: CicdDispatchEngine](
 | `arch` | `_` | Target architecture (`Option<Arch>`) |
 | `service_containers` | `[]` | Side-car containers (equivalent to `services:`) |
 | `variables` | `_` | Environment variables (`Option<StringMap>`) |
+| `secret_variables` | `_` | Environment variables whose values are secrets (`Option<Map>` of `Secret<string>`), see [Secrets](#secrets) |
+| `pull_secret` | `_` | Registry credentials as a Docker configuration JSON (`Option<Secret<string>>`) |
 | `commands` | required | List of `Command` to run sequentially |
 | `out_file` | `_` | File to stream back as `data` after success (equivalent to `artifacts:`) |
 | `out_storage` | `_` | Override data volume size in MB |
 | `report` | `true` | Enable service state reporting |
 | `gitlab` | `false` | Report to GitLab commit status API |
 | `gitlab_root_url` | `"https://gitlab.com/api/v4"` | GitLab API root URL |
-| `gitlab_token` | `""` | GitLab personal or CI job token |
+| `gitlab_token` | `"env:GITLAB_TOKEN"` | GitLab token allowed to set commit statuses (`const Secret<string>`) |
 | `gitlab_project_id` | `""` | GitLab project ID |
 | `gitlab_sha` | `""` | Commit SHA |
 | `gitlab_ref` | `""` | Branch or tag ref |
@@ -169,7 +238,7 @@ localStep(
 )
 ```
 
-`localStep` does not require a `CicdDispatchEngine` model. It runs commands directly on the host with an optional `variables` `StringMap` as environment.
+`localStep` does not require a `CicdDispatchEngine` model. It runs commands directly on the host with an optional `variables` `StringMap` and `secret_variables` as environment.
 
 ---
 
@@ -190,6 +259,8 @@ postGitlabState(
     description="Pipeline started"
 )
 ```
+
+`token` is a `const Secret<string>`, sent as the `PRIVATE-TOKEN` header when the request is made.
 
 `state` is a `StepState` value built with functions from `cicd/services/gitlab`:
 
@@ -240,7 +311,7 @@ GitLab CI stages become sequential wiring between treatments. Each job treatment
 
 ```mel
 treatment pipeline[dispatcher: CicdDispatchEngine](
-    gitlab_token: string,
+    const gitlab_token: Secret<string>,
     gitlab_project_id: string,
     gitlab_sha: string,
     gitlab_ref: string,
@@ -455,7 +526,7 @@ The dispatcher spawns remote worker processes.
 ```mel
 model myDispatcher: CicdDispatchEngine(
     location="api",   // "api" (production) or "compose" (local testing with podman/docker compose)
-    api_token=_,      // uses the engine's own token if none
+    api_token=_,      // Option<Secret<string>>: the MELODIUM_API_TOKEN environment variable if none
     api_url=_         // uses the engine's own API URL if none
 )
 ```
@@ -478,7 +549,7 @@ use work/resources/arch::|arm64
     |arm64(),       // Arch
     [|mount("vol-name", "/path/in/container")],
     "image:tag",    // string: container image
-    _               // Option<string>: pull secret
+    _               // Option<Secret<string>>: pull secret, registry credentials as a Docker configuration JSON
 )
 
 // Service container (equivalent to GitLab services:)
@@ -615,7 +686,7 @@ Since treatments are composable, `strategy: depend` is the default behaviour —
 
 **True parallelism without `parallel:` limits.** Any number of steps can share the same `trigger`. No need to declare a fixed `parallel: N` integer — fan out as many instances as needed, each with distinct names, images, and resource allocations.
 
-**Type-safe variables.** GitLab CI `variables:` are always strings, leading to coercion bugs (`"true"` vs `true`, numeric overflow). Mélodium treatment parameters are typed (`bool`, `u32`, `Option<string>`) and checked at load time.
+**Type-safe variables.** GitLab CI `variables:` are always strings, leading to coercion bugs (`"true"` vs `true`, numeric overflow). Mélodium treatment parameters are typed (`bool`, `u32`, `Option<string>`) and checked at load time. Credentials are `Secret<string>`, revealed only by the elements using them and masked in logs, instead of masked strings anyone can echo.
 
 **`before_script` / `after_script` without isolation surprises.** GitLab runs `after_script` in a fresh shell, which means `export`ed variables from `script:` are invisible. In Mélodium, all commands in a `commands` list share the same environment — there is no hidden shell boundary.
 
@@ -638,7 +709,7 @@ use std/flow::one
 use process/command::|command
 
 treatment ciPipeline[dispatcher: CicdDispatchEngine](
-    gitlab_token: string,
+    const gitlab_token: Secret<string>,
     gitlab_project_id: string,
     gitlab_sha: string,
     gitlab_ref: string,

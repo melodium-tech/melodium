@@ -1,8 +1,8 @@
 # 07: SQL CRUD API
 
-**Concepts introduced:** a `SqlPool` model shared across requests, `fetch` vs. `execute`, combining a database model with an HTTP server model in one program.
+**Concepts introduced:** a `SqlPool` model shared across requests, `fetch` vs. `execute`, combining a database model with an HTTP server model in one program, a database password given as a `Secret<string>`.
 
-**Book:** [Models](https://doc.melodium.tech/book/en/programming/elements/models.html) (its own `SqlPool` example is essentially `AppDb` below), [Parameters](https://doc.melodium.tech/book/en/programming/parameters.html) (configuration parameters, e.g. `[db: SqlPool]`).
+**Book:** [Models](https://doc.melodium.tech/book/en/programming/elements/models.html) (its own `SqlPool` example is essentially `AppDb` below), [Parameters](https://doc.melodium.tech/book/en/programming/parameters.html) (configuration parameters, e.g. `[db: SqlPool]`), [Secrets](https://doc.melodium.tech/book/en/programming/secrets.html).
 
 A tiny "notes" API backed by PostgreSQL: `POST /notes` stores the request body as plain text, `GET /notes` lists every stored note.
 
@@ -11,7 +11,7 @@ A tiny "notes" API backed by PostgreSQL: `POST /notes` stores the request body a
 ## What it does
 
 ```
-melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
+DB_PASSWORD=... melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
 
 curl -X POST http://127.0.0.1:8080/notes -d "buy milk"
 curl http://127.0.0.1:8080/notes
@@ -24,7 +24,7 @@ curl http://127.0.0.1:8080/notes
 
 | Model | Type | Purpose |
 |---|---|---|
-| `db` | `SqlPool` | Connection pool to PostgreSQL, shared across every request |
+| `db` | `SqlPool` | Connection pool to PostgreSQL, shared across every request, its password read from `DB_PASSWORD` |
 | `server` | `HttpServer` | HTTP listener bound to localhost |
 
 ### Data flow
@@ -42,7 +42,7 @@ startup ─▶ connect ─▶ connected ─▶ createTable ─▶ start (HTTP)
 - **`http`**: [HttpServer](https://doc.melodium.tech/latest/en/http/server/HttpServer.html), [start](https://doc.melodium.tech/latest/en/http/server/start.html), [connection](https://doc.melodium.tech/latest/en/http/server/connection.html), [|get](https://doc.melodium.tech/latest/en/http/method/|get.html), [|post](https://doc.melodium.tech/latest/en/http/method/|post.html), [|ok](https://doc.melodium.tech/latest/en/http/status/|ok.html), [HttpStatus](https://doc.melodium.tech/latest/en/http/status/HttpStatus.html)
 - **`net`**: [|localhost_ipv4](https://doc.melodium.tech/latest/en/net/ip/|localhost_ipv4.html), [|from_ipv4](https://doc.melodium.tech/latest/en/net/ip/|from_ipv4.html)
 - **`sql`**: [SqlPool](https://doc.melodium.tech/latest/en/sql/SqlPool.html), [connect](https://doc.melodium.tech/latest/en/sql/connect.html), [connected](https://doc.melodium.tech/latest/en/sql/connected.html), [executeRaw](https://doc.melodium.tech/latest/en/sql/executeRaw.html), [execute](https://doc.melodium.tech/latest/en/sql/execute.html), [fetch](https://doc.melodium.tech/latest/en/sql/fetch.html)
-- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [logError](https://doc.melodium.tech/latest/en/std/engine/log/logError.html), [logErrors](https://doc.melodium.tech/latest/en/std/engine/log/logErrors.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [check](https://doc.melodium.tech/latest/en/std/flow/check.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [format](https://doc.melodium.tech/latest/en/std/text/compose/format.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [Map](https://doc.melodium.tech/latest/en/std/data/map/Map.html), [|mmap](https://doc.melodium.tech/latest/en/std/data/map/|map.html), [mapGet](https://doc.melodium.tech/latest/en/std/data/map/get.html), [blockMapEntry](https://doc.melodium.tech/latest/en/std/data/map/block/entry.html), [entry](https://doc.melodium.tech/latest/en/std/data/string_map/entry.html), [insert](https://doc.melodium.tech/latest/en/std/data/string_map/insert.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html)
+- **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [logError](https://doc.melodium.tech/latest/en/std/engine/log/logError.html), [logErrors](https://doc.melodium.tech/latest/en/std/engine/log/logErrors.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [check](https://doc.melodium.tech/latest/en/std/flow/check.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [format](https://doc.melodium.tech/latest/en/std/text/compose/format.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [Map](https://doc.melodium.tech/latest/en/std/data/map/Map.html), [|mmap](https://doc.melodium.tech/latest/en/std/data/map/|map.html), [mapGet](https://doc.melodium.tech/latest/en/std/data/map/get.html), [blockMapEntry](https://doc.melodium.tech/latest/en/std/data/map/block/entry.html), [entry](https://doc.melodium.tech/latest/en/std/data/string_map/entry.html), [insert](https://doc.melodium.tech/latest/en/std/data/string_map/insert.html), [unwrapOr](https://doc.melodium.tech/latest/en/std/ops/option/unwrapOr.html), [|wrap](https://doc.melodium.tech/latest/en/std/ops/option/|wrap.html)
 
 ## Runtime behaviour
 
@@ -56,6 +56,7 @@ startup ─▶ connect ─▶ connected ─▶ createTable ─▶ start (HTTP)
 - **A model shared by every route**: `db` and `server` are instantiated once in `main` and passed down to `createNote`/`listNotes` via model configuration parameters (`[db=db, http_server=server]`), exactly like [06_http_server_api](../06_http_server_api/)'s single `server` model, just with a second one alongside it.
 - **`fetch` (Stream<Map> rows) vs. `execute` (single Block<Map> bind, one outcome)**: `fetch` is for reading potentially many rows; `execute` is for one write with one set of parameters.
 - **Casting in SQL to dodge a type-mapping guess**: when a value's exact Mélodium type coming back from a driver is uncertain, it is often simpler to coerce it to `string` in the query itself than to guess (and get it wrong silently, since `std/data/map::get<T>` returns `none` on a type mismatch, not an error).
+- **A password as a secret**: `db_password` is a `Secret<string>` defaulting to the locator `"env:DB_PASSWORD"`. `SqlPool` reads the variable only when connecting and puts the password in the connection URL itself, so `db_url` holds no credentials, and the password appears in no parameter, log or report. Another locator can be given instead, such as `--db_password file:/run/secrets/db_password`.
 - **`connection.started` for both routes**: following the rule from [06_http_server_api](../06_http_server_api/), since `GET /notes` has no request body at all.
 
 Next: [08_javascript_transform](../08_javascript_transform/) introduces the JavaScript engine, including field-by-field JSON access.

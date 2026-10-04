@@ -138,6 +138,7 @@ The macro injects additional local variables that are always available:
 | Variable | Type | Description |
 |----------|------|-------------|
 | `track_id` | `TrackId` | Identifier of the current track |
+| `secret_access` | `SecretAccess` | Identity of the treatment, to reveal secrets (see [Secrets in elements](#secrets-in-elements)) |
 
 ### Full example — simple streaming treatment
 
@@ -592,6 +593,39 @@ This becomes `@HttpRequest` in Mélodium, with fields accessible as `@HttpReques
 
 ---
 
+## Secrets in elements
+
+Credentials reach elements as `Secret<T>` parameters or inputs, most often `Secret<string>`. A `Secret` holds where its value comes from, and is revealed through a closure, on behalf of the element revealing it:
+
+```rust
+#[mel_model(
+    param url string none
+    param password Option<Secret<string>> none
+)]
+pub struct Store { /* ... */ }
+
+// In a treatment, `secret_access` identifies the treatment instance and its track.
+let connection = token
+    .reveal_str(&secret_access, |token| connect_with(token))
+    .await
+    .map_err(|error| error.to_string())?;
+
+// In a model, `secret_access()` identifies the model.
+password.reveal_str(&model.secret_access(), |password| { /* ... */ }).await
+```
+
+`reveal_str` and `reveal_bytes` give the value as text or bytes, `reveal` as a `Value`. Every reveal is checked against the policy of the secret and recorded for audit; refusals and resolution failures come back as `SecretError`, whose text never includes the value.
+
+Rules for elements receiving secrets:
+
+- Reveal at the last moment, and use the value inside the closure. A copy needed beyond it (a header value, an environment variable) goes in a `zeroize::Zeroizing` holder, dropped as soon as possible.
+- Never put a value in command arguments (other users see them), error messages, logs or outputs. Give it to processes through their environment or standard input.
+- Accept secrets given as `Option<Secret<string>>` too where a map holds them, as `std/secret::|locate` gives.
+- Elements with unbounded generic types (`generic T ()`) writing values outside the engine refuse secrets explicitly, with `Value::contains_secret`, rather than writing a placeholder.
+- Model parameters taking secrets can default to a locator, such as `param token Secret<string> "env:SERVICE_TOKEN"`.
+
+---
+
 ## Documentation comments
 
 Doc comments on Rust items decorated with `mel_*` macros are forwarded to the Mélodium documentation system. Write them as standard `///` comments above the macro attribute, not above the `fn` or `struct` keyword directly — the macro must appear between the doc comment and the item.
@@ -640,6 +674,7 @@ pub async fn emit(value: T) { ... }
 | `f32`, `f64`  | `f32`, `f64` | `Value::F32(n)`, `Value::F64(n)` |
 | `Vec<T>`      | `Vec<Value>` / `VecDeque<Value>` | `Value::Vec(v)` |
 | `Option<T>`   | `Option<Box<Value>>` | `Value::Option(opt)` |
+| `Secret<T>`   | `Secret` (`melodium_core::common::executive::Secret`, written `Secret<T>` in macro signatures) | `Value::Secret(secret)` |
 | Custom data   | `Arc<dyn Data>` | `Value::Data(arc)` |
 
 ### Extracting typed values from `Value`
