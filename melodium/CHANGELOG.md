@@ -3,7 +3,7 @@
 ## [v0.11.0] (unreleased)
 
 - Adding secret parameters, given as locators on the command line, and `--check-secrets` to resolve them before running (#134).
-- Ending runs gracefully on SIGINT, SIGTERM and SIGHUP, exiting with code 128 plus the signal number; a failed launch now exits with code 1 (#131, #134).
+- Ending runs gracefully on SIGINT, SIGTERM and SIGHUP, exiting with code 128 plus the signal number, and as a best effort on Windows on Ctrl+C, Ctrl+Break, console close, logoff and shutdown, exiting with `STATUS_CONTROL_C_EXIT`; a failed launch now exits with code 1 (#131, #134).
 - Wiping plaintext held from secrets before exiting, including on handled signals (#140).
 - Taking `melodium dist` keys from `--recv-key-file`/`--send-key-file` or the `MELODIUM_DIST_RECV_KEY`/`MELODIUM_DIST_SEND_KEY` environment variables; `--recv-key`/`--send-key` still work with a warning, as other local users can read process arguments (#130).
 - Breaking: `melodium dist` refuses plain TCP (`--disable-tls`) on addresses other than loopback ones unless `--allow-plain-tcp` is given, and warns about plain TCP otherwise (#130).
