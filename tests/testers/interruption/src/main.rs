@@ -95,14 +95,16 @@ fn spawn() -> Child {
 
 #[cfg(unix)]
 fn interrupt(melodium: &Child) -> Result<(), String> {
-    let status = Command::new("kill")
-        .args(["-TERM", &melodium.id().to_string()])
-        .status()
-        .map_err(|error| error.to_string())?;
-    if status.success() {
+    // Through the system call, as the `kill` command is not installed everywhere.
+    extern "C" {
+        fn kill(pid: i32, signal: i32) -> i32;
+    }
+    const SIGTERM: i32 = 15;
+
+    if unsafe { kill(melodium.id() as i32, SIGTERM) } == 0 {
         Ok(())
     } else {
-        Err(format!("kill exited with {status}"))
+        Err(std::io::Error::last_os_error().to_string())
     }
 }
 
