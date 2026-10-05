@@ -24,4 +24,6 @@ pub trait Engine: Send + Sync {
     async fn live(&self);
     async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()>;
     async fn end(&self);
+    /// Logs a message from the engine itself.
+    async fn log(&self, level: LogLevel, label: String, message: String);
 }

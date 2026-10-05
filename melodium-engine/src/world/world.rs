@@ -572,6 +572,18 @@ impl Engine for World {
 
     async fn live(&self) {
         let me = self.auto_reference.upgrade().unwrap();
+
+        // If living is stopped before its end (see `interruption`), logs and debug events
+        // still get written out to their listeners, which then end.
+        struct CloseOnDrop(Arc<World>);
+        impl Drop for CloseOnDrop {
+            fn drop(&mut self) {
+                self.0.logs_receiver.close();
+                self.0.debug_receiver.close();
+            }
+        }
+        let _close_on_drop = CloseOnDrop(Arc::clone(&me));
+
         let continuum = {
             let me = Arc::clone(&me);
             async move {
@@ -777,6 +789,10 @@ impl Engine for World {
             self.tracks_sender.close();
             self.closing.store(true, Ordering::Relaxed);
         }
+    }
+
+    async fn log(&self, level: LogLevel, label: String, message: String) {
+        ExecutiveWorld::log(self, level, label, message, None).await
     }
 }
 

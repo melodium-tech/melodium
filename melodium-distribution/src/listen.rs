@@ -2,6 +2,9 @@ use crate::error::DistributionResult;
 use crate::framing::max_batch_chunk_bytes;
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
+
+/// Time given to running tracks to finish once the process is interrupted.
+const INTERRUPTION_GRACE: Duration = Duration::from_secs(10);
 use async_std::channel::{bounded, Sender};
 use async_std::sync::Barrier;
 use async_std::{
@@ -23,6 +26,7 @@ use melodium_common::{
 use melodium_engine::debug::{DebugLevel, Event};
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_engine::execution_group_id;
+use melodium_engine::interruption::live_until_interrupted;
 use melodium_loader::Loader;
 use melodium_share::{
     ProgramDump, SharingError, SharingResult, TransmissionValue as WireTransmissionValue,
@@ -555,7 +559,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
         async move {
-            engine.live().await;
+            live_until_interrupted(&engine, INTERRUPTION_GRACE).await;
             let _ = protocol.send_message(Message::Ended).await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 barrier.wait().await;
