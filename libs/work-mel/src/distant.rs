@@ -586,6 +586,7 @@ pub async fn distant(
                                 remote_key: access_info.key,
                                 self_key: key,
                                 disable_tls: access_info.disable_tls,
+                                allow_plain_tcp: access_info.allow_plain_tcp,
                             }))))
                             .await;
                         let _ = access.close().await;
