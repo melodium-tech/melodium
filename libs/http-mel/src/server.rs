@@ -84,6 +84,7 @@ type AsyncProducerOutgoing =
     )
     continuous (continuous)
     shutdown shutdown
+    invoke_source invoke_source
 )]
 pub struct HttpServer {
     model: Weak<HttpServerModel>,

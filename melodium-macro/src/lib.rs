@@ -1648,6 +1648,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut initialization = None;
     let mut continuous = Vec::new();
     let mut shutdown = None;
+    let mut invoke_source = None;
     let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
@@ -1689,6 +1690,13 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         shutdown = Some(name.to_string());
                     } else {
                         panic!("Shutdown function name expected")
+                    }
+                }
+                "invoke_source" => {
+                    if let Some(TokenTree::Ident(name)) = iter_attr.next() {
+                        invoke_source = Some(name.to_string());
+                    } else {
+                        panic!("Invoke source function name expected")
                     }
                 }
                 "attribute" => {
@@ -1861,7 +1869,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         params: &std::collections::HashMap<String, melodium_core::common::executive::Value>,
                         callback: Option<Box<dyn FnOnce(Box<melodium_core::common::executive::Outputs>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>>
                     ) {
-                    self.world.create_track(
+                    self.world().create_track(
                         self.id().unwrap(),
                         #source_name,
                         params,
@@ -1900,11 +1908,16 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap_or_else(|| String::from("()"))
         .parse()
         .unwrap();
-    let continuous: proc_macro2::TokenStream = continuous.iter().map(|c| format!("let auto_self = self.auto_reference.upgrade().unwrap(); self.world.add_continuous_task(Box::new(Box::pin(async move {{ auto_self.inner().{c}().await }})));")).collect::<Vec<_>>().join("").parse()
+    let continuous: proc_macro2::TokenStream = continuous.iter().map(|c| format!("let auto_self = self.auto_reference.upgrade().unwrap(); self.world().add_continuous_task(Box::new(Box::pin(async move {{ auto_self.inner().{c}().await }})));")).collect::<Vec<_>>().join("").parse()
     .unwrap();
     let shutdown: proc_macro2::TokenStream = shutdown
         .map(|s| format!("self.model.{s}()"))
         .unwrap_or_else(|| String::from("()"))
+        .parse()
+        .unwrap();
+    let invoke_source: proc_macro2::TokenStream = invoke_source
+        .map(|s| format!("self.model.{s}(source, params)"))
+        .unwrap_or_else(|| String::from("let _ = (source, params)"))
         .parse()
         .unwrap();
 
@@ -1954,7 +1967,9 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 id: std::sync::Mutex<Option<melodium_core::common::executive::ModelId>>,
                 params: std::sync::Mutex<std::collections::HashMap<String, melodium_core::common::executive::Value>>,
                 model: #model_name,
-                world: std::sync::Arc<dyn melodium_core::common::executive::World>,
+                // Weak: `World` keeps every model it builds alive, so a strong reference
+                // here would form a cycle and neither would ever be dropped.
+                world: std::sync::Weak<dyn melodium_core::common::executive::World>,
                 auto_reference: std::sync::Weak<Self>,
             }
 
@@ -1965,7 +1980,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         id: std::sync::Mutex::new(None),
                         params: std::sync::Mutex::new(vec![#parameters_initialization].into_iter().collect()),
                         model: #model_name::new(me.clone()),
-                        world,
+                        world: std::sync::Arc::downgrade(&world),
                         auto_reference: me.clone(),
                     })
                 }
@@ -1978,8 +1993,13 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     &self.model
                 }
 
-                pub fn world(&self) -> &std::sync::Arc<dyn melodium_core::common::executive::World> {
-                    &self.world
+                /// The world this model belongs to.
+                ///
+                /// A model only runs while its world exists, the world owning it.
+                pub fn world(&self) -> std::sync::Arc<dyn melodium_core::common::executive::World> {
+                    self.world
+                        .upgrade()
+                        .expect("model used after its world was dropped")
                 }
 
                 pub fn id(&self) -> Option<melodium_core::common::executive::ModelId> {
@@ -2028,7 +2048,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 fn invoke_source(&self, source: &str, params: std::collections::HashMap<String, melodium_core::common::executive::Value>) {
-                    self.model.invoke_source(source, params);
+                    #invoke_source;
                 }
             }
         }
