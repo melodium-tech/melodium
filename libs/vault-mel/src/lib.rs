@@ -142,8 +142,6 @@ impl Vault {
         async_std::task::block_on(self.client.forget());
     }
 
-    fn invoke_source(&self, _source: &str, _params: std::collections::HashMap<String, Value>) {}
-
     /// Gives the value at `path` (`<path>#<field>`) as `datatype`.
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
         #[cfg(feature = "real")]

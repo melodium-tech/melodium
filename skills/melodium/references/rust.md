@@ -353,10 +353,10 @@ The `bounded_min` / `bounded_max` free functions must be named `{snake_case_type
 A model is a long-lived struct that the macro wraps into a generated `ModelNameModel` type. The struct must implement specific methods that the macro expects to find:
 
 - `fn new(model: Weak<ModelNameModel>) -> Self` — constructor.
-- `fn invoke_source(&self, source: &str, params: HashMap<String, Value>)` — called when a source is activated (e.g. when a `connection(...)` is created).
 - Optionally `async fn continuous(&self)` — if declared in the macro with `continuous (method_name)`.
 - Optionally `fn initialize(&self)` — if declared with `initialize method_name`.
 - Optionally `fn shutdown(&self)` — if declared with `shutdown method_name`.
+- Optionally `fn invoke_source(&self, source: &str, params: HashMap<String, Value>)`, if declared with `invoke_source method_name`: called when a treatment using one of the model sources is built (e.g. when a `connection(...)` is created).
 
 ### Macro syntax
 
@@ -452,8 +452,6 @@ impl Engine {
         trigger.close().await;
         ResultStatus::Ok
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 ```
 
@@ -491,8 +489,6 @@ impl SqlPool {
     fn shutdown(&self) {
         // graceful teardown
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 ```
 
@@ -520,8 +516,9 @@ When a source creates tracks with a context, pass the context value to `new_sour
         failed Block<void>
         error  Block<string>
     )
-    continuous (continuous)
-    shutdown   shutdown
+    continuous    (continuous)
+    shutdown      shutdown
+    invoke_source invoke_source
 )]
 pub struct HttpServer { ... }
 
@@ -543,7 +540,7 @@ impl HttpServer {
 }
 ```
 
-The `invoke_source` method is called when a Mélodium treatment using that source is declared; use it to register route handlers or similar setup:
+The method declared with `invoke_source` is called when a Mélodium treatment using one of the model sources is built, with the parameters of that source; use it to register route handlers or similar setup. Models that need no such setup do not declare it:
 
 ```rust
 fn invoke_source(&self, source: &str, params: HashMap<String, Value>) {
