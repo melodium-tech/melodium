@@ -8,7 +8,6 @@
 - Ending runs gracefully on SIGINT, SIGTERM and SIGHUP, and as a best effort on the console control events of Windows, through `interruption::live_until_interrupted` (#131).
 - Fixing models keeping their world alive through a reference cycle: models hold it weakly, and `world()` gives an owned `Arc` (#132).
 - Wiping the masking registry once the last log is delivered, and before exit (#140).
-- Keeping parameter values out of model build, treatment build and track creation debug events below `DebugLevel::Detailed`, which give the parameter names with void values; the program dump keeps the values (#129).
 
 ## [v0.10.4] (2026-09-24)
 

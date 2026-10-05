@@ -418,7 +418,7 @@ impl BuilderTrait for Builder {
                     .insert((build, environment.track_id()), HashMap::new());
                 world.send_debug(Event::new(crate::debug::EventKind::TreatmentBuilt {
                     treatment: self.design.descriptor.upgrade().unwrap(),
-                    environment: world.debug_environment(environment),
+                    environment: environment.clone(),
                     host_treatment: build_sample.host_treatment.clone(),
                     host_build: build_sample.host_build_id,
                     build_id: build,

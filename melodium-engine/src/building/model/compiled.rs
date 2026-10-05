@@ -42,7 +42,7 @@ impl BuilderTrait for Builder {
 
         world.send_debug(Event::new(crate::debug::EventKind::ModelBuilt {
             model: model.descriptor(),
-            parameters: world.debug_values(environment.variables()),
+            parameters: environment.variables().clone(),
             host_treatment: host_treatment.clone(),
             host_build,
             label: label.clone(),
