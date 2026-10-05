@@ -1,0 +1,18 @@
+#!/usr/bin/env melodium
+#! name = interruption
+#! version = 0.10.4
+#! require = std:0.10.4 process:0.10.4
+
+use std/engine/util::startup
+use process/command::|command
+use process/local::execOnce
+
+// Runs `command` with `arguments`, given by the harness to last much longer than the
+// grace period of an interrupted run.
+treatment main(const command: string, const arguments: Vec<string>)
+{
+    startup()
+    wait: execOnce(command=|command(command, arguments))
+
+    startup.trigger -> wait.launch
+}
