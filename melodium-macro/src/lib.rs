@@ -1637,6 +1637,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut initialization = None;
     let mut continuous = Vec::new();
     let mut shutdown = None;
+    let mut invoke_source = None;
     let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
@@ -1678,6 +1679,13 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         shutdown = Some(name.to_string());
                     } else {
                         panic!("Shutdown function name expected")
+                    }
+                }
+                "invoke_source" => {
+                    if let Some(TokenTree::Ident(name)) = iter_attr.next() {
+                        invoke_source = Some(name.to_string());
+                    } else {
+                        panic!("Invoke source function name expected")
                     }
                 }
                 "attribute" => {
@@ -1896,6 +1904,11 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap_or_else(|| String::from("()"))
         .parse()
         .unwrap();
+    let invoke_source: proc_macro2::TokenStream = invoke_source
+        .map(|s| format!("self.model.{s}(source, params)"))
+        .unwrap_or_else(|| String::from("let _ = (source, params)"))
+        .parse()
+        .unwrap();
 
     let expanded = quote! {
         #[allow(non_snake_case)]
@@ -2024,7 +2037,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 fn invoke_source(&self, source: &str, params: std::collections::HashMap<String, melodium_core::common::executive::Value>) {
-                    self.model.invoke_source(source, params);
+                    #invoke_source;
                 }
             }
         }
