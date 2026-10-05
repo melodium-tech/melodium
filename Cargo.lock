@@ -4734,6 +4734,7 @@ dependencies = [
  "signal-hook-async-std",
  "stacker",
  "uuid",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 
