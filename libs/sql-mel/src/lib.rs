@@ -69,6 +69,8 @@ fn bind_value<'q>(
             None => query.bind(None::<bool>),
             Some(v) => bind_value(query, v),
         },
+        // A secret content is never bound, same as a `Data` that cannot be turned into string.
+        Value::Secret(_) => query.bind(None::<bool>),
         Value::Data(d) => {
             if value
                 .datatype()

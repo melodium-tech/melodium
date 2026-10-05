@@ -30,5 +30,8 @@ pub use output::{Output, OutputExt, Outputs};
 pub use result_status::ResultStatus;
 pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};
 pub use treatment::Treatment;
-pub use value::{GetData, PackedArray, Value};
+pub use value::{
+    GetData, PackedArray, Secret, SecretId, SecretOrigin, SecretPolicy, SecretReveal,
+    SecretTransmission, Value,
+};
 pub use world::{DirectCreationCallback, TrackCreationCallback, TrackId, World};

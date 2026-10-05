@@ -2932,6 +2932,11 @@ impl serde::Serialize for Value {
                 }
                 ser.end()
             }
+            // Secrets are refused on every serialized output; transmitting one between
+            // engines goes through the policy-aware conversion of the distribution layer.
+            Value::Secret(secret) => Err(<S::Error as serde::ser::Error>::custom(format!(
+                "{secret} cannot be serialized"
+            ))),
             Value::Data(data) => serde::Serialize::serialize(&data, serializer),
         }
     }
@@ -3039,6 +3044,8 @@ impl core::fmt::Display for Value {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+
+            Value::Secret(secret) => write!(f, "{secret}"),
 
             Value::Data(obj) => write!(f, "/* {} */", obj.descriptor().identifier().name()),
         }

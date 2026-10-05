@@ -4672,6 +4672,7 @@ dependencies = [
  "hex",
  "semver 1.0.28",
  "serde",
+ "serde_json",
  "uuid",
 ]
 

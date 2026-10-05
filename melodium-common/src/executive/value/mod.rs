@@ -1,11 +1,13 @@
 mod data;
 mod packed;
+mod secret;
 mod traits;
 
 use super::Data;
 use crate::descriptor::DataType;
 pub use data::GetData;
 pub use packed::PackedArray;
+pub use secret::{Secret, SecretId, SecretOrigin, SecretPolicy, SecretReveal, SecretTransmission};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -38,6 +40,8 @@ pub enum Value {
     /// `PackedArray` and ticket #116. Purely a representation choice: `datatype()`
     /// reports the same `DataType::Vec(...)` either way.
     Packed(PackedArray),
+
+    Secret(Secret),
 
     Data(Arc<dyn Data>),
 }
@@ -77,7 +81,20 @@ impl Value {
                 .unwrap_or(DataType::Undetermined),
             Value::Packed(arr) => DataType::Vec(Box::new(arr.element_datatype())),
 
+            Value::Secret(secret) => DataType::Secret(Box::new(secret.datatype().clone())),
+
             Value::Data(obj) => DataType::Data(obj.descriptor()),
+        }
+    }
+
+    /// Tells if a secret appears in this value, at any depth of `Vec` and `Option`.
+    /// The content of `Data` values is not inspected.
+    pub fn contains_secret(&self) -> bool {
+        match self {
+            Value::Secret(_) => true,
+            Value::Vec(values) => values.iter().any(Value::contains_secret),
+            Value::Option(Some(value)) => value.contains_secret(),
+            _ => false,
         }
     }
 
@@ -101,9 +118,11 @@ impl Value {
     /// exact. Every `Value` occupies `size_of::<Value>()` inline regardless of variant
     /// (the enum is sized for its largest payload) plus whatever content it owns on the
     /// heap; `Data` has no cheap way to know its real size without serializing it, so a
-    /// conservative fixed estimate stands in for it.
+    /// conservative fixed estimate stands in for it. `Secret` also gets a fixed estimate,
+    /// so that sizes never tell anything about an inline secret value.
     pub fn estimated_size(&self) -> usize {
         const DATA_ESTIMATE: usize = 128;
+        const SECRET_ESTIMATE: usize = 64;
 
         std::mem::size_of::<Value>()
             + match self {
@@ -111,6 +130,7 @@ impl Value {
                 Value::Vec(values) => values.iter().map(Value::estimated_size).sum(),
                 Value::Option(Some(value)) => value.estimated_size(),
                 Value::Packed(arr) => arr.estimated_size(),
+                Value::Secret(_) => SECRET_ESTIMATE,
                 Value::Data(_) => DATA_ESTIMATE,
                 _ => 0,
             }
@@ -140,6 +160,7 @@ impl PartialEq for Value {
             (Self::Vec(l0), Self::Vec(r0)) => l0 == r0,
             (Self::Option(l0), Self::Option(r0)) => l0 == r0,
             (Self::Packed(l0), Self::Packed(r0)) => l0 == r0,
+            (Self::Secret(l0), Self::Secret(r0)) => l0 == r0,
             (Self::Data(l0), Self::Data(r0)) => {
                 if l0.descriptor() == r0.descriptor() {
                     if l0

@@ -38,6 +38,7 @@ pub enum DescribedType {
 
     Vec(Box<DescribedType>),
     Option(Box<DescribedType>),
+    Secret(Box<DescribedType>),
 
     Data(Data),
 
@@ -86,6 +87,16 @@ impl DescribedType {
             }
             DescribedType::Option(dt) => {
                 SharingResult::new_success(CommonDescribedType::Option(Box::new({
+                    let result = dt.as_ref().to_described_type(collection, scope);
+                    if let Some(subtype) = result.success() {
+                        subtype.clone()
+                    } else {
+                        return result;
+                    }
+                })))
+            }
+            DescribedType::Secret(dt) => {
+                SharingResult::new_success(CommonDescribedType::Secret(Box::new({
                     let result = dt.as_ref().to_described_type(collection, scope);
                     if let Some(subtype) = result.success() {
                         subtype.clone()
@@ -156,6 +167,7 @@ impl From<&CommonDescribedType> for DescribedType {
             CommonDescribedType::String => DescribedType::String,
             CommonDescribedType::Vec(dt) => DescribedType::Vec(Box::new(dt.as_ref().into())),
             CommonDescribedType::Option(dt) => DescribedType::Option(Box::new(dt.as_ref().into())),
+            CommonDescribedType::Secret(dt) => DescribedType::Secret(Box::new(dt.as_ref().into())),
 
             CommonDescribedType::Data(data) => DescribedType::Data(data.as_ref().as_ref().into()),
             CommonDescribedType::Generic(generic) => {
@@ -191,6 +203,7 @@ impl From<DataType> for DescribedType {
             DataType::String => DescribedType::String,
             DataType::Vec(inner) => DescribedType::Vec(Box::new(DescribedType::from(*inner))),
             DataType::Option(inner) => DescribedType::Option(Box::new(DescribedType::from(*inner))),
+            DataType::Secret(inner) => DescribedType::Secret(Box::new(DescribedType::from(*inner))),
             DataType::Data(obj) => DescribedType::Data(obj),
         }
     }
@@ -225,6 +238,9 @@ impl From<&DataType> for DescribedType {
             }
             DataType::Option(inner) => {
                 DescribedType::Option(Box::new(DescribedType::from(inner.as_ref())))
+            }
+            DataType::Secret(inner) => {
+                DescribedType::Secret(Box::new(DescribedType::from(inner.as_ref())))
             }
             DataType::Data(obj) => DescribedType::Data(obj.clone()),
         }
@@ -271,6 +287,9 @@ impl TryInto<CommonDescribedType> for &DescribedType {
             DescribedType::Option(dt) => Ok(CommonDescribedType::Option(Box::new(
                 dt.as_ref().try_into()?,
             ))),
+            DescribedType::Secret(dt) => Ok(CommonDescribedType::Secret(Box::new(
+                dt.as_ref().try_into()?,
+            ))),
             DescribedType::Data(_) => Err(()),
 
             DescribedType::Generic(generic) => {
@@ -302,6 +321,7 @@ impl Display for DescribedType {
             DescribedType::String => write!(f, "string"),
             DescribedType::Vec(inner) => write!(f, "Vec<{inner}>"),
             DescribedType::Option(inner) => write!(f, "Option<{inner}>"),
+            DescribedType::Secret(inner) => write!(f, "Secret<{inner}>"),
             DescribedType::Data(obj) => write!(f, "{}", obj.identifier.name),
             DescribedType::Generic(gen) => write!(f, "{}", gen.name),
         }
