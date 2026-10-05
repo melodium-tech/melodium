@@ -279,8 +279,6 @@ impl SqlPool {
         });
     }
 
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
-
     pub(crate) async fn pool(&self) -> Result<AsyncArc<AnyPool>, sqlx::Error> {
         match self.pool.read().await.as_ref() {
             Some(pool) => Ok(AsyncArc::clone(pool)),
