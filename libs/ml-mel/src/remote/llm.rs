@@ -1,6 +1,5 @@
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
-use std::collections::HashMap;
 #[cfg(feature = "real")]
 use std::sync::Arc;
 #[cfg(feature = "real")]
@@ -170,8 +169,6 @@ impl RemoteLlm {
             *self.provider.lock().unwrap() = None;
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Send prompts to a remote LLM and receive complete responses.

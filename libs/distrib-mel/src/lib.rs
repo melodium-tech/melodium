@@ -890,8 +890,6 @@ impl DistributionEngine {
             self.fire_protocol_ready();
         });
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 #[cfg(feature = "mock")]
@@ -899,7 +897,6 @@ impl DistributionEngine {
     pub async fn continuous(&self) {}
 
     fn shutdown(&self) {}
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Treatment `start` for the `DistributionEngine` model.

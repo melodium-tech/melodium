@@ -3,7 +3,6 @@ use crate::status::*;
 use async_ringbuf::AsyncHeapRb;
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
-use std::collections::HashMap;
 use std::sync::RwLock;
 use std::sync::{Arc, Weak};
 use std_mel::data::string_map::*;
@@ -69,8 +68,6 @@ impl HttpClient {
     fn client(&self) -> Option<Arc<Client>> {
         self.client.read().unwrap().clone()
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Performs HTTP operation without data emission.
