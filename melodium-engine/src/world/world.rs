@@ -1,4 +1,7 @@
-use super::secret_sources::{EnvironmentSource, FileSource};
+#[cfg(feature = "environment")]
+use super::secret_sources::EnvironmentSource;
+#[cfg(feature = "filesystem")]
+use super::secret_sources::FileSource;
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 use crate::building::HostTreatment;
 use crate::building::{
@@ -104,6 +107,18 @@ impl Debug for World {
 }
 
 impl World {
+    /// Secret sources available in every world: `env:` and `file:`, when Mélodium is built
+    /// with the `environment` and `filesystem` features.
+    fn builtin_secret_sources() -> HashMap<String, Arc<dyn SecretSource>> {
+        #[allow(unused_mut)]
+        let mut sources: HashMap<String, Arc<dyn SecretSource>> = HashMap::new();
+        #[cfg(feature = "environment")]
+        sources.insert("env".to_string(), Arc::new(EnvironmentSource));
+        #[cfg(feature = "filesystem")]
+        sources.insert("file".to_string(), Arc::new(FileSource));
+        sources
+    }
+
     pub fn new(
         collection: Arc<Collection>,
         logs_level: LogLevel,
@@ -120,16 +135,7 @@ impl World {
             auto_reference: me.clone(),
             models: RwLock::new(Vec::new()),
             sources: RwLock::new(HashMap::new()),
-            secret_sources: RwLock::new(HashMap::from([
-                (
-                    "env".to_string(),
-                    Arc::new(EnvironmentSource) as Arc<dyn SecretSource>,
-                ),
-                (
-                    "file".to_string(),
-                    Arc::new(FileSource) as Arc<dyn SecretSource>,
-                ),
-            ])),
+            secret_sources: RwLock::new(Self::builtin_secret_sources()),
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main: RwLock::new(None),

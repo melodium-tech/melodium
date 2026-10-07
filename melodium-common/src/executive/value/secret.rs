@@ -354,6 +354,10 @@ impl Secret {
             Some(format!("its policy does not allow {element} to reveal it"))
         } else if plain && !self.0.policy.plain_reveal {
             Some("its policy does not allow plain reveal".to_string())
+        } else if let Some(scheme) = plain.then(|| self.plain_reveal_refusal(&world)).flatten() {
+            Some(format!(
+                "secrets from '{scheme}:' cannot be plainly revealed"
+            ))
         } else {
             None
         };
@@ -385,6 +389,18 @@ impl Secret {
                     Err(SecretError::ResolveFailed(error))
                 }
             },
+        }
+    }
+
+    /// Gives the scheme of the source of this secret if that source refuses plain reveal.
+    fn plain_reveal_refusal(&self, world: &Arc<dyn World>) -> Option<String> {
+        match &*self.0.origin {
+            SecretOrigin::Inline(_) => None,
+            SecretOrigin::Locator(locator) => {
+                let (scheme, _) = split_locator(locator)?;
+                let source = world.secret_source(scheme)?;
+                (!source.plain_reveal()).then(|| scheme.to_string())
+            }
         }
     }
 
