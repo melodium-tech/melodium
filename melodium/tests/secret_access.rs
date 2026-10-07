@@ -26,7 +26,7 @@ use std/secret::conceal
 use std/secret::reveal
 use std/secret::|locate
 
-treatment main(password: Secret<string> = "env:SECRET_ACCESS_TEST_UNSET", token: string)
+treatment main(password: Secret<string> = "env:MELODIUM_SECRET_ACCESS_TEST_UNSET", token: string)
 {
     startup()
 
@@ -133,7 +133,7 @@ fn plain_reveal_is_denied_by_default_and_logged() {
     let denial = log(&logs, "secret").expect("denial logged");
     assert_eq!(denial.level, Level::Error);
     assert!(
-        denial.message.contains("SECRET_ACCESS_TEST_UNSET"),
+        denial.message.contains("MELODIUM_SECRET_ACCESS_TEST_UNSET"),
         "{}",
         denial.message
     );
@@ -183,10 +183,10 @@ fn reveals_are_recorded_with_accessor_identity() {
 
 #[test]
 fn environment_and_file_secrets_are_never_plainly_revealed() {
-    std::env::set_var("SECRET_ACCESS_TEST_TOKEN", "environment-sentinel");
+    std::env::set_var("MELODIUM_SECRET_ACCESS_TEST_TOKEN", "environment-sentinel");
     let token = temp_file("plain_token", "file-sentinel");
     for (locator, scheme) in [
-        ("env:SECRET_ACCESS_TEST_TOKEN".to_string(), "env"),
+        ("env:MELODIUM_SECRET_ACCESS_TEST_TOKEN".to_string(), "env"),
         (format!("file:{}", token.display()), "file"),
     ] {
         let (logs, events) = run(HashMap::from([(
@@ -239,7 +239,7 @@ fn missing_sources_are_errors_of_the_revealing_element() {
 
 #[test]
 fn environment_and_file_secrets_are_resolved_when_checked() {
-    std::env::set_var("SECRET_ACCESS_TEST_CHECKED", "checked");
+    std::env::set_var("MELODIUM_SECRET_ACCESS_TEST_CHECKED", "checked");
     let file = temp_file("checked_file", "checked");
     let missing = std::env::temp_dir().join(format!(
         "melodium_secret_access_{}_checked_missing",
@@ -257,7 +257,7 @@ fn environment_and_file_secrets_are_resolved_when_checked() {
             .check_secrets(vec![
                 (
                     "variable".to_string(),
-                    secret("env:SECRET_ACCESS_TEST_CHECKED".to_string())
+                    secret("env:MELODIUM_SECRET_ACCESS_TEST_CHECKED".to_string())
                 ),
                 (
                     "file".to_string(),
@@ -271,7 +271,7 @@ fn environment_and_file_secrets_are_resolved_when_checked() {
             .check_secrets(vec![
                 (
                     "variable".to_string(),
-                    secret("env:SECRET_ACCESS_TEST_UNSET".to_string()),
+                    secret("env:MELODIUM_SECRET_ACCESS_TEST_UNSET".to_string()),
                 ),
                 (
                     "file".to_string(),
@@ -288,6 +288,21 @@ fn environment_and_file_secrets_are_resolved_when_checked() {
             .join("\n");
         assert!(errors.contains("is not set"), "{}", errors);
         assert!(errors.contains("cannot be read"), "{}", errors);
+
+        // Variables not meant for programs are not given, even when set.
+        std::env::set_var("SECRET_ACCESS_TEST_UNPREFIXED", "unprefixed");
+        let result = engine
+            .check_secrets(vec![(
+                "variable".to_string(),
+                secret("env:SECRET_ACCESS_TEST_UNPREFIXED".to_string()),
+            )])
+            .await;
+        let error = result.failure().expect("refused").to_string();
+        assert!(
+            error.contains("only the ones starting with 'MELODIUM_SECRET_' are"),
+            "{}",
+            error
+        );
     });
 }
 
@@ -384,7 +399,7 @@ treatment main()
 
     startup.trigger -> emitBad.trigger,emit -> concealBad.value,error -> logBad.message
 
-    emitNarrowed: emit<Secret<string>>(value=|reveal_only_by<string>(|from_environment("SECRET_ACCESS_TEST_UNSET", "narrowed"), ["other::Element"]))
+    emitNarrowed: emit<Secret<string>>(value=|reveal_only_by<string>(|from_environment("MELODIUM_SECRET_ACCESS_TEST_UNSET", "narrowed"), ["other::Element"]))
     revealNarrowed: reveal<string>()
     logNarrowed: logError(label="narrowed-error")
 

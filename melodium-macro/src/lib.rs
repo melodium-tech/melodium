@@ -206,7 +206,7 @@ fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
                         .unwrap_or_default();
                     if !is_secret_locator(&locator) {
                         panic!(
-                            "Secret default must be a locator such as \"env:NAME\", got {}",
+                            "Secret default must be a locator such as \"env:MELODIUM_SECRET_NAME\", got {}",
                             lit
                         );
                     }
