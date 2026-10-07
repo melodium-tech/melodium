@@ -7,7 +7,8 @@
 //!
 //! The policy of a secret is set when it is created, and can only be narrowed afterwards.
 //! By default, a secret stays on the engine that holds it, any element may reveal it,
-//! and the plain `reveal` treatment may not.
+//! and the plain `reveal` treatment may not. Secrets from the environment and from files
+//! are never plainly revealed, whatever their policy.
 //!
 //! Secrets can be derived from other secrets (formatted, encoded) without revealing them:
 //! a derived secret is computed when revealed, and gets the most restrictive combination
@@ -87,7 +88,8 @@ pub fn from_file_bytes(path: string, name: string) -> Secret<Vec<byte>> {
 /// - `transmission`: where the secret may go when the program is distributed,
 /// `local` (never leaves this engine), `reference` (only the locator is sent),
 /// or `value` (the value is sent).
-/// - `plain_reveal`: whether the plain `reveal` treatment may reveal it.
+/// - `plain_reveal`: whether the plain `reveal` treatment may reveal it, never for
+///   `env:` and `file:` secrets.
 ///
 /// Gives none if `locator` or `transmission` are not valid.
 #[mel_function(
@@ -450,7 +452,8 @@ pub async fn conceal(name: string, transmission: string, plain_reveal: bool) {
 
 /// Reveals the value of a secret, as a plain value.
 ///
-/// The secret policy must allow plain reveal, which is not the default.
+/// The secret policy must allow plain reveal, which is not the default. Secrets from the
+/// environment and from files (`env:`, `file:`) are never plainly revealed.
 /// The access is recorded as a debug event, and a refused or failed one is also written to the log.
 ///
 /// If the value cannot be revealed, `failed` is emitted and `error` contains the reason.

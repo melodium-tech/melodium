@@ -1,11 +1,15 @@
 //! Secrets derived from other secrets are built without revealing anything,
 //! computed when revealed, and get the most restrictive policy of their inputs.
+//! A secret derived from the environment or a file is never plainly revealed.
 //! Revealed values are masked in logs, so they are checked through the data
 //! sent by `reveal`, captured in detailed debug events.
 
 use async_std::channel::unbounded;
 use melodium::{load_raw, LoadingConfig};
-use melodium_common::executive::{Level, Log, Value};
+use melodium_common::descriptor::DataType;
+use melodium_common::executive::{
+    Level, Log, Secret, SecretOrigin, SecretPolicy, SecretReveal, SecretTransmission, Value,
+};
 use melodium_engine::debug::{DataContent, DebugLevel, Event, EventKind};
 use std::{collections::HashMap, sync::Arc};
 
@@ -30,18 +34,19 @@ use std/secret::|base64
 use std/secret::|base64_bytes
 use std/secret::|to_bytes
 
-treatment main(token_locator: string)
+treatment main(token: Secret<string>, file_token_locator: string)
 {
     startup()
     derivations(
-        token = |unwrap_or<Secret<string>>(|locate<string>(token_locator, "token", "local", true), |from_environment("SECRET_DERIVATION_UNUSED", "fallback")),
-        closed = |from_environment("SECRET_DERIVATION_CLOSED", "closed")
+        token = token,
+        closed = |from_environment("SECRET_DERIVATION_CLOSED", "closed"),
+        from_file = |unwrap_or<Secret<string>>(|locate<string>(file_token_locator, "file_token", "local", true), |from_environment("SECRET_DERIVATION_UNUSED", "fallback"))
     )
 
     startup.trigger -> derivations.trigger
 }
 
-treatment derivations(var token: Secret<string>, var closed: Secret<string>)
+treatment derivations(var token: Secret<string>, var closed: Secret<string>, var from_file: Secret<string>)
   input trigger: Block<void>
 {
     bearer: show(label="bearer", secret=|format("Bearer {token}", |map([|entry<Secret<string>>("token", token)]), "authorization"))
@@ -50,6 +55,7 @@ treatment derivations(var token: Secret<string>, var closed: Secret<string>)
     bytes: show(label="bytes", secret=|base64_bytes(|to_bytes(token, "token_bytes"), "token_bytes_base64"))
     mixed: show(label="mixed", secret=|format("{open}{closed}", |map([|entry<Secret<string>>("open", token), |entry<Secret<string>>("closed", closed)]), "mixed"))
     broken: show(label="broken", secret=|format("{missing}", |map([|entry<Secret<string>>("token", token)]), "broken"))
+    fileBearer: show(label="file-bearer", secret=|format("Bearer {token}", |map([|entry<Secret<string>>("token", from_file)]), "file_authorization"))
 
     Self.trigger -> bearer.trigger
     Self.trigger -> repository.trigger
@@ -57,6 +63,7 @@ treatment derivations(var token: Secret<string>, var closed: Secret<string>)
     Self.trigger -> bytes.trigger
     Self.trigger -> mixed.trigger
     Self.trigger -> broken.trigger
+    Self.trigger -> fileBearer.trigger
 }
 
 treatment show(label: string, var secret: Secret<string>)
@@ -103,10 +110,29 @@ fn run() -> (Vec<Log>, Vec<Event>) {
     assert!(engine
         .genesis(
             &entrypoint,
-            HashMap::from([(
-                "token_locator".to_string(),
-                Value::String(format!("file:{}", token.display())),
-            )]),
+            HashMap::from([
+                (
+                    "token".to_string(),
+                    // Inline, as secrets from files are never plainly revealed.
+                    Value::Secret(
+                        Secret::new(
+                            "token".to_string(),
+                            DataType::String,
+                            SecretPolicy {
+                                transmission: SecretTransmission::Local,
+                                reveal: SecretReveal::Any,
+                                plain_reveal: true,
+                            },
+                            SecretOrigin::Inline(Value::String(TOKEN.to_string())),
+                        )
+                        .unwrap(),
+                    ),
+                ),
+                (
+                    "file_token_locator".to_string(),
+                    Value::String(format!("file:{}", token.display())),
+                ),
+            ]),
         )
         .is_success());
     async_std::task::block_on(async {
@@ -226,5 +252,24 @@ fn derivation_failures_never_show_values() {
         if log.label == "broken" || log.label == "secret" {
             assert!(!log.message.contains(TOKEN), "{}", log.message);
         }
+    }
+}
+
+#[test]
+fn secrets_derived_from_files_are_never_plainly_revealed() {
+    let (logs, events) = run();
+
+    let refused = message(&logs, "file-bearer");
+    assert!(
+        refused.contains("secrets from 'file:' cannot be plainly revealed"),
+        "{}",
+        refused
+    );
+    assert!(events.iter().any(|event| matches!(
+        &event.kind,
+        EventKind::SecretDenied { secret_name, .. } if secret_name == "file_authorization"
+    )));
+    for log in &logs {
+        assert!(!log.message.contains(TOKEN) || log.label != "file-bearer");
     }
 }

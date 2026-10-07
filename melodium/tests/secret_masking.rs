@@ -1,5 +1,6 @@
 //! A revealed value appearing in a log line or in an error message produced by
-//! an element is masked in every log output.
+//! an element is masked in every log output. The value is concealed by the program,
+//! as secrets from files and the environment are never plainly revealed.
 
 use std::{path::PathBuf, process::Command};
 
@@ -15,20 +16,19 @@ use std/engine/log::logInfo
 use std/engine/log::logErrors
 use std/data/string_map::entry
 use std/text/compose::format
-use std/ops/option/block::unwrap
+use std/secret::conceal
 use std/secret::reveal
-use std/secret::|locate
 
-treatment main(url_locator: string)
+treatment main()
 {
     startup()
 
-    emitUrl: emit<Option<Secret<string>>>(value=|locate<string>(url_locator, "url", "local", true))
-    unwrapUrl: unwrap<Secret<string>>()
+    emitUrl: emit<string>(value="https://ci:masking-sentinel-token@gitlab.com/group/project.git")
+    concealUrl: conceal<string>(name="url", plain_reveal=true)
     revealUrl: reveal<string>()
     logUrl: logInfo(label="url")
 
-    startup.trigger -> emitUrl.trigger,emit -> unwrapUrl.option,value -> revealUrl.secret,value -> logUrl.message
+    startup.trigger -> emitUrl.trigger,emit -> concealUrl.value,secret -> revealUrl.secret,value -> logUrl.message
 
     // An element error quoting the value, as an HTTP library would quote the URL.
     stream<string>()
@@ -39,8 +39,6 @@ treatment main(url_locator: string)
     revealUrl.value -> stream.block,stream -> entry.value,map -> format.entries,formatted -> logRequestErrors.messages
 }
 "#;
-
-const SENTINEL: &str = "https://ci:masking-sentinel-token@gitlab.com/group/project.git";
 
 fn temp_path(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
@@ -53,8 +51,6 @@ fn temp_path(name: &str) -> PathBuf {
 fn revealed_values_are_masked_in_every_log_output() {
     let script = temp_path("script.mel");
     std::fs::write(&script, SCRIPT).unwrap();
-    let url = temp_path("url");
-    std::fs::write(&url, SENTINEL).unwrap();
     let logs = temp_path("logs");
 
     let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
@@ -62,8 +58,6 @@ fn revealed_values_are_masked_in_every_log_output() {
         .arg("--logs")
         .arg(&logs)
         .arg(&script)
-        .arg("--url_locator")
-        .arg(format!("file:{}", url.display()))
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);

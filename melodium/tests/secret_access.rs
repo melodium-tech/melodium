@@ -1,6 +1,7 @@
 //! Secrets given as parameters are resolved when revealed, every reveal is recorded
 //! as a debug event with the identity of the revealing element, refused and failed
 //! ones are also logged, and failures surface as errors of the revealing element.
+//! Secrets from the environment and from files are never plainly revealed.
 //! Revealed values are masked in logs, so they are checked through the data
 //! sent by `reveal`, captured in detailed debug events.
 
@@ -21,6 +22,7 @@ use std/flow::emit
 use std/engine/log::logInfo
 use std/engine/log::logError
 use std/ops/option/block::unwrap
+use std/secret::conceal
 use std/secret::reveal
 use std/secret::|locate
 
@@ -44,6 +46,13 @@ treatment main(password: Secret<string> = "env:SECRET_ACCESS_TEST_UNSET", token:
 
     startup.trigger -> emitToken.trigger,emit -> unwrapToken.option,value -> revealToken.secret,value -> logToken.message
     revealToken.error -> logTokenError.message
+
+    emitConcealed: emit<string>(value="concealed-sentinel")
+    concealValue: conceal<string>(name="concealed", plain_reveal=true)
+    revealConcealed: reveal<string>()
+    logConcealed: logInfo(label="concealed")
+
+    startup.trigger -> emitConcealed.trigger,emit -> concealValue.value,secret -> revealConcealed.secret,value -> logConcealed.message
 }
 "#;
 
@@ -149,43 +158,72 @@ fn plain_reveal_is_denied_by_default_and_logged() {
 
 #[test]
 fn reveals_are_recorded_with_accessor_identity() {
-    let token = temp_file("revealed_token", "token-sentinel\n");
     let (logs, events) = run(HashMap::from([(
         "token".to_string(),
-        Value::String(format!("file:{}", token.display())),
+        Value::String("missing:token".to_string()),
     )]));
 
-    // The trailing newline of the file is removed.
     assert_eq!(
-        revealed(&events, "revealToken"),
-        vec![Value::String("token-sentinel".to_string())]
+        revealed(&events, "revealConcealed"),
+        vec![Value::String("concealed-sentinel".to_string())]
     );
     // Once revealed, the value is masked in logs.
     assert_eq!(
-        log(&logs, "token").expect("token logged").message,
-        "<secret \"token\">"
+        log(&logs, "concealed")
+            .expect("concealed value logged")
+            .message,
+        "<secret \"concealed\">"
     );
     assert!(events.iter().any(|event| matches!(
         &event.kind,
         EventKind::SecretRevealed { secret_name, element, label: Some(label), track_id: Some(_), .. }
-            if secret_name == "token" && element.to_string() == "std/secret::reveal" && label == "revealToken"
+            if secret_name == "concealed" && element.to_string() == "std/secret::reveal" && label == "revealConcealed"
     )));
 }
 
 #[test]
+fn environment_and_file_secrets_are_never_plainly_revealed() {
+    std::env::set_var("SECRET_ACCESS_TEST_TOKEN", "environment-sentinel");
+    let token = temp_file("plain_token", "file-sentinel");
+    for (locator, scheme) in [
+        ("env:SECRET_ACCESS_TEST_TOKEN".to_string(), "env"),
+        (format!("file:{}", token.display()), "file"),
+    ] {
+        let (logs, events) = run(HashMap::from([(
+            "token".to_string(),
+            Value::String(locator),
+        )]));
+
+        let error = log(&logs, "token-error").expect("element error");
+        assert!(
+            error.message.contains(&format!(
+                "secrets from '{scheme}:' cannot be plainly revealed"
+            )),
+            "{}",
+            error.message
+        );
+        assert!(log(&logs, "token").is_none());
+        assert!(logs
+            .iter()
+            .all(|log| !log.message.contains("sentinel") || log.label == "concealed"));
+        assert!(events.iter().any(|event| matches!(
+            &event.kind,
+            EventKind::SecretDenied { element, label: Some(label), .. }
+                if element.to_string() == "std/secret::reveal" && label == "revealToken"
+        )));
+    }
+}
+
+#[test]
 fn missing_sources_are_errors_of_the_revealing_element() {
-    let missing = std::env::temp_dir().join(format!(
-        "melodium_secret_access_{}_missing",
-        std::process::id()
-    ));
     let (logs, events) = run(HashMap::from([(
         "token".to_string(),
-        Value::String(format!("file:{}", missing.display())),
+        Value::String("missing:token".to_string()),
     )]));
 
     let error = log(&logs, "token-error").expect("element error");
     assert!(
-        error.message.contains("cannot be read"),
+        error.message.contains("no secret source 'missing'"),
         "{}",
         error.message
     );
@@ -200,16 +238,57 @@ fn missing_sources_are_errors_of_the_revealing_element() {
 }
 
 #[test]
-fn environment_secrets_are_resolved_when_revealed() {
-    std::env::set_var("SECRET_ACCESS_TEST_TOKEN", "environment-sentinel");
-    let (_, events) = run(HashMap::from([(
-        "token".to_string(),
-        Value::String("env:SECRET_ACCESS_TEST_TOKEN".to_string()),
-    )]));
-    assert_eq!(
-        revealed(&events, "revealToken"),
-        vec![Value::String("environment-sentinel".to_string())]
+fn environment_and_file_secrets_are_resolved_when_checked() {
+    std::env::set_var("SECRET_ACCESS_TEST_CHECKED", "checked");
+    let file = temp_file("checked_file", "checked");
+    let missing = std::env::temp_dir().join(format!(
+        "melodium_secret_access_{}_checked_missing",
+        std::process::id()
+    ));
+    let secret = |locator: String| Secret::from_locator(&locator, DataType::String).unwrap();
+
+    let engine = melodium_engine::new_engine(
+        Arc::new(melodium_common::descriptor::Collection::new()),
+        Level::Info,
+        DebugLevel::None,
     );
+    async_std::task::block_on(async {
+        assert!(engine
+            .check_secrets(vec![
+                (
+                    "variable".to_string(),
+                    secret("env:SECRET_ACCESS_TEST_CHECKED".to_string())
+                ),
+                (
+                    "file".to_string(),
+                    secret(format!("file:{}", file.display()))
+                ),
+            ])
+            .await
+            .is_success());
+
+        let result = engine
+            .check_secrets(vec![
+                (
+                    "variable".to_string(),
+                    secret("env:SECRET_ACCESS_TEST_UNSET".to_string()),
+                ),
+                (
+                    "file".to_string(),
+                    secret(format!("file:{}", missing.display())),
+                ),
+            ])
+            .await;
+        let errors = result
+            .failure()
+            .into_iter()
+            .chain(result.errors().iter())
+            .map(|error| error.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(errors.contains("is not set"), "{}", errors);
+        assert!(errors.contains("cannot be read"), "{}", errors);
+    });
 }
 
 #[test]
@@ -233,10 +312,10 @@ fn secret_parameters_take_locators_on_the_command_line() {
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(output.status.success(), "{}", stdout);
-    assert!(stdout.contains("token: <secret \"token\">"), "{}", stdout);
     assert!(!stdout.contains("token-sentinel"), "{}", stdout);
     assert!(!stdout.contains("password-sentinel"), "{}", stdout);
     assert!(stdout.contains(&format!("secret \"file:{}\" denied", password.display())));
+    assert!(stdout.contains("secrets from 'file:' cannot be plainly revealed"));
 
     let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
         .args(["run", "--check-secrets"])

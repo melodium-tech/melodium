@@ -14,6 +14,12 @@ pub trait SecretSource: Debug + Send + Sync {
     ///
     /// Errors must describe what failed without including any part of the value.
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String>;
+
+    /// Whether the plain `std/secret::reveal` treatment may reveal secrets from this
+    /// source, when their policy allows it.
+    fn plain_reveal(&self) -> bool {
+        true
+    }
 }
 
 /// Computes the value of a derived secret from the values of its input secrets.
