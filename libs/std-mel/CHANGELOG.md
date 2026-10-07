@@ -3,7 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
-- Adding `std/secret`: secrets from the environment, files and locators (`|from_environment`, `|from_file`, `|locate`), policy narrowing, derivations (`|format`, `|base64`, `|url_encode`, `|to_bytes`), and the `conceal` and `reveal` treatments (#134, #135).
+- Adding `std/secret`: secrets from the environment, files and locators (`|from_environment`, `|from_file`, `|locate`), policy narrowing, derivations (`|format`, `|base64`, `|url_encode`, `|to_bytes`), and the `conceal` and `reveal` treatments; secrets from the environment and from files are never plainly revealed (#134, #135).
 
 ## [v0.10.4] (2026-09-24)
 
