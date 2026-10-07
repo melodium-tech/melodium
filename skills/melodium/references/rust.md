@@ -619,7 +619,7 @@ Rules for elements receiving secrets:
 - Never put a value in command arguments (other users see them), error messages, logs or outputs. Give it to processes through their environment or standard input.
 - Accept secrets given as `Option<Secret<string>>` too where a map holds them, as `std/secret::|locate` gives.
 - Elements with unbounded generic types (`generic T ()`) writing values outside the engine refuse secrets explicitly, with `Value::contains_secret`, rather than writing a placeholder.
-- Model parameters taking secrets can default to a locator, such as `param token Secret<string> "env:SERVICE_TOKEN"`.
+- Model parameters taking secrets can default to a locator, such as `param token Secret<string> "env:MELODIUM_SECRET_SERVICE_TOKEN"`.
 
 ---
 

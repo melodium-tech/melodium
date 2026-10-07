@@ -178,18 +178,18 @@ step1.failed -> Self.failed
 
 ## Secrets
 
-`secrets.*` values become `Secret<string>` parameters. A secret holds where its value comes from, such as `env:GITHUB_TOKEN`, and only the elements using it reveal it: its value never appears in parameters, logs, reports or command arguments.
+`secrets.*` values become `Secret<string>` parameters. A secret holds where its value comes from, such as `env:MELODIUM_SECRET_GITHUB_TOKEN`, and only the elements using it reveal it: its value never appears in parameters, logs, reports or command arguments.
 
-The workflow gives secrets to the job environment, and passes locators, never values:
+The workflow gives secrets to the job environment, and passes locators, never values. Programs only get the environment variables whose name starts with `MELODIUM_SECRET_`, so each secret is given under that prefix:
 
 ```yaml
 - name: Mélodium CI
-  run: melodium run .melodium/Compo.toml main --github_token env:GITHUB_TOKEN --sha "${{ github.sha }}"
+  run: melodium run .melodium/Compo.toml main --github_token env:MELODIUM_SECRET_GITHUB_TOKEN --sha "${{ github.sha }}"
   env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    MELODIUM_SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-Secret parameters given to models (and through them, as the status tokens of steps) are `const`. The status token of steps and `setServiceState`, `github_token`, defaults to `env:GITHUB_TOKEN`.
+Secret parameters given to models (and through them, as the status tokens of steps) are `const`. The status token of steps and `setServiceState`, `github_token`, defaults to `env:MELODIUM_SECRET_GITHUB_TOKEN`.
 
 Commands get secrets as environment variables with `secret_variables`, never through their arguments. Steps running on workers need secrets allowed to be sent to them by value, which `std/secret::|locate` sets explicitly. Secrets with the default policy stay on the engine holding them, and sending them to a worker fails with an explicit error.
 
@@ -204,7 +204,7 @@ simpleStep[dispatcher=dispatcher](
     image="node:20",
     commands=[|command("npm", ["publish"])],
     secret_variables=|wrap<Map>(|secret_map([
-        |secret_entry<Option<Secret<string>>>("NPM_TOKEN", |locate<string>("env:NPM_TOKEN", "npm_token", "value", false))
+        |secret_entry<Option<Secret<string>>>("NPM_TOKEN", |locate<string>("env:MELODIUM_SECRET_NPM_TOKEN", "npm_token", "value", false))
     ]))
 )
 ```
@@ -268,7 +268,7 @@ treatment myJob[dispatcher: CicdDispatchEngine](
 | `out_file` | `_` | File to stream back through `data` output after success |
 | `report` | `true` | Enable service state reporting |
 | `github` | `false` | Report to GitHub commit status API |
-| `github_token` | `"env:GITHUB_TOKEN"` | GitHub token allowed to set commit statuses (`const Secret<string>`) |
+| `github_token` | `"env:MELODIUM_SECRET_GITHUB_TOKEN"` | GitHub token allowed to set commit statuses (`const Secret<string>`) |
 | `github_project` | `""` | `owner/repo` |
 | `github_sha` | `""` | Commit SHA |
 

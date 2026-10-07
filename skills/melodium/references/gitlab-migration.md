@@ -72,16 +72,18 @@ use work/resources::|mount
 
 ## Secrets
 
-CI/CD variables holding credentials (masked or protected variables, `CI_JOB_TOKEN`) become `Secret<string>` parameters. A secret holds where its value comes from, such as `env:GITLAB_TOKEN`, and only the elements using it reveal it: its value never appears in parameters, logs, reports or command arguments.
+CI/CD variables holding credentials (masked or protected variables, `CI_JOB_TOKEN`) become `Secret<string>` parameters. A secret holds where its value comes from, such as `env:MELODIUM_SECRET_GITLAB_TOKEN`, and only the elements using it reveal it: its value never appears in parameters, logs, reports or command arguments.
 
-`.gitlab-ci.yml` passes locators, never values. GitLab gives CI/CD variables to the job as environment variables:
+`.gitlab-ci.yml` passes locators, never values. GitLab gives CI/CD variables to the job as environment variables, and programs only get those whose name starts with `MELODIUM_SECRET_`, so the job gives each one under that prefix:
 
 ```yaml
+variables:
+  MELODIUM_SECRET_GITLAB_TOKEN: $GITLAB_TOKEN
 script:
-  - melodium run .melodium/Compo.toml main --gitlab_token env:GITLAB_TOKEN --project "$CI_PROJECT_ID"
+  - melodium run .melodium/Compo.toml main --gitlab_token env:MELODIUM_SECRET_GITLAB_TOKEN --project "$CI_PROJECT_ID"
 ```
 
-Secret parameters given to models (and through them, as the status tokens of steps) are `const`. The status token of steps and `setServiceState`, `gitlab_token`, defaults to `env:GITLAB_TOKEN`.
+Secret parameters given to models (and through them, as the status tokens of steps) are `const`. The status token of steps and `setServiceState`, `gitlab_token`, defaults to `env:MELODIUM_SECRET_GITLAB_TOKEN`.
 
 Commands get secrets as environment variables with `secret_variables`, never through their arguments. Steps running on workers need secrets allowed to be sent to them by value, which `std/secret::|locate` sets explicitly. Secrets with the default policy stay on the engine holding them, and sending them to a worker fails with an explicit error.
 
@@ -96,14 +98,14 @@ simpleStep[dispatcher=dispatcher](
     image="node:20",
     commands=[|command("npm", ["publish"])],
     secret_variables=|wrap<Map>(|secret_map([
-        |secret_entry<Option<Secret<string>>>("NPM_TOKEN", |locate<string>("env:NPM_TOKEN", "npm_token", "value", false))
+        |secret_entry<Option<Secret<string>>>("NPM_TOKEN", |locate<string>("env:MELODIUM_SECRET_NPM_TOKEN", "npm_token", "value", false))
     ]))
 )
 ```
 
 ### `CI_JOB_TOKEN` in repository URLs
 
-`CI_REPOSITORY_URL` holds the job token, which `git clone` would then show in its arguments. Clone from `$CI_PROJECT_URL.git`, without credentials, and give git the token through secret variables (`GIT_CONFIG_*` needs git 2.31 or later):
+`CI_REPOSITORY_URL` holds the job token, which `git clone` would then show in its arguments. Clone from `$CI_PROJECT_URL.git`, without credentials, and give git the token through secret variables (`GIT_CONFIG_*` needs git 2.31 or later), the job giving it as `MELODIUM_SECRET_CI_JOB_TOKEN: $CI_JOB_TOKEN` in its `variables`:
 
 ```mel
 use std/secret::|format as |secret_format
@@ -122,7 +124,7 @@ simpleStep[dispatcher=dispatcher](
             |secret_map([|secret_entry<Secret<string>>("credentials", |base64(
                 |secret_format(
                     "gitlab-ci-token:{token}",
-                    |secret_map([|secret_entry<Option<Secret<string>>>("token", |locate<string>("env:CI_JOB_TOKEN", "job_token", "value", false))]),
+                    |secret_map([|secret_entry<Option<Secret<string>>>("token", |locate<string>("env:MELODIUM_SECRET_CI_JOB_TOKEN", "job_token", "value", false))]),
                     "job_credentials"
                 ),
                 "job_credentials_base64"
@@ -198,7 +200,7 @@ treatment buildJob[dispatcher: CicdDispatchEngine](
 | `report` | `true` | Enable service state reporting |
 | `gitlab` | `false` | Report to GitLab commit status API |
 | `gitlab_root_url` | `"https://gitlab.com/api/v4"` | GitLab API root URL |
-| `gitlab_token` | `"env:GITLAB_TOKEN"` | GitLab token allowed to set commit statuses (`const Secret<string>`) |
+| `gitlab_token` | `"env:MELODIUM_SECRET_GITLAB_TOKEN"` | GitLab token allowed to set commit statuses (`const Secret<string>`) |
 | `gitlab_project_id` | `""` | GitLab project ID |
 | `gitlab_sha` | `""` | Commit SHA |
 | `gitlab_ref` | `""` | Branch or tag ref |

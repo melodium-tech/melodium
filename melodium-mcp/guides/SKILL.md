@@ -217,7 +217,7 @@ This reads: `startup.trigger` → `emit.trigger`; `emit.emit` → `generate.leng
 
 `Vec<T>`, `Option<T>` are built-in. Common library types: `Map<K,V>` (`std/data/map`), `StringMap` (`std/data/string_map`), `Json` (`json`), `HttpStatus` (`http/status`), etc.
 
-`Secret<T>` (most often `Secret<string>`) holds a credential: where its value comes from rather than the value, given as a locator such as `"env:DB_PASSWORD"`, `"file:/run/secrets/db"` or `"vault:kv/data/app#password"`. Only the elements using it reveal it, and its value never appears in parameters, logs or command arguments. Secrets from the environment and from files are never given as plain data by `std/secret::reveal`. `std/secret` builds, derives (`|format`, `|base64`) and restricts secrets. A secret cannot hold another secret, and secrets only implement the `Serialize` and `Deserialize` traits, those of their inner type.
+`Secret<T>` (most often `Secret<string>`) holds a credential: where its value comes from rather than the value, given as a locator such as `"env:MELODIUM_SECRET_DB_PASSWORD"`, `"file:/run/secrets/db"` or `"vault:kv/data/app#password"`. Only the elements using it reveal it, and its value never appears in parameters, logs or command arguments. Programs only get the environment variables whose name starts with `MELODIUM_SECRET_`, and secrets from the environment and from files are never given as plain data by `std/secret::reveal`. `std/secret` builds, derives (`|format`, `|base64`) and restricts secrets. A secret cannot hold another secret, and secrets only implement the `Serialize` and `Deserialize` traits, those of their inner type.
 
 ### Traits
 

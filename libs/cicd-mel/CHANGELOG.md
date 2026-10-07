@@ -3,7 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
-- Taking the status tokens (`github_token`, `gitlab_token`) as constant secrets, by default `env:GITHUB_TOKEN` and `env:GITLAB_TOKEN`, the `CicdDispatchEngine` API token and pull secrets as secrets, and giving steps `secret_variables` (#136).
+- Taking the status tokens (`github_token`, `gitlab_token`) as constant secrets, by default `env:MELODIUM_SECRET_GITHUB_TOKEN` and `env:MELODIUM_SECRET_GITLAB_TOKEN`, the `CicdDispatchEngine` API token and pull secrets as secrets, and giving steps `secret_variables` (#136).
 
 ## [v0.10.4] (2026-09-24)
 
