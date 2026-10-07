@@ -23,6 +23,8 @@ use melodium_common::{
     },
     executive::{Level, Log, Secret, Value},
 };
+use melodium_engine::interruption::live_until_interrupted;
+pub use melodium_engine::interruption::Interruption;
 use melodium_engine::{
     debug::{DebugLevel, Event},
     LogicResult,
@@ -330,7 +332,7 @@ pub async fn launch(
     enable_status: bool,
     tags: Option<Vec<String>>,
     check_secrets: bool,
-) -> LogicResult<()> {
+) -> LogicResult<Option<Interruption>> {
     // `DebugLevel::Detailed` makes every `Output::send_many`/`send_one` clone the full
     // transmitted payload into a `DataContent::Values` debug event (see
     // melodium-engine/src/transmission/output.rs) instead of just a `Count`. For a
@@ -431,25 +433,35 @@ pub async fn launch(
     if result.is_success() && !secrets.is_empty() {
         result = result.and(engine.check_secrets(secrets).await);
     }
+    let interruption;
     if result.is_failure() {
         if let Some(launched) = signal_launched {
             launched(Err("Failed to launch engine".into())).await;
         }
-        return result;
+        return result.and(LogicResult::new_success(None));
     } else {
         if let Some(launched) = signal_launched {
             launched(Ok(())).await;
         }
-        engine.live().await;
+        interruption = live_until_interrupted(&engine, INTERRUPTION_GRACE).await;
         engine.end().await;
         if let Some(ended) = signal_ended {
             ended().await;
         }
     }
 
-    while let Some(_) = monitoring.next().await {}
+    match interruption {
+        // Stopped tracks never close the logs, so writing them out cannot be fully awaited.
+        Some(Interruption::Stopped(_)) => {
+            let _ = async_std::future::timeout(STOPPED_FLUSH_TIMEOUT, async {
+                while let Some(_) = monitoring.next().await {}
+            })
+            .await;
+        }
+        _ => while let Some(_) = monitoring.next().await {},
+    }
 
-    LogicResult::new_success(())
+    LogicResult::new_success(interruption)
 }
 
 /// Gives the secrets found in the launch parameters of `identifier`, defaults included.
@@ -477,6 +489,12 @@ fn parameters_secrets(
     }
     secrets
 }
+
+/// Time given to running tracks to finish once the process is interrupted.
+pub const INTERRUPTION_GRACE: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Time given to write logs and reports out once running tracks were stopped.
+const STOPPED_FLUSH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 pub fn core_config() -> LoadingConfig {
     LoadingConfig {

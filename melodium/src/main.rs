@@ -167,17 +167,33 @@ struct Dist {
     /// Key to use for TLS encryption (PKCS8 PEM format).
     key: Option<String>,
     #[clap(short, long)]
-    /// Key expected to authenticate remote engine.
-    recv_key: uuid::Uuid,
+    /// Key expected to authenticate remote engine. Deprecated, as other local users can
+    /// read arguments: use `--recv-key-file` or `MELODIUM_DIST_RECV_KEY` instead.
+    recv_key: Option<uuid::Uuid>,
+    #[clap(long)]
+    /// File containing the key expected to authenticate remote engine. If neither the
+    /// key nor its file are given, the key is read from `MELODIUM_DIST_RECV_KEY`.
+    recv_key_file: Option<PathBuf>,
     #[clap(short, long)]
-    /// Key to authenticate with remote engine.
-    send_key: uuid::Uuid,
+    /// Key to authenticate with remote engine. Deprecated, as other local users can
+    /// read arguments: use `--send-key-file` or `MELODIUM_DIST_SEND_KEY` instead.
+    send_key: Option<uuid::Uuid>,
+    #[clap(long)]
+    /// File containing the key to authenticate with remote engine. If neither the key
+    /// nor its file are given, the key is read from `MELODIUM_DIST_SEND_KEY`.
+    send_key_file: Option<PathBuf>,
     #[clap(long, action)]
     /// Listen localhost (if ip is not set), using embedded certificate.
+    /// This certificate and its key are the same in every Mélodium binary, so any local
+    /// process can present it: it only protects connections from other machines.
     localhost: bool,
     #[clap(long, action)]
-    /// Disable TLS encryption.
+    /// Disable TLS encryption: everything is sent readable, authentication keys included.
+    /// Refused on addresses other than loopback ones, unless `--allow-plain-tcp` is given.
     disable_tls: bool,
+    #[clap(long, action)]
+    /// Allow `--disable-tls` on addresses other than loopback ones.
+    allow_plain_tcp: bool,
     #[clap(long, default_value = None)]
     /// Time (in seconds) to wait for a distant engine to connect.
     wait: Option<u64>,
@@ -420,6 +436,9 @@ fn run(args: Run) {
         if launch.is_failure() {
             std::process::exit(1);
         }
+        if let Some(Some(interruption)) = launch.success() {
+            std::process::exit(interruption.exit_code());
+        }
     } else {
         std::process::exit(1);
     }
@@ -636,12 +655,85 @@ fn new(args: New) {
     }
 }
 
+/// Gives a distribution key, from its argument, its file, or the `variable` environment variable.
+#[cfg(feature = "distribution")]
+fn dist_key(
+    argument: Option<uuid::Uuid>,
+    file: Option<PathBuf>,
+    option: &str,
+    variable: &str,
+) -> Result<uuid::Uuid, String> {
+    // Key contents are never quoted in errors.
+    let parse = |text: &str, origin: &str| {
+        uuid::Uuid::parse_str(text.trim()).map_err(|_| format!("{origin} is not a valid key"))
+    };
+    match (argument, file) {
+        (Some(_), Some(_)) => Err(format!(
+            "--{option} and --{option}-file cannot be given together"
+        )),
+        (Some(key), None) => {
+            eprintln!(
+                "{}: keys given as arguments can be read by other local users, prefer --{option}-file or {variable}",
+                "warning".bold().yellow()
+            );
+            Ok(key)
+        }
+        (None, Some(file)) => match std::fs::read_to_string(&file) {
+            Ok(content) => parse(&content, &format!("'{}'", file.display())),
+            Err(err) => Err(format!("'{}': {err}", file.display())),
+        },
+        (None, None) => match std::env::var(variable) {
+            Ok(content) => parse(&content, variable),
+            Err(_) => Err(format!("no key given, use --{option}-file or {variable}")),
+        },
+    }
+}
+
 #[cfg(feature = "distribution")]
 fn dist(args: Dist) {
     use async_std::channel::unbounded;
     use core::time::Duration;
     use melodium_common::descriptor::Version;
     use std::net::{Ipv4Addr, SocketAddr};
+
+    let (recv_key, send_key) = match (
+        dist_key(
+            args.recv_key,
+            args.recv_key_file.clone(),
+            "recv-key",
+            "MELODIUM_DIST_RECV_KEY",
+        ),
+        dist_key(
+            args.send_key,
+            args.send_key_file.clone(),
+            "send-key",
+            "MELODIUM_DIST_SEND_KEY",
+        ),
+    ) {
+        (Ok(recv_key), Ok(send_key)) => (recv_key, send_key),
+        (recv_key, send_key) => {
+            for err in [recv_key.err(), send_key.err()].iter().flatten() {
+                eprintln!("{}: {err}", "error".bold().red());
+            }
+            std::process::exit(1);
+        }
+    };
+
+    // Plain TCP sends everything readable, authentication keys included.
+    if args.disable_tls {
+        let ip = args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
+        if !ip.is_loopback() && !args.allow_plain_tcp {
+            eprintln!(
+                "{}: TLS cannot be disabled on {ip}, as it is not a loopback address, unless --allow-plain-tcp is given",
+                "error".bold().red()
+            );
+            std::process::exit(1);
+        }
+        eprintln!(
+            "{}: TLS is disabled, everything is sent readable, authentication keys included",
+            "warning".bold().yellow()
+        );
+    }
 
     let loader = melodium_loader::Loader::new(core_config());
 
@@ -708,8 +800,8 @@ fn dist(args: Dist) {
                         args.port,
                     ),
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -744,8 +836,8 @@ fn dist(args: Dist) {
                     &cert_content,
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -771,8 +863,8 @@ fn dist(args: Dist) {
                         args.port,
                     ),
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -814,8 +906,8 @@ fn dist(args: Dist) {
                     &cert_content,
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -838,8 +930,8 @@ fn dist(args: Dist) {
                 async_std::task::block_on(melodium_distribution::launch_listen_unsecure(
                     SocketAddr::new(ip, args.port),
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -868,6 +960,9 @@ fn dist(args: Dist) {
         }
     }
 
+    // An interrupted node exits with the code of the signal, once its work is written out.
+    let interruption = melodium_engine::interruption::last_interruption();
+
     async_std::task::block_on(async move {
         use futures::StreamExt;
         // `monitoring` only drains once every logs/debug forwarding task (including
@@ -892,9 +987,13 @@ fn dist(args: Dist) {
                 "{}: monitoring tasks did not complete in time, forcing exit",
                 "warning".bold().yellow()
             );
-            std::process::exit(0);
+            std::process::exit(interruption.map(|i| i.exit_code()).unwrap_or(0));
         }
     });
+
+    if let Some(interruption) = interruption {
+        std::process::exit(interruption.exit_code());
+    }
 }
 
 #[cfg(feature = "doc")]

@@ -1,6 +1,5 @@
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
-use std::collections::HashMap;
 #[cfg(feature = "real")]
 use std::sync::Arc;
 #[cfg(feature = "real")]
@@ -121,8 +120,6 @@ impl RemoteStt {
             *self.provider.lock().unwrap() = None;
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Transcribe audio bytes to text using a remote speech-to-text service.

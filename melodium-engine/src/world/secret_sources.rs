@@ -4,6 +4,7 @@ use melodium_common::executive::{PackedArray, SecretSource, Value};
 use std::sync::Arc;
 
 /// Gives the value of a text source as `datatype`, if it is `string` or `Vec<byte>`.
+#[cfg(feature = "environment")]
 fn text_value(text: String, datatype: &DataType, origin: &str) -> Result<Value, String> {
     match datatype {
         DataType::String => Ok(Value::String(text)),
@@ -15,11 +16,20 @@ fn text_value(text: String, datatype: &DataType, origin: &str) -> Result<Value, 
 }
 
 /// `env:NAME` source, giving the value of an environment variable.
+///
+/// Its secrets are never plainly revealed: a program only gets environment variables as
+/// secrets, revealed by the elements using them.
+#[cfg(feature = "environment")]
 #[derive(Debug)]
 pub struct EnvironmentSource;
 
+#[cfg(feature = "environment")]
 #[async_trait]
 impl SecretSource for EnvironmentSource {
+    fn plain_reveal(&self) -> bool {
+        false
+    }
+
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
         match std::env::var(path) {
             Ok(text) => text_value(text, datatype, &format!("environment variable '{path}'")),
@@ -37,11 +47,20 @@ impl SecretSource for EnvironmentSource {
 ///
 /// As `Secret<string>`, one trailing newline is removed, as files are usually written
 /// with one. As `Secret<Vec<byte>>`, the content is given unchanged.
+///
+/// Its secrets are never plainly revealed: a program only gets files as secrets, revealed
+/// by the elements using them.
+#[cfg(feature = "filesystem")]
 #[derive(Debug)]
 pub struct FileSource;
 
+#[cfg(feature = "filesystem")]
 #[async_trait]
 impl SecretSource for FileSource {
+    fn plain_reveal(&self) -> bool {
+        false
+    }
+
     #[cfg(not(target_os = "unknown"))]
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
         let content = async_std::fs::read(path)
@@ -69,5 +88,56 @@ impl SecretSource for FileSource {
     #[cfg(target_os = "unknown")]
     async fn resolve(&self, path: &str, _datatype: &DataType) -> Result<Value, String> {
         Err(format!("file '{path}' cannot be read on this platform"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "filesystem")]
+    #[test]
+    fn files_lose_one_trailing_newline_as_strings_only() {
+        let path = std::env::temp_dir().join(format!(
+            "melodium_secret_sources_{}_file",
+            std::process::id()
+        ));
+        std::fs::write(&path, "sentinel\n").unwrap();
+        let path = path.to_string_lossy().to_string();
+
+        let text = async_std::task::block_on(FileSource.resolve(&path, &DataType::String));
+        assert_eq!(text, Ok(Value::String("sentinel".to_string())));
+
+        let bytes = async_std::task::block_on(
+            FileSource.resolve(&path, &DataType::Vec(Box::new(DataType::Byte))),
+        );
+        assert_eq!(
+            bytes,
+            Ok(Value::Packed(PackedArray::Byte(Arc::new(
+                b"sentinel\n".to_vec()
+            ))))
+        );
+    }
+
+    #[cfg(feature = "environment")]
+    #[test]
+    fn environment_variables_are_given_as_text() {
+        std::env::set_var("MELODIUM_SECRET_SOURCES_TEST", "sentinel");
+        let text = async_std::task::block_on(
+            EnvironmentSource.resolve("MELODIUM_SECRET_SOURCES_TEST", &DataType::String),
+        );
+        assert_eq!(text, Ok(Value::String("sentinel".to_string())));
+        assert!(async_std::task::block_on(
+            EnvironmentSource.resolve("MELODIUM_SECRET_SOURCES_UNSET", &DataType::String)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn environment_and_files_are_never_plainly_revealed() {
+        #[cfg(feature = "environment")]
+        assert!(!EnvironmentSource.plain_reveal());
+        #[cfg(feature = "filesystem")]
+        assert!(!FileSource.plain_reveal());
     }
 }
