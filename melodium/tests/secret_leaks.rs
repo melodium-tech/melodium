@@ -1,8 +1,9 @@
 //! Secret values never appear in the outputs of a run: standard output and error, the
 //! `--logs` file, the `--debug` file at detailed level, and what `--api-report` sends
 //! (logs, debug events, program dump and details), nor in `.jeu` packages and
-//! documentation. A secret plainly revealed through `std/secret::reveal` becomes
-//! ordinary data, so its value only appears in debug data events.
+//! documentation. A value read by the program, concealed, then plainly revealed
+//! through `std/secret::reveal` is ordinary data, so it only appears in debug data
+//! events; secrets from the environment and from files are never plainly revealed.
 //!
 //! The API and its uploads are a mock answering every request.
 
@@ -21,10 +22,13 @@ use std/data/map::Map
 use std/data/map::|map as |secret_map
 use std/data/map::|entry as |secret_entry
 use std/data/string_map::|map
+use std/data/string_map::|entry
+use std/flow::trigger
 use std/ops/option::|wrap
-use std/ops/option/block::unwrap
+use std/secret::conceal
 use std/secret::reveal
-use std/secret::|locate
+use std/text/compose::|format
+use fs/local::readTextLocal
 use process/command::|command
 use process/environment::Environment
 use process/environment::|environment
@@ -47,12 +51,13 @@ treatment main(const directory: string, const hidden: Secret<string> = "env:SECR
     startup.trigger -> run.launch
     run.error -> logRunError.message
 
-    // Plainly revealed, then logged.
-    emitShown: emit<Option<Secret<string>>>(value=|locate<string>("env:SECRET_LEAKS_SHOWN", "shown", "local", true))
-    unwrapShown: unwrap<Secret<string>>()
+    // Read by the program, concealed, plainly revealed, then logged.
+    readShown: readTextLocal(path=|format("{directory}/shown", |entry("directory", directory)))
+    firstShown: trigger<string>()
+    concealShown: conceal<string>(name="shown", plain_reveal=true)
     revealShown: reveal<string>()
     logShown: logInfo(label="shown")
-    startup.trigger -> emitShown.trigger,emit -> unwrapShown.option,value -> revealShown.secret,value -> logShown.message
+    startup.trigger -> readShown.trigger,text -> firstShown.stream,first -> concealShown.value,secret -> revealShown.secret,value -> logShown.message
 }
 "#;
 
@@ -75,7 +80,7 @@ fn standalone_script(directory: &Path) -> PathBuf {
     std::fs::write(
         &script,
         format!(
-            "#!/usr/bin/env melodium\n#! name = secret_leaks\n#! version = 0.1.0\n#! require = std:0.11.0 process:0.11.0\n\n{SCRIPT}"
+            "#!/usr/bin/env melodium\n#! name = secret_leaks\n#! version = 0.1.0\n#! require = std:0.11.0 process:0.11.0 fs:0.11.0\n\n{SCRIPT}"
         ),
     )
     .unwrap();
@@ -186,6 +191,7 @@ fn secret_values_never_appear_in_run_outputs() {
     let logs = directory.join("logs");
     let debug = directory.join("debug");
     let (address, requests) = api_server();
+    std::fs::write(directory.join("shown"), SHOWN).unwrap();
 
     let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
         .args(["run", "--api-report", "--debug-level", "detailed", "--logs"])
@@ -196,7 +202,6 @@ fn secret_values_never_appear_in_run_outputs() {
         .arg("--directory")
         .arg(&directory)
         .env("SECRET_LEAKS_HIDDEN", HIDDEN)
-        .env("SECRET_LEAKS_SHOWN", SHOWN)
         .env("MELODIUM_API_URL", &address)
         .env("MELODIUM_API_TOKEN", API_TOKEN)
         .output()
@@ -213,7 +218,9 @@ fn secret_values_never_appear_in_run_outputs() {
 
     let logs = std::fs::read_to_string(&logs).unwrap();
     let debug = std::fs::read_to_string(&debug).unwrap();
-    assert!(logs.contains("shown"), "{}", logs);
+    // The shown value was revealed: masked in logs, sent as data.
+    assert!(logs.contains("shown: <secret \"shown\">"), "{}", logs);
+    assert!(debug.contains(SHOWN));
 
     let requests = requests.lock().unwrap();
     let targets: Vec<&str> = requests
@@ -271,7 +278,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
     std::fs::create_dir_all(&package).unwrap();
     std::fs::write(
         package.join("Compo.toml"),
-        "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.11.0\"\nprocess = \"0.11.0\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
+        "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.11.0\"\nprocess = \"0.11.0\"\nfs = \"0.11.0\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
     )
     .unwrap();
     std::fs::write(package.join("lib-root.mel"), SCRIPT).unwrap();
@@ -283,7 +290,6 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
         .arg(&package)
         .arg(&jeu)
         .env("SECRET_LEAKS_HIDDEN", HIDDEN)
-        .env("SECRET_LEAKS_SHOWN", SHOWN)
         .output()
         .unwrap();
     assert!(
@@ -298,7 +304,6 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
         .arg(&script)
         .arg(&documentation)
         .env("SECRET_LEAKS_HIDDEN", HIDDEN)
-        .env("SECRET_LEAKS_SHOWN", SHOWN)
         .output()
         .unwrap();
     assert!(
