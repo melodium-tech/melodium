@@ -147,7 +147,7 @@ impl Display for SecretError {
             SecretError::MismatchingValue => write!(f, "the value is not of the secret type"),
             SecretError::InvalidLocator(locator) => write!(
                 f,
-                "'{locator}' is not a secret locator, expected '<scheme>:<path>' such as 'env:NAME' or 'file:PATH'"
+                "'{locator}' is not a secret locator, expected '<scheme>:<path>' such as 'env:MELODIUM_SECRET_NAME' or 'file:PATH'"
             ),
             SecretError::InvalidTransmission(transmission) => write!(
                 f,

@@ -1,7 +1,8 @@
 //! Secrets: creating them from locators, narrowing their policy, concealing and revealing values.
 //!
-//! A `Secret<T>` holds where its value comes from (such as `env:NAME` or `file:PATH`)
-//! rather than the value itself, and is resolved only when an element reveals it.
+//! A `Secret<T>` holds where its value comes from (such as `env:MELODIUM_SECRET_NAME` or
+//! `file:PATH`) rather than the value itself, and is resolved only when an element reveals it.
+//! Programs only get the environment variables whose name starts with `MELODIUM_SECRET_`.
 //! Every reveal is checked against the secret policy and recorded as a debug event,
 //! and refused or failed ones are also written to the log.
 //!
@@ -18,6 +19,8 @@ use melodium_core::*;
 use melodium_macro::{mel_function, mel_treatment};
 
 /// Secret read from the environment variable `variable` when revealed.
+///
+/// Only variables whose name starts with `MELODIUM_SECRET_` are given to programs.
 #[mel_function]
 pub fn from_environment(variable: string, name: string) -> Secret<string> {
     ExecutiveSecret::new(
@@ -59,7 +62,7 @@ pub fn from_file_bytes(path: string, name: string) -> Secret<Vec<byte>> {
 
 /// Secret resolved from `locator` when revealed, with an explicit policy.
 ///
-/// - `locator`: `<scheme>:<path>`, such as `env:NAME`, `file:PATH`, or a scheme registered by a source model.
+/// - `locator`: `<scheme>:<path>`, such as `env:MELODIUM_SECRET_NAME`, `file:PATH`, or a scheme registered by a source model.
 /// - `transmission`: where the secret may go when the program is distributed,
 /// `local` (never leaves this engine), `reference` (only the locator is sent),
 /// or `value` (the value is sent).

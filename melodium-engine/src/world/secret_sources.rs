@@ -15,7 +15,13 @@ fn text_value(text: String, datatype: &DataType, origin: &str) -> Result<Value, 
     }
 }
 
-/// `env:NAME` source, giving the value of an environment variable.
+/// Prefix of the environment variables given to programs, as secrets.
+#[cfg(feature = "environment")]
+pub const ENVIRONMENT_SECRET_PREFIX: &str = "MELODIUM_SECRET_";
+
+/// `env:NAME` source, giving the value of an environment variable whose name starts with
+/// `MELODIUM_SECRET_`, so that only variables set for programs on purpose are given to
+/// them, and not the other ones of the host, such as the configuration of Mélodium.
 ///
 /// Its secrets are never plainly revealed: a program only gets environment variables as
 /// secrets, revealed by the elements using them.
@@ -31,6 +37,11 @@ impl SecretSource for EnvironmentSource {
     }
 
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
+        if !path.starts_with(ENVIRONMENT_SECRET_PREFIX) {
+            return Err(format!(
+                "environment variable '{path}' is not given to programs, only the ones starting with '{ENVIRONMENT_SECRET_PREFIX}' are"
+            ));
+        }
         match std::env::var(path) {
             Ok(text) => text_value(text, datatype, &format!("environment variable '{path}'")),
             Err(std::env::VarError::NotPresent) => {
@@ -131,6 +142,19 @@ mod tests {
             EnvironmentSource.resolve("MELODIUM_SECRET_SOURCES_UNSET", &DataType::String)
         )
         .is_err());
+    }
+
+    #[cfg(feature = "environment")]
+    #[test]
+    fn only_prefixed_environment_variables_are_given() {
+        std::env::set_var("SECRET_SOURCES_TEST_UNPREFIXED", "sentinel");
+        let refused = async_std::task::block_on(
+            EnvironmentSource.resolve("SECRET_SOURCES_TEST_UNPREFIXED", &DataType::String),
+        );
+        assert_eq!(
+            refused,
+            Err("environment variable 'SECRET_SOURCES_TEST_UNPREFIXED' is not given to programs, only the ones starting with 'MELODIUM_SECRET_' are".to_string())
+        );
     }
 
     #[test]
