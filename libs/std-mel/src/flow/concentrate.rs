@@ -42,8 +42,6 @@ impl Concentrator {
         }
     }
 
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
-
     pub async fn track_sender(
         &self,
         track_id: TrackId,

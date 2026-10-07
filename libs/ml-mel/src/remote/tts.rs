@@ -1,6 +1,5 @@
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
-use std::collections::HashMap;
 use std::collections::VecDeque;
 #[cfg(feature = "real")]
 use std::sync::Arc;
@@ -132,8 +131,6 @@ impl RemoteTts {
             *self.provider.lock().unwrap() = None;
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Synthesize speech audio from text using a remote text-to-speech service.

@@ -30,9 +30,20 @@ serde = { version = "1", features = ["derive"] }
 stacker = "0.1"
 uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 
+[target.'cfg(unix)'.dependencies]
+signal-hook = "0.3"
+signal-hook-async-std = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
+
 [features]
 default = []
 doc = []
+# `env:` secret source, reading environment variables.
+environment = []
+# `file:` secret source, reading files.
+filesystem = []
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
