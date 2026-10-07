@@ -37,8 +37,8 @@ treatment main(token: Secret<string>, file_token_locator: string)
     startup()
     derivations(
         token = token,
-        closed = |from_environment("SECRET_DERIVATION_CLOSED", "closed"),
-        from_file = |unwrap_or<Secret<string>>(|locate<string>(file_token_locator, "file_token", "local", true), |from_environment("SECRET_DERIVATION_UNUSED", "fallback"))
+        closed = |from_environment("MELODIUM_SECRET_DERIVATION_CLOSED", "closed"),
+        from_file = |unwrap_or<Secret<string>>(|locate<string>(file_token_locator, "file_token", "local", true), |from_environment("MELODIUM_SECRET_DERIVATION_UNUSED", "fallback"))
     )
 
     startup.trigger -> derivations.trigger
