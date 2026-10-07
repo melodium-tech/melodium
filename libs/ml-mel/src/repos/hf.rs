@@ -2,7 +2,6 @@ use melodium_core::*;
 #[cfg(feature = "real")]
 use melodium_macro::check;
 use melodium_macro::{mel_model, mel_treatment};
-use std::collections::HashMap;
 use std::sync::Weak;
 
 /// HuggingFace Hub repository configuration.
@@ -59,8 +58,6 @@ impl HfHub {
     fn new(model: Weak<HfHubModel>) -> Self {
         Self { model }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Resolve and download files from a HuggingFace Hub repository.

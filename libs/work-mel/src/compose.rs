@@ -374,6 +374,18 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         );
     }
 
+    // Keys are given through the environment, as arguments are visible to every process.
+    if let ModeRequest::DistributionSecretKey { key } = &request.mode {
+        environment.insert(
+            MapKey::new("MELODIUM_DIST_RECV_KEY").map_err(|err| vec![err.to_string()])?,
+            Some(access_key.to_string().into()),
+        );
+        environment.insert(
+            MapKey::new("MELODIUM_DIST_SEND_KEY").map_err(|err| vec![err.to_string()])?,
+            Some(key.to_string().into()),
+        );
+    }
+
     environment.insert(
         MapKey::new("MELODIUM_RUN_EXECUTOR").map_err(|err| vec![err.to_string()])?,
         Some(executor.to_string().into()),
@@ -476,7 +488,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     vec!["run".to_string(), entrypoint.clone()]
                 }
             }
-            ModeRequest::DistributionSecretKey { key } => {
+            ModeRequest::DistributionSecretKey { key: _ } => {
                 let mut args = vec![
                     "dist".to_string(),
                     "--ip".to_string(),
@@ -487,16 +499,14 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     "30".to_string(),
                     "--duration".to_string(),
                     request.max_duration.unwrap_or(0).to_string(),
-                    "--recv-key".to_string(),
-                    access_key.to_string(),
-                    "--send-key".to_string(),
-                    key.to_string(),
-                    if bind_ip == Ipv4Addr::LOCALHOST {
-                        "--localhost".to_string()
-                    } else {
-                        "--disable-tls".to_string()
-                    },
                 ];
+                if bind_ip == Ipv4Addr::LOCALHOST {
+                    args.push("--localhost".to_string());
+                } else {
+                    // Containers are reached through a network local to this host.
+                    args.push("--disable-tls".to_string());
+                    args.push("--allow-plain-tcp".to_string());
+                }
                 if enable_reports {
                     args.push("--api-report".to_string());
                     args.push("--api-report-disable-status".to_string());
@@ -700,7 +710,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         addresses: vec![bind_ip],
                         port: binding,
                         key: access_key,
+                        // Containers are reached through a network local to this host.
                         disable_tls: bind_ip != Ipv4Addr::LOCALHOST,
+                        allow_plain_tcp: bind_ip != Ipv4Addr::LOCALHOST,
                     };
 
                     if enable_debug {

@@ -51,6 +51,8 @@ use melodium_macro::mel_treatment;
     output info Block<AudioInfo>
     output failed Block<void>
     output errors Stream<string>
+    default device none
+    default sample_rate none
 )]
 pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
     #[cfg(feature = "real")]
