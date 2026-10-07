@@ -120,7 +120,7 @@ impl SecretPolicy {
 
 /// Where the value of a secret comes from.
 pub enum SecretOrigin {
-    /// Resolved when revealed, such as `env:NAME`, `file:PATH` or `<source>:<path>`.
+    /// Resolved when revealed, such as `env:MELODIUM_SECRET_NAME`, `file:PATH` or `<source>:<path>`.
     Locator(String),
     /// Value held in memory, such as one concealed at runtime.
     Inline(Value),
@@ -280,7 +280,7 @@ impl Secret {
 
     /// Creates a secret resolved from `locator`, named after it, with the default policy.
     ///
-    /// This is what locator literals such as `"env:DB_PASSWORD"` give.
+    /// This is what locator literals such as `"env:MELODIUM_SECRET_DB_PASSWORD"` give.
     pub fn from_locator(
         locator: &str,
         datatype: DataType,
