@@ -41,6 +41,10 @@ windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
 [features]
 default = []
 doc = []
+# `env:` secret source, reading environment variables.
+environment = []
+# `file:` secret source, reading files.
+filesystem = []
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
