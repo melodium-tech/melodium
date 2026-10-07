@@ -308,7 +308,9 @@ impl ValueContent {
                         .map(ExecutiveValue::Secret)
                         .map_err(|err| err.to_string())
                 }
-                _ => Err("Secret locator expected, such as \"env:NAME\".".to_string()),
+                _ => Err(
+                    "Secret locator expected, such as \"env:MELODIUM_SECRET_NAME\".".to_string(),
+                ),
             },
             DataType::Data(_) => Err("Object cannot be build from script".to_string()),
         }
