@@ -11,7 +11,7 @@ A tiny "notes" API backed by PostgreSQL: `POST /notes` stores the request body a
 ## What it does
 
 ```
-DB_PASSWORD=... melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
+MELODIUM_SECRET_DB_PASSWORD=... melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
 
 curl -X POST http://127.0.0.1:8080/notes -d "buy milk"
 curl http://127.0.0.1:8080/notes
@@ -24,7 +24,7 @@ curl http://127.0.0.1:8080/notes
 
 | Model | Type | Purpose |
 |---|---|---|
-| `db` | `SqlPool` | Connection pool to PostgreSQL, shared across every request, its password read from `DB_PASSWORD` |
+| `db` | `SqlPool` | Connection pool to PostgreSQL, shared across every request, its password read from `MELODIUM_SECRET_DB_PASSWORD` |
 | `server` | `HttpServer` | HTTP listener bound to localhost |
 
 ### Data flow
@@ -56,7 +56,7 @@ startup ─▶ connect ─▶ connected ─▶ createTable ─▶ start (HTTP)
 - **A model shared by every route**: `db` and `server` are instantiated once in `main` and passed down to `createNote`/`listNotes` via model configuration parameters (`[db=db, http_server=server]`), exactly like [06_http_server_api](../06_http_server_api/)'s single `server` model, just with a second one alongside it.
 - **`fetch` (Stream<Map> rows) vs. `execute` (single Block<Map> bind, one outcome)**: `fetch` is for reading potentially many rows; `execute` is for one write with one set of parameters.
 - **Casting in SQL to dodge a type-mapping guess**: when a value's exact Mélodium type coming back from a driver is uncertain, it is often simpler to coerce it to `string` in the query itself than to guess (and get it wrong silently, since `std/data/map::get<T>` returns `none` on a type mismatch, not an error).
-- **A password as a secret**: `db_password` is a `Secret<string>` defaulting to the locator `"env:DB_PASSWORD"`. `SqlPool` reads the variable only when connecting and puts the password in the connection URL itself, so `db_url` holds no credentials, and the password appears in no parameter, log or report. Another locator can be given instead, such as `--db_password file:/run/secrets/db_password`.
+- **A password as a secret**: `db_password` is a `Secret<string>` defaulting to the locator `"env:MELODIUM_SECRET_DB_PASSWORD"`, as programs only get the environment variables whose name starts with `MELODIUM_SECRET_`. `SqlPool` reads the variable only when connecting and puts the password in the connection URL itself, so `db_url` holds no credentials, and the password appears in no parameter, log or report. Another locator can be given instead, such as `--db_password file:/run/secrets/db_password`.
 - **`connection.started` for both routes**: following the rule from [06_http_server_api](../06_http_server_api/), since `GET /notes` has no request body at all.
 
 Next: [08_javascript_transform](../08_javascript_transform/) introduces the JavaScript engine, including field-by-field JSON access.

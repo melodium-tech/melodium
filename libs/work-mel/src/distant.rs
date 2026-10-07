@@ -3,7 +3,10 @@ use crate::api;
 use crate::resources::arch::*;
 use crate::resources::*;
 use core::time::Duration;
-use melodium_core::common::{descriptor::DataType, executive::Secret as ExecutiveSecret};
+use melodium_core::common::{
+    descriptor::DataType,
+    executive::{Secret as ExecutiveSecret, SecretOrigin, SecretPolicy, Value},
+};
 use melodium_core::*;
 use melodium_macro::{mel_function, mel_model, mel_treatment};
 use std::sync::{Arc, RwLock, Weak};
@@ -19,7 +22,7 @@ use zeroize::Zeroizing;
 ///
 /// - `location`: where to submit the request: `"api"` (default) for Mélodium Services, or `"compose"` for a local Docker/Podman Compose deployment.
 /// - `api_url`: base URL of the Mélodium Services API; defaults to the built-in endpoint.
-/// - `api_token`: authentication token for the API (such as `"env:MELODIUM_API_TOKEN"`); defaults to the `MELODIUM_API_TOKEN` environment variable when it is set.
+/// - `api_token`: authentication token for the API (such as `"env:MELODIUM_SECRET_API_TOKEN"`); defaults to the `MELODIUM_API_TOKEN` environment variable when it is set.
 ///
 /// Use the `distant` treatment to trigger a worker request.
 #[mel_model(
@@ -52,9 +55,17 @@ impl DistantEngine {
         let api_url = model
             .get_api_url()
             .or_else(|| Some(crate::API_URL.to_string()));
+        // `MELODIUM_API_TOKEN` configures Mélodium itself: read here, and not through an
+        // `env:` locator, as programs only get the variables prefixed `MELODIUM_SECRET_`.
         let api_token = model.get_api_token().or_else(|| {
-            std::env::var_os("MELODIUM_API_TOKEN").and_then(|_| {
-                ExecutiveSecret::from_locator("env:MELODIUM_API_TOKEN", DataType::String).ok()
+            std::env::var("MELODIUM_API_TOKEN").ok().and_then(|token| {
+                ExecutiveSecret::new(
+                    "MELODIUM_API_TOKEN".to_string(),
+                    DataType::String,
+                    SecretPolicy::default(),
+                    SecretOrigin::Inline(Value::String(token)),
+                )
+                .ok()
             })
         });
 

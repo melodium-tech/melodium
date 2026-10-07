@@ -162,7 +162,7 @@ fn get_row_as_map(row: &AnyRow) -> Map {
 ///
 /// - `url`: database connection URL (e.g. `"postgresql://user@host/db"`).
 /// - `password`: password put into `url` when connecting, replacing any password it holds
-/// (e.g. `"env:DB_PASSWORD"`).
+/// (e.g. `"env:MELODIUM_SECRET_DB_PASSWORD"`).
 /// - `max_connections`: maximum number of simultaneous connections (default `10`).
 /// - `min_connections`: minimum number of idle connections to keep open (default `0`).
 /// - `acquire_timeout`: milliseconds to wait before failing to acquire a connection (default `10000`).

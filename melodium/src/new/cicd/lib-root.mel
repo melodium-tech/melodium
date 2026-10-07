@@ -11,7 +11,7 @@ use std/engine/util::startup
 /**
   `main` treatment, used as entrypoint as defined in `Compo.toml`.
 
-  - `api_token`: locator of the service key used to access Mélodium work distribution API (such as `"env:MELODIUM_API_TOKEN"`), the `MELODIUM_API_TOKEN` environment variable being used when not given;
+  - `api_token`: locator of the service key used to access Mélodium work distribution API (such as `"env:MELODIUM_SECRET_API_TOKEN"`), the `MELODIUM_API_TOKEN` environment variable being used when not given;
   - `work_location`: location where dispatched runners take place (default throught API, can be set to `"compose"` for local run);
   - `repository_clone_url`: URL to process Git clone;
   - `repository_clone_ref`: Git reference (sha or tag) to clone.

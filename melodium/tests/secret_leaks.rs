@@ -35,7 +35,7 @@ use process/environment::|environment
 use process/environment::|with_secret_variables
 use process/local::execOnce
 
-treatment main(const directory: string, const hidden: Secret<string> = "env:SECRET_LEAKS_HIDDEN")
+treatment main(const directory: string, const hidden: Secret<string> = "env:MELODIUM_SECRET_LEAKS_HIDDEN")
 {
     startup()
 
@@ -201,7 +201,7 @@ fn secret_values_never_appear_in_run_outputs() {
         .arg(&script)
         .arg("--directory")
         .arg(&directory)
-        .env("SECRET_LEAKS_HIDDEN", HIDDEN)
+        .env("MELODIUM_SECRET_LEAKS_HIDDEN", HIDDEN)
         .env("MELODIUM_API_URL", &address)
         .env("MELODIUM_API_TOKEN", API_TOKEN)
         .output()
@@ -289,7 +289,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
         .args(["jeu", "build"])
         .arg(&package)
         .arg(&jeu)
-        .env("SECRET_LEAKS_HIDDEN", HIDDEN)
+        .env("MELODIUM_SECRET_LEAKS_HIDDEN", HIDDEN)
         .output()
         .unwrap();
     assert!(
@@ -303,7 +303,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
         .args(["doc", "--file"])
         .arg(&script)
         .arg(&documentation)
-        .env("SECRET_LEAKS_HIDDEN", HIDDEN)
+        .env("MELODIUM_SECRET_LEAKS_HIDDEN", HIDDEN)
         .output()
         .unwrap();
     assert!(
@@ -329,7 +329,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
     for file in files {
         let content = std::fs::read(&file).unwrap();
         let content = String::from_utf8_lossy(&content);
-        documented |= content.contains("SECRET_LEAKS_HIDDEN");
+        documented |= content.contains("MELODIUM_SECRET_LEAKS_HIDDEN");
         for value in [HIDDEN, SHOWN] {
             assert!(!content.contains(value), "{}", file.display());
         }

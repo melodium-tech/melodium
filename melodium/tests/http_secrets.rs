@@ -113,7 +113,7 @@ treatment main(const url: string)
       secret_headers=|wrap<Map>(|secret_map([
           |secret_entry<Secret<string>>("Authorization", |secret_format(
               "Bearer {token}",
-              |secret_map([|secret_entry<Secret<string>>("token", |from_environment("HTTP_TEST_TOKEN", "token"))]),
+              |secret_map([|secret_entry<Secret<string>>("token", |from_environment("MELODIUM_SECRET_HTTP_TEST_TOKEN", "token"))]),
               "authorization"
           ))
       ]))
@@ -163,9 +163,9 @@ fn exchange(port: u16, token: Option<&str>) -> (String, String, String, String) 
         .arg(&client_debug)
         .arg(file("client.mel", CLIENT))
         .args(["--url", &format!("http://127.0.0.1:{port}/check")])
-        .env_remove("HTTP_TEST_TOKEN");
+        .env_remove("MELODIUM_SECRET_HTTP_TEST_TOKEN");
     if let Some(token) = token {
-        client.env("HTTP_TEST_TOKEN", token);
+        client.env("MELODIUM_SECRET_HTTP_TEST_TOKEN", token);
     }
     let client: Output = client.output().unwrap();
     assert!(client.status.success(), "{:?}", client);

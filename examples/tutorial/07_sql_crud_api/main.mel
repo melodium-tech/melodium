@@ -49,11 +49,11 @@ use sql::fetch
 //
 // This example needs a reachable PostgreSQL database. Point `db_url` at
 // any Postgres instance to try it. The password is a secret, read from the
-// `DB_PASSWORD` environment variable unless `db_password` locates it
+// `MELODIUM_SECRET_DB_PASSWORD` environment variable unless `db_password` locates it
 // elsewhere, such as `file:/run/secrets/db_password`.
 //
 // Usage:
-//   DB_PASSWORD=... melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
+//   MELODIUM_SECRET_DB_PASSWORD=... melodium run Compo.toml --db_url postgresql://user@localhost/notes_db
 //
 //   curl -X POST http://127.0.0.1:8080/notes -d "buy milk"
 //   curl http://127.0.0.1:8080/notes
@@ -68,7 +68,7 @@ model AppDb(const db_url: string, const db_password: Secret<string>) : SqlPool {
 
 treatment main(
     const db_url:      string         = "postgresql://postgres@localhost/notes_db",
-    const db_password: Secret<string> = "env:DB_PASSWORD",
+    const db_password: Secret<string> = "env:MELODIUM_SECRET_DB_PASSWORD",
     const port:        u16            = 8080
 )
   model db:     AppDb(db_url=db_url, db_password=db_password)

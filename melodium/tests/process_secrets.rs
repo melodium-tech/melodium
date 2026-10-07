@@ -39,11 +39,11 @@ treatment main(const directory: string, const plain_entry: bool = false)
                     plain_entry,
                     |secret_map([|secret_entry<string>("PLAIN", "not a secret")]),
                     |secret_map([
-                        |secret_entry<Option<Secret<string>>>("TOKEN", |locate<string>("env:PROCESS_TEST_TOKEN", "token", "local", false))
+                        |secret_entry<Option<Secret<string>>>("TOKEN", |locate<string>("env:MELODIUM_SECRET_PROCESS_TEST_TOKEN", "token", "local", false))
                     ])
                 )
             ),
-            |from_environment("PROCESS_TEST_INPUT", "input")
+            |from_environment("MELODIUM_SECRET_PROCESS_TEST_INPUT", "input")
         ))
     )
     startup.trigger -> run.launch
@@ -73,8 +73,8 @@ fn run(directory: &PathBuf, args: &[&str], envs: &[(&str, &str)]) -> Output {
         .arg("--directory")
         .arg(directory)
         .args(args)
-        .env_remove("PROCESS_TEST_TOKEN")
-        .env_remove("PROCESS_TEST_INPUT")
+        .env_remove("MELODIUM_SECRET_PROCESS_TEST_TOKEN")
+        .env_remove("MELODIUM_SECRET_PROCESS_TEST_INPUT")
         .envs(envs.iter().cloned())
         .output()
         .unwrap();
@@ -90,8 +90,8 @@ fn secrets_reach_the_command() {
         &directory,
         &[],
         &[
-            ("PROCESS_TEST_TOKEN", token),
-            ("PROCESS_TEST_INPUT", "input-sentinel"),
+            ("MELODIUM_SECRET_PROCESS_TEST_TOKEN", token),
+            ("MELODIUM_SECRET_PROCESS_TEST_INPUT", "input-sentinel"),
         ],
     );
     assert_eq!(
@@ -129,7 +129,11 @@ fn secrets_reach_the_command() {
 #[test]
 fn unresolved_secrets_fail_the_command() {
     let directory = directory("unresolved");
-    let output = run(&directory, &[], &[("PROCESS_TEST_INPUT", "input")]);
+    let output = run(
+        &directory,
+        &[],
+        &[("MELODIUM_SECRET_PROCESS_TEST_INPUT", "input")],
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("exec: secret variable 'TOKEN': resolution failed"),
@@ -145,7 +149,7 @@ fn plain_values_are_refused_as_secret_variables() {
     let output = run(
         &directory,
         &["--plain_entry", "true"],
-        &[("PROCESS_TEST_INPUT", "input")],
+        &[("MELODIUM_SECRET_PROCESS_TEST_INPUT", "input")],
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(

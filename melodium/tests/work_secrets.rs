@@ -21,12 +21,12 @@ use work/resources::|container
 use work/resources/arch::|amd64
 
 treatment main(const api_url: string)
-  model engine: DistantEngine(location="api", api_url=|wrap<string>(api_url), api_token="env:PULL_TEST_API_TOKEN")
+  model engine: DistantEngine(location="api", api_url=|wrap<string>(api_url), api_token="env:MELODIUM_SECRET_PULL_TEST_API_TOKEN")
 {
     startup()
     request: distant[distant_engine=engine](
         max_duration=60, memory=100, cpu=100, storage=100, edition=_, arch=_, volumes=[], tags=[],
-        containers=[|container("main", 100, 100, 100, |amd64(), [], "alpine", |wrap<Secret<string>>(|from_environment("PULL_TEST_SECRET", "pull_secret")))],
+        containers=[|container("main", 100, 100, 100, |amd64(), [], "alpine", |wrap<Secret<string>>(|from_environment("MELODIUM_SECRET_PULL_TEST_SECRET", "pull_secret")))],
         service_containers=[]
     )
     startup.trigger -> request.trigger
@@ -44,8 +44,8 @@ fn run(api_url: &str, envs: &[(&str, &str)]) -> String {
     let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
         .arg(&script)
         .args(["--api_url", api_url])
-        .env_remove("PULL_TEST_SECRET")
-        .env_remove("PULL_TEST_API_TOKEN")
+        .env_remove("MELODIUM_SECRET_PULL_TEST_SECRET")
+        .env_remove("MELODIUM_SECRET_PULL_TEST_API_TOKEN")
         .envs(envs.iter().cloned())
         .output()
         .unwrap();
@@ -92,8 +92,8 @@ fn credentials_are_revealed_to_reach_the_api() {
     let stdout = run(
         &api_url,
         &[
-            ("PULL_TEST_SECRET", PULL_SECRET),
-            ("PULL_TEST_API_TOKEN", "t0ken-sentinel"),
+            ("MELODIUM_SECRET_PULL_TEST_SECRET", PULL_SECRET),
+            ("MELODIUM_SECRET_PULL_TEST_API_TOKEN", "t0ken-sentinel"),
         ],
     );
     let request = server.join().unwrap();
@@ -120,7 +120,10 @@ fn unresolved_credentials_fail_the_request() {
         stdout
     );
 
-    let stdout = run("http://127.0.0.1:9", &[("PULL_TEST_SECRET", PULL_SECRET)]);
+    let stdout = run(
+        "http://127.0.0.1:9",
+        &[("MELODIUM_SECRET_PULL_TEST_SECRET", PULL_SECRET)],
+    );
     assert!(
         stdout.contains("distant: API token: resolution failed"),
         "{}",

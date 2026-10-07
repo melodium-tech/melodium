@@ -26,7 +26,7 @@ use work/resources::|mount
 /**
   `main` treatment, used as `advanced` entrypoint as defined in `Compo.toml`.
 
-  - `api_token`: locator of the service key used to access Mélodium work distribution API (such as `"env:MELODIUM_API_TOKEN"`), the `MELODIUM_API_TOKEN` environment variable being used when not given;
+  - `api_token`: locator of the service key used to access Mélodium work distribution API (such as `"env:MELODIUM_SECRET_API_TOKEN"`), the `MELODIUM_API_TOKEN` environment variable being used when not given;
   - `work_location`: location where dispatched runners take place (default throught API, can be set to `"compose"` for local run);
   - `output_directory`: directory where output files (including logs) are wrote;
   - `repository_clone_url`: URL to process Git clone;
