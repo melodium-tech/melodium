@@ -906,13 +906,13 @@ mod secret_wire_tests {
         // Never resolved by the sender, so the variable does not need to exist.
         let value = secret(
             CommonSecretTransmission::Reference,
-            SecretOrigin::Locator("env:MELODIUM_SHARE_WIRE_TEST_UNSET".to_string()),
+            SecretOrigin::Locator("env:MELODIUM_SECRET_SHARE_WIRE_TEST_UNSET".to_string()),
         );
         let raw = block_on(RawValue::to_wire(&value, &access, false)).unwrap();
         assert!(matches!(
             &raw,
             RawValue::Secret { locator: Some(locator), value: None, policy, .. }
-                if locator == "env:MELODIUM_SHARE_WIRE_TEST_UNSET"
+                if locator == "env:MELODIUM_SECRET_SHARE_WIRE_TEST_UNSET"
                     && policy.transmission == SecretTransmission::Reference
         ));
 
@@ -921,7 +921,7 @@ mod secret_wire_tests {
                 assert_eq!(received.name(), "token");
                 assert_eq!(
                     received.locator(),
-                    Some("env:MELODIUM_SHARE_WIRE_TEST_UNSET")
+                    Some("env:MELODIUM_SECRET_SHARE_WIRE_TEST_UNSET")
                 );
                 assert_eq!(
                     received.policy().transmission,
@@ -974,10 +974,10 @@ mod secret_wire_tests {
     fn values_are_resolved_by_the_sender() {
         let engine = engine();
         let access = access(&engine);
-        std::env::set_var("MELODIUM_SHARE_WIRE_TEST_VALUE", SENTINEL);
+        std::env::set_var("MELODIUM_SECRET_SHARE_WIRE_TEST_VALUE", SENTINEL);
         let value = secret(
             CommonSecretTransmission::Value,
-            SecretOrigin::Locator("env:MELODIUM_SHARE_WIRE_TEST_VALUE".to_string()),
+            SecretOrigin::Locator("env:MELODIUM_SECRET_SHARE_WIRE_TEST_VALUE".to_string()),
         );
         let raw = block_on(RawValue::to_wire(&value, &access, true)).unwrap();
         assert!(matches!(
@@ -1073,7 +1073,7 @@ mod secret_wire_tests {
                 name,
                 datatype,
                 policy,
-                locator: Some("env:MELODIUM_SHARE_WIRE_TEST_UNSET".to_string()),
+                locator: Some("env:MELODIUM_SECRET_SHARE_WIRE_TEST_UNSET".to_string()),
                 value,
             },
             other => other,

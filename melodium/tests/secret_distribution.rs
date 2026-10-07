@@ -65,7 +65,7 @@ treatment main(
     startup.trigger -> accessBlock.trigger
 
     distribStart: start[distributor=distributor](params=|map([
-        |entry<Option<Secret<string>>>("token", |locate<string>("env:DIST_PARAM_TOKEN", "param_token", param, true))
+        |entry<Option<Secret<string>>>("token", |locate<string>("env:MELODIUM_SECRET_DIST_PARAM_TOKEN", "param_token", param, true))
     ]))
     accessBlock.emit -> distribStart.access
     logStartError: logError(label="start")
@@ -78,7 +78,7 @@ treatment main(
     dist.distribution_id -> sendTrigger.distribution_id
     distribStart.ready -> sendTrigger.data
 
-    emitData: emit<Option<Secret<string>>>(value=|locate<string>("env:DIST_DATA_TOKEN", "data_token", data, true))
+    emitData: emit<Option<Secret<string>>>(value=|locate<string>("env:MELODIUM_SECRET_DIST_DATA_TOKEN", "data_token", data, true))
     unwrapData: unwrap<Secret<string>>()
     sendData: sendBlock<Secret<string>>[distributor=distributor](name="data")
     dist.distribution_id -> sendData.distribution_id
@@ -135,8 +135,8 @@ fn node(port: u16, tls: bool) -> Child {
         .env("MELODIUM_GROUP_ID", GROUP_ID)
         .env("MELODIUM_DIST_RECV_KEY", NODE_RECV_KEY)
         .env("MELODIUM_DIST_SEND_KEY", NODE_SEND_KEY)
-        .env("DIST_PARAM_TOKEN", "node-param-value")
-        .env("DIST_DATA_TOKEN", "node-data-value")
+        .env("MELODIUM_SECRET_DIST_PARAM_TOKEN", "node-param-value")
+        .env("MELODIUM_SECRET_DIST_DATA_TOKEN", "node-data-value")
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     if !tls {
@@ -156,8 +156,11 @@ fn orchestrate(port: u16, options: &[&str], args: &[&str]) -> String {
         .args(["--send_key", NODE_RECV_KEY, "--recv_key", NODE_SEND_KEY])
         .args(args)
         .env("MELODIUM_GROUP_ID", GROUP_ID)
-        .env("DIST_PARAM_TOKEN", "orchestrator-param-value")
-        .env("DIST_DATA_TOKEN", "orchestrator-data-value")
+        .env(
+            "MELODIUM_SECRET_DIST_PARAM_TOKEN",
+            "orchestrator-param-value",
+        )
+        .env("MELODIUM_SECRET_DIST_DATA_TOKEN", "orchestrator-data-value")
         .output()
         .unwrap();
     assert!(output.status.success(), "{:?}", output);
