@@ -5,7 +5,9 @@
 //! Each test runs an orchestrating `melodium run` and, when a connection is needed,
 //! a `melodium dist --localhost` node, both with different values for the same
 //! variables. The node reveals what it receives and sends it back, and values known
-//! to the orchestrator are masked in its logs.
+//! to the orchestrator are masked in its logs. Received references stay secrets from
+//! the environment of the node, which it never reveals plainly: its refusals come back
+//! with its debug events.
 
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
@@ -170,6 +172,47 @@ fn with_node(port: u16, tls: bool, options: &[&str], args: &[&str]) -> String {
     stdout
 }
 
+/// Debug file of the orchestrator for `test`.
+fn debug_file(test: &str) -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "melodium_secret_distribution_{}_{test}_debug.json",
+        std::process::id()
+    ))
+}
+
+/// Secret names and reasons of the plain reveals the node refused, from the debug
+/// events it sent to the orchestrator.
+fn distant_denials(debug: &PathBuf) -> Vec<(String, String)> {
+    let debug = std::fs::read_to_string(debug).unwrap();
+    let events: Vec<serde_json::Value> = serde_json::from_str(&debug).unwrap();
+    events
+        .iter()
+        .filter_map(|event| event["kind"]["distant"]["text"].as_str())
+        .map(|text| serde_json::from_str::<serde_json::Value>(text).unwrap())
+        .filter_map(|event| {
+            event["kind"].get("secret_denied").map(|denied| {
+                (
+                    denied["secret_name"].as_str().unwrap().to_string(),
+                    denied["reason"].as_str().unwrap().to_string(),
+                )
+            })
+        })
+        .collect()
+}
+
+fn assert_refused_by_node(debug: &PathBuf, names: &[&str]) {
+    let denials = distant_denials(debug);
+    for name in names {
+        assert!(
+            denials.iter().any(|(secret, reason)| secret == name
+                && reason == "secrets from 'env:' cannot be plainly revealed"),
+            "no refusal of {:?} in {:?}",
+            name,
+            denials
+        );
+    }
+}
+
 fn assert_contains(stdout: &str, expected: &str) {
     assert!(
         stdout.contains(expected),
@@ -180,11 +223,18 @@ fn assert_contains(stdout: &str, expected: &str) {
 }
 
 #[test]
-fn references_are_resolved_by_the_distant_engine() {
-    let stdout = with_node(62611, true, &[], &[]);
-    assert_contains(&stdout, "param: node-param-value");
-    assert_contains(&stdout, "revealed: node-data-value");
-    assert!(!stdout.contains("error"), "{}", stdout);
+fn references_reach_the_distant_engine_as_locators() {
+    let debug = debug_file("references");
+    let stdout = with_node(62611, true, &["--debug", debug.to_str().unwrap()], &[]);
+    // Secrets from the environment of the node are not plainly revealed there.
+    assert_refused_by_node(&debug, &["param_token", "data_token"]);
+    assert!(!stdout.contains("param:"), "{}", stdout);
+    assert!(!stdout.contains("revealed:"), "{}", stdout);
+    assert!(!stdout.contains("node-"), "{}", stdout);
+    assert!(!stdout.contains("orchestrator-"), "{}", stdout);
+    let debug = std::fs::read_to_string(&debug).unwrap();
+    assert!(!debug.contains("node-"), "{}", debug);
+    assert!(!debug.contains("orchestrator-"), "{}", debug);
 }
 
 #[test]
@@ -241,12 +291,19 @@ fn local_secrets_are_refused() {
         "start: Cannot distribute, parameter 'token' cannot be sent to the distant engine, access denied: its policy keeps it on this engine",
     );
 
-    let stdout = with_node(62614, true, &[], &["--data", "local"]);
+    let debug = debug_file("local");
+    let stdout = with_node(
+        62614,
+        true,
+        &["--debug", debug.to_str().unwrap()],
+        &["--data", "local"],
+    );
     assert_contains(
         &stdout,
         "distrib: Cannot send 'data' to the distant engine, access denied: its policy keeps it on this engine",
     );
-    assert_contains(&stdout, "param: node-param-value");
+    // The parameter, sent by reference, reached the node.
+    assert_refused_by_node(&debug, &["param_token"]);
     assert!(!stdout.contains("revealed:"), "{}", stdout);
 }
 
@@ -258,11 +315,18 @@ fn values_are_refused_over_plain_tcp() {
         "start: Cannot distribute, parameter 'token' cannot be sent to the distant engine, access denied: its value can only be sent over an encrypted connection",
     );
 
-    let stdout = with_node(62616, false, &[], &["--plain", "true", "--data", "value"]);
+    let debug = debug_file("plain");
+    let stdout = with_node(
+        62616,
+        false,
+        &["--debug", debug.to_str().unwrap()],
+        &["--plain", "true", "--data", "value"],
+    );
     assert_contains(
         &stdout,
         "distrib: Cannot send 'data' to the distant engine, access denied: its value can only be sent over an encrypted connection",
     );
-    assert_contains(&stdout, "param: node-param-value");
+    // The parameter, sent by reference, reached the node.
+    assert_refused_by_node(&debug, &["param_token"]);
     assert!(!stdout.contains("orchestrator-"), "{}", stdout);
 }
