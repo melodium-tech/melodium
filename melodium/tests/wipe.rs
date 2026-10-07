@@ -18,7 +18,7 @@ use std/secret::reveal
 use process/command::|command
 use process/local::execOnce
 
-treatment main(const sleep: string = "0", token: Secret<string> = "env:WIPE_TEST_TOKEN")
+treatment main(const sleep: string = "0", token: Secret<string> = "env:MELODIUM_SECRET_WIPE_TEST_TOKEN")
 {
     startup()
 
@@ -45,7 +45,7 @@ fn command(args: &[&str]) -> Command {
     command
         .args(args)
         .env("MELODIUM_WIPE_TRACE", "1")
-        .env("WIPE_TEST_TOKEN", "unused");
+        .env("MELODIUM_SECRET_WIPE_TEST_TOKEN", "unused");
     command
 }
 
@@ -77,7 +77,7 @@ fn plaintext_is_wiped_on_normal_end() {
 fn wiping_runs_on_error_exits() {
     let script = script();
     let output = command(&["run", "--check-secrets", script.to_str().unwrap()])
-        .env_remove("WIPE_TEST_TOKEN")
+        .env_remove("MELODIUM_SECRET_WIPE_TEST_TOKEN")
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(1), "{:?}", output);

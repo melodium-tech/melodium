@@ -41,9 +41,12 @@ use std::sync::{Arc, Weak};
 /// `auth_mount` is the path where the authentication method is enabled, by default
 /// `approle`, `kubernetes` or `jwt` (also for `github`).
 ///
-/// Credentials are secrets, by default read from the usual environment variables
-/// and files: `VAULT_TOKEN`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, `VAULT_ID_TOKEN`,
-/// the Kubernetes service account token, and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`.
+/// Credentials are secrets, by default read from the usual environment variables,
+/// prefixed with `MELODIUM_SECRET_` as programs only get those
+/// (`MELODIUM_SECRET_VAULT_TOKEN`, `MELODIUM_SECRET_VAULT_ROLE_ID`,
+/// `MELODIUM_SECRET_VAULT_SECRET_ID`, `MELODIUM_SECRET_VAULT_ID_TOKEN`,
+/// `MELODIUM_SECRET_ACTIONS_ID_TOKEN_REQUEST_TOKEN`), and from the Kubernetes service
+/// account token file.
 /// The model reveals them as `vault::Vault`, so they can be restricted to it
 /// with `std/secret::|reveal_only_by`.
 ///
@@ -57,12 +60,12 @@ use std::sync::{Arc, Weak};
     param auth string "token"
     param auth_mount string ""
     param role string ""
-    param token Secret<string> "env:VAULT_TOKEN"
-    param role_id Secret<string> "env:VAULT_ROLE_ID"
-    param secret_id Secret<string> "env:VAULT_SECRET_ID"
-    param jwt Secret<string> "env:VAULT_ID_TOKEN"
+    param token Secret<string> "env:MELODIUM_SECRET_VAULT_TOKEN"
+    param role_id Secret<string> "env:MELODIUM_SECRET_VAULT_ROLE_ID"
+    param secret_id Secret<string> "env:MELODIUM_SECRET_VAULT_SECRET_ID"
+    param jwt Secret<string> "env:MELODIUM_SECRET_VAULT_ID_TOKEN"
     param kubernetes_token Secret<string> "file:/var/run/secrets/kubernetes.io/serviceaccount/token"
-    param github_token Secret<string> "env:ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+    param github_token Secret<string> "env:MELODIUM_SECRET_ACTIONS_ID_TOKEN_REQUEST_TOKEN"
     param github_audience string ""
     param cache_ttl u64 300
     param prefetch string ""

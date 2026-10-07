@@ -164,8 +164,8 @@ fn run(address: &str, model_parameters: &str) -> (Vec<Log>, Vec<Event>) {
 }
 
 fn run_script(script: String, parameters: HashMap<String, Value>) -> (Vec<Log>, Vec<Event>) {
-    std::env::set_var("VAULT_ID_TOKEN", ID_TOKEN);
-    std::env::set_var("VAULT_TOKEN", CLIENT_TOKEN);
+    std::env::set_var("MELODIUM_SECRET_VAULT_ID_TOKEN", ID_TOKEN);
+    std::env::set_var("MELODIUM_SECRET_VAULT_TOKEN", CLIENT_TOKEN);
 
     let (pkg, collection) = load_raw(
         Arc::new(script.into_bytes()),
@@ -268,7 +268,7 @@ fn vault_secrets_are_read_with_jwt_authentication() {
     assert!(events.iter().any(|event| matches!(
         &event.kind,
         EventKind::SecretRevealed { secret_name, element, .. }
-            if secret_name == "env:VAULT_ID_TOKEN" && element.to_string() == "vault::Vault"
+            if secret_name == "env:MELODIUM_SECRET_VAULT_ID_TOKEN" && element.to_string() == "vault::Vault"
     )));
 
     for log in &logs {
