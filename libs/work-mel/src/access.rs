@@ -26,5 +26,6 @@ pub fn new_access(ip: Vec<Ip>, port: u16, remote_key: string, self_key: string) 
         remote_key: Uuid::from_str(&remote_key).unwrap_or_default(),
         self_key: Uuid::from_str(&self_key).unwrap_or_default(),
         disable_tls: false,
+        allow_plain_tcp: false,
     })
 }

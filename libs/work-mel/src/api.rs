@@ -10,6 +10,9 @@ pub struct CommonAccess {
     pub self_key: Uuid,
     #[serde(skip)] // Default to false
     pub disable_tls: bool,
+    /// Whether plain TCP may be used with addresses other than loopback ones.
+    #[serde(skip)] // Default to false
+    pub allow_plain_tcp: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -20,6 +23,9 @@ pub struct Access {
     pub key: Uuid,
     #[serde(skip)] // Default to false
     pub disable_tls: bool,
+    /// Whether plain TCP may be used with addresses other than loopback ones.
+    #[serde(skip)] // Default to false
+    pub allow_plain_tcp: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

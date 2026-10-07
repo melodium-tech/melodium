@@ -5,10 +5,7 @@ use crate::resources::*;
 use core::time::Duration;
 use melodium_core::*;
 use melodium_macro::{mel_function, mel_model, mel_treatment};
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock, Weak},
-};
+use std::sync::{Arc, RwLock, Weak};
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -101,8 +98,6 @@ impl DistantEngine {
     > {
         Err("Mock mode, nothing to do".to_string())
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     #[cfg(feature = "real")]
     async fn distrib_compose(
@@ -586,6 +581,7 @@ pub async fn distant(
                                 remote_key: access_info.key,
                                 self_key: key,
                                 disable_tls: access_info.disable_tls,
+                                allow_plain_tcp: access_info.allow_plain_tcp,
                             }))))
                             .await;
                         let _ = access.close().await;

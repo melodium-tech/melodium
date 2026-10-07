@@ -99,7 +99,7 @@ impl Vault {
             )
             .is_err()
         {
-            let world = Arc::clone(model.world());
+            let world = model.world();
             async_std::task::block_on(async move {
                 world
                     .log(
@@ -136,8 +136,6 @@ impl Vault {
         #[cfg(feature = "real")]
         async_std::task::block_on(self.client.forget());
     }
-
-    fn invoke_source(&self, _source: &str, _params: std::collections::HashMap<String, Value>) {}
 
     /// Gives the value at `path` (`<path>#<field>`) as `datatype`.
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
@@ -193,7 +191,7 @@ pub async fn get(name: string) {
             SecretOrigin::Locator(format!("{}:{path}", model.get_source())),
         ) {
             Ok(created) => created
-                .check_resolution(model.world())
+                .check_resolution(&model.world())
                 .await
                 .map(|_| created),
             Err(err) => Err(err),

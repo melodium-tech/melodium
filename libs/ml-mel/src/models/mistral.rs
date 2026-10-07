@@ -10,6 +10,7 @@ use melodium_core::*;
 #[cfg(feature = "real")]
 use melodium_macro::check;
 use melodium_macro::{mel_model, mel_treatment};
+#[cfg(feature = "real")]
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
 #[cfg(feature = "real")]
@@ -141,8 +142,6 @@ impl Mistral {
             *self.request_tx.lock().unwrap() = None;
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     #[cfg(feature = "real")]
     pub fn alloc_conversation_id(&self) -> u64 {

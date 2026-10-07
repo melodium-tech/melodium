@@ -9,6 +9,7 @@ members = [
     "http_client",
     "http_distributed",
     "http_javascript",
+    "interruption",
     "logs_live_flush",
     "process",
     "process_distributed",

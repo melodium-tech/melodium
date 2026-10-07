@@ -27,4 +27,6 @@ pub trait Engine: Send + Sync {
     /// Resolves the secrets given for each parameter and drops their values right away,
     /// to check that they can be resolved.
     async fn check_secrets(&self, secrets: Vec<(String, Secret)>) -> LogicResult<()>;
+    /// Logs a message from the engine itself.
+    async fn log(&self, level: LogLevel, label: String, message: String);
 }

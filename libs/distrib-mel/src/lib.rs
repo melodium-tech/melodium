@@ -256,6 +256,25 @@ impl DistributionEngine {
             for ipaddr in access.addresses.iter() {
                 let addrs = SocketAddr::new(*ipaddr, access.port);
 
+                // Plain TCP sends everything readable, authentication keys included.
+                if access.disable_tls {
+                    if !ipaddr.is_loopback() && !access.allow_plain_tcp {
+                        error_message = Some(format!(
+                            "plain TCP is refused for {ipaddr}, TLS is required for addresses other than loopback ones"
+                        ));
+                        continue;
+                    }
+                    model
+                        .world()
+                        .log(
+                            common::executive::Level::Warning,
+                            "distrib".to_string(),
+                            format!("connecting to {addrs} without TLS"),
+                            None,
+                        )
+                        .await;
+                }
+
                 match TcpStream::connect(&addrs).await {
                     Ok(stream) => {
                         if access.disable_tls {
@@ -548,7 +567,7 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        let world = self.model.upgrade().map(|model| model.world().clone());
+        let world = self.model.upgrade().map(|model| model.world());
 
         // `start()` may never be called at all - e.g. the treatment
         // instance responsible for it never receives its `access` input, so
@@ -890,8 +909,6 @@ impl DistributionEngine {
             self.fire_protocol_ready();
         });
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 #[cfg(feature = "mock")]
@@ -899,7 +916,6 @@ impl DistributionEngine {
     pub async fn continuous(&self) {}
 
     fn shutdown(&self) {}
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Treatment `start` for the `DistributionEngine` model.

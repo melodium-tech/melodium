@@ -34,10 +34,8 @@ fn main() {
         .arg("--localhost")
         .arg("--port")
         .arg(DIST_PORT)
-        .arg("--recv-key")
-        .arg(RECV_KEY)
-        .arg("--send-key")
-        .arg(SEND_KEY)
+        .env("MELODIUM_DIST_RECV_KEY", RECV_KEY)
+        .env("MELODIUM_DIST_SEND_KEY", SEND_KEY)
         .spawn()
         .expect("failed to launch Mélodium executable");
 
