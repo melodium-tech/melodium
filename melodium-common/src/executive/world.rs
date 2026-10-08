@@ -1,13 +1,12 @@
 use crate::{
     descriptor::Collection,
     executive::{
-        Context, ContinuousFuture, Input, Level, Log, ModelId, Output, Outputs, SecretAudit,
-        SecretSource, TrackFuture, Value,
+        Context, ContinuousFuture, Input, Level, Log, ModelId, Output, Outputs, TrackFuture, Value,
     },
 };
 use async_trait::async_trait;
 use core::fmt::Debug;
-use std::{borrow::Cow, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 pub type TrackId = usize;
@@ -44,16 +43,4 @@ pub trait World: Debug + Send + Sync {
     /// track will ever run again, instead of waiting forever or relying on
     /// an arbitrary timeout.
     async fn wait_no_more_tracks(&self);
-    /// Gives the secret source registered for `scheme`.
-    fn secret_source(&self, scheme: &str) -> Option<Arc<dyn SecretSource>>;
-    /// Registers a secret source for `scheme`, failing if one is already registered.
-    fn add_secret_source(&self, scheme: &str, source: Arc<dyn SecretSource>) -> Result<(), ()>;
-    /// Records an access to a secret, as a debug event, and also in the log
-    /// for denials and resolution failures.
-    async fn secret_audit(&self, audit: SecretAudit);
-    /// Registers a value revealed from the secret named `secret_name`,
-    /// masked from then on in log messages and remote debug text.
-    fn add_masked_value(&self, secret_name: &str, value: &Value);
-    /// Gives `text` with every registered revealed value masked.
-    fn mask<'a>(&self, text: &'a str) -> Cow<'a, str>;
 }

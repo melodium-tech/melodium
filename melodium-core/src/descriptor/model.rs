@@ -17,6 +17,7 @@ pub struct Model {
     attributes: Attributes,
     parameters: HashMap<String, Parameter>,
     sources: HashMap<String, Vec<Arc<dyn Context>>>,
+    secrets_access: bool,
     build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
     auto_reference: Weak<Self>,
 }
@@ -28,6 +29,7 @@ impl Model {
         attributes: Attributes,
         parameters: Vec<Parameter>,
         sources: Vec<(String, Vec<Arc<dyn Context>>)>,
+        secrets_access: bool,
         build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
@@ -41,6 +43,7 @@ impl Model {
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),
             ),
             sources: HashMap::from_iter(sources.into_iter()),
+            secrets_access,
             build_fn,
             auto_reference: me.clone(),
         })
@@ -155,6 +158,10 @@ impl ModelDescriptor for Model {
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<dyn Context>>> {
         &self.sources
+    }
+
+    fn secrets_access(&self) -> bool {
+        self.secrets_access
     }
 
     fn as_identified(&self) -> Arc<dyn Identified> {
