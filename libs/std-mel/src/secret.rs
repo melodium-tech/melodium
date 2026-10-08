@@ -15,6 +15,9 @@
 //! a derived secret is computed when revealed, and gets the most restrictive combination
 //! of the policies of the secrets it comes from.
 //!
+//! The functions derive and narrow secrets given as parameters; the treatments of
+//! `std/secret/block` do the same for secrets received at runtime.
+//!
 //! Plaintext held by Mélodium (values of concealed secrets, revealed values, values masked
 //! in logs, vault caches) is overwritten once not needed anymore, and before the process
 //! exits, including on SIGINT, SIGTERM and SIGHUP. This is best effort, and does not cover:
@@ -36,6 +39,8 @@ use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use std::collections::HashMap;
 use std::sync::Arc;
 use zeroize::Zeroize;
+
+pub mod block;
 
 /// Secret read from the environment variable `variable` when revealed.
 ///
@@ -128,10 +133,7 @@ pub fn name(secret: Secret<T>) -> string {
     generic T ()
 )]
 pub fn keep_local(secret: Secret<T>) -> Secret<T> {
-    secret.narrow(&SecretPolicy {
-        transmission: SecretTransmission::Local,
-        ..SecretPolicy::unrestricted()
-    })
+    secret.narrow(&keep_local_narrowing())
 }
 
 /// Limits a secret to be sent to other engines by reference only, its value is never sent.
@@ -139,10 +141,7 @@ pub fn keep_local(secret: Secret<T>) -> Secret<T> {
     generic T ()
 )]
 pub fn limit_to_reference(secret: Secret<T>) -> Secret<T> {
-    secret.narrow(&SecretPolicy {
-        transmission: SecretTransmission::Reference,
-        ..SecretPolicy::unrestricted()
-    })
+    secret.narrow(&limit_to_reference_narrowing())
 }
 
 /// Limits the elements that may reveal a secret to the ones in `elements`,
@@ -151,10 +150,7 @@ pub fn limit_to_reference(secret: Secret<T>) -> Secret<T> {
     generic T ()
 )]
 pub fn reveal_only_by(secret: Secret<T>, elements: Vec<string>) -> Secret<T> {
-    secret.narrow(&SecretPolicy {
-        reveal: SecretReveal::Only(elements),
-        ..SecretPolicy::unrestricted()
-    })
+    secret.narrow(&reveal_only_by_narrowing(elements))
 }
 
 /// Forbids the plain `reveal` treatment to reveal a secret.
@@ -162,10 +158,37 @@ pub fn reveal_only_by(secret: Secret<T>, elements: Vec<string>) -> Secret<T> {
     generic T ()
 )]
 pub fn forbid_plain_reveal(secret: Secret<T>) -> Secret<T> {
-    secret.narrow(&SecretPolicy {
+    secret.narrow(&forbid_plain_reveal_narrowing())
+}
+
+// Narrowings, shared by the functions and the treatments of `block`.
+
+pub(crate) fn keep_local_narrowing() -> SecretPolicy {
+    SecretPolicy {
+        transmission: SecretTransmission::Local,
+        ..SecretPolicy::unrestricted()
+    }
+}
+
+pub(crate) fn limit_to_reference_narrowing() -> SecretPolicy {
+    SecretPolicy {
+        transmission: SecretTransmission::Reference,
+        ..SecretPolicy::unrestricted()
+    }
+}
+
+pub(crate) fn reveal_only_by_narrowing(elements: Vec<String>) -> SecretPolicy {
+    SecretPolicy {
+        reveal: SecretReveal::Only(elements),
+        ..SecretPolicy::unrestricted()
+    }
+}
+
+pub(crate) fn forbid_plain_reveal_narrowing() -> SecretPolicy {
+    SecretPolicy {
         plain_reveal: false,
         ..SecretPolicy::unrestricted()
-    })
+    }
 }
 
 /// Gives the bytes of a string or bytes value.
@@ -239,7 +262,7 @@ impl SecretDerivation for FormatDerivation {
 }
 
 #[derive(Debug)]
-struct Base64Derivation;
+pub(crate) struct Base64Derivation;
 
 impl SecretDerivation for Base64Derivation {
     fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
@@ -263,7 +286,7 @@ const URL_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'~');
 
 #[derive(Debug)]
-struct UrlEncodeDerivation;
+pub(crate) struct UrlEncodeDerivation;
 
 impl SecretDerivation for UrlEncodeDerivation {
     fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
@@ -277,7 +300,7 @@ impl SecretDerivation for UrlEncodeDerivation {
 }
 
 #[derive(Debug)]
-struct BytesDerivation;
+pub(crate) struct BytesDerivation;
 
 impl SecretDerivation for BytesDerivation {
     fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
@@ -302,11 +325,20 @@ impl SecretDerivation for BytesDerivation {
 /// a `string` nor a `Secret<string>`.
 #[mel_function]
 pub fn format(template: string, entries: Map, name: string) -> Secret<string> {
+    formatted(template, entries.map, name)
+}
+
+/// Secret made of `template` filled with `entries`, shared by `|format` and `block::format`.
+pub(crate) fn formatted(
+    template: String,
+    entries: HashMap<String, Value>,
+    name: String,
+) -> ExecutiveSecret {
     let mut plain_entries = HashMap::new();
     let mut secret_entries = Vec::new();
     let mut invalid_entries = Vec::new();
     let mut inputs = Vec::new();
-    for (entry, value) in entries.map {
+    for (entry, value) in entries {
         match value {
             Value::String(text) => {
                 plain_entries.insert(entry, text);
@@ -337,25 +369,13 @@ pub fn format(template: string, entries: Map, name: string) -> Secret<string> {
 /// Such as the credentials of HTTP Basic authentication: `|base64(|format("{user}:{password}", ...), ...)`.
 #[mel_function]
 pub fn base64(secret: Secret<string>, name: string) -> Secret<string> {
-    ExecutiveSecret::derive(
-        name,
-        DataType::String,
-        vec![secret],
-        Arc::new(Base64Derivation),
-    )
-    .unwrap()
+    derived(name, DataType::String, secret, Arc::new(Base64Derivation))
 }
 
 /// Secret made of the base64 encoding (standard, padded) of a bytes secret, computed when revealed.
 #[mel_function]
 pub fn base64_bytes(secret: Secret<Vec<byte>>, name: string) -> Secret<string> {
-    ExecutiveSecret::derive(
-        name,
-        DataType::String,
-        vec![secret],
-        Arc::new(Base64Derivation),
-    )
-    .unwrap()
+    derived(name, DataType::String, secret, Arc::new(Base64Derivation))
 }
 
 /// Secret made of the URL encoding of a string secret, computed when revealed.
@@ -364,25 +384,33 @@ pub fn base64_bytes(secret: Secret<Vec<byte>>, name: string) -> Secret<string> {
 /// so the result fits in any URL part, such as credentials: `https://{user}:{password}@host`.
 #[mel_function]
 pub fn url_encode(secret: Secret<string>, name: string) -> Secret<string> {
-    ExecutiveSecret::derive(
+    derived(
         name,
         DataType::String,
-        vec![secret],
+        secret,
         Arc::new(UrlEncodeDerivation),
     )
-    .unwrap()
 }
 
 /// Secret made of the UTF-8 bytes of a string secret, computed when revealed.
 #[mel_function]
 pub fn to_bytes(secret: Secret<string>, name: string) -> Secret<Vec<byte>> {
-    ExecutiveSecret::derive(
+    derived(
         name,
         DataType::Vec(Box::new(DataType::Byte)),
-        vec![secret],
+        secret,
         Arc::new(BytesDerivation),
     )
-    .unwrap()
+}
+
+/// Secret derived from `secret` by `derivation`, shared by the functions and `block`.
+pub(crate) fn derived(
+    name: String,
+    datatype: DataType,
+    secret: ExecutiveSecret,
+    derivation: Arc<dyn SecretDerivation>,
+) -> ExecutiveSecret {
+    ExecutiveSecret::derive(name, datatype, vec![secret], derivation).unwrap()
 }
 
 /// Conceals a value into a secret.
