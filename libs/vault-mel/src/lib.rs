@@ -13,7 +13,7 @@ mod client;
 use async_trait::async_trait;
 use melodium_core::common::descriptor::DataType;
 use melodium_core::common::executive::{
-    Level, Secret as ExecutiveSecret, SecretOrigin, SecretPolicy, SecretSource,
+    Secret as ExecutiveSecret, SecretOrigin, SecretPolicy, SecretSource, SecretsAccess,
 };
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_package, mel_treatment};
@@ -27,7 +27,8 @@ use std::sync::{Arc, Weak};
 /// secret in a `kv` engine. The field can be omitted if the secret has only one.
 ///
 /// - `address`: address of the server, such as `https://vault.example.com:8200`.
-/// - `source`: name of the source, the scheme of locators (`vault` by default).
+/// - `source`: name of the source, the scheme of locators (`vault` by default); two models
+/// with the same source, or a source named `env` or `file`, make the launch fail.
 /// - `namespace`: namespace to work in, if any.
 ///
 /// Authentication is chosen by `auth`:
@@ -69,7 +70,8 @@ use std::sync::{Arc, Weak};
     param github_audience string ""
     param cache_ttl u64 300
     param prefetch string ""
-    initialize initialize
+    secrets_access
+    secret_sources register_source
     continuous (prefetch)
     shutdown shutdown
 )]
@@ -89,31 +91,14 @@ impl Vault {
         }
     }
 
-    fn initialize(&self) {
-        let model = self.model.upgrade().unwrap();
-        let source = model.get_source();
-        if model
-            .world()
-            .add_secret_source(
-                &source,
-                Arc::new(VaultSource {
-                    model: self.model.clone(),
-                }),
-            )
-            .is_err()
-        {
-            let world = model.world();
-            async_std::task::block_on(async move {
-                world
-                    .log(
-                        Level::Error,
-                        "vault".to_string(),
-                        format!("secret source '{source}' is already registered"),
-                        None,
-                    )
-                    .await
-            });
-        }
+    fn register_source(&self, access: &SecretsAccess) {
+        // A scheme registered twice makes the launch fail.
+        let _ = access.register_source(
+            &self.model.upgrade().unwrap().get_source(),
+            Arc::new(VaultSource {
+                model: self.model.clone(),
+            }),
+        );
     }
 
     async fn prefetch(&self) {
@@ -124,7 +109,7 @@ impl Vault {
                     model
                         .world()
                         .log(
-                            Level::Error,
+                            melodium_core::common::executive::Level::Error,
                             "vault".to_string(),
                             format!("cannot prefetch '{path}': {err}"),
                             None,
@@ -193,8 +178,9 @@ pub async fn get(name: string) {
             SecretPolicy::default(),
             SecretOrigin::Locator(format!("{}:{path}", model.get_source())),
         ) {
-            Ok(created) => created
-                .check_resolution(&model.world())
+            Ok(created) => model
+                .secrets_access()
+                .check_resolution(&created)
                 .await
                 .map(|_| created),
             Err(err) => Err(err),
