@@ -349,3 +349,76 @@ fn refused_tokens_are_renewed_once() {
         ]
     );
 }
+
+/// Errors of the genesis of `script`, which has to fail.
+fn genesis_errors(script: &str) -> Vec<String> {
+    let (pkg, collection) = load_raw(
+        Arc::new(script.as_bytes().to_vec()),
+        "main",
+        LoadingConfig {
+            core_packages: Vec::new(),
+            search_locations: Vec::new(),
+            raw_elements: Vec::new(),
+        },
+    )
+    .into_result()
+    .expect("script loads");
+    let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
+    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::None);
+    let result = engine.genesis(&entrypoint, HashMap::new());
+    assert!(result.is_failure());
+    result
+        .failure()
+        .into_iter()
+        .chain(result.errors().iter())
+        .map(|error| error.to_string())
+        .collect()
+}
+
+#[test]
+fn sources_are_registered_before_launch_and_once() {
+    let duplicate = genesis_errors(
+        r#"#!/usr/bin/env melodium
+#! name = secret_vault_duplicate
+#! version = 0.10.4
+#! require = std:0.10.4 vault:0.10.4
+
+use std/engine/util::startup
+use vault::Vault
+
+treatment main()
+  model first: Vault(address = "http://127.0.0.1:1")
+  model second: Vault(address = "http://127.0.0.1:2")
+{
+    startup()
+}
+"#,
+    );
+    assert_eq!(
+        duplicate,
+        vec!["D0252: A secret source is already registered for 'vault:'".to_string()]
+    );
+
+    let missing = genesis_errors(
+        r#"#!/usr/bin/env melodium
+#! name = secret_vault_missing
+#! version = 0.10.4
+#! require = std:0.10.4
+
+use std/engine/util::startup
+use std/flow::emit
+use std/secret::|locate
+
+treatment main()
+{
+    startup()
+    emitPassword: emit<Option<Secret<string>>>(value=|locate<string>("vault:kv/data/app/db#password", "db_password", "local", true))
+    startup.trigger -> emitPassword.trigger
+}
+"#,
+    );
+    assert_eq!(
+        missing,
+        vec!["D0253: Secret 'db_password' is located in 'vault:', for which no source is registered on this engine".to_string()]
+    );
+}

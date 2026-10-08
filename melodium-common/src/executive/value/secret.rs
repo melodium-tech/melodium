@@ -1,8 +1,8 @@
 use super::Value;
 use crate::descriptor::DataType;
 use crate::executive::{
-    count_wiped, register_wipe, wipe_value, PackedArray, SecretAccess, SecretAudit,
-    SecretAuditOutcome, SecretDerivation, SecretError, Wipe, World,
+    count_wiped, register_wipe, wipe_value, SecretAudit, SecretAuditOutcome, SecretDerivation,
+    SecretError, SecretsAccess, SecretsHost, Wipe,
 };
 use core::fmt::{Debug, Display, Formatter, Result};
 use core::future::Future;
@@ -10,7 +10,6 @@ use core::pin::Pin;
 use core::str::FromStr;
 use core::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
-use zeroize::Zeroize;
 
 pub type SecretId = u64;
 
@@ -364,112 +363,46 @@ impl Secret {
         }))
     }
 
-    /// Lends the value of the secret to `f`, for the element designated by `access`.
-    ///
-    /// The policy is checked, the value resolved, and the access recorded on the world:
-    /// denials and resolution failures are also logged as errors.
-    /// The value is dropped once `f` returns.
-    pub async fn reveal<R>(
+    /// Resolves the value of the secret and drops it right away.
+    pub(crate) async fn check_resolution(
         &self,
-        access: &SecretAccess,
-        f: impl FnOnce(&Value) -> R + Send,
-    ) -> core::result::Result<R, SecretError> {
-        self.access(access, false, f).await
-    }
-
-    /// Same as `reveal`, for a `Secret<string>`.
-    pub async fn reveal_str<R>(
-        &self,
-        access: &SecretAccess,
-        f: impl FnOnce(&str) -> R + Send,
-    ) -> core::result::Result<R, SecretError> {
-        self.reveal(access, |value| match value {
-            Value::String(value) => Ok(f(value)),
-            _ => Err(SecretError::MismatchingValue),
-        })
-        .await?
-    }
-
-    /// Same as `reveal`, for a `Secret<Vec<byte>>`.
-    pub async fn reveal_bytes<R>(
-        &self,
-        access: &SecretAccess,
-        f: impl FnOnce(&[u8]) -> R + Send,
-    ) -> core::result::Result<R, SecretError> {
-        self.reveal(access, |value| match value {
-            Value::Packed(PackedArray::Byte(bytes)) | Value::Packed(PackedArray::U8(bytes)) => {
-                Ok(f(bytes))
-            }
-            Value::Vec(values) => {
-                let mut bytes = Vec::with_capacity(values.len());
-                for value in values {
-                    match value {
-                        Value::Byte(byte) | Value::U8(byte) => bytes.push(*byte),
-                        _ => {
-                            bytes.zeroize();
-                            return Err(SecretError::MismatchingValue);
-                        }
-                    }
-                }
-                let result = f(&bytes);
-                bytes.zeroize();
-                Ok(result)
-            }
-            _ => Err(SecretError::MismatchingValue),
-        })
-        .await?
-    }
-
-    /// Lends the value of the secret to `f`, for the plain `std/secret::reveal` treatment.
-    ///
-    /// Same as `reveal`, but also requires the policy to allow plain reveal.
-    pub async fn reveal_plainly<R>(
-        &self,
-        access: &SecretAccess,
-        f: impl FnOnce(&Value) -> R + Send,
-    ) -> core::result::Result<R, SecretError> {
-        self.access(access, true, f).await
-    }
-
-    /// Resolves the value of the secret and drops it right away,
-    /// to check that the secret can be resolved.
-    ///
-    /// The value is not given to anyone, so the access is not recorded.
-    pub async fn check_resolution(
-        &self,
-        world: &Arc<dyn World>,
+        host: &dyn SecretsHost,
     ) -> core::result::Result<(), SecretError> {
         let mut value = self
-            .resolve(&**world, false)
+            .resolve(host, false)
             .await
             .map_err(SecretError::ResolveFailed)?;
         wipe_value(&mut value);
         Ok(())
     }
 
-    async fn access<R>(
+    /// Lends the value of the secret to `f`, for the element `access` belongs to,
+    /// as `SecretsAccess` does.
+    pub(crate) async fn access<R>(
         &self,
-        access: &SecretAccess,
+        access: &SecretsAccess,
         plain: bool,
         f: impl FnOnce(&Value) -> R + Send,
     ) -> core::result::Result<R, SecretError> {
-        let world = access.world().ok_or(SecretError::WorldEnded)?;
+        let host = access.host.upgrade().ok_or(SecretError::WorldEnded)?;
         let audit_of = |secret: &Secret, outcome| SecretAudit {
             secret_id: secret.0.id,
             secret_name: secret.0.name.clone(),
-            element: access.element().clone(),
-            label: access.label().map(str::to_string),
-            track_id: access.track_id(),
+            element: access.element.clone(),
+            label: access.label.clone(),
+            track_id: access.track_id,
             outcome,
         };
         let audit = |outcome| audit_of(self, outcome);
 
-        let element = access.element().to_string();
-        let denial = if !self.0.policy.reveal.allows(&element) {
+        let element = access.element.to_string();
+        let denial = if !host.revealing() {
+            Some("secrets are only revealed once every model is initialized".to_string())
+        } else if !self.0.policy.reveal.allows(&element) {
             Some(format!("its policy does not allow {element} to reveal it"))
         } else if plain && !self.0.policy.plain_reveal {
             Some("its policy does not allow plain reveal".to_string())
-        } else if let Some(scheme) = plain.then(|| self.plain_reveal_refusal(&world)).flatten() {
+        } else if let Some(scheme) = plain.then(|| self.plain_reveal_refusal(&*host)).flatten() {
             Some(format!(
                 "secrets from '{scheme}:' cannot be plainly revealed"
             ))
@@ -477,31 +410,26 @@ impl Secret {
             None
         };
         if let Some(reason) = denial {
-            world
-                .secret_audit(audit(SecretAuditOutcome::Denied(reason.clone())))
+            host.secret_audit(audit(SecretAuditOutcome::Denied(reason.clone())))
                 .await;
             return Err(SecretError::Denied(reason));
         }
 
-        match self.resolve(&*world, true).await {
+        match self.resolve(&*host, true).await {
             Ok(mut value) => {
-                world.add_masked_value(&self.0.name, &value);
+                host.add_masked_value(&self.0.name, &value);
                 // The value of a derived secret exposes the values it is computed from.
                 for input in self.derived_from() {
-                    world
-                        .secret_audit(audit_of(&input, SecretAuditOutcome::Revealed))
+                    host.secret_audit(audit_of(&input, SecretAuditOutcome::Revealed))
                         .await;
                 }
-                world
-                    .secret_audit(audit(SecretAuditOutcome::Revealed))
-                    .await;
+                host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
                 let result = f(&value);
                 wipe_value(&mut value);
                 Ok(result)
             }
             Err(error) => {
-                world
-                    .secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
+                host.secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
                     .await;
                 Err(SecretError::ResolveFailed(error))
             }
@@ -510,27 +438,34 @@ impl Secret {
 
     /// Gives the scheme of the source of this secret if that source refuses plain reveal,
     /// or of the first such source a derived secret comes from.
-    fn plain_reveal_refusal(&self, world: &Arc<dyn World>) -> Option<String> {
+    fn plain_reveal_refusal(&self, host: &dyn SecretsHost) -> Option<String> {
         match &*self.0.origin {
             Origin::Inline(_) => None,
             Origin::Locator(locator) => {
                 let (scheme, _) = split_locator(locator)?;
-                let source = world.secret_source(scheme)?;
+                let source = host.secret_source(scheme)?;
                 (!source.plain_reveal()).then(|| scheme.to_string())
             }
             Origin::Derived { inputs, .. } => inputs
                 .iter()
-                .find_map(|input| input.plain_reveal_refusal(world)),
+                .find_map(|input| input.plain_reveal_refusal(host)),
         }
+    }
+
+    /// Gives the scheme the secret is located in, if it has a locator.
+    pub fn scheme(&self) -> Option<&str> {
+        self.locator()
+            .and_then(split_locator)
+            .map(|(scheme, _)| scheme)
     }
 
     /// Resolves the value of the secret.
     ///
     /// When `revealing`, the values of the secrets it is derived from are registered
-    /// on the world for masking, the caller having to register the resolved value.
+    /// for masking, the caller having to register the resolved value.
     fn resolve<'a>(
         &'a self,
-        world: &'a dyn World,
+        host: &'a dyn SecretsHost,
         revealing: bool,
     ) -> Pin<Box<dyn Future<Output = core::result::Result<Value, String>> + Send + 'a>> {
         Box::pin(async move {
@@ -544,7 +479,7 @@ impl Secret {
                 Origin::Locator(locator) => {
                     let (scheme, path) = split_locator(locator)
                         .ok_or_else(|| format!("'{locator}' is not a locator"))?;
-                    let source = world
+                    let source = host
                         .secret_source(scheme)
                         .ok_or_else(|| format!("no secret source '{scheme}' for '{locator}'"))?;
                     source.resolve(path, &self.0.datatype).await?
@@ -553,10 +488,10 @@ impl Secret {
                     let mut values = Vec::with_capacity(inputs.len());
                     let mut failure = None;
                     for input in inputs {
-                        match input.resolve(world, revealing).await {
+                        match input.resolve(host, revealing).await {
                             Ok(value) => {
                                 if revealing {
-                                    world.add_masked_value(input.name(), &value);
+                                    host.add_masked_value(input.name(), &value);
                                 }
                                 values.push(value);
                             }

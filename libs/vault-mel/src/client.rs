@@ -292,8 +292,9 @@ impl Client {
                 "secret {secret} cannot come from the vault it authenticates to"
             ));
         }
-        secret
-            .reveal_str(&model.secret_access(), |value| value.to_string())
+        model
+            .secrets_access()
+            .reveal_str(&secret, |value| value.to_string())
             .await
             .map_err(|err| format!("secret {secret}: {err}"))
     }
@@ -360,7 +361,7 @@ impl Client {
         wipe_json(&mut response);
         let token = token.ok_or_else(|| "vault login gave no token".to_string())?;
         model
-            .world()
+            .secrets_access()
             .add_masked_value("vault token", &Value::String(token.clone()));
         Ok((token, renew_at))
     }
@@ -397,7 +398,7 @@ impl Client {
         wipe_json(&mut response);
         let token = token.ok_or_else(|| "GitHub OIDC token request gave no token".to_string())?;
         model
-            .world()
+            .secrets_access()
             .add_masked_value("GitHub OIDC token", &Value::String(token.clone()));
         Ok(token)
     }
