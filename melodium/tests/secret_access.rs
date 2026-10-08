@@ -36,7 +36,8 @@ treatment main(password: Secret<string> = "env:MELODIUM_SECRET_ACCESS_TEST_UNSET
     startup.trigger -> emitPassword.trigger,emit -> revealPassword.secret,value -> logPassword.message
     revealPassword.error -> logPasswordError.message
 
-    emitToken: emit<Option<Secret<string>>>(value=|locate<string>(token, "token", "local", true))
+    // By reference, so that a scheme without source fails at reveal, not at launch.
+    emitToken: emit<Option<Secret<string>>>(value=|locate<string>(token, "token", "reference", true))
     unwrapToken: unwrap<Secret<string>>()
     revealToken: reveal<string>()
     logToken: logInfo(label="token")
@@ -63,7 +64,10 @@ fn temp_file(name: &str, content: &str) -> PathBuf {
     path
 }
 
-fn run(params: HashMap<String, Value>) -> (Vec<Log>, Vec<Event>) {
+fn load() -> (
+    Arc<melodium_common::descriptor::Collection>,
+    melodium_common::descriptor::Identifier,
+) {
     let (pkg, collection) = load_raw(
         Arc::new(SCRIPT.as_bytes().to_vec()),
         "main",
@@ -76,7 +80,11 @@ fn run(params: HashMap<String, Value>) -> (Vec<Log>, Vec<Event>) {
     .into_result()
     .expect("script loads");
     let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
+    (collection, entrypoint)
+}
 
+fn run(params: HashMap<String, Value>) -> (Vec<Log>, Vec<Event>) {
+    let (collection, entrypoint) = load();
     let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Basic);
     let (logs_sender, logs_receiver) = unbounded();
     let (debug_sender, debug_receiver) = unbounded();
@@ -430,4 +438,51 @@ fn std_secret_conceals_names_and_narrows() {
         .message
         .contains("does not allow std/secret::reveal to reveal it"));
     assert_eq!(log(&logs, "name").expect("name").message, "file-secret");
+}
+
+#[test]
+fn secrets_only_this_engine_resolves_need_a_source_at_launch() {
+    let (collection, entrypoint) = load();
+    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::None);
+    let result = engine.genesis(
+        &entrypoint,
+        HashMap::from([
+            (
+                "password".to_string(),
+                Value::Secret(Secret::from_locator("nosuch:password", DataType::String).unwrap()),
+            ),
+            (
+                "token".to_string(),
+                Value::String("nosuch:token".to_string()),
+            ),
+        ]),
+    );
+    // The password is local, the token sent by reference may be resolved elsewhere.
+    let errors = result
+        .failure()
+        .into_iter()
+        .chain(result.errors().iter())
+        .map(|error| error.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        errors,
+        vec!["D0253: Secret 'nosuch:password' is located in 'nosuch:', for which no source is registered on this engine".to_string()]
+    );
+}
+
+#[test]
+fn only_declaring_elements_get_secrets_access() {
+    let (collection, _) = load();
+    let descriptor = |identifier: &str| match collection.get(
+        &identifier
+            .parse::<melodium_common::descriptor::Identifier>()
+            .unwrap()
+            .into(),
+    ) {
+        Some(melodium_common::descriptor::Entry::Treatment(treatment)) => treatment.clone(),
+        _ => panic!("no treatment {identifier}"),
+    };
+    assert!(descriptor("std/secret::reveal").secrets_access());
+    assert!(!descriptor("std/secret::conceal").secrets_access());
+    assert!(!descriptor("std/flow::emit").secrets_access());
 }
