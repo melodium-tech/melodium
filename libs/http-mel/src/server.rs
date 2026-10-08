@@ -20,6 +20,7 @@ use std::{
     collections::HashMap,
     sync::{RwLock, Weak},
 };
+use std_mel::data::map::*;
 use std_mel::data::string_map::*;
 use trillium::HeaderName;
 use trillium::HeaderValue;
@@ -40,10 +41,14 @@ pub const SERVER: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 /// - `method`: the HTTP method used by the request.
 /// - `authorization`: the `Authorization` header, if any.
 /// - `cookie`: the `Cookie` header, if any.
+/// - `secret_headers`: the headers listed in the `secret_headers` of the server, present in the
+/// request, as `Secret<string>` values named after the headers as listed.
 ///
-/// `Authorization` and `Cookie` are only given as secrets, and are left out of the request headers.
+/// `Authorization`, `Cookie` and the `secret_headers` of the server are only given as secrets,
+/// and are left out of the request headers.
 /// They come from the client, so the plain `std/secret::reveal` treatment may reveal them,
 /// for example to compare a token, and they are masked in logs once revealed.
+/// `crypto/token::check` compares them with a secret without revealing them to the program.
 #[mel_context]
 pub struct HttpRequest {
     pub id: u128,
@@ -53,6 +58,7 @@ pub struct HttpRequest {
     pub method: HttpMethod,
     pub authorization: Option<Secret<string>>,
     pub cookie: Option<Secret<string>>,
+    pub secret_headers: Map,
 }
 
 /// Headers of incoming requests only given as secrets.
@@ -61,18 +67,25 @@ const SECRET_HEADERS: [KnownHeaderName; 2] =
 
 /// Gives the `header` of an incoming request as a secret named after it.
 fn secret_header(conn: &Conn, header: KnownHeaderName) -> Option<Secret> {
-    conn.request_headers().get_str(header).and_then(|value| {
-        Secret::new(
-            header.as_ref().to_lowercase(),
-            DataType::String,
-            SecretPolicy {
-                plain_reveal: true,
-                ..SecretPolicy::default()
-            },
-            SecretOrigin::Inline(Value::String(value.to_string())),
-        )
-        .ok()
-    })
+    named_secret_header(conn, header.as_ref())
+}
+
+/// Gives the header named `name` of an incoming request as a secret named after it.
+fn named_secret_header(conn: &Conn, name: &str) -> Option<Secret> {
+    conn.request_headers()
+        .get_str(name.to_string())
+        .and_then(|value| {
+            Secret::new(
+                name.to_lowercase(),
+                DataType::String,
+                SecretPolicy {
+                    plain_reveal: true,
+                    ..SecretPolicy::default()
+                },
+                SecretOrigin::Inline(Value::String(value.to_string())),
+            )
+            .ok()
+        })
 }
 
 type AsyncProducerStatus =
@@ -89,6 +102,9 @@ type AsyncProducerOutgoing =
 /// The HTTP server provides configuration for receiving and responding to HTTP incoming requests.
 /// - `host`: the network address to bind with.
 /// - `port`: the port to bind with.
+/// - `secret_headers`: names of headers of incoming requests to give only as secrets,
+/// separated by spaces, such as `X-Gitlab-Token`, in the `secret_headers` of `@HttpRequest`.
+/// `Authorization` and `Cookie` always are.
 ///
 /// `HttpServer` aims to be used with `connection` treatment.
 /// Every time a new HTTP request matching a configured route comes, a new track is created with `@HttpRequest` context.
@@ -100,6 +116,7 @@ type AsyncProducerOutgoing =
 #[mel_model(
     param host Ip none
     param port u16 none
+    param secret_headers string ""
     source incoming (HttpRequest) (
         param method HttpMethod none
         param route string none
@@ -185,6 +202,13 @@ impl HttpServer {
         self.launch_barrier.wait().await;
 
         let routes = self.routes.read().unwrap().clone();
+        let secret_headers: Arc<Vec<String>> = Arc::new(
+            model
+                .get_secret_headers()
+                .split_whitespace()
+                .map(str::to_string)
+                .collect(),
+        );
 
         let status = self.status.clone();
         let headers = self.headers.clone();
@@ -204,6 +228,7 @@ impl HttpServer {
                 let outgoing = Arc::clone(&outgoing);
                 let model = Arc::clone(&model);
                 let method = Arc::clone(&method);
+                let secret_headers = Arc::clone(&secret_headers);
 
                 move |mut conn: Conn| {
                     let route = Arc::clone(&route);
@@ -212,6 +237,7 @@ impl HttpServer {
                     let outgoing = Arc::clone(&outgoing);
                     let model = Arc::clone(&model);
                     let method = Arc::clone(&method);
+                    let secret_headers = Arc::clone(&secret_headers);
 
                     async move {
                         let id = Uuid::new_v4();
@@ -236,6 +262,15 @@ impl HttpServer {
                             method: (*method).clone(),
                             authorization: secret_header(&conn, KnownHeaderName::Authorization),
                             cookie: secret_header(&conn, KnownHeaderName::Cookie),
+                            secret_headers: Map::new_with(
+                                secret_headers
+                                    .iter()
+                                    .filter_map(|name| {
+                                        named_secret_header(&conn, name)
+                                            .map(|secret| (name.clone(), Value::Secret(secret)))
+                                    })
+                                    .collect(),
+                            ),
                         };
 
                         let params = {
@@ -265,7 +300,9 @@ impl HttpServer {
                             .filter(|(name, _)| {
                                 !SECRET_HEADERS.iter().any(|secret| {
                                     name.as_ref().eq_ignore_ascii_case(secret.as_ref())
-                                })
+                                }) && !secret_headers
+                                    .iter()
+                                    .any(|secret| name.as_ref().eq_ignore_ascii_case(secret))
                             })
                             .filter_map(|(name, value)| {
                                 value
