@@ -130,6 +130,47 @@ treatment main(const url: string)
 }
 "#;
 
+// The same request, with the token received at runtime, as `vault::get` gives it, and
+// formatted into the header by treatments.
+const RUNTIME_CLIENT: &str = r#"#!/usr/bin/env melodium
+#! name = http_secrets_runtime_client
+#! version = 0.1.0
+#! require = std:0.11.0 http:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logError
+use std/flow::emit
+use std/data/map/block::entry
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/string_map::|entry
+use std/secret::|from_environment
+use std/secret/block::format
+use http/client::HttpClient
+use http/client::requestWithSecretHeaders
+use http/method::|get
+
+treatment main(const url: string)
+  model client: HttpClient(base_url=_, headers=|map([|entry("X-Client", "secret-test")]))
+{
+    startup()
+    emitToken: emit<Secret<string>>(value=|from_environment("MELODIUM_SECRET_HTTP_TEST_TOKEN", "token"))
+    tokenEntry: entry<Secret<string>>(key="token")
+    bearer: format(template="Bearer {token}", name="authorization")
+    headerEntry: entry<Secret<string>>(key="Authorization")
+    startup.trigger -> emitToken.trigger,emit -> tokenEntry.value,map -> bearer.entries,secret -> headerEntry.value
+
+    emitUrl: emit<string>(value=url)
+    noHeaders: emit<StringMap>(value=|map([]))
+    request: requestWithSecretHeaders[client=client](method=|get())
+    startup.trigger -> emitUrl.trigger,emit -> request.url
+    startup.trigger -> noHeaders.trigger,emit -> request.req_headers
+    headerEntry.map -> request.secret_headers
+    logRequestError: logError(label="request")
+    request.error -> logRequestError.message
+}
+"#;
+
 const TOKEN: &str = "t0ken-sentinel-value";
 
 fn file(name: &str, content: &str) -> PathBuf {
@@ -142,7 +183,11 @@ fn file(name: &str, content: &str) -> PathBuf {
 }
 
 /// Runs the server, then the client against it, giving their outputs and debug events.
-fn exchange(port: u16, token: Option<&str>) -> (String, String, String, String) {
+fn exchange(
+    port: u16,
+    client_script: &str,
+    token: Option<&str>,
+) -> (String, String, String, String) {
     let server_debug = file(&format!("server_{port}.json"), "");
     let client_debug = file(&format!("client_{port}.json"), "");
 
@@ -161,7 +206,7 @@ fn exchange(port: u16, token: Option<&str>) -> (String, String, String, String) 
     client
         .args(["run", "--debug-level", "detailed", "--debug"])
         .arg(&client_debug)
-        .arg(file("client.mel", CLIENT))
+        .arg(file(&format!("client_{port}.mel"), client_script))
         .args(["--url", &format!("http://127.0.0.1:{port}/check")])
         .env_remove("MELODIUM_SECRET_HTTP_TEST_TOKEN");
     if let Some(token) = token {
@@ -192,7 +237,7 @@ fn events(debug: &str) -> Vec<serde_json::Value> {
 
 #[test]
 fn secret_headers_cross_as_secrets() {
-    let (server, server_debug, client, client_debug) = exchange(62710, Some(TOKEN));
+    let (server, server_debug, client, client_debug) = exchange(62710, CLIENT, Some(TOKEN));
 
     // The client reveals the header for the request, and never gives it in plain.
     assert!(!client.contains("error"), "{}", client);
@@ -229,11 +274,32 @@ fn secret_headers_cross_as_secrets() {
 
 #[test]
 fn unresolved_secret_headers_fail_the_request() {
-    let (server, _, client, _) = exchange(62711, None);
+    let (server, _, client, _) = exchange(62711, CLIENT, None);
     assert!(
         client.contains("request: secret header 'Authorization': resolution failed"),
         "{}",
         client
     );
     assert!(!server.contains("authorization:"), "{}", server);
+}
+
+#[test]
+fn runtime_secret_headers_reach_the_request() {
+    let (server, server_debug, client, client_debug) = exchange(62712, RUNTIME_CLIENT, Some(TOKEN));
+
+    assert!(!client.contains("error"), "{}", client);
+    assert!(!client_debug.contains(TOKEN), "{}", client_debug);
+    assert!(
+        server.contains("authorization: <secret \"authorization\">"),
+        "{}",
+        server
+    );
+    assert!(server.contains("plain x-client: secret-test"), "{}", server);
+    let values: Vec<_> = events(&server_debug)
+        .into_iter()
+        .filter_map(|event| event["kind"].get("data_sent").cloned())
+        .filter(|data| data["output"]["label"] == "revealAuth")
+        .map(|data| data["data"]["values"]["values"][0]["string"].clone())
+        .collect();
+    assert_eq!(values, vec![format!("Bearer {}", TOKEN)]);
 }

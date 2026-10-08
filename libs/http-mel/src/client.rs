@@ -1,7 +1,10 @@
 use crate::method::*;
 use crate::status::*;
 use async_ringbuf::AsyncHeapRb;
-use melodium_core::{common::executive::SecretsAccess, *};
+use melodium_core::{
+    common::executive::{Input, Output, SecretsAccess},
+    *,
+};
 use melodium_macro::{check, mel_model, mel_treatment};
 use std::sync::RwLock;
 use std::sync::{Arc, Weak};
@@ -81,17 +84,22 @@ impl HttpClient {
         self.client.read().unwrap().clone()
     }
 
-    /// Reveals the secret headers into `conn`, on behalf of `access`.
+    /// Reveals the secret headers of the client, then `runtime_headers`, into `conn`,
+    /// on behalf of `access`.
     async fn add_secret_headers(
         &self,
         conn: &mut Conn,
         access: &SecretsAccess,
+        runtime_headers: Option<&Map>,
     ) -> Result<(), String> {
         let model = self.model.upgrade().unwrap();
-        let Some(secret_headers) = model.get_secret_headers() else {
-            return Ok(());
-        };
-        for (name, value) in &secret_headers.map {
+        let client_headers = model.get_secret_headers();
+        for (name, value) in client_headers
+            .as_deref()
+            .into_iter()
+            .chain(runtime_headers)
+            .flat_map(|headers| headers.map.iter())
+        {
             let header_name = HeaderName::from(name.to_string());
             if !header_name.is_valid() {
                 return Err(format!("'{name}' is not a valid header name"));
@@ -158,105 +166,72 @@ pub async fn request(method: HttpMethod) {
         req_headers.recv_one_as::<Arc<StringMap>>().await,
     ) {
         let model = HttpClientModel::into(client);
-        let http_client = model.inner();
-        if let Some(client) = http_client.client() {
-            match client
-                .base()
-                .map(|base_url| base_url.join(&url))
-                .unwrap_or_else(|| Url::parse(&url))
-            {
-                Ok(url) => match async {
-                    let mut conn = client.build_conn(method.0, url);
-                    for (name, content) in &req_headers.map {
-                        let header_name = HeaderName::from(name.to_string());
-                        if header_name.is_valid() {
-                            let header_content = HeaderValue::from(content.clone());
-                            if header_content.is_valid() {
-                                conn.request_headers_mut()
-                                    .insert(header_name.to_owned(), header_content);
-                            }
-                        }
-                    }
-                    http_client
-                        .add_secret_headers(&mut conn, &secrets_access)
-                        .await?;
-                    conn.await.map_err(|err| err.to_string())
-                }
-                .await
-                {
-                    Ok(mut conn) => {
-                        if let Some(recv_status) = conn.status() {
-                            let _ = status
-                                .send_one_as(Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>)
-                                .await;
+        perform_request(
+            model.inner(),
+            method,
+            url,
+            &req_headers,
+            None,
+            &secrets_access,
+            Responses::new(
+                &**data,
+                &**res_headers,
+                &**completed,
+                &**failed,
+                &**finished,
+                &**error,
+                &**status,
+            ),
+        )
+        .await;
+    }
+}
 
-                            let headers = conn
-                                .response_headers()
-                                .iter()
-                                .filter_map(|(name, value)| {
-                                    value
-                                        .as_str()
-                                        .map(|value| (name.to_string(), value.to_string()))
-                                })
-                                .collect();
-
-                            let _ =
-                                res_headers
-                                    .send_one_as(
-                                        Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
-                                    )
-                                    .await;
-
-                            status.close().await;
-                            res_headers.close().await;
-
-                            let data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
-                            let (prod, mut cons) = data_buf.split();
-
-                            let response_body = conn.response_body();
-                            let _ = futures::join!(
-                                async {
-                                    let _ = async_std::io::copy(response_body, prod).await;
-                                    let _ = completed.send_one_as(()).await;
-                                },
-                                async {
-                                    loop {
-                                        let mut size = 2usize.pow(20);
-                                        let mut recv_data = vec![0; size];
-
-                                        match cons.pop_slice(&mut recv_data).await {
-                                            Ok(_) => {}
-                                            Err(written_size) => size = written_size,
-                                        }
-
-                                        recv_data.truncate(size);
-
-                                        check!(
-                                            data.send_many(TransmissionValue::Byte(
-                                                recv_data.into()
-                                            ))
-                                            .await
-                                        );
-                                        if cons.is_closed() {
-                                            break;
-                                        }
-                                    }
-                                }
-                            );
-                        }
-                    }
-                    Err(err) => {
-                        let _ = failed.send_one_as(()).await;
-                        let _ = error.send_one_as(err.to_string()).await;
-                    }
-                },
-                Err(err) => {
-                    let _ = failed.send_one_as(()).await;
-                    let _ = error.send_one_as(err.to_string()).await;
-                }
-            }
-            let _ = finished.send_one_as(()).await;
-        }
+/// Performs HTTP operation without data emission, with secret headers received at runtime.
+///
+/// Same as `request`, with `secret_headers`, a map built with the treatments of
+/// `std/data/map/block`, whose values are `Secret<string>` (or `Option<Secret<string>>`),
+/// such as given by `vault::get` or derived by `std/secret/block::format`. They are revealed
+/// to make the request, after those of the client, replacing the client ones of the same name.
+#[mel_treatment(
+    model client HttpClient
+    input url Block<string>
+    input req_headers Block<StringMap>
+    input secret_headers Block<Map>
+    output res_headers Block<StringMap>
+    output data Stream<byte>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
+    output status Block<HttpStatus>
+    secrets_access
+)]
+pub async fn request_with_secret_headers(method: HttpMethod) {
+    if let (Ok(url), Ok(req_headers), Ok(runtime_headers)) = (
+        url.recv_one_as::<string>().await,
+        req_headers.recv_one_as::<Arc<StringMap>>().await,
+        secret_headers.recv_one_as::<Arc<Map>>().await,
+    ) {
+        let model = HttpClientModel::into(client);
+        perform_request(
+            model.inner(),
+            method,
+            url,
+            &req_headers,
+            Some(&runtime_headers),
+            &secrets_access,
+            Responses::new(
+                &**data,
+                &**res_headers,
+                &**completed,
+                &**failed,
+                &**finished,
+                &**error,
+                &**status,
+            ),
+        )
+        .await;
     }
 }
 
@@ -296,121 +271,360 @@ pub async fn request_with_body(method: HttpMethod) {
         req_headers.recv_one_as::<Arc<StringMap>>().await,
     ) {
         let model = HttpClientModel::into(client);
-        let http_client = model.inner();
-        if let Some(client) = http_client.client() {
-            match client
-                .base()
-                .map(|base_url| base_url.join(&url))
-                .unwrap_or_else(|| Url::parse(&url))
+        perform_request_with_body(
+            model.inner(),
+            method,
+            url,
+            &req_headers,
+            &**body,
+            None,
+            &secrets_access,
+            Responses::new(
+                &**data,
+                &**res_headers,
+                &**completed,
+                &**failed,
+                &**finished,
+                &**error,
+                &**status,
+            ),
+        )
+        .await;
+    }
+}
+
+/// Performs HTTP operation with data emission, with secret headers received at runtime.
+///
+/// Same as `request_with_body`, with `secret_headers`, a map built with the treatments of
+/// `std/data/map/block`, whose values are `Secret<string>` (or `Option<Secret<string>>`),
+/// such as given by `vault::get` or derived by `std/secret/block::format`. They are revealed
+/// to make the request, after those of the client, replacing the client ones of the same name.
+#[mel_treatment(
+    model client HttpClient
+    input url Block<string>
+    input req_headers Block<StringMap>
+    input secret_headers Block<Map>
+    input body Stream<byte>
+    output data Stream<byte>
+    output res_headers Block<StringMap>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
+    output status Block<HttpStatus>
+    secrets_access
+)]
+pub async fn request_with_body_and_secret_headers(method: HttpMethod) {
+    if let (Ok(url), Ok(req_headers), Ok(runtime_headers)) = (
+        url.recv_one_as::<string>().await,
+        req_headers.recv_one_as::<Arc<StringMap>>().await,
+        secret_headers.recv_one_as::<Arc<Map>>().await,
+    ) {
+        let model = HttpClientModel::into(client);
+        perform_request_with_body(
+            model.inner(),
+            method,
+            url,
+            &req_headers,
+            &**body,
+            Some(&runtime_headers),
+            &secrets_access,
+            Responses::new(
+                &**data,
+                &**res_headers,
+                &**completed,
+                &**failed,
+                &**finished,
+                &**error,
+                &**status,
+            ),
+        )
+        .await;
+    }
+}
+
+/// Outputs of the request treatments.
+struct Responses<'a> {
+    data: &'a dyn Output,
+    res_headers: &'a dyn Output,
+    completed: &'a dyn Output,
+    failed: &'a dyn Output,
+    finished: &'a dyn Output,
+    error: &'a dyn Output,
+    status: &'a dyn Output,
+}
+
+impl<'a> Responses<'a> {
+    fn new(
+        data: &'a dyn Output,
+        res_headers: &'a dyn Output,
+        completed: &'a dyn Output,
+        failed: &'a dyn Output,
+        finished: &'a dyn Output,
+        error: &'a dyn Output,
+        status: &'a dyn Output,
+    ) -> Self {
+        Self {
+            data,
+            res_headers,
+            completed,
+            failed,
+            finished,
+            error,
+            status,
+        }
+    }
+}
+
+/// Performs a request without body, for `request` and `request_with_secret_headers`.
+async fn perform_request(
+    http_client: &HttpClient,
+    method: Arc<HttpMethod>,
+    url: String,
+    req_headers: &StringMap,
+    secret_headers: Option<&Map>,
+    access: &SecretsAccess,
+    responses: Responses<'_>,
+) {
+    let Responses {
+        data,
+        res_headers,
+        completed,
+        failed,
+        finished,
+        error,
+        status,
+    } = responses;
+    if let Some(client) = http_client.client() {
+        match client
+            .base()
+            .map(|base_url| base_url.join(&url))
+            .unwrap_or_else(|| Url::parse(&url))
+        {
+            Ok(url) => match async {
+                let mut conn = client.build_conn(method.0, url);
+                for (name, content) in &req_headers.map {
+                    let header_name = HeaderName::from(name.to_string());
+                    if header_name.is_valid() {
+                        let header_content = HeaderValue::from(content.clone());
+                        if header_content.is_valid() {
+                            conn.request_headers_mut()
+                                .insert(header_name.to_owned(), header_content);
+                        }
+                    }
+                }
+                http_client
+                    .add_secret_headers(&mut conn, access, secret_headers)
+                    .await?;
+                conn.await.map_err(|err| err.to_string())
+            }
+            .await
             {
-                Ok(url) => {
-                    let in_body_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
-                    let (mut in_prod, in_cons) = in_body_buf.split();
+                Ok(mut conn) => {
+                    if let Some(recv_status) = conn.status() {
+                        let _ = status
+                            .send_one_as(Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>)
+                            .await;
 
-                    let conn_doing = async {
-                        let mut conn = client.build_conn(method.0, url);
+                        let headers = conn
+                            .response_headers()
+                            .iter()
+                            .filter_map(|(name, value)| {
+                                value
+                                    .as_str()
+                                    .map(|value| (name.to_string(), value.to_string()))
+                            })
+                            .collect();
 
-                        for (name, content) in &req_headers.map {
-                            let header_name = HeaderName::from(name.to_string());
-                            if header_name.is_valid() {
-                                let header_content = HeaderValue::from(content.to_string());
-                                if header_content.is_valid() {
-                                    conn.request_headers_mut()
-                                        .insert(header_name.to_owned(), header_content);
+                        let _ = res_headers
+                            .send_one_as(Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>)
+                            .await;
+
+                        status.close().await;
+                        res_headers.close().await;
+
+                        let data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
+                        let (prod, mut cons) = data_buf.split();
+
+                        let response_body = conn.response_body();
+                        let _ = futures::join!(
+                            async {
+                                let _ = async_std::io::copy(response_body, prod).await;
+                                let _ = completed.send_one_as(()).await;
+                            },
+                            async {
+                                loop {
+                                    let mut size = 2usize.pow(20);
+                                    let mut recv_data = vec![0; size];
+
+                                    match cons.pop_slice(&mut recv_data).await {
+                                        Ok(_) => {}
+                                        Err(written_size) => size = written_size,
+                                    }
+
+                                    recv_data.truncate(size);
+
+                                    check!(
+                                        data.send_many(TransmissionValue::Byte(recv_data.into()))
+                                            .await
+                                    );
+                                    if cons.is_closed() {
+                                        break;
+                                    }
                                 }
                             }
-                        }
-                        http_client
-                            .add_secret_headers(&mut conn, &secrets_access)
-                            .await?;
-                        conn.with_body(Body::new_streaming(in_cons, None))
-                            .await
-                            .map_err(|err| err.to_string())
-                    };
-                    let body_transmission = async {
-                        while let Ok(body_data) = body
-                            .recv_many()
-                            .await
-                            .map(|values| TryInto::<VecDeque<u8>>::try_into(values).unwrap())
-                        {
-                            if let Err(_) = in_prod.push_iter(body_data.into_iter()).await {
-                                break;
-                            }
-                        }
-                        in_prod.close();
-                    };
-
-                    match futures::join!(body_transmission, conn_doing) {
-                        (_, Ok(mut conn)) => {
-                            if let Some(recv_status) = conn.status() {
-                                let _ = status
-                                    .send_one_as(Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>)
-                                    .await;
-
-                                let headers = conn
-                                    .response_headers()
-                                    .iter()
-                                    .filter_map(|(name, value)| {
-                                        value
-                                            .as_str()
-                                            .map(|value| (name.to_string(), value.to_string()))
-                                    })
-                                    .collect();
-                                let _ = res_headers
-                                    .send_one_as(
-                                        Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
-                                    )
-                                    .await;
-
-                                status.close().await;
-                                res_headers.close().await;
-
-                                let out_data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
-                                let (out_prod, mut out_cons) = out_data_buf.split();
-
-                                let response_body = conn.response_body();
-                                let _ = futures::join!(
-                                    async {
-                                        let _ = async_std::io::copy(response_body, out_prod).await;
-                                        let _ = completed.send_one_as(()).await;
-                                    },
-                                    async {
-                                        loop {
-                                            let mut size = 2usize.pow(20);
-                                            let mut recv_data = vec![0; size];
-                                            match out_cons.pop_slice(&mut recv_data).await {
-                                                Ok(_) => {}
-                                                Err(written_size) => size = written_size,
-                                            }
-
-                                            recv_data.truncate(size);
-
-                                            check!(
-                                                data.send_many(TransmissionValue::Byte(
-                                                    recv_data.into()
-                                                ))
-                                                .await
-                                            );
-                                            if out_cons.is_closed() {
-                                                break;
-                                            }
-                                        }
-                                    }
-                                );
-                            }
-                        }
-                        (_, Err(err)) => {
-                            let _ = failed.send_one_as(()).await;
-                            let _ = error.send_one_as(err.to_string()).await;
-                        }
+                        );
                     }
                 }
                 Err(err) => {
                     let _ = failed.send_one_as(()).await;
                     let _ = error.send_one_as(err.to_string()).await;
                 }
+            },
+            Err(err) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err.to_string()).await;
             }
-            let _ = finished.send_one_as(()).await;
         }
+        let _ = finished.send_one_as(()).await;
+    }
+}
+
+/// Performs a request with body, for `request_with_body` and
+/// `request_with_body_and_secret_headers`.
+async fn perform_request_with_body(
+    http_client: &HttpClient,
+    method: Arc<HttpMethod>,
+    url: String,
+    req_headers: &StringMap,
+    body: &dyn Input,
+    secret_headers: Option<&Map>,
+    access: &SecretsAccess,
+    responses: Responses<'_>,
+) {
+    let Responses {
+        data,
+        res_headers,
+        completed,
+        failed,
+        finished,
+        error,
+        status,
+    } = responses;
+    if let Some(client) = http_client.client() {
+        match client
+            .base()
+            .map(|base_url| base_url.join(&url))
+            .unwrap_or_else(|| Url::parse(&url))
+        {
+            Ok(url) => {
+                let in_body_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
+                let (mut in_prod, in_cons) = in_body_buf.split();
+
+                let conn_doing = async {
+                    let mut conn = client.build_conn(method.0, url);
+
+                    for (name, content) in &req_headers.map {
+                        let header_name = HeaderName::from(name.to_string());
+                        if header_name.is_valid() {
+                            let header_content = HeaderValue::from(content.to_string());
+                            if header_content.is_valid() {
+                                conn.request_headers_mut()
+                                    .insert(header_name.to_owned(), header_content);
+                            }
+                        }
+                    }
+                    http_client
+                        .add_secret_headers(&mut conn, access, secret_headers)
+                        .await?;
+                    conn.with_body(Body::new_streaming(in_cons, None))
+                        .await
+                        .map_err(|err| err.to_string())
+                };
+                let body_transmission = async {
+                    while let Ok(body_data) = body
+                        .recv_many()
+                        .await
+                        .map(|values| TryInto::<VecDeque<u8>>::try_into(values).unwrap())
+                    {
+                        if let Err(_) = in_prod.push_iter(body_data.into_iter()).await {
+                            break;
+                        }
+                    }
+                    in_prod.close();
+                };
+
+                match futures::join!(body_transmission, conn_doing) {
+                    (_, Ok(mut conn)) => {
+                        if let Some(recv_status) = conn.status() {
+                            let _ = status
+                                .send_one_as(Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>)
+                                .await;
+
+                            let headers = conn
+                                .response_headers()
+                                .iter()
+                                .filter_map(|(name, value)| {
+                                    value
+                                        .as_str()
+                                        .map(|value| (name.to_string(), value.to_string()))
+                                })
+                                .collect();
+                            let _ =
+                                res_headers
+                                    .send_one_as(
+                                        Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
+                                    )
+                                    .await;
+
+                            status.close().await;
+                            res_headers.close().await;
+
+                            let out_data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
+                            let (out_prod, mut out_cons) = out_data_buf.split();
+
+                            let response_body = conn.response_body();
+                            let _ = futures::join!(
+                                async {
+                                    let _ = async_std::io::copy(response_body, out_prod).await;
+                                    let _ = completed.send_one_as(()).await;
+                                },
+                                async {
+                                    loop {
+                                        let mut size = 2usize.pow(20);
+                                        let mut recv_data = vec![0; size];
+                                        match out_cons.pop_slice(&mut recv_data).await {
+                                            Ok(_) => {}
+                                            Err(written_size) => size = written_size,
+                                        }
+
+                                        recv_data.truncate(size);
+
+                                        check!(
+                                            data.send_many(TransmissionValue::Byte(
+                                                recv_data.into()
+                                            ))
+                                            .await
+                                        );
+                                        if out_cons.is_closed() {
+                                            break;
+                                        }
+                                    }
+                                }
+                            );
+                        }
+                    }
+                    (_, Err(err)) => {
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as(err.to_string()).await;
+                    }
+                }
+            }
+            Err(err) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err.to_string()).await;
+            }
+        }
+        let _ = finished.send_one_as(()).await;
     }
 }

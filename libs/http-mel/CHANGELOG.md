@@ -3,7 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
-- Adding `secret_headers` to `HttpClient` and to the client helpers, revealed for each request (#136).
+- Adding `secret_headers` to `HttpClient` and to the client helpers, revealed for each request, and `requestWithSecretHeaders` and `requestWithBodyAndSecretHeaders` for secret headers received at runtime (#136).
 - Fixing `HttpClient` ignoring its `headers` parameter.
 - Breaking: the `Authorization` and `Cookie` headers of incoming requests are only given as `@HttpRequest` secrets, out of the request headers (#136).
 
