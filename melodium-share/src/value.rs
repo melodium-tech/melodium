@@ -3,8 +3,8 @@ use cbor4ii::core::utils::SliceReader;
 use melodium_common::{
     descriptor::{Collection, Entry as CommonEntry, Identifier as CommonIdentifier},
     executive::{
-        wipe_value, Secret as CommonSecret, SecretAccess, SecretError, SecretOrigin,
-        SecretTransfer, Value as CommonValue,
+        wipe_value, Secret as CommonSecret, SecretError, SecretOrigin, SecretTransfer,
+        SecretsAccess, Value as CommonValue,
     },
 };
 use melodium_engine::{design::Value as DesignedValue, LogicError};
@@ -286,13 +286,13 @@ impl RawValue {
     /// their resolved value. Fails on the first secret refused.
     pub fn to_wire<'a>(
         value: &'a CommonValue,
-        access: &'a SecretAccess,
+        access: &'a SecretsAccess,
         encrypted: bool,
     ) -> Pin<Box<dyn Future<Output = Result<RawValue, SecretError>> + Send + 'a>> {
         Box::pin(async move {
             match value {
                 CommonValue::Secret(secret) => {
-                    let transfer = secret.transmit(access, encrypted).await?;
+                    let transfer = access.transmit(secret, encrypted).await?;
                     let mut raw: RawValue = secret.into();
                     if let RawValue::Secret { locator, value, .. } = &mut raw {
                         match transfer {
@@ -831,24 +831,68 @@ mod secret_wire_tests {
     use super::*;
     use crate::SecretTransmission;
     use async_std::task::block_on;
+    use async_trait::async_trait;
+    use melodium_common::executive::{SecretAudit, SecretSource, SecretsHost};
     use melodium_common::{
         descriptor::DataType as CommonDataType,
         executive::{
-            Level, SecretPolicy as CommonSecretPolicy,
-            SecretTransmission as CommonSecretTransmission,
+            SecretPolicy as CommonSecretPolicy, SecretTransmission as CommonSecretTransmission,
             TransmissionValue as CommonTransmissionValue,
         },
     };
-    use melodium_engine::{debug::DebugLevel, Engine};
 
     const SENTINEL: &str = "s3cr3t-wire-sentinel";
 
-    fn engine() -> Arc<dyn Engine> {
-        melodium_engine::new_engine(Arc::new(Collection::new()), Level::Info, DebugLevel::None)
+    #[derive(Debug)]
+    struct EnvironmentSource;
+
+    #[async_trait]
+    impl SecretSource for EnvironmentSource {
+        async fn resolve(
+            &self,
+            path: &str,
+            _datatype: &CommonDataType,
+        ) -> Result<CommonValue, String> {
+            std::env::var(path)
+                .map(CommonValue::String)
+                .map_err(|_| format!("environment variable '{path}' is not set"))
+        }
     }
 
-    fn access(engine: &Arc<dyn Engine>) -> SecretAccess {
-        engine.secret_access(
+    /// Secrets host of a started engine, with an `env:` source.
+    #[derive(Debug)]
+    struct Host;
+
+    #[async_trait]
+    impl SecretsHost for Host {
+        fn secret_source(&self, scheme: &str) -> Option<Arc<dyn SecretSource>> {
+            (scheme == "env").then(|| Arc::new(EnvironmentSource) as Arc<dyn SecretSource>)
+        }
+
+        fn register_secret_source(
+            &self,
+            _scheme: &str,
+            _source: Arc<dyn SecretSource>,
+        ) -> Result<(), SecretError> {
+            Err(SecretError::RegistrationClosed)
+        }
+
+        fn revealing(&self) -> bool {
+            true
+        }
+
+        fn add_masked_value(&self, _secret_name: &str, _value: &CommonValue) {}
+
+        async fn secret_audit(&self, _audit: SecretAudit) {}
+    }
+
+    fn host() -> Arc<dyn SecretsHost> {
+        Arc::new(Host)
+    }
+
+    fn access(host: &Arc<dyn SecretsHost>) -> SecretsAccess {
+        SecretsAccess::new(
+            host,
             CommonIdentifier::new(vec!["test".to_string()], "sender"),
             None,
             None,
@@ -885,8 +929,8 @@ mod secret_wire_tests {
 
     #[test]
     fn local_secrets_are_refused() {
-        let engine = engine();
-        let access = access(&engine);
+        let host = host();
+        let access = access(&host);
         for encrypted in [false, true] {
             assert!(matches!(
                 block_on(RawValue::to_wire(
@@ -901,8 +945,8 @@ mod secret_wire_tests {
 
     #[test]
     fn references_carry_the_locator_only() {
-        let engine = engine();
-        let access = access(&engine);
+        let host = host();
+        let access = access(&host);
         // Never resolved by the sender, so the variable does not need to exist.
         let value = secret(
             CommonSecretTransmission::Reference,
@@ -943,8 +987,8 @@ mod secret_wire_tests {
 
     #[test]
     fn values_cross_encrypted_connections_only() {
-        let engine = engine();
-        let access = access(&engine);
+        let host = host();
+        let access = access(&host);
         let value = inline(CommonSecretTransmission::Value);
 
         assert!(matches!(
@@ -972,8 +1016,8 @@ mod secret_wire_tests {
 
     #[test]
     fn values_are_resolved_by_the_sender() {
-        let engine = engine();
-        let access = access(&engine);
+        let host = host();
+        let access = access(&host);
         std::env::set_var("MELODIUM_SECRET_SHARE_WIRE_TEST_VALUE", SENTINEL);
         let value = secret(
             CommonSecretTransmission::Value,
@@ -992,8 +1036,8 @@ mod secret_wire_tests {
 
     #[test]
     fn containers_and_batches_carry_secrets() {
-        let engine = engine();
-        let access = access(&engine);
+        let host = host();
+        let access = access(&host);
         let collection = Collection::new();
 
         let vec = CommonValue::Vec(vec![
@@ -1054,8 +1098,8 @@ mod secret_wire_tests {
 
     #[test]
     fn designs_refuse_secret_values() {
-        let engine = engine();
-        let access = access(&engine);
+        let host = host();
+        let access = access(&host);
         let raw = block_on(RawValue::to_wire(
             &inline(CommonSecretTransmission::Value),
             &access,

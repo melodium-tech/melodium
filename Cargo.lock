@@ -4824,6 +4824,7 @@ name = "melodium-share"
 version = "0.10.4"
 dependencies = [
  "async-std",
+ "async-trait",
  "cbor4ii",
  "chrono",
  "erased-serde",

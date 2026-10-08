@@ -1,13 +1,17 @@
 use crate::descriptor::{DataType, Identifier};
-use crate::executive::{SecretId, SecretTransmission, TrackId, Value, World};
+use crate::executive::{
+    PackedArray, Secret, SecretId, SecretTransfer, SecretTransmission, TrackId, Value,
+};
 use async_trait::async_trait;
 use core::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Weak};
+use zeroize::Zeroize;
 
 /// Resolves the value of secrets designated by a locator scheme.
 ///
-/// Sources are registered on the world under their scheme: a `vault` source
-/// resolves `vault:<path>` locators. `env` and `file` are built in.
+/// Sources are registered under their scheme, a `vault` source resolving `vault:<path>`
+/// locators, by models declaring `secret_sources` in `#[mel_model]`, before any model is
+/// initialized. `env` and `file` are built in.
 #[async_trait]
 pub trait SecretSource: Debug + Send + Sync {
     /// Gives the value at `path` (the locator part following `<scheme>:`), as `datatype`.
@@ -33,53 +37,192 @@ pub trait SecretDerivation: Debug + Send + Sync {
     fn derive(&self, inputs: &[Value]) -> Result<Value, String>;
 }
 
-/// Identity of an element revealing secrets.
+/// Engine side of secrets: registered sources, audit, and the phases of a run.
 ///
-/// Rust elements get one from `#[mel_treatment]` (as `secret_access`)
-/// and `#[mel_model]` (through `secret_access()`).
-#[derive(Clone)]
-pub struct SecretAccess {
-    world: Weak<dyn World>,
-    element: Identifier,
-    label: Option<String>,
-    track_id: Option<TrackId>,
+/// Implemented by the engine only, and never given to elements: they reach secrets
+/// through the [`SecretsAccess`] the engine gives them.
+#[doc(hidden)]
+#[async_trait]
+pub trait SecretsHost: Debug + Send + Sync {
+    /// Gives the secret source registered for `scheme`.
+    fn secret_source(&self, scheme: &str) -> Option<Arc<dyn SecretSource>>;
+    /// Registers a secret source for `scheme`.
+    ///
+    /// Only possible while the engine registers the sources of its models, before
+    /// any model is initialized, and only once for each scheme.
+    fn register_secret_source(
+        &self,
+        scheme: &str,
+        source: Arc<dyn SecretSource>,
+    ) -> Result<(), SecretError>;
+    /// Whether elements may reveal secrets, which they can once every model is initialized.
+    fn revealing(&self) -> bool;
+    /// Registers a value revealed from the secret named `secret_name`,
+    /// masked from then on in log messages and remote debug text.
+    fn add_masked_value(&self, secret_name: &str, value: &Value);
+    /// Records an access to a secret, as a debug event, and also in the log
+    /// for denials and resolution failures.
+    async fn secret_audit(&self, audit: SecretAudit);
 }
 
-impl SecretAccess {
+/// Resolves the value of `secret` and drops it right away, for the engine itself,
+/// to check that it can be resolved.
+#[doc(hidden)]
+pub async fn check_secret_resolution(
+    host: &dyn SecretsHost,
+    secret: &Secret,
+) -> Result<(), SecretError> {
+    secret.check_resolution(host).await
+}
+
+/// Access to secrets, given by the engine to the elements declaring `secrets_access`.
+///
+/// Treatments get it as `secrets_access`, and models through `secrets_access()`.
+/// It carries the identity of the element instance, set by the engine: every reveal
+/// is checked against the policy of the secret for that element, and recorded.
+#[derive(Clone)]
+pub struct SecretsAccess {
+    pub(crate) host: Weak<dyn SecretsHost>,
+    pub(crate) element: Identifier,
+    pub(crate) label: Option<String>,
+    pub(crate) track_id: Option<TrackId>,
+}
+
+impl SecretsAccess {
+    /// Made by the engine for the elements it builds.
+    #[doc(hidden)]
     pub fn new(
-        world: &Arc<dyn World>,
+        host: &Arc<dyn SecretsHost>,
         element: Identifier,
         label: Option<String>,
         track_id: Option<TrackId>,
     ) -> Self {
         Self {
-            world: Arc::downgrade(world),
+            host: Arc::downgrade(host),
             element,
             label,
             track_id,
         }
     }
 
-    pub fn world(&self) -> Option<Arc<dyn World>> {
-        self.world.upgrade()
+    /// Lends the value of `secret` to `f`.
+    ///
+    /// The policy is checked, the value resolved, and the access recorded:
+    /// denials and resolution failures are also logged as errors.
+    /// The value is dropped once `f` returns.
+    pub async fn reveal<R>(
+        &self,
+        secret: &Secret,
+        f: impl FnOnce(&Value) -> R + Send,
+    ) -> Result<R, SecretError> {
+        secret.access(self, false, f).await
     }
 
-    pub fn element(&self) -> &Identifier {
-        &self.element
+    /// Same as `reveal`, for a `Secret<string>`.
+    pub async fn reveal_str<R>(
+        &self,
+        secret: &Secret,
+        f: impl FnOnce(&str) -> R + Send,
+    ) -> Result<R, SecretError> {
+        self.reveal(secret, |value| match value {
+            Value::String(value) => Ok(f(value)),
+            _ => Err(SecretError::MismatchingValue),
+        })
+        .await?
     }
 
-    pub fn label(&self) -> Option<&str> {
-        self.label.as_deref()
+    /// Same as `reveal`, for a `Secret<Vec<byte>>`.
+    pub async fn reveal_bytes<R>(
+        &self,
+        secret: &Secret,
+        f: impl FnOnce(&[u8]) -> R + Send,
+    ) -> Result<R, SecretError> {
+        self.reveal(secret, |value| match value {
+            Value::Packed(PackedArray::Byte(bytes)) | Value::Packed(PackedArray::U8(bytes)) => {
+                Ok(f(bytes))
+            }
+            Value::Vec(values) => {
+                let mut bytes = Vec::with_capacity(values.len());
+                for value in values {
+                    match value {
+                        Value::Byte(byte) | Value::U8(byte) => bytes.push(*byte),
+                        _ => {
+                            bytes.zeroize();
+                            return Err(SecretError::MismatchingValue);
+                        }
+                    }
+                }
+                let result = f(&bytes);
+                bytes.zeroize();
+                Ok(result)
+            }
+            _ => Err(SecretError::MismatchingValue),
+        })
+        .await?
     }
 
-    pub fn track_id(&self) -> Option<TrackId> {
-        self.track_id
+    /// Lends the value of `secret` to `f`, for the plain `std/secret::reveal` treatment.
+    ///
+    /// Same as `reveal`, but also requires the policy and the source of the secret
+    /// to allow plain reveal.
+    pub async fn reveal_plainly<R>(
+        &self,
+        secret: &Secret,
+        f: impl FnOnce(&Value) -> R + Send,
+    ) -> Result<R, SecretError> {
+        secret.access(self, true, f).await
+    }
+
+    /// Gives what crosses to a distant engine for `secret`, following its transmission
+    /// policy:
+    /// - `local` secrets are refused;
+    /// - `reference` secrets give their locator, those without locator are refused;
+    /// - `value` secrets give their resolved value, over an encrypted connection only.
+    ///
+    /// Transmissions and refusals are recorded, refusals also in the log.
+    pub async fn transmit(
+        &self,
+        secret: &Secret,
+        encrypted: bool,
+    ) -> Result<SecretTransfer, SecretError> {
+        secret.transmit(self, encrypted).await
+    }
+
+    /// Resolves the value of `secret` and drops it right away,
+    /// to check that it can be resolved.
+    ///
+    /// The value is not given to anyone, so the access is not recorded.
+    pub async fn check_resolution(&self, secret: &Secret) -> Result<(), SecretError> {
+        let host = self.host.upgrade().ok_or(SecretError::WorldEnded)?;
+        secret.check_resolution(&*host).await
+    }
+
+    /// Masks `value` in log messages and remote debug texts from now on, as revealed values
+    /// are, for values a source obtains by itself, such as the access tokens it logs in with.
+    pub fn add_masked_value(&self, secret_name: &str, value: &Value) {
+        if let Some(host) = self.host.upgrade() {
+            host.add_masked_value(secret_name, value);
+        }
+    }
+
+    /// Registers `source` for the `scheme` of locators, such as `vault` for `vault:<path>`.
+    ///
+    /// Only possible from the `secret_sources` function of a model, called before any
+    /// model is initialized. Registering a scheme twice, or `env` and `file`, makes
+    /// the launch fail.
+    pub fn register_source(
+        &self,
+        scheme: &str,
+        source: Arc<dyn SecretSource>,
+    ) -> Result<(), SecretError> {
+        let host = self.host.upgrade().ok_or(SecretError::WorldEnded)?;
+        host.register_secret_source(scheme, source)
     }
 }
 
-impl Debug for SecretAccess {
+impl Debug for SecretsAccess {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("SecretAccess")
+        f.debug_struct("SecretsAccess")
             .field("element", &self.element)
             .field("label", &self.label)
             .field("track_id", &self.track_id)
@@ -154,6 +297,10 @@ pub enum SecretError {
     ResolveFailed(String),
     /// The world the access belongs to has ended.
     WorldEnded,
+    /// Secret sources can only be registered before any model is initialized.
+    RegistrationClosed,
+    /// A source is already registered for the scheme.
+    SourceAlreadyRegistered(String),
 }
 
 impl Display for SecretError {
@@ -174,6 +321,13 @@ impl Display for SecretError {
             SecretError::Denied(reason) => write!(f, "access denied: {reason}"),
             SecretError::ResolveFailed(error) => write!(f, "resolution failed: {error}"),
             SecretError::WorldEnded => write!(f, "the engine has ended"),
+            SecretError::RegistrationClosed => write!(
+                f,
+                "secret sources can only be registered before any model is initialized"
+            ),
+            SecretError::SourceAlreadyRegistered(scheme) => {
+                write!(f, "a secret source is already registered for '{scheme}:'")
+            }
         }
     }
 }

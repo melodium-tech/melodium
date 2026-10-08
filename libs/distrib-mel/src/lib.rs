@@ -15,7 +15,7 @@ use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
-use common::executive::{Level, SecretAccess, SecretError, TrackId};
+use common::executive::{Level, SecretError, SecretsAccess, TrackId};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
@@ -209,14 +209,14 @@ impl DistributionEngine {
         &self,
         access: &work_mel::api::CommonAccess,
         params: HashMap<String, Value>,
-        secret_access: &SecretAccess,
+        secrets_access: &SecretsAccess,
     ) -> Result<(), String> {
         if self.start_attempted.swap(true, Ordering::SeqCst) {
             self.wait_protocol_ready().await;
             return Ok(());
         }
 
-        let result = self.do_start(access, params, secret_access).await;
+        let result = self.do_start(access, params, secrets_access).await;
         self.fire_protocol_ready();
         result
     }
@@ -225,7 +225,7 @@ impl DistributionEngine {
         &self,
         access: &work_mel::api::CommonAccess,
         params: HashMap<String, Value>,
-        secret_access: &SecretAccess,
+        secrets_access: &SecretsAccess,
     ) -> Result<(), String> {
         let model = self.model.upgrade().unwrap();
 
@@ -233,7 +233,7 @@ impl DistributionEngine {
         let encrypted = !access.disable_tls;
         let mut parameters = HashMap::with_capacity(params.len());
         for (name, value) in &params {
-            match RawValue::to_wire(value, secret_access, encrypted).await {
+            match RawValue::to_wire(value, secrets_access, encrypted).await {
                 Ok(value) => {
                     parameters.insert(name.clone(), value);
                 }
@@ -953,6 +953,7 @@ impl DistributionEngine {
     output ready Block<void>
     output failed Block<void>
     output error Block<string>
+    secrets_access
 )]
 pub async fn start(params: Map) {
     let model = DistributionEngineModel::into(distributor);
@@ -962,7 +963,7 @@ pub async fn start(params: Map) {
 
     #[cfg(feature = "real")]
     if let Ok(access) = access.recv_one_as::<Arc<Access>>().await {
-        match distributor.start(&access.0, params, &secret_access).await {
+        match distributor.start(&access.0, params, &secrets_access).await {
             Ok(_) => {
                 let _ = ready.send_one_as(()).await;
             }
@@ -1152,6 +1153,7 @@ pub async fn recv_block(name: string) {
     generic S (Serialize)
     input distribution_id Block<u64>
     input data Stream<S>
+    secrets_access
 )]
 pub async fn send_stream(name: string) {
     #[cfg(feature = "real")]
@@ -1169,7 +1171,7 @@ pub async fn send_stream(name: string) {
             // it into one `Value`/`RawValue` per tick first.
             while let Ok(data) = data.recv_many().await {
                 let data = if secrets {
-                    match WireTransmissionValue::to_wire(data, &secret_access, encrypted).await {
+                    match WireTransmissionValue::to_wire(data, &secrets_access, encrypted).await {
                         Ok(data) => data,
                         Err(error) => {
                             log_secret_refusal(&model, &name, error, track_id).await;
@@ -1213,6 +1215,7 @@ pub async fn send_stream(name: string) {
     generic S (Serialize)
     input distribution_id Block<u64>
     input data Block<S>
+    secrets_access
 )]
 pub async fn send_block(name: string) {
     #[cfg(feature = "real")]
@@ -1227,7 +1230,7 @@ pub async fn send_block(name: string) {
             if let Ok(data) = data.recv_one().await {
                 match WireTransmissionValue::to_wire(
                     TransmissionValue::new(data),
-                    &secret_access,
+                    &secrets_access,
                     encrypted,
                 )
                 .await

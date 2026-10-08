@@ -34,6 +34,7 @@ zeroize = "1.9"
 
 [dev-dependencies]
 async-std = "1.13"
+async-trait = "0.1"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
