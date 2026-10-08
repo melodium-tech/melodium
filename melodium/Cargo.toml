@@ -45,6 +45,7 @@ std-mel = { path = "../libs/std-mel", version = "0.11.0" }
 
 audio-mel = { path = "../libs/audio-mel", version = "0.11.0", optional = true }
 cicd-mel = { path = "../libs/cicd-mel", version = "0.11.0", optional = true }
+crypto-mel = { path = "../libs/crypto-mel", version = "0.11.0", optional = true }
 distrib-mel = { path = "../libs/distrib-mel", version = "0.11.0", optional = true }
 encoding-mel = { path = "../libs/encoding-mel", version = "0.11.0", optional = true }
 fs-mel = { path = "../libs/fs-mel", version = "0.11.0", optional = true }
@@ -66,6 +67,7 @@ cli = ["clap"]
 jeu = ["melodium-loader/jeu"]
 audio = ["audio-mel/real"]
 cicd = ["distribution", "fs", "network", "cicd-mel/real"]
+crypto = ["crypto-mel/real"]
 distribution = ["melodium-distribution", "distrib-mel/real", "work-mel/real", "uuid"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
 network = ["net-mel/real", "http-mel/real", "melodium-loader/network", "rustls/ring"]
@@ -77,11 +79,11 @@ sql = ["sql-mel/real"]
 ml = ["ml-mel/real"]
 record = ["record-mel/real"]
 vault = ["vault-mel/real"]
-standard-edition = ["jeu", "doc", "audio", "cicd", "distribution", "fs", "environment", "network", "text", "javascript", "sql", "ml", "vault", "std-mel/real", "record-mel/mock"]
-desktop-edition = ["cli", "jeu", "doc", "audio", "cicd", "distribution", "fs", "environment", "network", "text", "javascript", "sql", "ml", "vault", "std-mel/real", "record"]
+standard-edition = ["jeu", "doc", "audio", "cicd", "crypto", "distribution", "fs", "environment", "network", "text", "javascript", "sql", "ml", "vault", "std-mel/real", "record-mel/mock"]
+desktop-edition = ["cli", "jeu", "doc", "audio", "cicd", "crypto", "distribution", "fs", "environment", "network", "text", "javascript", "sql", "ml", "vault", "std-mel/real", "record"]
 container-edition = ["standard-edition", "record-mel/mock", "work-mel/kubernetes"]
-webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "vault-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
-mock-edition = ["jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "vault-mel/mock", "distrib-mel/mock", "work-mel/mock", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
+webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "crypto-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "vault-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
+mock-edition = ["jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "crypto-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "vault-mel/mock", "distrib-mel/mock", "work-mel/mock", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
 "docs.rs" = ["std-mel/docs.rs", "fs"]
 
 [target.wasm32-unknown-unknown.dependencies]

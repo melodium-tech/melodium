@@ -1,0 +1,51 @@
+[package]
+name = "crypto-mel"
+version = "0.11.0"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.83"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium cryptography library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "crypto_mel"
+
+[dependencies]
+melodium-core = { path = "../../melodium-core", version = "0.11.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
+base64 = "0.22"
+hex = "0.4"
+hmac = "0.12"
+sha2 = "0.10"
+subtle = "2.6"
+zeroize = "1.9"
+
+[features]
+mock = []
+plugin = []
+real = []
+"docs.rs" = ["mock"]
+
+[package.metadata.docs.rs]
+features = ["docs.rs"]
+rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "riscv64gc-unknown-linux-gnu",
+    "s390x-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+    "wasm32-unknown-unknown"
+]
+

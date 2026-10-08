@@ -8,7 +8,7 @@ include:
   - local: /.gitlab/ci/releases.yml
 
 variables:
-  PACKAGES: audio cicd distrib encoding fs http javascript json ml net process record regex sql std vault work
+  PACKAGES: audio cicd crypto distrib encoding fs http javascript json ml net process record regex sql std vault work
 
 workflow:
   rules:

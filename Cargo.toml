@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "libs/audio-mel",
     "libs/cicd-mel",
+    "libs/crypto-mel",
     "libs/distrib-mel",
     "libs/encoding-mel",
     "libs/fs-mel",
@@ -36,6 +37,7 @@ members = [
 default-members = [
     "libs/audio-mel",
     "libs/cicd-mel",
+    "libs/crypto-mel",
     "libs/distrib-mel",
     "libs/encoding-mel",
     "libs/fs-mel",
