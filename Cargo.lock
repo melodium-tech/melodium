@@ -4716,13 +4716,16 @@ dependencies = [
 name = "melodium-engine"
 version = "0.10.4"
 dependencies = [
+ "aho-corasick",
  "async-std",
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "downcast-rs",
  "futures",
  "lazy_static",
  "melodium-common",
+ "percent-encoding",
  "serde",
  "signal-hook",
  "signal-hook-async-std",

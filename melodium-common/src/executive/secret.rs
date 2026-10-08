@@ -54,6 +54,9 @@ pub trait SecretsHost: Debug + Send + Sync {
     ) -> Result<(), SecretError>;
     /// Whether elements may reveal secrets, which they can once every model is initialized.
     fn revealing(&self) -> bool;
+    /// Registers a value revealed from the secret named `secret_name`,
+    /// masked from then on in log messages and remote debug text.
+    fn add_masked_value(&self, secret_name: &str, value: &Value);
     /// Records an access to a secret, as a debug event, and also in the log
     /// for denials and resolution failures.
     async fn secret_audit(&self, audit: SecretAudit);
