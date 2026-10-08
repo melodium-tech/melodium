@@ -9,6 +9,7 @@
 - Taking `melodium dist` keys from `--recv-key-file`/`--send-key-file` or the `MELODIUM_DIST_RECV_KEY`/`MELODIUM_DIST_SEND_KEY` environment variables; `--recv-key`/`--send-key` still work with a warning, as other local users can read process arguments (#130).
 - Breaking: `melodium dist` refuses plain TCP (`--disable-tls`) on addresses other than loopback ones unless `--allow-plain-tcp` is given, and warns about plain TCP otherwise (#130).
 - Taking the API token of the `cicd` template of `melodium new` as a secret, and fixing its `advanced` entrypoint (#136).
+- Adding the `vault` and `crypto` packages, the latter signing and verifying data with HMAC and checking received tokens against secrets, such as for webhooks (#138, #136).
 
 ## [v0.10.4] (2026-09-24)
 
