@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use melodium_common::{
     descriptor::{Collection, Identifier},
     executive::{
-        DirectCreationCallback, Level as LogLevel, Log, Secret, SecretAccess, TrackId, Value,
+        DirectCreationCallback, Level as LogLevel, Log, Secret, SecretsAccess, TrackId, Value,
     },
 };
 use std::{collections::HashMap, sync::Arc};
@@ -33,10 +33,10 @@ pub trait Engine: Send + Sync {
     async fn log(&self, level: LogLevel, label: String, message: String);
     /// Gives an access to secrets on behalf of `element`, for code driving the engine
     /// from outside, such as distribution.
-    fn secret_access(
+    fn secrets_access(
         &self,
         element: Identifier,
         label: Option<String>,
         track_id: Option<TrackId>,
-    ) -> SecretAccess;
+    ) -> SecretsAccess;
 }

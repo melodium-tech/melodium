@@ -592,17 +592,17 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let tracks_entry_inputs = Arc::new(AsyncRwLock::new(HashMap::new()));
 
         // Secrets sent back follow their transmission policy, on behalf of the entrypoint.
-        let secret_access = engine.secret_access(entrypoint.clone(), None, None);
+        let secrets_access = engine.secrets_access(entrypoint.clone(), None, None);
 
         let manage_message = {
             let protocol = Arc::clone(&protocol);
-            let secret_access = secret_access.clone();
+            let secrets_access = secrets_access.clone();
             let engine = Arc::clone(&engine);
             let collection = Arc::clone(&collection);
             let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
             move |message| {
                 let protocol = Arc::clone(&protocol);
-                let secret_access = secret_access.clone();
+                let secrets_access = secrets_access.clone();
                 let engine = Arc::clone(&engine);
                 let collection = Arc::clone(&collection);
                 let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
@@ -615,6 +615,8 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                             let tracks_entry_inputs = Arc::clone(&tracks_entry_inputs);
                             let track_id = instanciate.id;
 
+                            // Weak, as the engine keeps the futures made by this callback.
+                            let weak_engine = Arc::downgrade(&engine);
                             if let Err(failure) = engine
                                 .instanciate(Some(Box::new({
                                     let protocol = Arc::clone(&protocol);
@@ -623,7 +625,8 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                         let mut inputs_storage = HashMap::new();
                                         for (name, input) in entry_inputs {
                                             let protocol = Arc::clone(&protocol);
-                                            let secret_access = secret_access.clone();
+                                            let secrets_access = secrets_access.clone();
+                                            let weak_engine = weak_engine.clone();
                                             let input = Arc::new(input);
                                             inputs_storage.insert(name.clone(), Arc::clone(&input));
                                             let listener = async move {
@@ -636,22 +639,21 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                                     // `melodium_share::TransmissionValue`.
                                                     let data = match WireTransmissionValue::to_wire(
                                                         data,
-                                                        &secret_access,
+                                                        &secrets_access,
                                                         encrypted,
                                                     )
                                                     .await
                                                     {
                                                         Ok(data) => data,
                                                         Err(error) => {
-                                                            if let Some(world) =
-                                                                secret_access.world()
+                                                            if let Some(engine) =
+                                                                weak_engine.upgrade()
                                                             {
-                                                                world
+                                                                engine
                                                                     .log(
                                                                         Level::Error,
                                                                         "distribution".to_string(),
                                                                         format!("Cannot send '{name}' back to the orchestrating engine, {error}"),
-                                                                        None,
                                                                     )
                                                                     .await;
                                                             }

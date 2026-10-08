@@ -1,7 +1,7 @@
 use crate::RawValue;
 use melodium_common::descriptor::Collection;
 use melodium_common::executive::{
-    SecretAccess, SecretError, TransmissionValue as CommonTransmissionValue,
+    SecretError, SecretsAccess, TransmissionValue as CommonTransmissionValue,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -384,7 +384,7 @@ impl TransmissionValue {
     /// Batches without secrets nor data values convert as `From` does.
     pub async fn to_wire(
         value: CommonTransmissionValue,
-        access: &SecretAccess,
+        access: &SecretsAccess,
         encrypted: bool,
     ) -> Result<TransmissionValue, SecretError> {
         match value {

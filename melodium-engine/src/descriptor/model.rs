@@ -294,6 +294,10 @@ impl ModelDescriptor for Model {
         self.base_model.sources()
     }
 
+    fn secrets_access(&self) -> bool {
+        self.base_model.secrets_access()
+    }
+
     fn as_identified(&self) -> Arc<dyn Identified> {
         self.auto_reference.upgrade().unwrap()
     }
