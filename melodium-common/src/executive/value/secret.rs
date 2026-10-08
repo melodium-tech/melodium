@@ -1,8 +1,6 @@
 use super::Value;
 use crate::descriptor::DataType;
-use crate::executive::{
-    PackedArray, SecretAccess, SecretAudit, SecretAuditOutcome, SecretError, World,
-};
+use crate::executive::{SecretAudit, SecretAuditOutcome, SecretError, SecretsAccess, SecretsHost};
 use core::fmt::{Debug, Display, Formatter, Result};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicU64, Ordering};
@@ -253,108 +251,47 @@ impl Secret {
         }))
     }
 
-    /// Lends the value of the secret to `f`, for the element designated by `access`.
-    ///
-    /// The policy is checked, the value resolved, and the access recorded on the world:
-    /// denials and resolution failures are also logged as errors.
-    /// The value is dropped once `f` returns.
-    pub async fn reveal<R>(
+    /// Resolves the value of the secret and drops it right away.
+    pub(crate) async fn check_resolution(
         &self,
-        access: &SecretAccess,
-        f: impl FnOnce(&Value) -> R + Send,
-    ) -> core::result::Result<R, SecretError> {
-        self.access(access, false, f).await
-    }
-
-    /// Same as `reveal`, for a `Secret<string>`.
-    pub async fn reveal_str<R>(
-        &self,
-        access: &SecretAccess,
-        f: impl FnOnce(&str) -> R + Send,
-    ) -> core::result::Result<R, SecretError> {
-        self.reveal(access, |value| match value {
-            Value::String(value) => Ok(f(value)),
-            _ => Err(SecretError::MismatchingValue),
-        })
-        .await?
-    }
-
-    /// Same as `reveal`, for a `Secret<Vec<byte>>`.
-    pub async fn reveal_bytes<R>(
-        &self,
-        access: &SecretAccess,
-        f: impl FnOnce(&[u8]) -> R + Send,
-    ) -> core::result::Result<R, SecretError> {
-        self.reveal(access, |value| match value {
-            Value::Packed(PackedArray::Byte(bytes)) | Value::Packed(PackedArray::U8(bytes)) => {
-                Ok(f(bytes))
-            }
-            Value::Vec(values) => {
-                let mut bytes = Vec::with_capacity(values.len());
-                for value in values {
-                    match value {
-                        Value::Byte(byte) | Value::U8(byte) => bytes.push(*byte),
-                        _ => return Err(SecretError::MismatchingValue),
-                    }
-                }
-                Ok(f(&bytes))
-            }
-            _ => Err(SecretError::MismatchingValue),
-        })
-        .await?
-    }
-
-    /// Lends the value of the secret to `f`, for the plain `std/secret::reveal` treatment.
-    ///
-    /// Same as `reveal`, but also requires the policy to allow plain reveal.
-    pub async fn reveal_plainly<R>(
-        &self,
-        access: &SecretAccess,
-        f: impl FnOnce(&Value) -> R + Send,
-    ) -> core::result::Result<R, SecretError> {
-        self.access(access, true, f).await
-    }
-
-    /// Resolves the value of the secret and drops it right away,
-    /// to check that the secret can be resolved.
-    ///
-    /// The value is not given to anyone, so the access is not recorded.
-    pub async fn check_resolution(
-        &self,
-        world: &Arc<dyn World>,
+        host: &dyn SecretsHost,
     ) -> core::result::Result<(), SecretError> {
         match &*self.0.origin {
             SecretOrigin::Inline(_) => Ok(()),
             SecretOrigin::Locator(locator) => self
-                .resolve(world, locator)
+                .resolve(host, locator)
                 .await
                 .map(|_| ())
                 .map_err(SecretError::ResolveFailed),
         }
     }
 
-    async fn access<R>(
+    /// Lends the value of the secret to `f`, for the element `access` belongs to,
+    /// as `SecretsAccess` does.
+    pub(crate) async fn access<R>(
         &self,
-        access: &SecretAccess,
+        access: &SecretsAccess,
         plain: bool,
         f: impl FnOnce(&Value) -> R + Send,
     ) -> core::result::Result<R, SecretError> {
-        let world = access.world().ok_or(SecretError::WorldEnded)?;
+        let host = access.host.upgrade().ok_or(SecretError::WorldEnded)?;
         let audit = |outcome| SecretAudit {
             secret_id: self.0.id,
             secret_name: self.0.name.clone(),
-            element: access.element().clone(),
-            label: access.label().map(str::to_string),
-            track_id: access.track_id(),
+            element: access.element.clone(),
+            label: access.label.clone(),
+            track_id: access.track_id,
             outcome,
         };
 
-        let element = access.element().to_string();
-        let denial = if !self.0.policy.reveal.allows(&element) {
+        let element = access.element.to_string();
+        let denial = if !host.revealing() {
+            Some("secrets are only revealed once every model is initialized".to_string())
+        } else if !self.0.policy.reveal.allows(&element) {
             Some(format!("its policy does not allow {element} to reveal it"))
         } else if plain && !self.0.policy.plain_reveal {
             Some("its policy does not allow plain reveal".to_string())
-        } else if let Some(scheme) = plain.then(|| self.plain_reveal_refusal(&world)).flatten() {
+        } else if let Some(scheme) = plain.then(|| self.plain_reveal_refusal(&*host)).flatten() {
             Some(format!(
                 "secrets from '{scheme}:' cannot be plainly revealed"
             ))
@@ -362,29 +299,23 @@ impl Secret {
             None
         };
         if let Some(reason) = denial {
-            world
-                .secret_audit(audit(SecretAuditOutcome::Denied(reason.clone())))
+            host.secret_audit(audit(SecretAuditOutcome::Denied(reason.clone())))
                 .await;
             return Err(SecretError::Denied(reason));
         }
 
         match &*self.0.origin {
             SecretOrigin::Inline(value) => {
-                world
-                    .secret_audit(audit(SecretAuditOutcome::Revealed))
-                    .await;
+                host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
                 Ok(f(value))
             }
-            SecretOrigin::Locator(locator) => match self.resolve(&world, locator).await {
+            SecretOrigin::Locator(locator) => match self.resolve(&*host, locator).await {
                 Ok(value) => {
-                    world
-                        .secret_audit(audit(SecretAuditOutcome::Revealed))
-                        .await;
+                    host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
                     Ok(f(&value))
                 }
                 Err(error) => {
-                    world
-                        .secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
+                    host.secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
                         .await;
                     Err(SecretError::ResolveFailed(error))
                 }
@@ -393,25 +324,32 @@ impl Secret {
     }
 
     /// Gives the scheme of the source of this secret if that source refuses plain reveal.
-    fn plain_reveal_refusal(&self, world: &Arc<dyn World>) -> Option<String> {
+    fn plain_reveal_refusal(&self, host: &dyn SecretsHost) -> Option<String> {
         match &*self.0.origin {
             SecretOrigin::Inline(_) => None,
             SecretOrigin::Locator(locator) => {
                 let (scheme, _) = split_locator(locator)?;
-                let source = world.secret_source(scheme)?;
+                let source = host.secret_source(scheme)?;
                 (!source.plain_reveal()).then(|| scheme.to_string())
             }
         }
     }
 
+    /// Gives the scheme the secret is located in, if it has a locator.
+    pub fn scheme(&self) -> Option<&str> {
+        self.locator()
+            .and_then(split_locator)
+            .map(|(scheme, _)| scheme)
+    }
+
     async fn resolve(
         &self,
-        world: &Arc<dyn World>,
+        host: &dyn SecretsHost,
         locator: &str,
     ) -> core::result::Result<Value, String> {
         let (scheme, path) =
             split_locator(locator).ok_or_else(|| format!("'{locator}' is not a locator"))?;
-        let source = world
+        let source = host
             .secret_source(scheme)
             .ok_or_else(|| format!("no secret source '{scheme}' for '{locator}'"))?;
         let value = source.resolve(path, &self.0.datatype).await?;

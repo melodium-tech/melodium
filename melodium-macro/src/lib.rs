@@ -1185,6 +1185,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut outputs = HashMap::new();
     let mut attributes = HashMap::new();
     let mut generics = Vec::new();
+    let mut secrets_access = false;
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
     while let Some(tt) = iter_attr.next() {
@@ -1221,6 +1222,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     let name = config_generic(&mut iter_attr);
                     generics.push(name);
                 }
+                "secrets_access" => secrets_access = true,
                 _ => panic!("Unrecognized configuration"),
             }
         }
@@ -1286,6 +1288,21 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                 params.insert(name, (ty, attributes));
             }
             _ => eprintln!("Only Mélodium types are admissible arguments"),
+        }
+    }
+
+    // Names the treatment body gets from the engine.
+    for reserved in ["world", "track_id", "secrets_access"] {
+        if params.contains_key(reserved)
+            || inputs.contains_key(reserved)
+            || outputs.contains_key(reserved)
+            || models.contains_key(reserved)
+            || generics.iter().any(|(name, _)| name == reserved)
+        {
+            panic!(
+                "'{}' is reserved in treatments, as the engine gives it to their body",
+                reserved
+            );
         }
     }
 
@@ -1378,6 +1395,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                         vec![#parameters],
                         vec![#inputs],
                         vec![#outputs],
+                        #secrets_access,
                         AdHocTreatment::new
                     );
 
@@ -1641,9 +1659,17 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         let body = treatment.block;
 
-        prepare_implementation = quote! {
-            fn prepare(&self, track_id: usize, secret_access: melodium_core::common::executive::SecretAccess, debug_start: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>, debug_finish: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>) -> Vec<melodium_core::common::executive::TrackFuture> {
+        // Only treatments declaring `secrets_access` get it in their body.
+        let secrets_access: proc_macro2::TokenStream = if secrets_access {
+            quote! { let secrets_access = __secrets_access.expect("the engine gives secrets access to treatments declaring it"); }
+        } else {
+            quote! { let _ = __secrets_access; }
+        };
 
+        prepare_implementation = quote! {
+            fn prepare(&self, track_id: usize, world: std::sync::Weak<dyn melodium_core::common::executive::World>, __secrets_access: Option<melodium_core::common::executive::SecretsAccess>, debug_start: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>, debug_finish: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>) -> Vec<melodium_core::common::executive::TrackFuture> {
+
+                #secrets_access
                 #generics;
                 #parameters;
                 #models;
@@ -1701,6 +1727,8 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut continuous = Vec::new();
     let mut shutdown = None;
     let mut invoke_source = None;
+    let mut secrets_access = false;
+    let mut secret_sources = None;
     let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
@@ -1751,6 +1779,14 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         panic!("Invoke source function name expected")
                     }
                 }
+                "secrets_access" => secrets_access = true,
+                "secret_sources" => {
+                    if let Some(TokenTree::Ident(name)) = iter_attr.next() {
+                        secret_sources = Some(name.to_string());
+                    } else {
+                        panic!("Secret sources function name expected")
+                    }
+                }
                 "attribute" => {
                     let (name, value) = config_attribute(&mut iter_attr);
                     attributes.insert(name, value);
@@ -1758,6 +1794,10 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 _ => panic!("Unrecognized configuration"),
             }
         }
+    }
+
+    if secret_sources.is_some() && !secrets_access {
+        panic!("Registering secret sources needs `secrets_access` to be declared");
     }
 
     let model: ItemStruct = parse(item).unwrap();
@@ -1822,6 +1862,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     },
                     vec![#parameters],
                     vec![#sources],
+                    #secrets_access,
                     AdHocModel::new,
                 );
         };
@@ -1967,6 +2008,30 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap_or_else(|| String::from("()"))
         .parse()
         .unwrap();
+    // Only models declaring `secrets_access` can get it.
+    let secrets_access_implementation = if secrets_access {
+        quote! {
+            /// Access to secrets of this model, given by the engine when it builds the model.
+            pub fn secrets_access(&self) -> melodium_core::common::executive::SecretsAccess {
+                self.secrets_access
+                    .get()
+                    .cloned()
+                    .expect("the engine gives secrets access to models declaring it")
+            }
+        }
+    } else {
+        proc_macro2::TokenStream::new()
+    };
+    let set_secrets_access: proc_macro2::TokenStream = if secrets_access {
+        quote! { let _ = self.secrets_access.set(access); }
+    } else {
+        quote! { let _ = access; }
+    };
+    let register_secret_sources: proc_macro2::TokenStream = secret_sources
+        .map(|s| format!("self.model.{s}(&self.secrets_access())"))
+        .unwrap_or_else(|| String::from("()"))
+        .parse()
+        .unwrap();
     let invoke_source: proc_macro2::TokenStream = invoke_source
         .map(|s| format!("self.model.{s}(source, params)"))
         .unwrap_or_else(|| String::from("let _ = (source, params)"))
@@ -2022,6 +2087,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 // Weak: `World` keeps every model it builds alive, so a strong reference
                 // here would form a cycle and neither would ever be dropped.
                 world: std::sync::Weak<dyn melodium_core::common::executive::World>,
+                secrets_access: std::sync::OnceLock<melodium_core::common::executive::SecretsAccess>,
                 auto_reference: std::sync::Weak<Self>,
             }
 
@@ -2033,6 +2099,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         params: std::sync::Mutex::new(vec![#parameters_initialization].into_iter().collect()),
                         model: #model_name::new(me.clone()),
                         world: std::sync::Arc::downgrade(&world),
+                        secrets_access: std::sync::OnceLock::new(),
                         auto_reference: me.clone(),
                     })
                 }
@@ -2054,10 +2121,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         .expect("model used after its world was dropped")
                 }
 
-                /// Identity of this model when revealing secrets.
-                pub fn secret_access(&self) -> melodium_core::common::executive::SecretAccess {
-                    melodium_core::common::executive::SecretAccess::new(&self.world(), melodium_core::common::descriptor::Identified::identifier(&*descriptor()).clone(), None, None)
-                }
+                #secrets_access_implementation
 
                 pub fn id(&self) -> Option<melodium_core::common::executive::ModelId> {
                     *self.id.lock().unwrap()
@@ -2093,6 +2157,14 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 fn set_parameter(&self, param: &str, value: melodium_core::common::executive::Value) {
                     Self::set_parameter(self, param, value)
+                }
+
+                fn set_secrets_access(&self, access: melodium_core::common::executive::SecretsAccess) {
+                    #set_secrets_access
+                }
+
+                fn register_secret_sources(&self) {
+                    #register_secret_sources;
                 }
 
                 fn initialize(&self) {
