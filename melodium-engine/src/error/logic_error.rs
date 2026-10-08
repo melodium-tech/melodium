@@ -36,6 +36,10 @@ pub enum LogicErrorKind {
     LaunchWrongParameter { parameter: String },
     /// A secret given for launch cannot be resolved.
     UnresolvableSecret { parameter: String, error: String },
+    /// A secret source is registered for a scheme that already has one.
+    DuplicateSecretSource { scheme: String },
+    /// A secret only this engine can resolve is located in a scheme without source.
+    UnknownSecretScheme { secret: String, scheme: String },
     /// The launch cannot be done through model-requiring treatment.
     LaunchTreatmentExpectModel { wrong_identifier: Identifier },
     /// No direct track exist for id.
@@ -289,6 +293,8 @@ impl Display for LogicErrorKind {
                 },
             LogicErrorKind::LaunchWrongParameter { parameter } => write!(f, "Parameter '{parameter}' has no valid value for launch"),
             LogicErrorKind::UnresolvableSecret { parameter, error } => write!(f, "Secret of parameter '{parameter}' cannot be resolved: {error}"),
+            LogicErrorKind::DuplicateSecretSource { scheme } => write!(f, "A secret source is already registered for '{scheme}:'"),
+            LogicErrorKind::UnknownSecretScheme { secret, scheme } => write!(f, "Secret '{secret}' is located in '{scheme}:', for which no source is registered on this engine"),
             LogicErrorKind::LaunchTreatmentExpectModel {wrong_identifier} => write!(f, "Launch must be done with a treatment that does not require model, but '{wrong_identifier}' expect some model"),
             LogicErrorKind::NoDirectTrack { id } => write!(f, "No directly instancied track exist for id {id}"),
             LogicErrorKind::UnexistingVariable {identifier,
@@ -450,6 +456,24 @@ impl LogicError {
             id,
             design_reference: None,
             kind: LogicErrorKind::UnresolvableSecret { parameter, error },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::DuplicateSecretSource`] kind.
+    pub fn duplicate_secret_source(id: u32, scheme: String) -> Self {
+        Self {
+            id,
+            design_reference: None,
+            kind: LogicErrorKind::DuplicateSecretSource { scheme },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnknownSecretScheme`] kind.
+    pub fn unknown_secret_scheme(id: u32, secret: String, scheme: String) -> Self {
+        Self {
+            id,
+            design_reference: None,
+            kind: LogicErrorKind::UnknownSecretScheme { secret, scheme },
         }
     }
 

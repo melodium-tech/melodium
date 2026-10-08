@@ -422,11 +422,12 @@ pub async fn conceal(name: string, transmission: string, plain_reveal: bool) {
     output value Block<T>
     output failed Block<void>
     output error Block<string>
+    secrets_access
 )]
 pub async fn reveal() {
     if let Ok(Value::Secret(concealed)) = secret.recv_one().await {
-        match concealed
-            .reveal_plainly(&secret_access, |content| content.clone())
+        match secrets_access
+            .reveal_plainly(&concealed, |content| content.clone())
             .await
         {
             Ok(content) => {
