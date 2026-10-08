@@ -156,7 +156,8 @@ impl World {
     /// at launch that only this engine can resolve have a source for their scheme.
     ///
     /// Secrets sent by reference may be resolved by distant engines, with their own
-    /// sources, so they are not checked.
+    /// sources, so they are not checked. Derived secrets cannot be sent by reference:
+    /// every secret they come from is checked, whatever its transmission.
     fn prepare_secret_sources(&self) -> Vec<LogicError> {
         self.secret_sources_registration
             .store(true, Ordering::Relaxed);
@@ -185,11 +186,24 @@ impl World {
             .map(|(_, secret)| secret)
             .collect::<Vec<_>>();
         secrets.sort_by_key(|secret| secret.id());
+        let mut checked = std::collections::HashSet::new();
         for secret in secrets {
-            if secret.policy().transmission == SecretTransmission::Reference {
-                continue;
-            }
-            if let Some(scheme) = secret.scheme() {
+            let inputs = secret.derived_from();
+            let resolved_here = if inputs.is_empty() {
+                if secret.policy().transmission == SecretTransmission::Reference {
+                    continue;
+                }
+                vec![secret]
+            } else {
+                inputs
+            };
+            for secret in resolved_here {
+                if !checked.insert(secret.id()) {
+                    continue;
+                }
+                let Some(scheme) = secret.scheme() else {
+                    continue;
+                };
                 if !sources.contains_key(scheme) {
                     errors.push(LogicError::unknown_secret_scheme(
                         253,
@@ -1290,6 +1304,52 @@ mod tests {
         assert!(errors.iter().all(|error| error
             .to_string()
             .starts_with("D0253: Secret 'test' is located in 'nosuch:'")));
+    }
+
+    #[derive(Debug)]
+    struct Concatenation;
+
+    impl melodium_common::executive::SecretDerivation for Concatenation {
+        fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
+            Ok(Value::String(
+                inputs
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect::<String>(),
+            ))
+        }
+    }
+
+    #[test]
+    fn derived_secrets_need_sources_for_every_input() {
+        let world = world();
+        let reference = secret(
+            SecretOrigin::Locator("nosuch:reference".to_string()),
+            SecretTransmission::Reference,
+        );
+        let inline = secret(
+            SecretOrigin::Inline(Value::String("inline".to_string())),
+            SecretTransmission::Reference,
+        );
+        let derived = secret(
+            SecretOrigin::Derived {
+                inputs: vec![reference, inline],
+                derivation: Arc::new(Concatenation),
+            },
+            SecretTransmission::Reference,
+        );
+        world.add_launch_secrets(&[Value::Secret(derived)]);
+
+        // The reference input would not be checked alone, but the derived secret
+        // is resolved by this engine.
+        assert_eq!(
+            world
+                .prepare_secret_sources()
+                .iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>(),
+            vec!["D0253: Secret 'test' is located in 'nosuch:', for which no source is registered on this engine"]
+        );
     }
 
     #[test]

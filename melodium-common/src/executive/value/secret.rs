@@ -1,7 +1,11 @@
 use super::Value;
 use crate::descriptor::DataType;
-use crate::executive::{SecretAudit, SecretAuditOutcome, SecretError, SecretsAccess, SecretsHost};
+use crate::executive::{
+    SecretAudit, SecretAuditOutcome, SecretDerivation, SecretError, SecretsAccess, SecretsHost,
+};
 use core::fmt::{Debug, Display, Formatter, Result};
+use core::future::Future;
+use core::pin::Pin;
 use core::str::FromStr;
 use core::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -118,6 +122,11 @@ pub enum SecretOrigin {
     Locator(String),
     /// Value held in memory, such as one concealed at runtime.
     Inline(Value),
+    /// Computed from the values of other secrets when revealed.
+    Derived {
+        inputs: Vec<Secret>,
+        derivation: Arc<dyn SecretDerivation>,
+    },
 }
 
 impl Debug for SecretOrigin {
@@ -125,6 +134,11 @@ impl Debug for SecretOrigin {
         match self {
             SecretOrigin::Locator(locator) => f.debug_tuple("Locator").field(locator).finish(),
             SecretOrigin::Inline(_) => f.debug_tuple("Inline").finish_non_exhaustive(),
+            SecretOrigin::Derived { inputs, derivation } => f
+                .debug_struct("Derived")
+                .field("inputs", inputs)
+                .field("derivation", derivation)
+                .finish(),
         }
     }
 }
@@ -169,6 +183,7 @@ impl Secret {
     ///
     /// Fails if `datatype` contains a secret, if an inline value does not match
     /// `datatype`, or if a locator is not `<scheme>:<path>`.
+    /// A derived secret gets `policy` narrowed by the policies of its inputs.
     pub fn new(
         name: String,
         datatype: DataType,
@@ -178,18 +193,23 @@ impl Secret {
         if datatype.contains_secret() {
             return Err(SecretError::NestedSecret(datatype));
         }
-        match &origin {
+        let policy = match &origin {
             SecretOrigin::Inline(value) => {
                 if value.datatype() != datatype {
                     return Err(SecretError::MismatchingValue);
                 }
+                policy
             }
             SecretOrigin::Locator(locator) => {
                 if split_locator(locator).is_none() {
                     return Err(SecretError::InvalidLocator(locator.clone()));
                 }
+                policy
             }
-        }
+            SecretOrigin::Derived { inputs, .. } => inputs
+                .iter()
+                .fold(policy, |policy, input| policy.narrow(input.policy())),
+        };
 
         Ok(Self(Arc::new(SecretInner {
             id: NEXT_SECRET_ID.fetch_add(1, Ordering::Relaxed),
@@ -215,6 +235,29 @@ impl Secret {
         )
     }
 
+    /// Creates a secret computed from `inputs` by `derivation` when revealed.
+    ///
+    /// Its policy is the most restrictive combination of the policies of `inputs`,
+    /// or the default policy if there is no input.
+    pub fn derive(
+        name: String,
+        datatype: DataType,
+        inputs: Vec<Secret>,
+        derivation: Arc<dyn SecretDerivation>,
+    ) -> core::result::Result<Self, SecretError> {
+        let policy = if inputs.is_empty() {
+            SecretPolicy::default()
+        } else {
+            SecretPolicy::unrestricted()
+        };
+        Self::new(
+            name,
+            datatype,
+            policy,
+            SecretOrigin::Derived { inputs, derivation },
+        )
+    }
+
     pub fn id(&self) -> SecretId {
         self.0.id
     }
@@ -236,8 +279,20 @@ impl Secret {
     pub fn locator(&self) -> Option<&str> {
         match &*self.0.origin {
             SecretOrigin::Locator(locator) => Some(locator),
-            SecretOrigin::Inline(_) => None,
+            SecretOrigin::Inline(_) | SecretOrigin::Derived { .. } => None,
         }
+    }
+
+    /// Gives the secrets a derived secret is computed from, at any depth.
+    pub fn derived_from(&self) -> Vec<Secret> {
+        let mut secrets = Vec::new();
+        if let SecretOrigin::Derived { inputs, .. } = &*self.0.origin {
+            for input in inputs {
+                secrets.push(input.clone());
+                secrets.extend(input.derived_from());
+            }
+        }
+        secrets
     }
 
     /// Gives a secret with the same name and origin, and a policy narrowed by `policy`.
@@ -258,8 +313,8 @@ impl Secret {
     ) -> core::result::Result<(), SecretError> {
         match &*self.0.origin {
             SecretOrigin::Inline(_) => Ok(()),
-            SecretOrigin::Locator(locator) => self
-                .resolve(host, locator)
+            _ => self
+                .resolve(host)
                 .await
                 .map(|_| ())
                 .map_err(SecretError::ResolveFailed),
@@ -275,14 +330,15 @@ impl Secret {
         f: impl FnOnce(&Value) -> R + Send,
     ) -> core::result::Result<R, SecretError> {
         let host = access.host.upgrade().ok_or(SecretError::WorldEnded)?;
-        let audit = |outcome| SecretAudit {
-            secret_id: self.0.id,
-            secret_name: self.0.name.clone(),
+        let audit_of = |secret: &Secret, outcome| SecretAudit {
+            secret_id: secret.0.id,
+            secret_name: secret.0.name.clone(),
             element: access.element.clone(),
             label: access.label.clone(),
             track_id: access.track_id,
             outcome,
         };
+        let audit = |outcome| audit_of(self, outcome);
 
         let element = access.element.to_string();
         let denial = if !host.revealing() {
@@ -304,26 +360,31 @@ impl Secret {
             return Err(SecretError::Denied(reason));
         }
 
-        match &*self.0.origin {
-            SecretOrigin::Inline(value) => {
-                host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
-                Ok(f(value))
-            }
-            SecretOrigin::Locator(locator) => match self.resolve(&*host, locator).await {
-                Ok(value) => {
-                    host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
-                    Ok(f(&value))
-                }
-                Err(error) => {
-                    host.secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
+        if let SecretOrigin::Inline(value) = &*self.0.origin {
+            host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
+            return Ok(f(value));
+        }
+
+        match self.resolve(&*host).await {
+            Ok(value) => {
+                // The value of a derived secret exposes the values it is computed from.
+                for input in self.derived_from() {
+                    host.secret_audit(audit_of(&input, SecretAuditOutcome::Revealed))
                         .await;
-                    Err(SecretError::ResolveFailed(error))
                 }
-            },
+                host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
+                Ok(f(&value))
+            }
+            Err(error) => {
+                host.secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
+                    .await;
+                Err(SecretError::ResolveFailed(error))
+            }
         }
     }
 
-    /// Gives the scheme of the source of this secret if that source refuses plain reveal.
+    /// Gives the scheme of the source of this secret if that source refuses plain reveal,
+    /// or of the first such source a derived secret comes from.
     fn plain_reveal_refusal(&self, host: &dyn SecretsHost) -> Option<String> {
         match &*self.0.origin {
             SecretOrigin::Inline(_) => None,
@@ -332,6 +393,9 @@ impl Secret {
                 let source = host.secret_source(scheme)?;
                 (!source.plain_reveal()).then(|| scheme.to_string())
             }
+            SecretOrigin::Derived { inputs, .. } => inputs
+                .iter()
+                .find_map(|input| input.plain_reveal_refusal(host)),
         }
     }
 
@@ -342,25 +406,40 @@ impl Secret {
             .map(|(scheme, _)| scheme)
     }
 
-    async fn resolve(
-        &self,
-        host: &dyn SecretsHost,
-        locator: &str,
-    ) -> core::result::Result<Value, String> {
-        let (scheme, path) =
-            split_locator(locator).ok_or_else(|| format!("'{locator}' is not a locator"))?;
-        let source = host
-            .secret_source(scheme)
-            .ok_or_else(|| format!("no secret source '{scheme}' for '{locator}'"))?;
-        let value = source.resolve(path, &self.0.datatype).await?;
-        if value.datatype() == self.0.datatype {
-            Ok(value)
-        } else {
-            Err(format!(
-                "source '{scheme}' did not give a {} value for '{locator}'",
-                self.0.datatype
-            ))
-        }
+    fn resolve<'a>(
+        &'a self,
+        host: &'a dyn SecretsHost,
+    ) -> Pin<Box<dyn Future<Output = core::result::Result<Value, String>> + Send + 'a>> {
+        Box::pin(async move {
+            let value = match &*self.0.origin {
+                SecretOrigin::Inline(value) => value.clone(),
+                SecretOrigin::Locator(locator) => {
+                    let (scheme, path) = split_locator(locator)
+                        .ok_or_else(|| format!("'{locator}' is not a locator"))?;
+                    let source = host
+                        .secret_source(scheme)
+                        .ok_or_else(|| format!("no secret source '{scheme}' for '{locator}'"))?;
+                    source.resolve(path, &self.0.datatype).await?
+                }
+                SecretOrigin::Derived { inputs, derivation } => {
+                    let mut values = Vec::with_capacity(inputs.len());
+                    for input in inputs {
+                        values.push(
+                            input
+                                .resolve(host)
+                                .await
+                                .map_err(|error| format!("{input}: {error}"))?,
+                        );
+                    }
+                    derivation.derive(&values)?
+                }
+            };
+            if value.datatype() == self.0.datatype {
+                Ok(value)
+            } else {
+                Err(format!("{self} did not get a {} value", self.0.datatype))
+            }
+        })
     }
 }
 
@@ -674,6 +753,117 @@ mod tests {
                 Err(SecretError::InvalidLocator(locator.to_string()))
             );
         }
+    }
+
+    #[derive(Debug)]
+    struct Concatenation;
+
+    impl SecretDerivation for Concatenation {
+        fn derive(&self, inputs: &[Value]) -> core::result::Result<Value, String> {
+            Ok(Value::String(
+                inputs
+                    .iter()
+                    .map(|value| match value {
+                        Value::String(text) => text.as_str(),
+                        _ => "",
+                    })
+                    .collect(),
+            ))
+        }
+    }
+
+    #[test]
+    fn derived_secrets_combine_input_policies() {
+        let open = Secret::new(
+            "open".to_string(),
+            DataType::String,
+            SecretPolicy {
+                transmission: SecretTransmission::Value,
+                reveal: SecretReveal::Only(vec!["a::A".to_string(), "b::B".to_string()]),
+                plain_reveal: true,
+            },
+            SecretOrigin::Locator("env:OPEN".to_string()),
+        )
+        .unwrap();
+        let closed = Secret::new(
+            "closed".to_string(),
+            DataType::String,
+            SecretPolicy {
+                transmission: SecretTransmission::Reference,
+                reveal: SecretReveal::Only(vec!["b::B".to_string()]),
+                plain_reveal: true,
+            },
+            SecretOrigin::Inline(Value::String(SENTINEL.to_string())),
+        )
+        .unwrap();
+
+        let derived = Secret::derive(
+            "derived".to_string(),
+            DataType::String,
+            vec![open.clone(), closed.clone()],
+            Arc::new(Concatenation),
+        )
+        .unwrap();
+        assert_eq!(
+            derived.policy(),
+            &SecretPolicy {
+                transmission: SecretTransmission::Reference,
+                reveal: SecretReveal::Only(vec!["b::B".to_string()]),
+                plain_reveal: true,
+            }
+        );
+        assert_eq!(derived.name(), "derived");
+        assert_eq!(derived.locator(), None);
+
+        // A policy given with a derived origin cannot be wider than the inputs ones.
+        let widened = Secret::new(
+            "widened".to_string(),
+            DataType::String,
+            SecretPolicy::unrestricted(),
+            SecretOrigin::Derived {
+                inputs: vec![closed.clone()],
+                derivation: Arc::new(Concatenation),
+            },
+        )
+        .unwrap();
+        assert_eq!(widened.policy(), closed.policy());
+
+        let nested = Secret::derive(
+            "nested".to_string(),
+            DataType::String,
+            vec![derived.clone(), open.clone()],
+            Arc::new(Concatenation),
+        )
+        .unwrap();
+        assert_eq!(
+            nested.derived_from(),
+            vec![derived, open.clone(), closed, open]
+        );
+        let debug = format!("{nested:?} {:?}", nested.0.origin);
+        assert!(!debug.contains(SENTINEL), "leaked in {}", debug);
+    }
+
+    #[test]
+    fn derived_secrets_without_inputs_get_the_default_policy() {
+        let derived = Secret::derive(
+            "constant".to_string(),
+            DataType::String,
+            Vec::new(),
+            Arc::new(Concatenation),
+        )
+        .unwrap();
+        assert_eq!(derived.policy(), &SecretPolicy::default());
+        assert_eq!(
+            Secret::derive(
+                "nested".to_string(),
+                DataType::Secret(Box::new(DataType::String)),
+                Vec::new(),
+                Arc::new(Concatenation),
+            ),
+            Err(SecretError::NestedSecret(DataType::Secret(Box::new(
+                DataType::String
+            ))))
+        );
     }
 
     #[test]
