@@ -18,10 +18,10 @@ use colored::Colorize;
 use futures::StreamExt;
 use melodium_common::{
     descriptor::{
-        Collection, Identifier, LoadingError, LoadingResult, Package, PackageRequirement,
+        Collection, Entry, Identifier, LoadingError, LoadingResult, Package, PackageRequirement,
         VersionReq,
     },
-    executive::{Level, Log, Value},
+    executive::{Level, Log, Secret, Value},
 };
 use melodium_engine::interruption::live_until_interrupted;
 pub use melodium_engine::interruption::Interruption;
@@ -331,6 +331,7 @@ pub async fn launch(
     enable_reports: bool,
     enable_status: bool,
     tags: Option<Vec<String>>,
+    check_secrets: bool,
 ) -> LogicResult<Option<Interruption>> {
     // `DebugLevel::Detailed` makes every `Output::send_many`/`send_one` clone the full
     // transmitted payload into a `DataContent::Values` debug event (see
@@ -422,7 +423,16 @@ pub async fn launch(
         let _ = program_dump_sender.send(program_dump).await;
     }
 
-    let result = engine.genesis(&identifier, parameters);
+    let secrets = if check_secrets {
+        parameters_secrets(&engine.collection(), identifier, &parameters)
+    } else {
+        Vec::new()
+    };
+
+    let mut result = engine.genesis(&identifier, parameters);
+    if result.is_success() && !secrets.is_empty() {
+        result = result.and(engine.check_secrets(secrets).await);
+    }
     let interruption;
     if result.is_failure() {
         if let Some(launched) = signal_launched {
@@ -452,6 +462,32 @@ pub async fn launch(
     }
 
     LogicResult::new_success(interruption)
+}
+
+/// Gives the secrets found in the launch parameters of `identifier`, defaults included.
+fn parameters_secrets(
+    collection: &Collection,
+    identifier: &Identifier,
+    parameters: &HashMap<String, Value>,
+) -> Vec<(String, Secret)> {
+    fn find(name: &str, value: &Value, secrets: &mut Vec<(String, Secret)>) {
+        match value {
+            Value::Secret(secret) => secrets.push((name.to_string(), secret.clone())),
+            Value::Vec(values) => values.iter().for_each(|value| find(name, value, secrets)),
+            Value::Option(Some(value)) => find(name, value, secrets),
+            _ => {}
+        }
+    }
+
+    let mut secrets = Vec::new();
+    if let Some(Entry::Treatment(treatment)) = collection.get(&identifier.into()) {
+        for (name, parameter) in treatment.parameters() {
+            if let Some(value) = parameters.get(name).or(parameter.default().as_ref()) {
+                find(name, value, &mut secrets);
+            }
+        }
+    }
+    secrets
 }
 
 /// Time given to running tracks to finish once the process is interrupted.

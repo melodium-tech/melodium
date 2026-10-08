@@ -1,3 +1,7 @@
+#[cfg(feature = "environment")]
+use super::secret_sources::EnvironmentSource;
+#[cfg(feature = "filesystem")]
+use super::secret_sources::FileSource;
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 use crate::building::HostTreatment;
 use crate::building::{
@@ -25,9 +29,11 @@ use melodium_common::descriptor::{
     Collection, Entry as CollectionEntry, Flow, Identifier, Treatment,
 };
 use melodium_common::executive::{
-    Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
-    Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput, ResultStatus,
-    TrackCreationCallback, TrackFuture, TrackId, Value, World as ExecutiveWorld,
+    check_secret_resolution, Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback,
+    Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput,
+    ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretError, SecretId, SecretSource,
+    SecretTransmission, SecretsHost, TrackCreationCallback, TrackFuture, TrackId, Value,
+    World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -42,6 +48,15 @@ pub struct World {
 
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
+    secret_sources: RwLock<HashMap<String, Arc<dyn SecretSource>>>,
+    /// Whether models can register secret sources, only while genesis asks them to.
+    secret_sources_registration: AtomicBool,
+    /// Schemes for which a source was registered more than once.
+    duplicate_secret_sources: RwLock<Vec<String>>,
+    /// Secrets known when the program is built, checked before any model is initialized.
+    launch_secrets: RwLock<HashMap<SecretId, Secret>>,
+    /// Whether elements can reveal secrets, once every model is initialized.
+    secrets_revealing: AtomicBool,
 
     builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
@@ -101,6 +116,92 @@ impl Debug for World {
 }
 
 impl World {
+    /// Secret sources available in every world: `env:` and `file:`, when Mélodium is built
+    /// with the `environment` and `filesystem` features.
+    fn builtin_secret_sources() -> HashMap<String, Arc<dyn SecretSource>> {
+        #[allow(unused_mut)]
+        let mut sources: HashMap<String, Arc<dyn SecretSource>> = HashMap::new();
+        #[cfg(feature = "environment")]
+        sources.insert("env".to_string(), Arc::new(EnvironmentSource));
+        #[cfg(feature = "filesystem")]
+        sources.insert("file".to_string(), Arc::new(FileSource));
+        sources
+    }
+
+    /// The engine side of secrets, never given to elements.
+    pub(crate) fn secrets_host(&self) -> Arc<dyn SecretsHost> {
+        self.auto_reference.upgrade().unwrap() as Arc<dyn SecretsHost>
+    }
+
+    /// Notes the secrets held by `values`, known while the program is built.
+    pub(crate) fn add_launch_secrets<'a>(&self, values: impl IntoIterator<Item = &'a Value>) {
+        fn find(value: &Value, secrets: &mut HashMap<SecretId, Secret>) {
+            match value {
+                Value::Secret(secret) => {
+                    secrets.insert(secret.id(), secret.clone());
+                }
+                Value::Vec(values) => values.iter().for_each(|value| find(value, secrets)),
+                Value::Option(Some(value)) => find(value, secrets),
+                _ => {}
+            }
+        }
+
+        let mut secrets = self.launch_secrets.write().unwrap();
+        values
+            .into_iter()
+            .for_each(|value| find(value, &mut secrets));
+    }
+
+    /// Registers the secret sources of every model, then checks that the secrets known
+    /// at launch that only this engine can resolve have a source for their scheme.
+    ///
+    /// Secrets sent by reference may be resolved by distant engines, with their own
+    /// sources, so they are not checked.
+    fn prepare_secret_sources(&self) -> Vec<LogicError> {
+        self.secret_sources_registration
+            .store(true, Ordering::Relaxed);
+        self.models
+            .read()
+            .unwrap()
+            .iter()
+            .for_each(|model| model.register_secret_sources());
+        self.secret_sources_registration
+            .store(false, Ordering::Relaxed);
+
+        let mut errors: Vec<LogicError> = self
+            .duplicate_secret_sources
+            .write()
+            .unwrap()
+            .drain(..)
+            .map(|scheme| LogicError::duplicate_secret_source(252, scheme))
+            .collect();
+
+        let sources = self.secret_sources.read().unwrap();
+        let mut secrets = self
+            .launch_secrets
+            .write()
+            .unwrap()
+            .drain()
+            .map(|(_, secret)| secret)
+            .collect::<Vec<_>>();
+        secrets.sort_by_key(|secret| secret.id());
+        for secret in secrets {
+            if secret.policy().transmission == SecretTransmission::Reference {
+                continue;
+            }
+            if let Some(scheme) = secret.scheme() {
+                if !sources.contains_key(scheme) {
+                    errors.push(LogicError::unknown_secret_scheme(
+                        253,
+                        secret.name().to_string(),
+                        scheme.to_string(),
+                    ));
+                }
+            }
+        }
+        errors
+    }
+
     pub fn new(
         collection: Arc<Collection>,
         logs_level: LogLevel,
@@ -117,6 +218,11 @@ impl World {
             auto_reference: me.clone(),
             models: RwLock::new(Vec::new()),
             sources: RwLock::new(HashMap::new()),
+            secret_sources: RwLock::new(Self::builtin_secret_sources()),
+            secret_sources_registration: AtomicBool::new(false),
+            duplicate_secret_sources: RwLock::new(Vec::new()),
+            launch_secrets: RwLock::new(HashMap::new()),
+            secrets_revealing: AtomicBool::new(false),
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main: RwLock::new(None),
@@ -517,11 +623,23 @@ impl Engine for World {
                     self.main_id.write().unwrap().replace(entry.clone());
                     self.main_gen_env.write().unwrap().replace(gen_env);
                 }
+
+                let mut secret_errors = self.prepare_secret_sources();
+                if !secret_errors.is_empty() {
+                    borrowed_errors.extend(secret_errors.clone());
+                    let mut result = LogicResult::new_failure(secret_errors.remove(0));
+                    result.errors_mut().extend(secret_errors);
+                    return result;
+                }
+
                 self.models
                     .read()
                     .unwrap()
                     .iter()
                     .for_each(|m| m.initialize());
+                // Reveals only start once every model is initialized, so that no model
+                // depends on the order models are initialized in.
+                self.secrets_revealing.store(true, Ordering::Relaxed);
                 Ok(()).into()
             } else {
                 result.and(LogicResult::new_failure(LogicError::erroneous_checks(
@@ -791,6 +909,30 @@ impl Engine for World {
         }
     }
 
+    async fn check_secrets(&self, secrets: Vec<(String, Secret)>) -> LogicResult<()> {
+        // Checking gives the value to no one, so the access is not recorded.
+        let host = self.secrets_host();
+        let mut errors = Vec::new();
+        for (parameter, secret) in secrets {
+            if let Err(error) = check_secret_resolution(&*host, &secret).await {
+                errors.push(LogicError::unresolvable_secret(
+                    251,
+                    parameter,
+                    error.to_string(),
+                ));
+            }
+        }
+
+        if errors.is_empty() {
+            LogicResult::new_success(())
+        } else {
+            let failure = errors.remove(0);
+            let mut result = LogicResult::new_failure(failure);
+            result.errors_mut().extend(errors);
+            result
+        }
+    }
+
     async fn log(&self, level: LogLevel, label: String, message: String) {
         ExecutiveWorld::log(self, level, label, message, None).await
     }
@@ -946,5 +1088,234 @@ impl ExecutiveWorld for World {
     async fn wait_no_more_tracks(&self) {
         let mut receiver = self.no_more_tracks_receiver.clone();
         let _ = receiver.next().await;
+    }
+}
+
+#[async_trait]
+impl SecretsHost for World {
+    fn secret_source(&self, scheme: &str) -> Option<Arc<dyn SecretSource>> {
+        self.secret_sources.read().unwrap().get(scheme).cloned()
+    }
+
+    fn register_secret_source(
+        &self,
+        scheme: &str,
+        source: Arc<dyn SecretSource>,
+    ) -> Result<(), SecretError> {
+        if !self.secret_sources_registration.load(Ordering::Relaxed) {
+            return Err(SecretError::RegistrationClosed);
+        }
+        match self
+            .secret_sources
+            .write()
+            .unwrap()
+            .entry(scheme.to_string())
+        {
+            Entry::Occupied(_) => {
+                self.duplicate_secret_sources
+                    .write()
+                    .unwrap()
+                    .push(scheme.to_string());
+                Err(SecretError::SourceAlreadyRegistered(scheme.to_string()))
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(source);
+                Ok(())
+            }
+        }
+    }
+
+    fn revealing(&self) -> bool {
+        self.secrets_revealing.load(Ordering::Relaxed)
+    }
+
+    async fn secret_audit(&self, audit: SecretAudit) {
+        if audit.outcome != SecretAuditOutcome::Revealed {
+            ExecutiveWorld::log(
+                self,
+                LogLevel::Error,
+                "secret".to_string(),
+                audit.to_string(),
+                audit.track_id,
+            )
+            .await;
+        }
+
+        let SecretAudit {
+            secret_id,
+            secret_name,
+            element,
+            label,
+            track_id,
+            outcome,
+        } = audit;
+        let kind = match outcome {
+            SecretAuditOutcome::Revealed => EventKind::SecretRevealed {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+            },
+            SecretAuditOutcome::Denied(reason) => EventKind::SecretDenied {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+                reason,
+            },
+            SecretAuditOutcome::ResolveFailed(error) => EventKind::SecretResolveFailed {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+                error,
+            },
+        };
+        let _ = self.debug_sender.send(Event::new(kind)).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use melodium_common::descriptor::DataType;
+    use melodium_common::executive::{SecretOrigin, SecretPolicy, SecretReveal, SecretsAccess};
+
+    #[derive(Debug)]
+    struct TestSource;
+
+    #[async_trait]
+    impl SecretSource for TestSource {
+        async fn resolve(&self, _path: &str, _datatype: &DataType) -> Result<Value, String> {
+            Ok(Value::String("resolved".to_string()))
+        }
+    }
+
+    fn world() -> Arc<World> {
+        World::new(
+            Arc::new(Collection::new()),
+            LogLevel::Info,
+            DebugLevel::None,
+        )
+    }
+
+    fn secret(origin: SecretOrigin, transmission: SecretTransmission) -> Secret {
+        Secret::new(
+            "test".to_string(),
+            DataType::String,
+            SecretPolicy {
+                transmission,
+                reveal: SecretReveal::Any,
+                plain_reveal: true,
+            },
+            origin,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn sources_are_registered_only_once_and_while_genesis_asks() {
+        let world = world();
+        let host = world.secrets_host();
+        assert_eq!(
+            host.register_secret_source("test", Arc::new(TestSource)),
+            Err(SecretError::RegistrationClosed)
+        );
+
+        world
+            .secret_sources_registration
+            .store(true, Ordering::Relaxed);
+        assert_eq!(
+            host.register_secret_source("test", Arc::new(TestSource)),
+            Ok(())
+        );
+        assert_eq!(
+            host.register_secret_source("test", Arc::new(TestSource)),
+            Err(SecretError::SourceAlreadyRegistered("test".to_string()))
+        );
+        #[cfg(feature = "environment")]
+        assert_eq!(
+            host.register_secret_source("env", Arc::new(TestSource)),
+            Err(SecretError::SourceAlreadyRegistered("env".to_string()))
+        );
+
+        let mut expected = vec!["D0252: A secret source is already registered for 'test:'"];
+        #[cfg(feature = "environment")]
+        expected.push("D0252: A secret source is already registered for 'env:'");
+        assert_eq!(
+            world
+                .prepare_secret_sources()
+                .iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>(),
+            expected
+        );
+        assert_eq!(
+            host.register_secret_source("other", Arc::new(TestSource)),
+            Err(SecretError::RegistrationClosed)
+        );
+    }
+
+    #[test]
+    fn launch_secrets_need_a_source_unless_sent_by_reference() {
+        let world = world();
+        let local = secret(
+            SecretOrigin::Locator("nosuch:local".to_string()),
+            SecretTransmission::Local,
+        );
+        let value = secret(
+            SecretOrigin::Locator("nosuch:value".to_string()),
+            SecretTransmission::Value,
+        );
+        let reference = secret(
+            SecretOrigin::Locator("nosuch:reference".to_string()),
+            SecretTransmission::Reference,
+        );
+        let inline = secret(
+            SecretOrigin::Inline(Value::String("inline".to_string())),
+            SecretTransmission::Local,
+        );
+        world.add_launch_secrets(&[
+            Value::Secret(local),
+            Value::Vec(vec![Value::Secret(value)]),
+            Value::Option(Some(Box::new(Value::Secret(reference)))),
+            Value::Secret(inline),
+        ]);
+
+        let errors = world.prepare_secret_sources();
+        assert_eq!(errors.len(), 2, "{errors:?}");
+        assert!(errors.iter().all(|error| error
+            .to_string()
+            .starts_with("D0253: Secret 'test' is located in 'nosuch:'")));
+    }
+
+    #[test]
+    fn secrets_are_revealed_once_every_model_is_initialized() {
+        let world = world();
+        let access = SecretsAccess::new(
+            &world.secrets_host(),
+            "test::Element".parse().unwrap(),
+            None,
+            None,
+        );
+        let inline = secret(
+            SecretOrigin::Inline(Value::String("inline".to_string())),
+            SecretTransmission::Local,
+        );
+
+        assert_eq!(
+            async_std::task::block_on(access.reveal(&inline, |value| value.clone())),
+            Err(SecretError::Denied(
+                "secrets are only revealed once every model is initialized".to_string()
+            ))
+        );
+        world.secrets_revealing.store(true, Ordering::Relaxed);
+        assert_eq!(
+            async_std::task::block_on(access.reveal(&inline, |value| value.clone())),
+            Ok(Value::String("inline".to_string()))
+        );
     }
 }

@@ -6,7 +6,7 @@ use async_std::channel::Sender;
 use async_trait::async_trait;
 use melodium_common::{
     descriptor::{Collection, Identifier},
-    executive::{DirectCreationCallback, Level as LogLevel, Log, Value},
+    executive::{DirectCreationCallback, Level as LogLevel, Log, Secret, Value},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -24,6 +24,9 @@ pub trait Engine: Send + Sync {
     async fn live(&self);
     async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()>;
     async fn end(&self);
+    /// Resolves the secrets given for each parameter and drops their values right away,
+    /// to check that they can be resolved.
+    async fn check_secrets(&self, secrets: Vec<(String, Secret)>) -> LogicResult<()>;
     /// Logs a message from the engine itself.
     async fn log(&self, level: LogLevel, label: String, message: String);
 }

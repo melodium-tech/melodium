@@ -1,6 +1,8 @@
 use super::Value;
 use crate::descriptor::DataType;
+use crate::executive::{SecretAudit, SecretAuditOutcome, SecretError, SecretsAccess, SecretsHost};
 use core::fmt::{Debug, Display, Formatter, Result};
+use core::str::FromStr;
 use core::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -9,7 +11,9 @@ pub type SecretId = u64;
 static NEXT_SECRET_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Where a secret may go when a program is distributed.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+///
+/// Ordered from the most to the least restrictive.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SecretTransmission {
     /// The secret never leaves the engine that holds it.
     #[default]
@@ -20,19 +24,66 @@ pub enum SecretTransmission {
     Value,
 }
 
+impl FromStr for SecretTransmission {
+    type Err = SecretError;
+
+    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+        match s {
+            "local" => Ok(SecretTransmission::Local),
+            "reference" => Ok(SecretTransmission::Reference),
+            "value" => Ok(SecretTransmission::Value),
+            other => Err(SecretError::InvalidTransmission(other.to_string())),
+        }
+    }
+}
+
+impl Display for SecretTransmission {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            SecretTransmission::Local => write!(f, "local"),
+            SecretTransmission::Reference => write!(f, "reference"),
+            SecretTransmission::Value => write!(f, "value"),
+        }
+    }
+}
+
 /// Which elements may reveal a secret.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum SecretReveal {
     #[default]
     Any,
-    /// Identifiers of the elements allowed to reveal the secret.
+    /// Identifiers of the elements allowed to reveal the secret, such as `std/secret::reveal`.
     Only(Vec<String>),
+}
+
+impl SecretReveal {
+    /// Gives the elements allowed by both.
+    pub fn narrow(&self, other: &SecretReveal) -> SecretReveal {
+        match (self, other) {
+            (SecretReveal::Any, other) => other.clone(),
+            (me, SecretReveal::Any) => me.clone(),
+            (SecretReveal::Only(mine), SecretReveal::Only(others)) => SecretReveal::Only(
+                mine.iter()
+                    .filter(|element| others.contains(element))
+                    .cloned()
+                    .collect(),
+            ),
+        }
+    }
+
+    pub fn allows(&self, element: &str) -> bool {
+        match self {
+            SecretReveal::Any => true,
+            SecretReveal::Only(elements) => elements.iter().any(|allowed| allowed == element),
+        }
+    }
 }
 
 /// Restrictions travelling with a secret.
 ///
 /// The default policy keeps the secret local, lets any element reveal it,
 /// and refuses the plain `std/secret::reveal` treatment.
+/// A policy is set when the secret is created, and can only be narrowed afterwards.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SecretPolicy {
     pub transmission: SecretTransmission,
@@ -41,9 +92,29 @@ pub struct SecretPolicy {
     pub plain_reveal: bool,
 }
 
+impl SecretPolicy {
+    /// Policy restricting nothing, neutral when narrowing.
+    pub fn unrestricted() -> Self {
+        Self {
+            transmission: SecretTransmission::Value,
+            reveal: SecretReveal::Any,
+            plain_reveal: true,
+        }
+    }
+
+    /// Gives the most restrictive combination of both policies.
+    pub fn narrow(&self, other: &SecretPolicy) -> SecretPolicy {
+        SecretPolicy {
+            transmission: self.transmission.min(other.transmission),
+            reveal: self.reveal.narrow(&other.reveal),
+            plain_reveal: self.plain_reveal && other.plain_reveal,
+        }
+    }
+}
+
 /// Where the value of a secret comes from.
 pub enum SecretOrigin {
-    /// Resolved when revealed, such as `env:NAME`, `file:PATH` or `<source>:<path>`.
+    /// Resolved when revealed, such as `env:MELODIUM_SECRET_NAME`, `file:PATH` or `<source>:<path>`.
     Locator(String),
     /// Value held in memory, such as one concealed at runtime.
     Inline(Value),
@@ -58,12 +129,26 @@ impl Debug for SecretOrigin {
     }
 }
 
+/// Splits a `<scheme>:<path>` locator, the scheme being made of ASCII letters,
+/// digits, `-` and `_`, and starting with a letter.
+fn split_locator(locator: &str) -> Option<(&str, &str)> {
+    let (scheme, path) = locator.split_once(':')?;
+    let mut chars = scheme.chars();
+    if chars.next()?.is_ascii_alphabetic()
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        Some((scheme, path))
+    } else {
+        None
+    }
+}
+
 struct SecretInner {
     id: SecretId,
     name: String,
     datatype: DataType,
     policy: SecretPolicy,
-    origin: SecretOrigin,
+    origin: Arc<SecretOrigin>,
 }
 
 /// Sensitive value, carried as `Value::Secret`.
@@ -72,6 +157,9 @@ struct SecretInner {
 /// (except for inline secrets), and is shared by reference: clones designate
 /// the same secret, and equality compares identity.
 ///
+/// The value is only reachable through `reveal`, which checks the policy,
+/// records the access, and lends the value to a closure.
+///
 /// `Debug` and `Display` only show a placeholder with the name, never the value.
 #[derive(Clone)]
 pub struct Secret(Arc<SecretInner>);
@@ -79,30 +167,52 @@ pub struct Secret(Arc<SecretInner>);
 impl Secret {
     /// Creates a secret holding a value of type `datatype`.
     ///
-    /// Returns `None` if `datatype` contains a secret, or if an inline value
-    /// does not match `datatype`.
+    /// Fails if `datatype` contains a secret, if an inline value does not match
+    /// `datatype`, or if a locator is not `<scheme>:<path>`.
     pub fn new(
         name: String,
         datatype: DataType,
         policy: SecretPolicy,
         origin: SecretOrigin,
-    ) -> Option<Self> {
+    ) -> core::result::Result<Self, SecretError> {
         if datatype.contains_secret() {
-            return None;
+            return Err(SecretError::NestedSecret(datatype));
         }
-        if let SecretOrigin::Inline(value) = &origin {
-            if value.datatype() != datatype {
-                return None;
+        match &origin {
+            SecretOrigin::Inline(value) => {
+                if value.datatype() != datatype {
+                    return Err(SecretError::MismatchingValue);
+                }
+            }
+            SecretOrigin::Locator(locator) => {
+                if split_locator(locator).is_none() {
+                    return Err(SecretError::InvalidLocator(locator.clone()));
+                }
             }
         }
 
-        Some(Self(Arc::new(SecretInner {
+        Ok(Self(Arc::new(SecretInner {
             id: NEXT_SECRET_ID.fetch_add(1, Ordering::Relaxed),
             name,
             datatype,
             policy,
-            origin,
+            origin: Arc::new(origin),
         })))
+    }
+
+    /// Creates a secret resolved from `locator`, named after it, with the default policy.
+    ///
+    /// This is what locator literals such as `"env:MELODIUM_SECRET_DB_PASSWORD"` give.
+    pub fn from_locator(
+        locator: &str,
+        datatype: DataType,
+    ) -> core::result::Result<Self, SecretError> {
+        Self::new(
+            locator.to_string(),
+            datatype,
+            SecretPolicy::default(),
+            SecretOrigin::Locator(locator.to_string()),
+        )
     }
 
     pub fn id(&self) -> SecretId {
@@ -124,9 +234,132 @@ impl Secret {
 
     /// Locator of the secret, if its value is resolved from a source.
     pub fn locator(&self) -> Option<&str> {
-        match &self.0.origin {
+        match &*self.0.origin {
             SecretOrigin::Locator(locator) => Some(locator),
             SecretOrigin::Inline(_) => None,
+        }
+    }
+
+    /// Gives a secret with the same name and origin, and a policy narrowed by `policy`.
+    pub fn narrow(&self, policy: &SecretPolicy) -> Secret {
+        Self(Arc::new(SecretInner {
+            id: NEXT_SECRET_ID.fetch_add(1, Ordering::Relaxed),
+            name: self.0.name.clone(),
+            datatype: self.0.datatype.clone(),
+            policy: self.0.policy.narrow(policy),
+            origin: Arc::clone(&self.0.origin),
+        }))
+    }
+
+    /// Resolves the value of the secret and drops it right away.
+    pub(crate) async fn check_resolution(
+        &self,
+        host: &dyn SecretsHost,
+    ) -> core::result::Result<(), SecretError> {
+        match &*self.0.origin {
+            SecretOrigin::Inline(_) => Ok(()),
+            SecretOrigin::Locator(locator) => self
+                .resolve(host, locator)
+                .await
+                .map(|_| ())
+                .map_err(SecretError::ResolveFailed),
+        }
+    }
+
+    /// Lends the value of the secret to `f`, for the element `access` belongs to,
+    /// as `SecretsAccess` does.
+    pub(crate) async fn access<R>(
+        &self,
+        access: &SecretsAccess,
+        plain: bool,
+        f: impl FnOnce(&Value) -> R + Send,
+    ) -> core::result::Result<R, SecretError> {
+        let host = access.host.upgrade().ok_or(SecretError::WorldEnded)?;
+        let audit = |outcome| SecretAudit {
+            secret_id: self.0.id,
+            secret_name: self.0.name.clone(),
+            element: access.element.clone(),
+            label: access.label.clone(),
+            track_id: access.track_id,
+            outcome,
+        };
+
+        let element = access.element.to_string();
+        let denial = if !host.revealing() {
+            Some("secrets are only revealed once every model is initialized".to_string())
+        } else if !self.0.policy.reveal.allows(&element) {
+            Some(format!("its policy does not allow {element} to reveal it"))
+        } else if plain && !self.0.policy.plain_reveal {
+            Some("its policy does not allow plain reveal".to_string())
+        } else if let Some(scheme) = plain.then(|| self.plain_reveal_refusal(&*host)).flatten() {
+            Some(format!(
+                "secrets from '{scheme}:' cannot be plainly revealed"
+            ))
+        } else {
+            None
+        };
+        if let Some(reason) = denial {
+            host.secret_audit(audit(SecretAuditOutcome::Denied(reason.clone())))
+                .await;
+            return Err(SecretError::Denied(reason));
+        }
+
+        match &*self.0.origin {
+            SecretOrigin::Inline(value) => {
+                host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
+                Ok(f(value))
+            }
+            SecretOrigin::Locator(locator) => match self.resolve(&*host, locator).await {
+                Ok(value) => {
+                    host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
+                    Ok(f(&value))
+                }
+                Err(error) => {
+                    host.secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
+                        .await;
+                    Err(SecretError::ResolveFailed(error))
+                }
+            },
+        }
+    }
+
+    /// Gives the scheme of the source of this secret if that source refuses plain reveal.
+    fn plain_reveal_refusal(&self, host: &dyn SecretsHost) -> Option<String> {
+        match &*self.0.origin {
+            SecretOrigin::Inline(_) => None,
+            SecretOrigin::Locator(locator) => {
+                let (scheme, _) = split_locator(locator)?;
+                let source = host.secret_source(scheme)?;
+                (!source.plain_reveal()).then(|| scheme.to_string())
+            }
+        }
+    }
+
+    /// Gives the scheme the secret is located in, if it has a locator.
+    pub fn scheme(&self) -> Option<&str> {
+        self.locator()
+            .and_then(split_locator)
+            .map(|(scheme, _)| scheme)
+    }
+
+    async fn resolve(
+        &self,
+        host: &dyn SecretsHost,
+        locator: &str,
+    ) -> core::result::Result<Value, String> {
+        let (scheme, path) =
+            split_locator(locator).ok_or_else(|| format!("'{locator}' is not a locator"))?;
+        let source = host
+            .secret_source(scheme)
+            .ok_or_else(|| format!("no secret source '{scheme}' for '{locator}'"))?;
+        let value = source.resolve(path, &self.0.datatype).await?;
+        if value.datatype() == self.0.datatype {
+            Ok(value)
+        } else {
+            Err(format!(
+                "source '{scheme}' did not give a {} value for '{locator}'",
+                self.0.datatype
+            ))
         }
     }
 }
@@ -347,7 +580,99 @@ mod tests {
                 SecretPolicy::default(),
                 SecretOrigin::Locator("env:NESTED".to_string()),
             )
-            .is_none());
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn narrowing_gives_the_most_restrictive_policy() {
+        let wide = SecretPolicy {
+            transmission: SecretTransmission::Value,
+            reveal: SecretReveal::Only(vec!["a::A".to_string(), "b::B".to_string()]),
+            plain_reveal: true,
+        };
+        let narrow = SecretPolicy {
+            transmission: SecretTransmission::Reference,
+            reveal: SecretReveal::Only(vec!["b::B".to_string(), "c::C".to_string()]),
+            plain_reveal: false,
+        };
+        let expected = SecretPolicy {
+            transmission: SecretTransmission::Reference,
+            reveal: SecretReveal::Only(vec!["b::B".to_string()]),
+            plain_reveal: false,
+        };
+        assert_eq!(wide.narrow(&narrow), expected);
+        assert_eq!(narrow.narrow(&wide), expected);
+        assert_eq!(wide.narrow(&SecretPolicy::unrestricted()), wide);
+        assert_eq!(
+            SecretPolicy::unrestricted().narrow(&SecretPolicy::default()),
+            SecretPolicy::default()
+        );
+        assert_eq!(
+            SecretPolicy::default().narrow(&SecretPolicy::unrestricted()),
+            SecretPolicy::default()
+        );
+
+        assert!(SecretReveal::Any.allows("a::A"));
+        assert!(expected.reveal.allows("b::B"));
+        assert!(!expected.reveal.allows("a::A"));
+    }
+
+    #[test]
+    fn transmissions_parse_from_their_names() {
+        for transmission in [
+            SecretTransmission::Local,
+            SecretTransmission::Reference,
+            SecretTransmission::Value,
+        ] {
+            assert_eq!(
+                transmission.to_string().parse::<SecretTransmission>(),
+                Ok(transmission)
+            );
+        }
+        assert_eq!(
+            "remote".parse::<SecretTransmission>(),
+            Err(SecretError::InvalidTransmission("remote".to_string()))
+        );
+    }
+
+    #[test]
+    fn narrowed_secrets_keep_name_and_origin() {
+        let secret = Secret::from_locator("file:/run/secrets/db", DataType::String).unwrap();
+        let narrowed = secret.narrow(&SecretPolicy {
+            reveal: SecretReveal::Only(vec!["sql/pool::SqlPool".to_string()]),
+            ..SecretPolicy::unrestricted()
+        });
+        assert_ne!(narrowed, secret);
+        assert_ne!(narrowed.id(), secret.id());
+        assert_eq!(narrowed.name(), secret.name());
+        assert_eq!(narrowed.locator(), Some("file:/run/secrets/db"));
+        assert_eq!(
+            narrowed.policy().reveal,
+            SecretReveal::Only(vec!["sql/pool::SqlPool".to_string()])
+        );
+        assert_eq!(narrowed.policy().transmission, SecretTransmission::Local);
+    }
+
+    #[test]
+    fn locators_need_a_scheme() {
+        for locator in [
+            "env:NAME",
+            "file:/run/secrets/db",
+            "vault:db/password#key",
+            "my-source_2:x",
+            "env:",
+        ] {
+            let secret = Secret::from_locator(locator, DataType::String).unwrap();
+            assert_eq!(secret.name(), locator);
+            assert_eq!(secret.locator(), Some(locator));
+            assert_eq!(secret.policy(), &SecretPolicy::default());
+        }
+        for locator in ["hunter2", ":path", "1env:NAME", "en v:NAME", ""] {
+            assert_eq!(
+                Secret::from_locator(locator, DataType::String),
+                Err(SecretError::InvalidLocator(locator.to_string()))
+            );
         }
     }
 
@@ -359,6 +684,6 @@ mod tests {
             SecretPolicy::default(),
             SecretOrigin::Inline(Value::U64(42)),
         )
-        .is_none());
+        .is_err());
     }
 }

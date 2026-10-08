@@ -81,6 +81,9 @@ struct Run {
     #[clap(long, default_value_t = false)]
     /// Parse the arguments according to the Mélodium syntax, applying types.
     parse_arguments: bool,
+    #[clap(long, default_value_t = false)]
+    /// Resolve the secrets given as parameters before running, to fail early if one cannot be resolved.
+    check_secrets: bool,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
@@ -329,6 +332,7 @@ pub fn main() {
             api_report_disable_logs: false,
             api_report_disable_status: false,
             parse_arguments: false,
+            check_secrets: false,
         };
 
         run(args);
@@ -420,6 +424,7 @@ fn run(args: Run) {
             args.api_report && !args.api_report_disable_logs,
             args.api_report && !args.api_report_disable_status,
             entry_name.map(|name| vec![format!("entrypoint={name}")]),
+            args.check_secrets,
         ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
@@ -428,6 +433,9 @@ fn run(args: Run) {
             .errors()
             .iter()
             .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+        if launch.is_failure() {
+            std::process::exit(1);
+        }
         if let Some(Some(interruption)) = launch.success() {
             std::process::exit(interruption.exit_code());
         }
@@ -1075,7 +1083,14 @@ fn build_cmd(displayed_name: Option<String>, treatment: &Arc<dyn Treatment>) -> 
             .action(ArgAction::Set)
             .help(param.described_type().to_string());
         if let Some(default) = param.default() {
-            arg = arg.default_value(default.to_string());
+            // A secret default is shown as its locator, which is what would be given instead.
+            arg = arg.default_value(match default {
+                Value::Secret(secret) => secret
+                    .locator()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| secret.to_string()),
+                default => default.to_string(),
+            });
         }
         cmd = cmd.arg(arg);
     }
@@ -1378,6 +1393,21 @@ fn parse_args(
                                     Value::Option(None)
                                 } else {
                                     Value::Option(Some(Box::new(naive_parse(name, dt, value))))
+                                }
+                            }
+                            melodium_common::descriptor::DataType::Secret(inner) => {
+                                match melodium_common::executive::Secret::from_locator(
+                                    value,
+                                    inner.as_ref().clone(),
+                                ) {
+                                    Ok(secret) => Value::Secret(secret),
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
                                 }
                             }
                             _ => {
