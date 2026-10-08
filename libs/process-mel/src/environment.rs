@@ -1,6 +1,6 @@
 use melodium_core::common::{
     descriptor::DataType,
-    executive::{Secret as ExecutiveSecret, SecretAccess},
+    executive::{Secret as ExecutiveSecret, SecretsAccess},
 };
 use melodium_core::*;
 use melodium_macro::{mel_data, mel_function, mel_treatment};
@@ -53,7 +53,7 @@ impl RevealedSecrets {
     /// Reveals the secrets of `environment` on behalf of `access`.
     pub async fn reveal(
         environment: Option<&Environment>,
-        access: &SecretAccess,
+        access: &SecretsAccess,
     ) -> Result<Self, String> {
         let mut revealed = Self::default();
         let Some(environment) = environment else {
@@ -63,16 +63,16 @@ impl RevealedSecrets {
             let Some(secret) = secret else {
                 return Err(format!("secret variable '{name}' is not a Secret<string>"));
             };
-            let value = secret
-                .reveal_str(access, |value| Zeroizing::new(value.to_string()))
+            let value = access
+                .reveal_str(secret, |value| Zeroizing::new(value.to_string()))
                 .await
                 .map_err(|error| format!("secret variable '{name}': {error}"))?;
             revealed.variables.push((name.clone(), value));
         }
         if let Some(secret) = &environment.secret_stdin {
             revealed.stdin = Some(
-                secret
-                    .reveal_str(access, |value| Zeroizing::new(value.to_string()))
+                access
+                    .reveal_str(secret, |value| Zeroizing::new(value.to_string()))
                     .await
                     .map_err(|error| format!("secret input: {error}"))?,
             );

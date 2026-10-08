@@ -3,11 +3,12 @@
 
 ## [v0.11.0] (unreleased)
 
-- Adding the `Secret<T>` type (`Value::Secret`, `DataType::Secret`): sensitive values holding where they come from (a locator, a derivation or an inline value), revealed only through `Secret::reveal*` on behalf of a `SecretAccess`, following their policy (transmission, reveal, plain reveal) (#133, #134, #135).
+- Adding the `Secret<T>` type (`Value::Secret`, `DataType::Secret`): sensitive values holding where they come from (a locator, a derivation or an inline value), revealed only through the `SecretsAccess` the engine gives to elements declaring it, following their policy (transmission, reveal, plain reveal) (#133, #134, #135).
 - Adding the `SecretSource` (that can refuse plain reveal) and `SecretDerivation` traits, and the secret audit (`SecretAudit`) (#134, #135).
-- Adding `Secret::transmit` for secrets sent to distant engines, and `SecretWire` for secrets held inside data values (#139, #136).
+- Adding `SecretsAccess::transmit` for secrets sent to distant engines, and `SecretWire` for secrets held inside data values (#139, #136).
 - Adding the `wipe` module: plaintext held from secrets is overwritten once not needed, and before the process exits (#140).
-- Breaking: `Treatment::prepare` takes a `SecretAccess`, and the `World` trait has `secret_source`, `add_secret_source`, `secret_audit`, `add_masked_value` and `mask` (#134, #137).
+- Adding the `secrets_access` declaration to treatment and model descriptors, and `SecretsHost`, the engine side of secrets, never given to elements (#134).
+- Breaking: `Treatment::prepare` takes a weak reference to the world and the `SecretsAccess` of the treatment, and the `Model` trait has `set_secrets_access` and `register_secret_sources` (#134).
 
 ## [v0.10.4] (2026-09-24)
 

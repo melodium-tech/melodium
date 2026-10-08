@@ -29,6 +29,7 @@ use zeroize::Zeroizing;
     param location string "api"
     param api_url Option<string> none
     param api_token Option<Secret<string>> none
+    secrets_access
     initialize initialize
 )]
 pub struct DistantEngine {
@@ -121,16 +122,17 @@ impl DistantEngine {
     async fn authorization(&self) -> Result<Option<Zeroizing<String>>, String> {
         let api_token = self.api_token.read().unwrap().clone();
         match api_token {
-            Some(api_token) => api_token
-                .reveal_str(
-                    &self.model.upgrade().unwrap().secret_access(),
-                    |api_token| {
-                        let mut value = String::with_capacity(7 + api_token.len());
-                        value.push_str("Bearer ");
-                        value.push_str(api_token);
-                        Zeroizing::new(value)
-                    },
-                )
+            Some(api_token) => self
+                .model
+                .upgrade()
+                .unwrap()
+                .secrets_access()
+                .reveal_str(&api_token, |api_token| {
+                    let mut value = String::with_capacity(7 + api_token.len());
+                    value.push_str("Bearer ");
+                    value.push_str(api_token);
+                    Zeroizing::new(value)
+                })
                 .await
                 .map(Some)
                 .map_err(|error| format!("API token: {error}")),
@@ -550,6 +552,7 @@ impl DistantEngine {
     output access Block<Access>
     output failed Block<void>
     output errors Stream<string>
+    secrets_access
 )]
 pub async fn distant(
     max_duration: u32,
@@ -575,8 +578,8 @@ pub async fn distant(
     {
         pull_secrets.push(match secret {
             Some(secret) => {
-                match secret
-                    .reveal_str(&secret_access, |value| Zeroizing::new(value.to_string()))
+                match secrets_access
+                    .reveal_str(secret, |value| Zeroizing::new(value.to_string()))
                     .await
                 {
                     Ok(value) => Some(value),

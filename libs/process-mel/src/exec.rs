@@ -112,6 +112,7 @@ pub struct Executor {
     output terminated Block<void>
     output error Block<string>
     output exit Block<Option<i32>>
+    secrets_access
 )]
 pub async fn exec_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
@@ -119,7 +120,7 @@ pub async fn exec_one_terminable() {
         command.recv_one_as::<Arc<Command>>().await,
         environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
-        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secret_access).await {
+        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secrets_access).await {
             Ok(secrets) => secrets,
             Err(message) => {
                 let _ = failed.send_one_as(()).await;
@@ -211,13 +212,14 @@ pub async fn exec_one_terminable() {
     output terminated Block<void>
     output error Block<string>
     output exit Stream<Option<i32>>
+    secrets_access
 )]
 pub async fn exec_terminable() {
     if let (Ok(executor), Ok(environment)) = (
         executor.recv_one_as::<Arc<Executor>>().await,
         environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
-        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secret_access).await {
+        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secrets_access).await {
             Ok(secrets) => secrets,
             Err(message) => {
                 let _ = failed.send_one_as(()).await;
@@ -322,6 +324,7 @@ pub async fn exec_terminable() {
     output terminated Block<void>
     output error Block<string>
     output exit Block<Option<i32>>
+    secrets_access
 )]
 pub async fn spawn_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
@@ -329,7 +332,7 @@ pub async fn spawn_one_terminable() {
         command.recv_one_as::<Arc<Command>>().await,
         environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
-        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secret_access).await {
+        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secrets_access).await {
             Ok(secrets) => secrets,
             Err(message) => {
                 let _ = failed.send_one_as(()).await;
@@ -458,13 +461,14 @@ pub async fn spawn_one_terminable() {
     output terminated Block<void>
     output error Block<string>
     output exit Stream<Option<i32>>
+    secrets_access
 )]
 pub async fn spawn_terminable() {
     if let (Ok(executor), Ok(environment)) = (
         executor.recv_one_as::<Arc<Executor>>().await,
         environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
-        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secret_access).await {
+        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secrets_access).await {
             Ok(secrets) => secrets,
             Err(message) => {
                 let _ = failed.send_one_as(()).await;

@@ -3,7 +3,8 @@
 
 ## [v0.11.0] (unreleased)
 
-- Supporting `Secret<T>` in elements: `secret_access` in treatments, `secret_access()` in models, and secret fields in contexts (#134, #136).
+- Supporting `Secret<T>` in elements: elements declaring `secrets_access` get it, as `secrets_access` in treatments and `secrets_access()` in models, models register secret sources in their `secret_sources` function, and contexts can have secret fields (#134, #136).
+- Giving treatment bodies the `world` they run in, as a weak reference; `world`, `track_id` and `secrets_access` are reserved names in treatments (#134).
 - Allowing `none` defaults for `Option<T>` parameters of Rust-declared elements (#123).
 - Breaking: `invoke_source` is declared in `#[mel_model]` with `invoke_source method_name` by the models needing it, like `initialize` and `shutdown`; other models no longer define it, and a model relying on it without declaring it is no longer called (#132).
 

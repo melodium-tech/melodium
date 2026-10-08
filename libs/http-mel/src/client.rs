@@ -1,7 +1,7 @@
 use crate::method::*;
 use crate::status::*;
 use async_ringbuf::AsyncHeapRb;
-use melodium_core::{common::executive::SecretAccess, *};
+use melodium_core::{common::executive::SecretsAccess, *};
 use melodium_macro::{check, mel_model, mel_treatment};
 use std::sync::RwLock;
 use std::sync::{Arc, Weak};
@@ -85,7 +85,7 @@ impl HttpClient {
     async fn add_secret_headers(
         &self,
         conn: &mut Conn,
-        access: &SecretAccess,
+        access: &SecretsAccess,
     ) -> Result<(), String> {
         let model = self.model.upgrade().unwrap();
         let Some(secret_headers) = model.get_secret_headers() else {
@@ -104,8 +104,8 @@ impl HttpClient {
                 },
                 _ => return Err(format!("secret header '{name}' is not a Secret<string>")),
             };
-            secret
-                .reveal_str(access, |content| {
+            access
+                .reveal_str(secret, |content| {
                     let header_content = HeaderValue::from(content.to_string());
                     if header_content.is_valid() {
                         conn.request_headers_mut()
@@ -150,6 +150,7 @@ impl HttpClient {
     output finished Block<void>
     output error Block<string>
     output status Block<HttpStatus>
+    secrets_access
 )]
 pub async fn request(method: HttpMethod) {
     if let (Ok(url), Ok(req_headers)) = (
@@ -177,7 +178,7 @@ pub async fn request(method: HttpMethod) {
                         }
                     }
                     http_client
-                        .add_secret_headers(&mut conn, &secret_access)
+                        .add_secret_headers(&mut conn, &secrets_access)
                         .await?;
                     conn.await.map_err(|err| err.to_string())
                 }
@@ -287,6 +288,7 @@ pub async fn request(method: HttpMethod) {
     output finished Block<void>
     output error Block<string>
     output status Block<HttpStatus>
+    secrets_access
 )]
 pub async fn request_with_body(method: HttpMethod) {
     if let (Ok(url), Ok(req_headers)) = (
@@ -319,7 +321,7 @@ pub async fn request_with_body(method: HttpMethod) {
                             }
                         }
                         http_client
-                            .add_secret_headers(&mut conn, &secret_access)
+                            .add_secret_headers(&mut conn, &secrets_access)
                             .await?;
                         conn.with_body(Body::new_streaming(in_cons, None))
                             .await

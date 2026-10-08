@@ -191,6 +191,7 @@ fn get_row_as_map(row: &AnyRow) -> Map {
     source closed () () (
         trigger Block<void>
     )
+    secrets_access
     initialize initialize
     shutdown shutdown
 )]
@@ -232,8 +233,9 @@ impl SqlPool {
                 );
             let pool = match model.get_password() {
                 // The password only lives in the URL given to the pool options.
-                Some(password) => password
-                    .reveal_str(&model.secret_access(), |password| {
+                Some(password) => model
+                    .secrets_access()
+                    .reveal_str(&password, |password| {
                         let mut url = with_password(&model.get_url(), password)?;
                         let pool = options
                             .connect_lazy(&url)
