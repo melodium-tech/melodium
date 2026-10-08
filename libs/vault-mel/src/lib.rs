@@ -13,7 +13,8 @@ mod client;
 use async_trait::async_trait;
 use melodium_core::common::descriptor::DataType;
 use melodium_core::common::executive::{
-    Secret as ExecutiveSecret, SecretOrigin, SecretPolicy, SecretSource, SecretsAccess,
+    Secret as ExecutiveSecret, SecretOrigin, SecretPolicy, SecretReveal, SecretSource,
+    SecretTransmission, SecretsAccess,
 };
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_package, mel_treatment};
@@ -158,26 +159,40 @@ impl SecretSource for VaultSource {
 /// Gives a secret stored at `path` in vault.
 ///
 /// `path` is `<path>#<field>`, such as `kv/data/app/db#password`, read from the source
-/// of `vault`. The secret is named `name` and gets the default policy.
+/// of `vault`, for paths only known at runtime. The secret is named `name`, its policy is
+/// given by `transmission` (`local`, `reference` or `value`) and `plain_reveal` (whether
+/// the plain `std/secret::reveal` treatment may reveal it), as `std/secret::|locate` takes.
 /// It is read once to check it exists, and resolved again when revealed.
 ///
-/// If the secret cannot be read, `failed` is emitted and `error` contains the reason.
+/// If the secret cannot be read, or the transmission is not valid, `failed` is emitted
+/// and `error` contains the reason.
 #[mel_treatment(
     model vault Vault
     input path Block<string>
     output secret Block<Secret<string>>
     output failed Block<void>
     output error Block<string>
+    default transmission "local"
+    default plain_reveal false
 )]
-pub async fn get(name: string) {
+pub async fn get(name: string, transmission: string, plain_reveal: bool) {
     let model = VaultModel::into(vault);
     if let Ok(path) = path.recv_one_as::<String>().await {
-        let checked = match ExecutiveSecret::new(
-            name,
-            DataType::String,
-            SecretPolicy::default(),
-            SecretOrigin::Locator(format!("{}:{path}", model.get_source())),
-        ) {
+        let created = transmission
+            .parse::<SecretTransmission>()
+            .and_then(|transmission| {
+                ExecutiveSecret::new(
+                    name,
+                    DataType::String,
+                    SecretPolicy {
+                        transmission,
+                        reveal: SecretReveal::Any,
+                        plain_reveal,
+                    },
+                    SecretOrigin::Locator(format!("{}:{path}", model.get_source())),
+                )
+            });
+        let checked = match created {
             Ok(created) => model
                 .secrets_access()
                 .check_resolution(&created)

@@ -4,7 +4,7 @@
 
 use async_std::channel::unbounded;
 use melodium::{load_raw, LoadingConfig};
-use melodium_common::executive::{Level, Log, Value};
+use melodium_common::executive::{Level, Log, SecretPolicy, SecretTransmission, Value};
 use melodium_engine::debug::{DataContent, DebugLevel, Event, EventKind};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -152,6 +152,17 @@ treatment main(const address: string)
     getMissing: get[vault=vault](name="missing")
     logMissing: logError(label="missing")
     trigger.end -> emitMissing.trigger,emit -> getMissing.path,error -> logMissing.message
+
+    // Read at runtime, and plainly revealed as its policy allows.
+    emitShown: emit<string>(value="kv/data/app/db#user")
+    getShown: get[vault=vault](name="db_user_shown", transmission="value", plain_reveal=true)
+    revealShown: reveal<string>()
+    trigger.end -> emitShown.trigger,emit -> getShown.path,secret -> revealShown.secret
+
+    emitInvalid: emit<string>(value="kv/data/app/db#user")
+    getInvalid: get[vault=vault](name="invalid", transmission="everywhere")
+    logInvalid: logError(label="invalid")
+    trigger.end -> emitInvalid.trigger,emit -> getInvalid.path,error -> logInvalid.message
 }
 "#;
 
@@ -236,14 +247,38 @@ fn vault_secrets_are_read_with_jwt_authentication() {
         .unwrap_or_else(|| panic!("no password log in {:?}", logs));
     assert_eq!(logged.message, "<secret \"db_password\">");
 
-    // `get` gives a secret located in vault, after checking it exists.
+    // `get` gives a secret located in vault, after checking it exists,
+    // with the default policy unless given another one.
     match sent(&events, "getUser", "secret").as_slice() {
         [Value::Secret(secret)] => {
             assert_eq!(secret.name(), "db_user");
             assert_eq!(secret.locator(), Some("vault:kv/data/app/db#user"));
+            assert_eq!(secret.policy(), &SecretPolicy::default());
         }
         other => panic!("one secret expected, got {:?}", other),
     }
+    match sent(&events, "getShown", "secret").as_slice() {
+        [Value::Secret(secret)] => {
+            assert_eq!(secret.policy().transmission, SecretTransmission::Value);
+            assert!(secret.policy().plain_reveal);
+        }
+        other => panic!("one secret expected, got {:?}", other),
+    }
+    assert_eq!(
+        sent(&events, "revealShown", "value"),
+        vec![Value::String("app".to_string())]
+    );
+    let invalid = logs
+        .iter()
+        .find(|log| log.label == "invalid")
+        .expect("invalid transmission error");
+    assert!(
+        invalid
+            .message
+            .contains("'everywhere' is not a secret transmission"),
+        "{}",
+        invalid.message
+    );
     let missing = logs
         .iter()
         .find(|log| log.label == "missing")
@@ -338,12 +373,15 @@ fn refused_tokens_are_renewed_once() {
             "GET /v1/kv/data/app/db".to_string(),
         ]
     );
-    // Both `get` run at the same time, without cache.
+    // The `get` treatments run at the same time, without cache: each reads its secret
+    // to check it exists, and the revealed one is read again when revealed.
     let mut gets = requests[4..].to_vec();
     gets.sort();
     assert_eq!(
         gets,
         vec![
+            "GET /v1/kv/data/app/db".to_string(),
+            "GET /v1/kv/data/app/db".to_string(),
             "GET /v1/kv/data/app/db".to_string(),
             "GET /v1/kv/data/app/missing".to_string(),
         ]
