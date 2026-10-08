@@ -11,6 +11,8 @@ use std_mel::data::map::*;
 use std_mel::data::string_map::*;
 use zeroize::Zeroizing;
 
+pub mod block;
+
 static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 
 pub fn environment_variable_regex() -> &'static Regex {
@@ -171,7 +173,17 @@ pub fn environment(
 /// an entry holds no `Secret<string>`. Variables given here replace those of the same name.
 #[mel_function]
 pub fn with_secret_variables(mut environment: Environment, secret_variables: Map) -> Environment {
-    for (name, value) in secret_variables.map {
+    add_secret_variables(&mut environment, secret_variables.map);
+    environment
+}
+
+/// Adds `secret_variables` to `environment`, as `|with_secret_variables` and
+/// `block::withSecretVariables` do.
+pub(crate) fn add_secret_variables(
+    environment: &mut Environment,
+    secret_variables: std::collections::HashMap<String, Value>,
+) {
+    for (name, value) in secret_variables {
         let secret = match value {
             Value::Option(Some(value)) => match *value {
                 Value::Secret(secret) if secret.datatype() == &DataType::String => Some(secret),
@@ -182,7 +194,6 @@ pub fn with_secret_variables(mut environment: Environment, secret_variables: Map
         };
         environment.secret_variables.insert(name, secret);
     }
-    environment
 }
 
 /// Write `secret` to the standard input of commands run with `environment`, before anything else.

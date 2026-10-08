@@ -52,6 +52,57 @@ treatment main(const directory: string, const plain_entry: bool = false)
 }
 "#;
 
+const RUNTIME_SCRIPT: &str = r#"#!/usr/bin/env melodium
+#! name = process_runtime_secrets
+#! version = 0.1.0
+#! require = std:0.11.0 process:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logError
+use std/flow::emit
+use std/data/map/block::entry
+use std/data/string_map::|map
+use std/ops/option/block::wrap
+use std/ops/option/block::unwrap
+use std/secret::|from_environment
+use process/command::Command
+use process/command::|command
+use process/environment::Environment
+use process/environment::|environment
+use process/environment/block::withSecretVariables
+use process/environment/block::withSecretStdin
+use process/exec::Executor
+use process/exec::execOne
+use process/local::|local_executor
+
+// Same as `process_secrets`, with secrets received at runtime, as `vault::get` gives them.
+treatment main(const directory: string)
+{
+    startup()
+
+    emitToken: emit<Secret<string>>(value=|from_environment("MELODIUM_SECRET_PROCESS_TEST_TOKEN", "token"))
+    emitInput: emit<Secret<string>>(value=|from_environment("MELODIUM_SECRET_PROCESS_TEST_INPUT", "input"))
+    tokenEntry: entry<Secret<string>>(key="TOKEN")
+    emitBase: emit<Environment>(value=|environment(|map([]), _, false, false))
+    withSecretVariables()
+    withSecretStdin()
+    wrapEnvironment: wrap<Environment>()
+
+    startup.trigger -> emitToken.trigger,emit -> tokenEntry.value,map -> withSecretVariables.secret_variables
+    startup.trigger -> emitBase.trigger,emit -> withSecretVariables.base,environment -> withSecretStdin.base,environment -> wrapEnvironment.value,option -> execOne.environment
+    startup.trigger -> emitInput.trigger,emit -> withSecretStdin.secret
+
+    emitExecutor: emit<Option<Executor>>(value=|local_executor())
+    unwrapExecutor: unwrap<Executor>()
+    emitCommand: emit<Command>(value=|command("sh", ["-c", "printf '%s' \"$TOKEN\" > \"$0/variable\"; cat > \"$0/input\"", directory]))
+    execOne()
+    startup.trigger -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> execOne.executor
+    startup.trigger -> emitCommand.trigger,emit -> execOne.command
+    logRunError: logError(label="exec")
+    execOne.error -> logRunError.message
+}
+"#;
+
 fn directory(name: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
         "melodium_process_secrets_{}_{name}",
@@ -63,8 +114,12 @@ fn directory(name: &str) -> PathBuf {
 }
 
 fn run(directory: &PathBuf, args: &[&str], envs: &[(&str, &str)]) -> Output {
+    run_script(directory, SCRIPT, args, envs)
+}
+
+fn run_script(directory: &PathBuf, content: &str, args: &[&str], envs: &[(&str, &str)]) -> Output {
     let script = directory.join("process_secrets.mel");
-    std::fs::write(&script, SCRIPT).unwrap();
+    std::fs::write(&script, content).unwrap();
     let debug = directory.join("debug.json");
     let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
         .args(["run", "--debug-level", "detailed", "--debug"])
@@ -158,4 +213,33 @@ fn plain_values_are_refused_as_secret_variables() {
         stdout
     );
     assert!(!directory.join("variable").exists());
+}
+
+#[test]
+fn runtime_secrets_reach_the_command() {
+    let directory = directory("runtime");
+    let token = "runtime t0ken $HOME";
+    run_script(
+        &directory,
+        RUNTIME_SCRIPT,
+        &[],
+        &[
+            ("MELODIUM_SECRET_PROCESS_TEST_TOKEN", token),
+            (
+                "MELODIUM_SECRET_PROCESS_TEST_INPUT",
+                "runtime-input-sentinel",
+            ),
+        ],
+    );
+    assert_eq!(
+        std::fs::read_to_string(directory.join("variable")).unwrap(),
+        token
+    );
+    assert_eq!(
+        std::fs::read_to_string(directory.join("input")).unwrap(),
+        "runtime-input-sentinel"
+    );
+    let debug = std::fs::read_to_string(directory.join("debug.json")).unwrap();
+    assert!(!debug.contains("t0ken"), "{}", debug);
+    assert!(!debug.contains("runtime-input-sentinel"), "{}", debug);
 }
