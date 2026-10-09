@@ -33,8 +33,8 @@ use melodium_common::executive::{
     check_secret_resolution, register_wipe, Context as ExecutiveContext, ContinuousFuture,
     DirectCreationCallback, Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId,
     Output as ExecutiveOutput, ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretError,
-    SecretId, SecretSource, SecretTransmission, SecretsHost, TrackCreationCallback, TrackFuture,
-    TrackId, Value, Wipe, World as ExecutiveWorld,
+    SecretId, SecretSource, SecretTransmission, SecretsAccess, SecretsHost, TrackCreationCallback,
+    TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -960,6 +960,15 @@ impl Engine for World {
     async fn log(&self, level: LogLevel, label: String, message: String) {
         ExecutiveWorld::log(self, level, label, message, None).await
     }
+
+    fn secrets_access(
+        &self,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<TrackId>,
+    ) -> SecretsAccess {
+        SecretsAccess::new(&self.secrets_host(), element, label, track_id)
+    }
 }
 
 #[async_trait]
@@ -1161,7 +1170,11 @@ impl SecretsHost for World {
     }
 
     async fn secret_audit(&self, audit: SecretAudit) {
-        if audit.outcome != SecretAuditOutcome::Revealed {
+        // Reveals and transmissions are only recorded as debug events.
+        if matches!(
+            audit.outcome,
+            SecretAuditOutcome::Denied(_) | SecretAuditOutcome::ResolveFailed(_)
+        ) {
             ExecutiveWorld::log(
                 self,
                 LogLevel::Error,
@@ -1188,6 +1201,14 @@ impl SecretsHost for World {
                 label,
                 track_id,
             },
+            SecretAuditOutcome::Transmitted(transmission) => EventKind::SecretTransmitted {
+                secret_id,
+                secret_name,
+                element,
+                label,
+                track_id,
+                transmission: transmission.to_string(),
+            },
             SecretAuditOutcome::Denied(reason) => EventKind::SecretDenied {
                 secret_id,
                 secret_name,
@@ -1213,7 +1234,7 @@ impl SecretsHost for World {
 mod tests {
     use super::*;
     use melodium_common::descriptor::DataType;
-    use melodium_common::executive::{SecretOrigin, SecretPolicy, SecretReveal, SecretsAccess};
+    use melodium_common::executive::{SecretOrigin, SecretPolicy, SecretReveal};
 
     #[derive(Debug)]
     struct TestSource;

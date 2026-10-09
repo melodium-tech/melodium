@@ -115,6 +115,14 @@ pub enum EventKind {
         label: Option<String>,
         track_id: Option<TrackId>,
     },
+    SecretTransmitted {
+        secret_id: SecretId,
+        secret_name: String,
+        element: Identifier,
+        label: Option<String>,
+        track_id: Option<TrackId>,
+        transmission: String,
+    },
     SecretDenied {
         secret_id: SecretId,
         secret_name: String,

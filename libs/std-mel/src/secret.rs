@@ -18,12 +18,18 @@
 //! The functions derive and narrow secrets given as parameters; the treatments of
 //! `std/secret/block` do the same for secrets received at runtime.
 //!
+//! When a program is distributed, secrets given to a distant engine follow their
+//! transmission: `local` ones are refused, `reference` ones send only their locator,
+//! resolved by the distant engine with its own sources (derived secrets have none),
+//! and `value` ones send their value, over TLS only. The distant engine keeps the policy.
+//!
 //! Plaintext held by Mélodium (values of concealed secrets, revealed values, values masked
 //! in logs, vault caches) is overwritten once not needed anymore, and before the process
 //! exits, including on SIGINT, SIGTERM and SIGHUP. This is best effort, and does not cover:
 //! - a process stopped by SIGKILL, the out-of-memory killer or a power loss;
 //! - memory written to swap or to core dumps;
-//! - copies made by libraries, child processes and remote services given the value,
+//! - copies made by libraries, child processes and remote services given the value;
+//! - buffers of messages carrying a secret sent by value to a distant engine,
 //! nor values made plain by `reveal`, which become ordinary data.
 
 use crate::data::map::*;

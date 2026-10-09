@@ -21,6 +21,7 @@ members = [
     "protocol_timeout_survives_jitter",
     "regex",
     "secret_access_cli",
+    "secret_distribution",
     "secret_masking",
     "sql",
     "stop_before_data_drained",

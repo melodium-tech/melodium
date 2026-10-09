@@ -7,7 +7,9 @@ use super::Data;
 use crate::descriptor::DataType;
 pub use data::GetData;
 pub use packed::PackedArray;
-pub use secret::{Secret, SecretId, SecretOrigin, SecretPolicy, SecretReveal, SecretTransmission};
+pub use secret::{
+    Secret, SecretId, SecretOrigin, SecretPolicy, SecretReveal, SecretTransfer, SecretTransmission,
+};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]

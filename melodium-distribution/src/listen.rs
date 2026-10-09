@@ -178,6 +178,7 @@ pub async fn launch_listen(
 
     launch_listen_stream(
         stream,
+        true,
         version,
         expect_key,
         emit_key,
@@ -291,6 +292,7 @@ pub async fn launch_listen_unsecure(
 
     launch_listen_stream(
         stream,
+        false,
         version,
         expect_key,
         emit_key,
@@ -311,6 +313,7 @@ pub async fn launch_listen_unsecure(
 /// (protocol/engine teardown complete), before this function returns.
 async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     stream: S,
+    encrypted: bool,
     version: &Version,
     expect_key: Uuid,
     emit_key: Uuid,
@@ -377,7 +380,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         parameters: lal
                             .parameters
                             .iter()
-                            .map(|(name, value)| (name.clone(), value.clone()))
+                            .map(|(name, value)| (name.clone(), value.without_secret_values()))
                             .collect(),
                     })
                     .await;
@@ -469,11 +472,28 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     }
 
-    // Give it to engine
-    let parameters = parameters
-        .into_iter()
-        .map(|(name, val)| (name, val.to_value(&collection).unwrap()))
-        .collect();
+    // Give it to engine, secrets keeping the policy they were sent with
+    let mut values = HashMap::with_capacity(parameters.len());
+    for (name, value) in parameters {
+        match value.from_wire(&collection) {
+            Some(value) => {
+                values.insert(name, value);
+            }
+            None => {
+                let message = format!("Parameter '{name}' could not be received");
+                let _ = protocol
+                    .send_message(Message::LaunchStatus(messages::LaunchStatus::Failure(
+                        message.clone(),
+                    )))
+                    .await;
+                if let Some(launched) = launched {
+                    launched(Err(message)).await;
+                }
+                return false;
+            }
+        }
+    }
+    let entrypoint: Identifier = entrypoint.try_into().unwrap();
     // See the matching comment in melodium/src/lib.rs::launch: `DebugLevel::Detailed`
     // clones every transmitted payload into debug events, which is unsafe for
     // byte-heavy streams. This side already bounds its debug channel
@@ -504,10 +524,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     }
     let watchdog_debug_receiver = debug_receiver.clone();
 
-    if let Err(fail) = engine
-        .genesis(&entrypoint.try_into().unwrap(), parameters)
-        .as_result()
-    {
+    if let Err(fail) = engine.genesis(&entrypoint, values).as_result() {
         protocol
             .send_message(Message::LaunchStatus(messages::LaunchStatus::Failure(
                 fail.to_string(),
@@ -574,13 +591,18 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let tracks_entry_outputs = Arc::new(AsyncRwLock::new(HashMap::new()));
         let tracks_entry_inputs = Arc::new(AsyncRwLock::new(HashMap::new()));
 
+        // Secrets sent back follow their transmission policy, on behalf of the entrypoint.
+        let secrets_access = engine.secrets_access(entrypoint.clone(), None, None);
+
         let manage_message = {
             let protocol = Arc::clone(&protocol);
+            let secrets_access = secrets_access.clone();
             let engine = Arc::clone(&engine);
             let collection = Arc::clone(&collection);
             let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
             move |message| {
                 let protocol = Arc::clone(&protocol);
+                let secrets_access = secrets_access.clone();
                 let engine = Arc::clone(&engine);
                 let collection = Arc::clone(&collection);
                 let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
@@ -593,6 +615,8 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                             let tracks_entry_inputs = Arc::clone(&tracks_entry_inputs);
                             let track_id = instanciate.id;
 
+                            // Weak, as the engine keeps the futures made by this callback.
+                            let weak_engine = Arc::downgrade(&engine);
                             if let Err(failure) = engine
                                 .instanciate(Some(Box::new({
                                     let protocol = Arc::clone(&protocol);
@@ -601,6 +625,8 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                         let mut inputs_storage = HashMap::new();
                                         for (name, input) in entry_inputs {
                                             let protocol = Arc::clone(&protocol);
+                                            let secrets_access = secrets_access.clone();
+                                            let weak_engine = weak_engine.clone();
                                             let input = Arc::new(input);
                                             inputs_storage.insert(name.clone(), Arc::clone(&input));
                                             let listener = async move {
@@ -611,7 +637,30 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                                     // type, instead of exploding it into
                                                     // one `RawValue` per tick first — see
                                                     // `melodium_share::TransmissionValue`.
-                                                    let data: WireTransmissionValue = data.into();
+                                                    let data = match WireTransmissionValue::to_wire(
+                                                        data,
+                                                        &secrets_access,
+                                                        encrypted,
+                                                    )
+                                                    .await
+                                                    {
+                                                        Ok(data) => data,
+                                                        Err(error) => {
+                                                            if let Some(engine) =
+                                                                weak_engine.upgrade()
+                                                            {
+                                                                engine
+                                                                    .log(
+                                                                        Level::Error,
+                                                                        "distribution".to_string(),
+                                                                        format!("Cannot send '{name}' back to the engine that asked for the distribution, {error}"),
+                                                                    )
+                                                                    .await;
+                                                            }
+                                                            input.close();
+                                                            break 'recv;
+                                                        }
+                                                    };
 
                                                     // Split before constructing the
                                                     // message, same reasoning as

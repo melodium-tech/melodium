@@ -1,5 +1,7 @@
 use crate::descriptor::{DataType, Identifier};
-use crate::executive::{PackedArray, Secret, SecretId, TrackId, Value};
+use crate::executive::{
+    PackedArray, Secret, SecretId, SecretTransfer, SecretTransmission, TrackId, Value,
+};
 use async_trait::async_trait;
 use core::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Weak};
@@ -171,6 +173,21 @@ impl SecretsAccess {
         secret.access(self, true, f).await
     }
 
+    /// Gives what crosses to a distant engine for `secret`, following its transmission
+    /// policy:
+    /// - `local` secrets are refused;
+    /// - `reference` secrets give their locator, those without locator are refused;
+    /// - `value` secrets give their resolved value, over an encrypted connection only.
+    ///
+    /// Transmissions and refusals are recorded, refusals also in the log.
+    pub async fn transmit(
+        &self,
+        secret: &Secret,
+        encrypted: bool,
+    ) -> Result<SecretTransfer, SecretError> {
+        secret.transmit(self, encrypted).await
+    }
+
     /// Resolves the value of `secret` and drops it right away,
     /// to check that it can be resolved.
     ///
@@ -217,6 +234,8 @@ impl Debug for SecretsAccess {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SecretAuditOutcome {
     Revealed,
+    /// Sent to a distant engine, by reference or by value.
+    Transmitted(SecretTransmission),
     Denied(String),
     ResolveFailed(String),
 }
@@ -242,6 +261,11 @@ impl Display for SecretAudit {
             SecretAuditOutcome::Revealed => {
                 write!(f, "secret {:?} revealed to {accessor}", self.secret_name)
             }
+            SecretAuditOutcome::Transmitted(transmission) => write!(
+                f,
+                "secret {:?} sent by {transmission} to a distant engine by {accessor}",
+                self.secret_name
+            ),
             SecretAuditOutcome::Denied(reason) => write!(
                 f,
                 "secret {:?} denied to {accessor}: {reason}",
