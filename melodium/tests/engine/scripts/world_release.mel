@@ -1,0 +1,11 @@
+#!/usr/bin/env melodium
+#! name = world_release
+#! version = 0.10.4
+#! require = std:0.10.4
+
+use std/engine/util::startup
+
+treatment main()
+{
+    startup()
+}
