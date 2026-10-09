@@ -31,7 +31,7 @@ use std/flow::stream
 // `stopRunner.trigger`) only fires once both `finished` and the fully drained
 // `data` stream are observed (mirroring the fixed `steps.mel` wiring), so
 // `received.bin` on disk must always match the full expected size.
-treatment main(const distrib_port: u16, var remote_key: string, var self_key: string)
+treatment main(const distrib_port: u16, var remote_key: Secret<string> = "env:MELODIUM_SECRET_DIST_REMOTE_KEY", var self_key: Secret<string> = "env:MELODIUM_SECRET_DIST_SELF_KEY")
   model distributor: DistributionEngine(treatment="stop_before_data_drained::generateData", version="0.11.0")
 {
     startup()

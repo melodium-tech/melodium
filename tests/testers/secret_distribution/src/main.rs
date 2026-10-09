@@ -70,7 +70,8 @@ fn orchestrate(script: &PathBuf, port: u16, options: &[&str], args: &[&str]) -> 
         .args(options)
         .arg(script)
         .args(["--port", &port.to_string()])
-        .args(["--send_key", NODE_RECV_KEY, "--recv_key", NODE_SEND_KEY])
+        .env("MELODIUM_SECRET_DIST_SEND_KEY", NODE_RECV_KEY)
+        .env("MELODIUM_SECRET_DIST_RECV_KEY", NODE_SEND_KEY)
         .args(args)
         .env("MELODIUM_GROUP_ID", GROUP_ID)
         .env(
@@ -263,6 +264,79 @@ fn values_are_refused_over_plain_tcp() {
     assert!(!stdout.contains("orchestrator-"), "{}", stdout);
 }
 
+/// The keys of the access are secrets: only `distrib::start` reveals them, to authenticate
+/// the connection, and debug events leave the content of `Access` values out.
+fn access_keys_are_secrets() {
+    let debug = debug_file("keys");
+    let stdout = with_node(
+        &probe(),
+        62620,
+        true,
+        &[
+            "--debug-level",
+            "detailed",
+            "--debug",
+            debug.to_str().unwrap(),
+        ],
+        &[],
+    );
+    assert!(!stdout.contains("Cannot distribute"), "{}", stdout);
+    let events: Vec<serde_json::Value> =
+        serde_json::from_str(&std::fs::read_to_string(&debug).unwrap()).unwrap();
+
+    let accesses: Vec<&serde_json::Value> = events
+        .iter()
+        .filter_map(|event| event["kind"]["data_sent"]["data"]["values"]["values"].as_array())
+        .flatten()
+        .filter_map(|value| value["data"].as_array())
+        .filter(|data| data[0]["name"] == "Access")
+        .map(|data| &data[1])
+        .collect();
+    assert!(!accesses.is_empty());
+    assert!(
+        accesses.iter().all(|content| content.is_null()),
+        "{:?}",
+        accesses
+    );
+
+    let revealed: Vec<(&str, &str)> = events
+        .iter()
+        .filter_map(|event| event["kind"].get("secret_revealed"))
+        .map(|revealed| {
+            (
+                revealed["secret_name"].as_str().unwrap(),
+                revealed["element"]["name"].as_str().unwrap(),
+            )
+        })
+        .filter(|(name, _)| name.ends_with("_KEY"))
+        .collect();
+    assert_eq!(
+        revealed,
+        vec![
+            ("env:MELODIUM_SECRET_DIST_SEND_KEY", "start"),
+            ("env:MELODIUM_SECRET_DIST_RECV_KEY", "start"),
+        ]
+    );
+
+    // Malformed keys make the start fail, without showing them.
+    let malformed = std::env::temp_dir().join(format!(
+        "melodium_secret_distribution_{}_malformed_key",
+        std::process::id()
+    ));
+    std::fs::write(&malformed, "malformed-key-sentinel").unwrap();
+    let stdout = orchestrate(
+        &probe(),
+        62621,
+        &[],
+        &["--send_key", &format!("file:{}", malformed.display())],
+    );
+    assert_contains(
+        &stdout,
+        "Cannot distribute, the access remote_key is not a UUID",
+    );
+    assert!(!stdout.contains("malformed-key-sentinel"), "{}", stdout);
+}
+
 #[cfg(unix)]
 fn secrets_inside_data_values_follow_their_policy() {
     let script = script("environment", ENVIRONMENT_SCRIPT);
@@ -333,6 +407,7 @@ pub fn run_cases() -> ! {
         "values_are_refused_over_plain_tcp",
         values_are_refused_over_plain_tcp,
     ));
+    cases.push(("access_keys_are_secrets", access_keys_are_secrets));
     // The program runs `sh`.
     #[cfg(unix)]
     cases.push((

@@ -6,6 +6,7 @@
 - Taking the `DistantEngine` API token as a secret, by default the `MELODIUM_API_TOKEN` environment variable, and container pull secrets as secrets (#136).
 - Giving secret variables to commands run in containers (`--env NAME`) and Kubernetes pods (read by a shell from standard input) (#136).
 - Adding `|new_plain_access` for workers listening without TLS on loopback addresses (#139).
+- Breaking: taking the keys of `|new_access` and `|new_plain_access` as secrets, revealed by `distrib::start` only to authenticate the connection. Malformed keys make the start fail instead of becoming the nil UUID. The keys of distant workers are secrets too, so `Access` values never show keys in logs nor debug events, and Compose debug output leaves them out. In Rust, `Access` holds its fields directly and `api::CommonAccess` is removed (#136).
 - Giving Compose distribution engines their keys through the environment instead of their arguments, and allowing plain TCP to them over the network local to the host (#130).
 
 ## [v0.10.4] (2026-09-24)

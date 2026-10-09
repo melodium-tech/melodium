@@ -716,7 +716,17 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     };
 
                     if enable_debug {
-                        eprintln!("Access: {access:#?}");
+                        // Without its key, an authentication secret.
+                        eprintln!(
+                            "Access: {:?} port {}, TLS {}",
+                            access.addresses,
+                            access.port,
+                            if access.disable_tls {
+                                "disabled"
+                            } else {
+                                "enabled"
+                            }
+                        );
                     }
 
                     Ok((access, child))

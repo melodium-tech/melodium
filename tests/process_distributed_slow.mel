@@ -26,7 +26,7 @@ use process/local::spawnOnce
 // truly silent/stalled connection should ever be torn down by the watchdog. If the
 // watchdog fires on a healthy-but-slow run, `reply.log` never gets written and the
 // process hangs or exits without the expected reply.
-treatment main(const distrib_port: u16, var remote_key: string, var self_key: string, const message: string = "Pingouin")
+treatment main(const distrib_port: u16, var remote_key: Secret<string> = "env:MELODIUM_SECRET_DIST_REMOTE_KEY", var self_key: Secret<string> = "env:MELODIUM_SECRET_DIST_SELF_KEY", const message: string = "Pingouin")
   model distributor: DistributionEngine(treatment="process_distributed_slow::slowEcho", version="0.11.0")
 {
     startup()

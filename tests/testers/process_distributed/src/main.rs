@@ -34,10 +34,8 @@ fn main() {
         .arg("process_distributed.mel")
         .arg("--distrib_port")
         .arg("28016")
-        .arg("--remote_key")
-        .arg("2f6e2a2e-6b4b-5a2e-9b3e-2f6a2e6b4b5a")
-        .arg("--self_key")
-        .arg("5a2e6b4b-2f6e-2a2e-9b3e-6b4b5a2e2f6a")
+        .env("MELODIUM_SECRET_DIST_REMOTE_KEY", "2f6e2a2e-6b4b-5a2e-9b3e-2f6a2e6b4b5a")
+        .env("MELODIUM_SECRET_DIST_SELF_KEY", "5a2e6b4b-2f6e-2a2e-9b3e-6b4b5a2e2f6a")
         .spawn()
         .expect("failed to launch Mélodium executable");
 

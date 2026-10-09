@@ -52,9 +52,9 @@ use distrib::recvStream
 //
 // Terminal 2, this script, with the keys swapped:
 //   export MELODIUM_GROUP_ID=10101010-1010-1010-1010-101010101010
-//   melodium run distributed_computation.mel --port 6789 \
-//     --send_key 11111111-1111-1111-1111-111111111111 \
-//     --recv_key 22222222-2222-2222-2222-222222222222
+//   export MELODIUM_SECRET_DIST_SEND_KEY=11111111-1111-1111-1111-111111111111
+//   export MELODIUM_SECRET_DIST_RECV_KEY=22222222-2222-2222-2222-222222222222
+//   melodium run distributed_computation.mel --port 6789
 //
 // `--localhost` uses an embedded certificate for local testing.
 //
@@ -79,8 +79,8 @@ model Doubler() : DistributionEngine {
 
 treatment main(
     const port:     u16    = 6789,
-    const send_key: string,
-    const recv_key: string,
+    const send_key: Secret<string> = "env:MELODIUM_SECRET_DIST_SEND_KEY",
+    const recv_key: Secret<string> = "env:MELODIUM_SECRET_DIST_RECV_KEY",
     const amount:   u128   = 5,
     const value:    i64    = 3
 )

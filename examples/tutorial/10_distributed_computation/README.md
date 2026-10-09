@@ -19,9 +19,9 @@ melodium dist --localhost --port 6789
 
 # Terminal 2: this script, with the keys swapped
 export MELODIUM_GROUP_ID=10101010-1010-1010-1010-101010101010
-melodium run distributed_computation.mel --port 6789 \
-  --send_key 11111111-1111-1111-1111-111111111111 \
-  --recv_key 22222222-2222-2222-2222-222222222222
+export MELODIUM_SECRET_DIST_SEND_KEY=11111111-1111-1111-1111-111111111111
+export MELODIUM_SECRET_DIST_RECV_KEY=22222222-2222-2222-2222-222222222222
+melodium run distributed_computation.mel --port 6789
 ```
 
 ```
@@ -60,7 +60,7 @@ generate ──▶ dispatchDouble ──send──▶ ...  ──▶  double (n 
 
 ## Runtime behaviour
 
-1. `work/access::|new_access` builds an `Access` value (IP, port, and the two authentication keys) entirely from parameters: no cloud service involved, just a second Mélodium process reachable over the network.
+1. `work/access::|new_access` builds an `Access` value (IP, port, and the two authentication keys) entirely from parameters: no cloud service involved, just a second Mélodium process reachable over the network. The keys are secrets, read from `MELODIUM_SECRET_DIST_SEND_KEY` and `MELODIUM_SECRET_DIST_RECV_KEY` by default, and only revealed by `distrib::start` to authenticate the connection.
 2. `distrib::start` opens the connection; only once `distribStart.ready` fires does `run` actually build and send any data: nothing races the connection setup.
 3. `dispatchDouble` is the general shape for "run this like a local treatment, but remotely": `distribute` allocates a `distribution_id` for one exchange, then `sendStream`/`recvStream` (tagged with matching `name`s) carry the actual data in both directions.
 4. With the defaults (`--amount 5 --value 3`), the client logs `connected to remote engine` once, then `doubled: 6` five times: `double` executed on the other engine, not locally.
@@ -69,6 +69,6 @@ generate ──▶ dispatchDouble ──send──▶ ...  ──▶  double (n 
 
 - **`distribute` + `sendStream`/`recvStream`**: the three-step handshake for one remote call, allocate an ID, send input(s), receive output(s), all tagged by port name (`"n"` here) so multiple streams can cross the same connection unambiguously.
 - **A model that names a treatment, not a resource**: unlike `SqlPool` or `HttpServer`, `DistributionEngine`'s parameters (`treatment`, `version`) identify *what code to run remotely*, not a resource to connect to; the network target itself comes from the `Access` value passed to `start`.
-- **Keys are swapped, not shared**: the listener's `MELODIUM_DIST_RECV_KEY` is the client's `send_key`, and vice versa; each side authenticates itself with the key the other side expects to receive. `work/access::|new_access`'s own parameter order is `(ip, port, remote_key, self_key)`: `remote_key` is the identity presented outward (the local `send_key`), `self_key` is what is checked against what comes back (the local `recv_key`).
+- **Keys are swapped, not shared**: the listener's `MELODIUM_DIST_RECV_KEY` is the client's `send_key` (`MELODIUM_SECRET_DIST_SEND_KEY`), and vice versa; each side authenticates itself with the key the other side expects to receive. `work/access::|new_access`'s own parameter order is `(ip, port, remote_key, self_key)`: `remote_key` is the identity presented outward (the local `send_key`), `self_key` is what is checked against what comes back (the local `recv_key`).
 
 Back to the [examples index](../../README.md) for the showcase track, which builds on this to distribute AI workloads and CI/CD pipelines.

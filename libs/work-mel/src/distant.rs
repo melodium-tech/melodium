@@ -637,14 +637,14 @@ pub async fn distant(
                 match distrib {
                     api::DistributionResponse::Started(Some(access_info)) => {
                         let _ = access
-                            .send_one(Value::Data(Arc::new(Access(api::CommonAccess {
-                                addresses: access_info.addresses,
-                                port: access_info.port,
-                                remote_key: access_info.key,
-                                self_key: key,
-                                disable_tls: access_info.disable_tls,
-                                allow_plain_tcp: access_info.allow_plain_tcp,
-                            }))))
+                            .send_one(Value::Data(Arc::new(Access::with_keys(
+                                access_info.addresses,
+                                access_info.port,
+                                access_info.key,
+                                key,
+                                access_info.disable_tls,
+                                access_info.allow_plain_tcp,
+                            ))))
                             .await;
                         let _ = access.close().await;
                         let _ = failed.close().await;
