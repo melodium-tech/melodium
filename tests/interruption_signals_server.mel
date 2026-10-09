@@ -1,0 +1,22 @@
+#!/usr/bin/env melodium
+#! name = server
+#! version = 0.10.4
+#! require = http:0.10.4 net:0.10.4 std:0.10.4
+
+use http/server::HttpServer
+use http/server::start
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use std/engine/util::startup
+
+treatment main()
+  model server: HttpServer(
+    host=|from_ipv4(|localhost_ipv4()),
+    port=62417
+  )
+{
+    startup()
+    start[http_server=server]()
+
+    startup.trigger -> start.trigger
+}

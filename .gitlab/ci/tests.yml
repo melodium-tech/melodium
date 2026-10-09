@@ -18,13 +18,16 @@ test:rust:unit_tests:
     - cargo test --locked --verbose
 
 variables:
-  TESTS: complex_call fs generics http_client http_javascript interruption process regex sql http_distributed process_distributed process_distributed_hang process_distributed_slow process_distributed_logs_live distribution_engine_never_started distribution_engine_stop_without_start logs_live_flush stop_before_data_drained protocol_timeout_survives_jitter
+  TESTS: complex_call fs generics http_client http_javascript interruption process regex sql http_distributed process_distributed process_distributed_hang process_distributed_slow process_distributed_logs_live distribution_engine_never_started distribution_engine_stop_without_start logs_live_flush stop_before_data_drained protocol_timeout_survives_jitter dist_keys interruption_signals secret_access_cli secret_masking wipe
 
 testers:rust:x86_64-unknown-linux-gnu:
   stage: test
   extends: 
     - .build-testers
     - .builder:linux:x86_64-unknown-linux-gnu
+  # On every pipeline, the other platforms on master and tags.
+  rules:
+    - when: on_success
   script:
     - cd tests/testers
     - cargo build --locked 
@@ -266,6 +269,9 @@ test:melodium:x86_64-unknown-linux-gnu:
     - .run-tests
     - .runner:debian:x86_64
     - .service:postgresql
+  # On every pipeline, the other platforms on master and tags.
+  rules:
+    - when: on_success
   needs:
     - build:release:x86_64-unknown-linux-gnu
     - testers:rust:x86_64-unknown-linux-gnu
