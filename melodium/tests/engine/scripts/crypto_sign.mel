@@ -1,0 +1,38 @@
+#!/usr/bin/env melodium
+#! name = crypto_sign
+#! version = 0.1.0
+#! require = std:0.11.0 crypto:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfo
+use std/flow::emit
+use std/flow::stream
+use std/text/convert/string::toUtf8
+use crypto/hmac::sign
+
+treatment main(const key: Secret<string> = "env:MELODIUM_SECRET_CRYPTO_TEST_KEY")
+{
+    startup()
+    emitData: emit<string>(value="what do ya want for nothing?")
+    asStream: stream<string>()
+    toUtf8()
+    startup.trigger -> emitData.trigger,emit -> asStream.block,stream -> toUtf8.text
+
+    hex: sign(key=key)
+    base64: sign(key=key, encoding="base64")
+    sha512: sign(key=key, algorithm="sha512")
+    unknown: sign(key=key, algorithm="md5")
+    toUtf8.encoded -> hex.data
+    toUtf8.encoded -> base64.data
+    toUtf8.encoded -> sha512.data
+    toUtf8.encoded -> unknown.data
+
+    logHex: logInfo(label="hex")
+    logBase64: logInfo(label="base64")
+    logSha512: logInfo(label="sha512")
+    logUnknown: logInfo(label="unknown")
+    hex.signature -> logHex.message
+    base64.signature -> logBase64.message
+    sha512.signature -> logSha512.message
+    unknown.error -> logUnknown.message
+}

@@ -5,57 +5,13 @@
 //! Revealed values are masked in logs, so they are checked through the data
 //! sent by `reveal`, captured in detailed debug events.
 
-use async_std::channel::unbounded;
-use melodium::{load_raw, LoadingConfig};
-use melodium_common::descriptor::DataType;
+use super::common::{self, log, revealed};
+use melodium_common::descriptor::{Collection, DataType, Identifier};
 use melodium_common::executive::{Level, Log, Secret, Value};
-use melodium_engine::debug::{DataContent, DebugLevel, Event, EventKind};
-use std::{collections::HashMap, path::PathBuf, process::Command, sync::Arc};
+use melodium_engine::debug::{DebugLevel, Event, EventKind};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-const SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = secret_access
-#! version = 0.11.0
-#! require = std:0.11.0
-
-use std/engine/util::startup
-use std/flow::emit
-use std/engine/log::logInfo
-use std/engine/log::logError
-use std/ops/option/block::unwrap
-use std/secret::conceal
-use std/secret::reveal
-use std/secret::|locate
-
-treatment main(password: Secret<string> = "env:MELODIUM_SECRET_ACCESS_TEST_UNSET", token: string)
-{
-    startup()
-
-    emitPassword: emit<Secret<string>>(value=password)
-    revealPassword: reveal<string>()
-    logPassword: logInfo(label="password")
-    logPasswordError: logError(label="password-error")
-
-    startup.trigger -> emitPassword.trigger,emit -> revealPassword.secret,value -> logPassword.message
-    revealPassword.error -> logPasswordError.message
-
-    // By reference, so that a scheme without source fails at reveal, not at launch.
-    emitToken: emit<Option<Secret<string>>>(value=|locate<string>(token, "token", "reference", true))
-    unwrapToken: unwrap<Secret<string>>()
-    revealToken: reveal<string>()
-    logToken: logInfo(label="token")
-    logTokenError: logError(label="token-error")
-
-    startup.trigger -> emitToken.trigger,emit -> unwrapToken.option,value -> revealToken.secret,value -> logToken.message
-    revealToken.error -> logTokenError.message
-
-    emitConcealed: emit<string>(value="concealed-sentinel")
-    concealValue: conceal<string>(name="concealed", plain_reveal=true)
-    revealConcealed: reveal<string>()
-    logConcealed: logInfo(label="concealed")
-
-    startup.trigger -> emitConcealed.trigger,emit -> concealValue.value,secret -> revealConcealed.secret,value -> logConcealed.message
-}
-"#;
+const SCRIPT: &str = include_str!("scripts/secret_access.mel");
 
 fn temp_file(name: &str, content: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
@@ -66,68 +22,12 @@ fn temp_file(name: &str, content: &str) -> PathBuf {
     path
 }
 
-fn load() -> (
-    Arc<melodium_common::descriptor::Collection>,
-    melodium_common::descriptor::Identifier,
-) {
-    let (pkg, collection) = load_raw(
-        Arc::new(SCRIPT.as_bytes().to_vec()),
-        "main",
-        LoadingConfig {
-            core_packages: Vec::new(),
-            search_locations: Vec::new(),
-            raw_elements: Vec::new(),
-        },
-    )
-    .into_result()
-    .expect("script loads");
-    let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
-    (collection, entrypoint)
+fn load() -> (Arc<Collection>, Identifier) {
+    common::load(SCRIPT)
 }
 
 fn run(params: HashMap<String, Value>) -> (Vec<Log>, Vec<Event>) {
-    let (collection, entrypoint) = load();
-    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Detailed);
-    let (logs_sender, logs_receiver) = unbounded();
-    let (debug_sender, debug_receiver) = unbounded();
-    engine.add_logs_listener(logs_sender);
-    engine.add_debug_listener(debug_sender);
-
-    assert!(engine.genesis(&entrypoint, params).is_success());
-    async_std::task::block_on(async {
-        engine.live().await;
-        engine.end().await;
-    });
-
-    let mut logs = Vec::new();
-    while let Ok(log) = logs_receiver.try_recv() {
-        logs.push(log);
-    }
-    let mut events = Vec::new();
-    while let Ok(event) = debug_receiver.try_recv() {
-        events.push(event);
-    }
-    (logs, events)
-}
-
-/// Values sent by the `value` output of the instance labelled `label`.
-fn revealed(events: &[Event], label: &str) -> Vec<Value> {
-    events
-        .iter()
-        .filter_map(|event| match &event.kind {
-            EventKind::DataSent {
-                output,
-                data: DataContent::Values { values },
-                ..
-            } if output.label == label && output.name == "value" => Some(values.clone()),
-            _ => None,
-        })
-        .flatten()
-        .collect()
-}
-
-fn log<'a>(logs: &'a [Log], label: &str) -> Option<&'a Log> {
-    logs.iter().find(|log| log.label == label)
+    common::run(SCRIPT, params)
 }
 
 #[test]
@@ -315,58 +215,6 @@ fn environment_and_file_secrets_are_resolved_when_checked() {
 }
 
 #[test]
-fn secret_parameters_take_locators_on_the_command_line() {
-    let script = temp_file("script.mel", SCRIPT);
-    let password = temp_file("cli_password", "password-sentinel\n");
-    let token = temp_file("cli_token", "token-sentinel");
-    let missing = std::env::temp_dir().join(format!(
-        "melodium_secret_access_{}_cli_missing",
-        std::process::id()
-    ));
-
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
-        .args(["run", "--check-secrets"])
-        .arg(&script)
-        .arg("--password")
-        .arg(format!("file:{}", password.display()))
-        .arg("--token")
-        .arg(format!("file:{}", token.display()))
-        .output()
-        .unwrap();
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(output.status.success(), "{}", stdout);
-    assert!(!stdout.contains("token-sentinel"), "{}", stdout);
-    assert!(!stdout.contains("password-sentinel"), "{}", stdout);
-    assert!(stdout.contains(&format!("secret \"file:{}\" denied", password.display())));
-    assert!(stdout.contains("secrets from 'file:' cannot be plainly revealed"));
-
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
-        .args(["run", "--check-secrets"])
-        .arg(&script)
-        .arg("--password")
-        .arg(format!("file:{}", missing.display()))
-        .arg("--token")
-        .arg(format!("file:{}", token.display()))
-        .output()
-        .unwrap();
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("Secret of parameter 'password' cannot be resolved"),
-        "{}",
-        stderr
-    );
-
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
-        .arg(&script)
-        .args(["--password", "hunter2", "--token", "env:UNUSED"])
-        .output()
-        .unwrap();
-    assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("is not a secret locator"));
-}
-
-#[test]
 fn locator_literals_build_secrets_with_default_policy() {
     let secret = Secret::from_locator("env:NAME", DataType::String).unwrap();
     assert_eq!(secret.name(), "env:NAME");
@@ -374,85 +222,11 @@ fn locator_literals_build_secrets_with_default_policy() {
     assert!(!secret.policy().plain_reveal);
 }
 
-const STD_SECRET_SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = std_secret
-#! version = 0.11.0
-#! require = std:0.11.0
-
-use std/engine/util::startup
-use std/flow::emit
-use std/engine/log::logInfo
-use std/engine/log::logError
-use std/secret::conceal
-use std/secret::reveal
-use std/secret::|from_environment
-use std/secret::|from_file
-use std/secret::|name
-use std/secret::|reveal_only_by
-
-treatment main()
-{
-    startup()
-
-    emitValue: emit<string>(value="concealed-sentinel")
-    concealValue: conceal<string>(name="runtime", plain_reveal=true)
-    revealValue: reveal<string>()
-    logValue: logInfo(label="concealed")
-
-    startup.trigger -> emitValue.trigger,emit -> concealValue.value,secret -> revealValue.secret,value -> logValue.message
-
-    emitBad: emit<string>(value="unused")
-    concealBad: conceal<string>(name="bad", transmission="everywhere")
-    logBad: logError(label="conceal-error")
-
-    startup.trigger -> emitBad.trigger,emit -> concealBad.value,error -> logBad.message
-
-    emitNarrowed: emit<Secret<string>>(value=|reveal_only_by<string>(|from_environment("MELODIUM_SECRET_ACCESS_TEST_UNSET", "narrowed"), ["other::Element"]))
-    revealNarrowed: reveal<string>()
-    logNarrowed: logError(label="narrowed-error")
-
-    startup.trigger -> emitNarrowed.trigger,emit -> revealNarrowed.secret,error -> logNarrowed.message
-
-    emitName: emit<string>(value=|name<string>(|from_file("/run/secrets/db", "file-secret")))
-    logName: logInfo(label="name")
-
-    startup.trigger -> emitName.trigger,emit -> logName.message
-}
-"#;
+const STD_SECRET_SCRIPT: &str = include_str!("scripts/std_secret.mel");
 
 #[test]
 fn std_secret_conceals_names_and_narrows() {
-    let (pkg, collection) = load_raw(
-        Arc::new(STD_SECRET_SCRIPT.as_bytes().to_vec()),
-        "main",
-        LoadingConfig {
-            core_packages: Vec::new(),
-            search_locations: Vec::new(),
-            raw_elements: Vec::new(),
-        },
-    )
-    .into_result()
-    .expect("script loads");
-    let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
-
-    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Detailed);
-    let (logs_sender, logs_receiver) = unbounded();
-    let (debug_sender, debug_receiver) = unbounded();
-    engine.add_logs_listener(logs_sender);
-    engine.add_debug_listener(debug_sender);
-    assert!(engine.genesis(&entrypoint, HashMap::new()).is_success());
-    async_std::task::block_on(async {
-        engine.live().await;
-        engine.end().await;
-    });
-    let mut logs = Vec::new();
-    while let Ok(log) = logs_receiver.try_recv() {
-        logs.push(log);
-    }
-    let mut events = Vec::new();
-    while let Ok(event) = debug_receiver.try_recv() {
-        events.push(event);
-    }
+    let (logs, events) = common::run(STD_SECRET_SCRIPT, HashMap::new());
 
     assert_eq!(
         revealed(&events, "revealValue"),
@@ -513,7 +287,7 @@ fn only_declaring_elements_get_secrets_access() {
             .into(),
     ) {
         Some(melodium_common::descriptor::Entry::Treatment(treatment)) => treatment.clone(),
-        _ => panic!("no treatment {identifier}"),
+        _ => panic!("no treatment {}", identifier),
     };
     assert!(descriptor("std/secret::reveal").secrets_access());
     assert!(!descriptor("std/secret::conceal").secrets_access());

@@ -6,24 +6,7 @@ use melodium_common::descriptor::{Collection, Entry, Identifier, Parameter};
 use melodium_common::executive::Value;
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-const SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = option_defaults
-#! version = 0.11.0
-#! require = std:0.11.0 work:0.11.0 record:0.11.0
-
-use std/engine/util::startup
-use work/distant::DistantEngine
-use record/audio::recordMono
-
-treatment main()
-  model distant: DistantEngine()
-{
-    startup()
-    recordMono()
-
-    startup.trigger -> recordMono.trigger
-}
-"#;
+const SCRIPT: &str = include_str!("scripts/option_defaults.mel");
 
 fn parameters(collection: &Collection, identifier: &str) -> HashMap<String, Parameter> {
     let identifier = Identifier::from_str(identifier).unwrap();

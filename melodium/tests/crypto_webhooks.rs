@@ -1,58 +1,12 @@
-//! The `crypto` package signs data with HMAC, and a server verifies webhooks with it: the
-//! HMAC signature of GitHub webhooks, and the token of GitLab webhooks, given as a secret by
-//! the HTTP server and compared with the expected one without revealing either to the program.
+//! A server verifies webhooks with the `crypto` package: the HMAC signature of GitHub
+//! webhooks, and the token of GitLab webhooks, given as a secret by the HTTP server and
+//! compared with the expected one without revealing either to the program.
 
-use async_std::channel::unbounded;
-use melodium::{load_raw, LoadingConfig};
-use melodium_common::executive::{Level, Log};
-use melodium_engine::debug::DebugLevel;
-use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::sync::Arc;
 use std::time::Duration;
-
-const SIGN: &str = r#"#!/usr/bin/env melodium
-#! name = crypto_sign
-#! version = 0.1.0
-#! require = std:0.11.0 crypto:0.11.0
-
-use std/engine/util::startup
-use std/engine/log::logInfo
-use std/flow::emit
-use std/flow::stream
-use std/text/convert/string::toUtf8
-use crypto/hmac::sign
-
-treatment main(const key: Secret<string> = "env:MELODIUM_SECRET_CRYPTO_TEST_KEY")
-{
-    startup()
-    emitData: emit<string>(value="what do ya want for nothing?")
-    asStream: stream<string>()
-    toUtf8()
-    startup.trigger -> emitData.trigger,emit -> asStream.block,stream -> toUtf8.text
-
-    hex: sign(key=key)
-    base64: sign(key=key, encoding="base64")
-    sha512: sign(key=key, algorithm="sha512")
-    unknown: sign(key=key, algorithm="md5")
-    toUtf8.encoded -> hex.data
-    toUtf8.encoded -> base64.data
-    toUtf8.encoded -> sha512.data
-    toUtf8.encoded -> unknown.data
-
-    logHex: logInfo(label="hex")
-    logBase64: logInfo(label="base64")
-    logSha512: logInfo(label="sha512")
-    logUnknown: logInfo(label="unknown")
-    hex.signature -> logHex.message
-    base64.signature -> logBase64.message
-    sha512.signature -> logSha512.message
-    unknown.error -> logUnknown.message
-}
-"#;
 
 const SERVER: &str = r#"#!/usr/bin/env melodium
 #! name = crypto_webhooks
@@ -177,61 +131,6 @@ const TOKEN: &str = "webhook-token-sentinel";
 const BODY: &str = r#"{"action":"opened"}"#;
 /// HMAC-SHA256 of `BODY` with `KEY`.
 const SIGNATURE: &str = "1cbdd39ecb1c2ec3658bd0ddece3dd1f582ac759795fce4b9ee0337bcaed3e48";
-
-#[test]
-fn data_is_signed_with_hmac() {
-    std::env::set_var("MELODIUM_SECRET_CRYPTO_TEST_KEY", "Jefe");
-    let (pkg, collection) = load_raw(
-        Arc::new(SIGN.as_bytes().to_vec()),
-        "main",
-        LoadingConfig {
-            core_packages: Vec::new(),
-            search_locations: Vec::new(),
-            raw_elements: Vec::new(),
-        },
-    )
-    .into_result()
-    .expect("script loads");
-    let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
-    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::None);
-    let (logs_sender, logs_receiver) = unbounded();
-    engine.add_logs_listener(logs_sender);
-    assert!(engine.genesis(&entrypoint, HashMap::new()).is_success());
-    async_std::task::block_on(async {
-        engine.live().await;
-        engine.end().await;
-    });
-    let mut logs: Vec<Log> = Vec::new();
-    while let Ok(log) = logs_receiver.try_recv() {
-        logs.push(log);
-    }
-    let message = |label: &str| {
-        logs.iter()
-            .find(|log| log.label == label)
-            .unwrap_or_else(|| panic!("no '{}' log in {:?}", label, logs))
-            .message
-            .clone()
-    };
-
-    // RFC 4231, test case 2.
-    assert_eq!(
-        message("hex"),
-        "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
-    );
-    assert_eq!(
-        message("base64"),
-        "W9zBRr9gdU5qBCQmCJV1x1oAPwidJzmDnexYuWTsOEM="
-    );
-    assert_eq!(
-        message("sha512"),
-        "164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737"
-    );
-    assert!(
-        message("unknown").contains("'md5' is not a supported algorithm"),
-        "{}",
-        message("unknown")
-    );
-}
 
 fn file(name: &str, content: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
