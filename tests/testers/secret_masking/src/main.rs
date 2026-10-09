@@ -4,41 +4,7 @@
 
 use std::{path::PathBuf, process::Command};
 
-const SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = secret_masking
-#! version = 0.11.0
-#! require = std:0.11.0
-
-use std/engine/util::startup
-use std/flow::emit
-use std/flow::stream
-use std/engine/log::logInfo
-use std/engine/log::logErrors
-use std/data/string_map::entry
-use std/text/compose::format
-use std/secret::conceal
-use std/secret::reveal
-
-treatment main()
-{
-    startup()
-
-    emitUrl: emit<string>(value="https://ci:masking-sentinel-token@gitlab.com/group/project.git")
-    concealUrl: conceal<string>(name="url", plain_reveal=true)
-    revealUrl: reveal<string>()
-    logUrl: logInfo(label="url")
-
-    startup.trigger -> emitUrl.trigger,emit -> concealUrl.value,secret -> revealUrl.secret,value -> logUrl.message
-
-    // An element error quoting the value, as an HTTP library would quote the URL.
-    stream<string>()
-    entry(key="url")
-    format(format="error sending request for url ({url}): connection refused")
-    logRequestErrors: logErrors(label="request")
-
-    revealUrl.value -> stream.block,stream -> entry.value,map -> format.entries,formatted -> logRequestErrors.messages
-}
-"#;
+const SCRIPT: &str = include_str!("../../../secret_masking.mel");
 
 fn temp_path(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
@@ -47,13 +13,12 @@ fn temp_path(name: &str) -> PathBuf {
     ))
 }
 
-#[test]
 fn revealed_values_are_masked_in_every_log_output() {
     let script = temp_path("script.mel");
     std::fs::write(&script, SCRIPT).unwrap();
     let logs = temp_path("logs");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .arg("run")
         .arg("--logs")
         .arg(&logs)
@@ -73,4 +38,17 @@ fn revealed_values_are_masked_in_every_log_output() {
     for output in [&*stdout, &*stderr, &*logs] {
         assert!(!output.contains("masking-sentinel"), "{}", output);
     }
+}
+
+pub fn run_cases() -> ! {
+    let mut cases: Vec<(&str, fn())> = Vec::new();
+    cases.push((
+        "revealed_values_are_masked_in_every_log_output",
+        revealed_values_are_masked_in_every_log_output,
+    ));
+    tester::cases(&cases)
+}
+
+fn main() {
+    run_cases();
 }

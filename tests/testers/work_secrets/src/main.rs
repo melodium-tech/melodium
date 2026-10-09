@@ -6,34 +6,7 @@ use std::net::TcpListener;
 use std::process::Command;
 use std::time::Duration;
 
-const SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = pull_secret
-#! version = 0.1.0
-#! require = std:0.11.0 work:0.11.0
-
-use std/engine/util::startup
-use std/engine/log::logErrors
-use std/ops/option::|wrap
-use std/secret::|from_environment
-use work/distant::DistantEngine
-use work/distant::distant
-use work/resources::|container
-use work/resources/arch::|amd64
-
-treatment main(const api_url: string)
-  model engine: DistantEngine(location="api", api_url=|wrap<string>(api_url), api_token="env:MELODIUM_SECRET_PULL_TEST_API_TOKEN")
-{
-    startup()
-    request: distant[distant_engine=engine](
-        max_duration=60, memory=100, cpu=100, storage=100, edition=_, arch=_, volumes=[], tags=[],
-        containers=[|container("main", 100, 100, 100, |amd64(), [], "alpine", |wrap<Secret<string>>(|from_environment("MELODIUM_SECRET_PULL_TEST_SECRET", "pull_secret")))],
-        service_containers=[]
-    )
-    startup.trigger -> request.trigger
-    logRequestErrors: logErrors(label="distant")
-    request.errors -> logRequestErrors.messages
-}
-"#;
+const SCRIPT: &str = include_str!("../../../pull_secret.mel");
 
 const PULL_SECRET: &str = r#"{"auths":{"registry":{"auth":"cHVsbC1zZW50aW5lbA=="}}}"#;
 
@@ -41,7 +14,7 @@ fn run(api_url: &str, envs: &[(&str, &str)]) -> String {
     let script =
         std::env::temp_dir().join(format!("melodium_work_secrets_{}.mel", std::process::id()));
     std::fs::write(&script, SCRIPT).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .arg(&script)
         .args(["--api_url", api_url])
         .env_remove("MELODIUM_SECRET_PULL_TEST_SECRET")
@@ -53,7 +26,6 @@ fn run(api_url: &str, envs: &[(&str, &str)]) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
-#[test]
 fn credentials_are_revealed_to_reach_the_api() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let api_url = format!("http://{}", listener.local_addr().unwrap());
@@ -111,7 +83,6 @@ fn credentials_are_revealed_to_reach_the_api() {
     assert!(!stdout.contains("t0ken-sentinel"), "{}", stdout);
 }
 
-#[test]
 fn unresolved_credentials_fail_the_request() {
     let stdout = run("http://127.0.0.1:9", &[]);
     assert!(
@@ -129,4 +100,21 @@ fn unresolved_credentials_fail_the_request() {
         "{}",
         stdout
     );
+}
+
+pub fn run_cases() -> ! {
+    let mut cases: Vec<(&str, fn())> = Vec::new();
+    cases.push((
+        "credentials_are_revealed_to_reach_the_api",
+        credentials_are_revealed_to_reach_the_api,
+    ));
+    cases.push((
+        "unresolved_credentials_fail_the_request",
+        unresolved_credentials_fail_the_request,
+    ));
+    tester::cases(&cases)
+}
+
+fn main() {
+    run_cases();
 }

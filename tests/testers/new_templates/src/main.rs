@@ -10,12 +10,11 @@ fn temp_path(name: &str) -> PathBuf {
     ))
 }
 
-#[test]
 fn cicd_template_entrypoints_check() {
     let directory = temp_path("cicd");
     let _ = std::fs::remove_dir_all(&directory);
 
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .arg("new")
         .arg("--template")
         .arg("cicd")
@@ -31,7 +30,7 @@ fn cicd_template_entrypoints_check() {
     );
 
     for entrypoint in ["main", "advanced"] {
-        let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+        let output = Command::new("melodium")
             .arg("check")
             .arg(directory.join("Compo.toml"))
             .arg(entrypoint)
@@ -46,4 +45,17 @@ fn cicd_template_entrypoints_check() {
     }
 
     let _ = std::fs::remove_dir_all(&directory);
+}
+
+pub fn run_cases() -> ! {
+    let mut cases: Vec<(&str, fn())> = Vec::new();
+    cases.push((
+        "cicd_template_entrypoints_check",
+        cicd_template_entrypoints_check,
+    ));
+    tester::cases(&cases)
+}
+
+fn main() {
+    run_cases();
 }

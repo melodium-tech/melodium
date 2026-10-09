@@ -25,6 +25,13 @@ name = "complex_call"
 version = "0.1.0"
 
 [[package]]
+name = "crypto_webhooks"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "displaydoc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -33,6 +40,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "dist_keys"
+version = "0.1.0"
+dependencies = [
+ "tester",
 ]
 
 [[package]]
@@ -86,6 +100,14 @@ name = "http_javascript"
 version = "0.1.0"
 dependencies = [
  "ureq 2.12.1",
+]
+
+[[package]]
+name = "http_secrets"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tester",
 ]
 
 [[package]]
@@ -203,6 +225,13 @@ name = "interruption"
 version = "0.1.0"
 
 [[package]]
+name = "interruption_signals"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -223,6 +252,19 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 [[package]]
 name = "logs_live_flush"
 version = "0.1.0"
+
+[[package]]
+name = "memchr"
+version = "2.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
+
+[[package]]
+name = "new_templates"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
 
 [[package]]
 name = "once_cell"
@@ -275,6 +317,14 @@ name = "process_distributed_slow"
 version = "0.1.0"
 
 [[package]]
+name = "process_secrets"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tester",
+]
+
+[[package]]
 name = "protocol_timeout_survives_jitter"
 version = "0.1.0"
 
@@ -290,6 +340,35 @@ dependencies = [
 [[package]]
 name = "regex"
 version = "0.1.0"
+
+[[package]]
+name = "secret_access_cli"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
+name = "secret_distribution"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tester",
+]
+
+[[package]]
+name = "secret_leaks"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
+name = "secret_masking"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
 
 [[package]]
 name = "serde"
@@ -318,6 +397,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.151"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
+dependencies = [
+ "itoa",
+ "memchr",
+ "serde",
+ "serde_core",
+ "zmij",
 ]
 
 [[package]]
@@ -361,6 +453,10 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "tester"
+version = "0.1.0"
 
 [[package]]
 name = "tinystr"
@@ -438,6 +534,20 @@ name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+
+[[package]]
+name = "wipe"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
+name = "work_secrets"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
 
 [[package]]
 name = "writeable"
@@ -521,3 +631,9 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "zmij"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"

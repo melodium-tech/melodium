@@ -10,214 +10,17 @@
 //! the environment of the node, which it never reveals plainly: its refusals come back
 //! with its debug events, and the commands it runs get the values.
 
+#![cfg_attr(not(unix), allow(dead_code, unused_imports))]
+
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
 use std::time::Duration;
 
-const SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = secret_distribution
-#! version = 0.1.0
-#! require = std:0.11.0 net:0.11.0 work:0.11.0 distrib:0.11.0
-
-use std/engine/util::startup
-use std/engine/log::logInfo
-use std/engine/log::logError
-use std/flow::emit
-use std/data/map::|map
-use std/data/map::|entry
-use std/ops::|condition
-use std/ops/option/block::unwrap
-use std/secret::|locate
-use std/secret::reveal
-use net/ip::|localhost_ipv4
-use net/ip::|from_ipv4
-use work/access::Access
-use work/access::|new_access
-use work/access::|new_plain_access
-use distrib::DistributionEngine
-use distrib::start
-use distrib::stop
-use distrib::distribute
-use distrib::sendBlock
-use distrib::recvBlock
-
-model Prober() : DistributionEngine {
-    treatment = "secret_distribution::probe"
-    version   = "0.1.0"
-}
-
-treatment main(
-    const port: u16,
-    const send_key: string,
-    const recv_key: string,
-    const plain: bool = false,
-    const param: string = "reference",
-    const data: string = "reference"
-)
-  model distributor: Prober()
-{
-    startup()
-
-    accessBlock: emit<Access>(value=|condition<Access>(
-        plain,
-        |new_plain_access([|from_ipv4(|localhost_ipv4())], port, send_key, recv_key),
-        |new_access([|from_ipv4(|localhost_ipv4())], port, send_key, recv_key)
-    ))
-    startup.trigger -> accessBlock.trigger
-
-    distribStart: start[distributor=distributor](params=|map([
-        |entry<Option<Secret<string>>>("token", |locate<string>("env:MELODIUM_SECRET_DIST_PARAM_TOKEN", "param_token", param, true))
-    ]))
-    accessBlock.emit -> distribStart.access
-    logStartError: logError(label="start")
-    distribStart.error -> logStartError.message
-
-    dist: distribute[distributor=distributor]()
-    distribStart.ready -> dist.trigger
-
-    sendTrigger: sendBlock<void>[distributor=distributor](name="trigger")
-    dist.distribution_id -> sendTrigger.distribution_id
-    distribStart.ready -> sendTrigger.data
-
-    emitData: emit<Option<Secret<string>>>(value=|locate<string>("env:MELODIUM_SECRET_DIST_DATA_TOKEN", "data_token", data, true))
-    unwrapData: unwrap<Secret<string>>()
-    sendData: sendBlock<Secret<string>>[distributor=distributor](name="data")
-    dist.distribution_id -> sendData.distribution_id
-    distribStart.ready -> emitData.trigger,emit -> unwrapData.option,value -> sendData.data
-
-    recvParam: recvBlock<string>[distributor=distributor](name="param")
-    recvData: recvBlock<string>[distributor=distributor](name="revealed")
-    dist.distribution_id -> recvParam.distribution_id
-    dist.distribution_id -> recvData.distribution_id
-    logParam: logInfo(label="param")
-    logData: logInfo(label="revealed")
-    recvParam.data -> logParam.message
-    recvData.data -> logData.message
-}
-
-// Executed by the distant engine: reveals the secrets it was given.
-treatment probe(token: Option<Secret<string>>)
-  input  trigger:  Block<void>
-  input  data:     Block<Secret<string>>
-  output param:    Block<string>
-  output revealed: Block<string>
-{
-    emitParam: emit<Option<Secret<string>>>(value=token)
-    unwrapParam: unwrap<Secret<string>>()
-    revealParam: reveal<string>()
-    Self.trigger -> emitParam.trigger,emit -> unwrapParam.option,value -> revealParam.secret,value -> Self.param
-
-    revealData: reveal<string>()
-    Self.data -> revealData.secret,value -> Self.revealed
-}
-"#;
+const SCRIPT: &str = include_str!("../../../secret_distribution.mel");
 
 /// Sends a process environment with secrets to a node, that runs a command with it.
-const ENVIRONMENT_SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = secret_environment
-#! version = 0.1.0
-#! require = std:0.11.0 net:0.11.0 work:0.11.0 distrib:0.11.0 process:0.11.0
-
-use std/engine/util::startup
-use std/engine/log::logError
-use std/flow::emit
-use std/data/map::|map as |secret_map
-use std/data/map::|entry as |secret_entry
-use std/data/string_map::|map
-use std/ops/option::|wrap
-use std/ops/option::|unwrap_or
-use std/ops/option/block::unwrap
-use std/secret::|locate
-use std/secret::|from_environment
-use net/ip::|localhost_ipv4
-use net/ip::|from_ipv4
-use work/access::Access
-use work/access::|new_access
-use distrib::DistributionEngine
-use distrib::start
-use distrib::distribute
-use distrib::sendBlock
-use distrib::recvBlock
-use process/command::Command
-use process/command::|command
-use process/environment::Environment
-use process/environment::|environment
-use process/environment::|with_secret_variables
-use process/environment::|with_secret_stdin
-use process/exec::Executor
-use process/exec::execOne
-use process/local::|local_executor
-
-model Runner() : DistributionEngine {
-    treatment = "secret_environment::run"
-    version   = "0.1.0"
-}
-
-treatment main(
-    const port: u16,
-    const send_key: string,
-    const recv_key: string,
-    const directory: string,
-    const transmission: string = "value"
-)
-  model distributor: Runner()
-{
-    startup()
-    accessBlock: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], port, send_key, recv_key))
-    startup.trigger -> accessBlock.trigger
-
-    distribStart: start[distributor=distributor](params=|secret_map([|secret_entry<string>("directory", directory)]))
-    accessBlock.emit -> distribStart.access
-    logStartError: logError(label="start")
-    distribStart.error -> logStartError.message
-
-    dist: distribute[distributor=distributor]()
-    distribStart.ready -> dist.trigger
-
-    sendTrigger: sendBlock<void>[distributor=distributor](name="trigger")
-    dist.distribution_id -> sendTrigger.distribution_id
-    distribStart.ready -> sendTrigger.data
-
-    emitEnvironment: emit<Option<Environment>>(value=|wrap<Environment>(|with_secret_stdin(
-        |with_secret_variables(
-            |environment(|map([]), _, false, false),
-            |secret_map([|secret_entry<Secret<string>>("TOKEN", |unwrap_or<Secret<string>>(
-                |locate<string>("env:MELODIUM_SECRET_DIST_ENV_TOKEN", "token", transmission, false),
-                |from_environment("MELODIUM_SECRET_DIST_ENV_TOKEN", "token")
-            ))])
-        ),
-        |unwrap_or<Secret<string>>(
-            |locate<string>("env:MELODIUM_SECRET_DIST_ENV_INPUT", "input", transmission, false),
-            |from_environment("MELODIUM_SECRET_DIST_ENV_INPUT", "input")
-        )
-    )))
-    sendEnvironment: sendBlock<Option<Environment>>[distributor=distributor](name="environment")
-    dist.distribution_id -> sendEnvironment.distribution_id
-    distribStart.ready -> emitEnvironment.trigger,emit -> sendEnvironment.data
-
-    recvError: recvBlock<string>[distributor=distributor](name="error")
-    dist.distribution_id -> recvError.distribution_id
-    logRemoteError: logError(label="remote")
-    recvError.data -> logRemoteError.message
-}
-
-// Executed by the distant engine: writes the `TOKEN` variable and the standard input to files.
-treatment run(const directory: string)
-  input  trigger:     Block<void>
-  input  environment: Block<Option<Environment>>
-  output error:       Block<string>
-{
-    emitExecutor: emit<Option<Executor>>(value=|local_executor())
-    unwrapExecutor: unwrap<Executor>()
-    emitCommand: emit<Command>(value=|command("sh", ["-c", "printf '%s' \"$TOKEN\" > \"$0/variable\"; cat > \"$0/input\"", directory]))
-    execOne()
-
-    Self.trigger -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> execOne.executor
-    Self.trigger -> emitCommand.trigger,emit -> execOne.command
-    Self.environment -> execOne.environment
-    execOne.error -> Self.error
-}
-"#;
+#[cfg(unix)]
+const ENVIRONMENT_SCRIPT: &str = include_str!("../../../secret_environment.mel");
 
 const GROUP_ID: &str = "10101010-1010-1010-1010-101010101010";
 const NODE_RECV_KEY: &str = "11111111-1111-1111-1111-111111111111";
@@ -239,7 +42,7 @@ fn probe() -> PathBuf {
 /// Starts a node, that ends a few seconds after the orchestrator connects
 /// and sends its debug events to it.
 fn node(port: u16, tls: bool) -> Child {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_melodium"));
+    let mut command = Command::new("melodium");
     command
         .args(["dist", "--localhost", "--port", &port.to_string()])
         .args(["--debug-level", "basic"])
@@ -262,7 +65,7 @@ fn node(port: u16, tls: bool) -> Child {
 }
 
 fn orchestrate(script: &PathBuf, port: u16, options: &[&str], args: &[&str]) -> String {
-    let output: Output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output: Output = Command::new("melodium")
         .arg("run")
         .args(options)
         .arg(script)
@@ -341,7 +144,6 @@ fn assert_contains(stdout: &str, expected: &str) {
     );
 }
 
-#[test]
 fn references_reach_the_distant_engine_as_locators() {
     let debug = debug_file("references");
     let stdout = with_node(
@@ -362,7 +164,6 @@ fn references_reach_the_distant_engine_as_locators() {
     assert!(!debug.contains("orchestrator-"), "{}", debug);
 }
 
-#[test]
 fn values_are_resolved_by_the_orchestrating_engine() {
     let debug = std::env::temp_dir().join(format!(
         "melodium_secret_distribution_{}_debug.json",
@@ -408,7 +209,6 @@ fn values_are_resolved_by_the_orchestrating_engine() {
     assert_eq!(revealed.len(), 2, "{:?}", revealed);
 }
 
-#[test]
 fn local_secrets_are_refused() {
     // Parameters are refused before connecting.
     let stdout = orchestrate(&probe(), 62613, &[], &["--param", "local"]);
@@ -434,7 +234,6 @@ fn local_secrets_are_refused() {
     assert!(!stdout.contains("revealed:"), "{}", stdout);
 }
 
-#[test]
 fn values_are_refused_over_plain_tcp() {
     let stdout = orchestrate(
         &probe(),
@@ -464,7 +263,7 @@ fn values_are_refused_over_plain_tcp() {
     assert!(!stdout.contains("orchestrator-"), "{}", stdout);
 }
 
-#[test]
+#[cfg(unix)]
 fn secrets_inside_data_values_follow_their_policy() {
     let script = script("environment", ENVIRONMENT_SCRIPT);
     for (port, transmission, expected) in [
@@ -517,4 +316,32 @@ fn secrets_inside_data_values_follow_their_policy() {
             }
         }
     }
+}
+
+pub fn run_cases() -> ! {
+    let mut cases: Vec<(&str, fn())> = Vec::new();
+    cases.push((
+        "references_reach_the_distant_engine_as_locators",
+        references_reach_the_distant_engine_as_locators,
+    ));
+    cases.push((
+        "values_are_resolved_by_the_orchestrating_engine",
+        values_are_resolved_by_the_orchestrating_engine,
+    ));
+    cases.push(("local_secrets_are_refused", local_secrets_are_refused));
+    cases.push((
+        "values_are_refused_over_plain_tcp",
+        values_are_refused_over_plain_tcp,
+    ));
+    // The program runs `sh`.
+    #[cfg(unix)]
+    cases.push((
+        "secrets_inside_data_values_follow_their_policy",
+        secrets_inside_data_values_follow_their_policy,
+    ));
+    tester::cases(&cases)
+}
+
+fn main() {
+    run_cases();
 }

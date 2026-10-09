@@ -7,6 +7,8 @@
 //!
 //! The API and its uploads are a mock answering every request.
 
+#![cfg_attr(not(unix), allow(dead_code, unused_imports))]
+
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -14,52 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
-const SCRIPT: &str = r#"use std/engine/util::startup
-use std/flow::emit
-use std/engine/log::logInfo
-use std/engine/log::logError
-use std/data/map::Map
-use std/data/map::|map as |secret_map
-use std/data/map::|entry as |secret_entry
-use std/data/string_map::|map
-use std/data/string_map::|entry
-use std/flow::trigger
-use std/ops/option::|wrap
-use std/secret::conceal
-use std/secret::reveal
-use std/text/compose::|format
-use fs/local::readTextLocal
-use process/command::|command
-use process/environment::Environment
-use process/environment::|environment
-use process/environment::|with_secret_variables
-use process/local::execOnce
-
-treatment main(const directory: string, const hidden: Secret<string> = "env:MELODIUM_SECRET_LEAKS_HIDDEN")
-{
-    startup()
-
-    // Never plainly revealed: the command gets it as a variable, and writes it to a file.
-    run: execOnce(
-        command=|command("sh", ["-c", "printf '%s' \"$HIDDEN\" > \"$0/hidden\"", directory]),
-        environment=|wrap<Environment>(|with_secret_variables(
-            |environment(|map([]), _, false, false),
-            |secret_map([|secret_entry<Secret<string>>("HIDDEN", hidden)])
-        ))
-    )
-    logRunError: logError(label="exec")
-    startup.trigger -> run.launch
-    run.error -> logRunError.message
-
-    // Read by the program, concealed, plainly revealed, then logged.
-    readShown: readTextLocal(path=|format("{directory}/shown", |entry("directory", directory)))
-    firstShown: trigger<string>()
-    concealShown: conceal<string>(name="shown", plain_reveal=true)
-    revealShown: reveal<string>()
-    logShown: logInfo(label="shown")
-    startup.trigger -> readShown.trigger,text -> firstShown.stream,first -> concealShown.value,secret -> revealShown.secret,value -> logShown.message
-}
-"#;
+const SCRIPT: &str = include_str!("../../../secret_leaks.mel");
 
 const HIDDEN: &str = "hidden-leak-sentinel";
 const SHOWN: &str = "shown-leak-sentinel";
@@ -77,13 +34,7 @@ fn directory(name: &str) -> PathBuf {
 
 fn standalone_script(directory: &Path) -> PathBuf {
     let script = directory.join("secret_leaks.mel");
-    std::fs::write(
-        &script,
-        format!(
-            "#!/usr/bin/env melodium\n#! name = secret_leaks\n#! version = 0.1.0\n#! require = std:0.11.0 process:0.11.0 fs:0.11.0\n\n{SCRIPT}"
-        ),
-    )
-    .unwrap();
+    std::fs::write(&script, SCRIPT).unwrap();
     script
 }
 
@@ -184,7 +135,7 @@ fn answer(
     )
 }
 
-#[test]
+#[cfg(unix)]
 fn secret_values_never_appear_in_run_outputs() {
     let directory = directory("run");
     let script = standalone_script(&directory);
@@ -193,7 +144,7 @@ fn secret_values_never_appear_in_run_outputs() {
     let (address, requests) = api_server();
     std::fs::write(directory.join("shown"), SHOWN).unwrap();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .args(["run", "--api-report", "--debug-level", "detailed", "--logs"])
         .arg(&logs)
         .arg("--debug")
@@ -271,7 +222,6 @@ fn secret_values_never_appear_in_run_outputs() {
     let _ = std::fs::remove_dir_all(&directory);
 }
 
-#[test]
 fn secret_values_never_appear_in_packages_nor_documentation() {
     let directory = directory("package");
     let package = directory.join("secret_leaks");
@@ -281,11 +231,17 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
         "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.11.0\"\nprocess = \"0.11.0\"\nfs = \"0.11.0\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
     )
     .unwrap();
-    std::fs::write(package.join("lib-root.mel"), SCRIPT).unwrap();
+    // The same program without the header of standalone files.
+    let lib_root = SCRIPT
+        .lines()
+        .filter(|line| !line.starts_with("#!"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(package.join("lib-root.mel"), lib_root).unwrap();
     let script = standalone_script(&directory);
 
     let jeu = directory.join("secret_leaks.jeu");
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .args(["jeu", "build"])
         .arg(&package)
         .arg(&jeu)
@@ -299,7 +255,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
     );
 
     let documentation = directory.join("documentation");
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .args(["doc", "--file"])
         .arg(&script)
         .arg(&documentation)
@@ -338,4 +294,23 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
     assert!(documented);
 
     let _ = std::fs::remove_dir_all(&directory);
+}
+
+pub fn run_cases() -> ! {
+    let mut cases: Vec<(&str, fn())> = Vec::new();
+    // The program runs `sh`.
+    #[cfg(unix)]
+    cases.push((
+        "secret_values_never_appear_in_run_outputs",
+        secret_values_never_appear_in_run_outputs,
+    ));
+    cases.push((
+        "secret_values_never_appear_in_packages_nor_documentation",
+        secret_values_never_appear_in_packages_nor_documentation,
+    ));
+    tester::cases(&cases)
+}
+
+fn main() {
+    run_cases();
 }

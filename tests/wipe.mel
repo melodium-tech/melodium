@@ -1,0 +1,32 @@
+#!/usr/bin/env melodium
+#! name = wipe
+#! version = 0.11.0
+#! require = std:0.11.0 process:0.11.0
+
+use std/engine/util::startup
+use std/flow::emit
+use std/engine/log::logInfo
+use std/secret::conceal
+use std/secret::reveal
+use process/command::|command
+use process/local::execOnce
+
+// The track runs as long as `<shell> -c <commands>` does.
+treatment main(
+    const shell: string = "sh",
+    const commands: string = "sleep 0",
+    token: Secret<string> = "env:MELODIUM_SECRET_WIPE_TEST_TOKEN"
+)
+{
+    startup()
+
+    emitValue: emit<string>(value="wipe-sentinel-value")
+    concealValue: conceal<string>(name="runtime", plain_reveal=true)
+    revealValue: reveal<string>()
+    logValue: logInfo(label="revealed")
+
+    startup.trigger -> emitValue.trigger,emit -> concealValue.value,secret -> revealValue.secret,value -> logValue.message
+
+    sleeping: execOnce(command=|command(shell, ["-c", commands]))
+    startup.trigger -> sleeping.launch
+}

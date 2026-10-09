@@ -3,7 +3,7 @@
 
 use std::{path::PathBuf, process::Command};
 
-const SCRIPT: &str = include_str!("engine/scripts/secret_access.mel");
+const SCRIPT: &str = include_str!("../../../../melodium/tests/engine/scripts/secret_access.mel");
 
 fn temp_file(name: &str, content: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
@@ -14,7 +14,6 @@ fn temp_file(name: &str, content: &str) -> PathBuf {
     path
 }
 
-#[test]
 fn secret_parameters_take_locators_on_the_command_line() {
     let script = temp_file("script.mel", SCRIPT);
     let password = temp_file("cli_password", "password-sentinel\n");
@@ -24,7 +23,7 @@ fn secret_parameters_take_locators_on_the_command_line() {
         std::process::id()
     ));
 
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .args(["run", "--check-secrets"])
         .arg(&script)
         .arg("--password")
@@ -40,7 +39,7 @@ fn secret_parameters_take_locators_on_the_command_line() {
     assert!(stdout.contains(&format!("secret \"file:{}\" denied", password.display())));
     assert!(stdout.contains("secrets from 'file:' cannot be plainly revealed"));
 
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .args(["run", "--check-secrets"])
         .arg(&script)
         .arg("--password")
@@ -57,11 +56,24 @@ fn secret_parameters_take_locators_on_the_command_line() {
         stderr
     );
 
-    let output = Command::new(env!("CARGO_BIN_EXE_melodium"))
+    let output = Command::new("melodium")
         .arg(&script)
         .args(["--password", "hunter2", "--token", "env:UNUSED"])
         .output()
         .unwrap();
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("is not a secret locator"));
+}
+
+pub fn run_cases() -> ! {
+    let mut cases: Vec<(&str, fn())> = Vec::new();
+    cases.push((
+        "secret_parameters_take_locators_on_the_command_line",
+        secret_parameters_take_locators_on_the_command_line,
+    ));
+    tester::cases(&cases)
+}
+
+fn main() {
+    run_cases();
 }
