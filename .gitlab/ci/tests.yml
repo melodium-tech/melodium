@@ -10,6 +10,10 @@ test:rust:unit_tests:
     - .builder:linux:x86_64-unknown-linux-gnu
   needs: []
   dependencies: []
+  variables:
+    # Full debug information makes each test binary hundreds of megabytes, which fills the
+    # disk of the runner (the linker then fails with a bus error). Line numbers are kept.
+    CARGO_PROFILE_DEV_DEBUG: line-tables-only
   script:
     - cargo test --locked --verbose
 

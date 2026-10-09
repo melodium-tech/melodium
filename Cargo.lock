@@ -4652,6 +4652,7 @@ dependencies = [
  "sql-mel",
  "std-mel",
  "uuid",
+ "vault-mel",
  "wasm-bindgen",
  "work-mel",
 ]
@@ -8530,6 +8531,19 @@ name = "value-bag"
 version = "1.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2799ffb329a792ecfd902b71306c8a815a6ef1c0470fa9953a6aa4d4cecbe511"
+
+[[package]]
+name = "vault-mel"
+version = "0.10.4"
+dependencies = [
+ "async-std",
+ "async-trait",
+ "generic-async-http-client",
+ "melodium-core",
+ "melodium-macro",
+ "percent-encoding",
+ "serde_json",
+]
 
 [[package]]
 name = "vcpkg"

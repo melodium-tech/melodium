@@ -174,6 +174,14 @@ impl SecretsAccess {
         secret.check_resolution(&*host).await
     }
 
+    /// Masks `value` in log messages and remote debug texts from now on, as revealed values
+    /// are, for values a source obtains by itself, such as the access tokens it logs in with.
+    pub fn add_masked_value(&self, secret_name: &str, value: &Value) {
+        if let Some(host) = self.host.upgrade() {
+            host.add_masked_value(secret_name, value);
+        }
+    }
+
     /// Registers `source` for the `scheme` of locators, such as `vault` for `vault:<path>`.
     ///
     /// Only possible from the `secret_sources` function of a model, called before any

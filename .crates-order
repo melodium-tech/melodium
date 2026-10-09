@@ -12,6 +12,7 @@ melodium-distribution
 melodium-doc
 std-mel
 encoding-mel
+vault-mel
 regex-mel
 json-mel
 fs-mel

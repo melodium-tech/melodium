@@ -537,6 +537,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     packages.push(regex_mel::__mel_package::package());
     #[cfg(feature = "sql-mel")]
     packages.push(sql_mel::__mel_package::package());
+    #[cfg(feature = "vault-mel")]
+    packages.push(vault_mel::__mel_package::package());
     #[cfg(feature = "work-mel")]
     packages.push(work_mel::__mel_package::package());
 
