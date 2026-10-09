@@ -2,16 +2,20 @@ use async_trait::async_trait;
 use melodium_common::descriptor::DataType;
 use melodium_common::executive::{PackedArray, SecretSource, Value};
 use std::sync::Arc;
+use zeroize::Zeroize;
 
 /// Gives the value of a text source as `datatype`, if it is `string` or `Vec<byte>`.
 #[cfg(feature = "environment")]
-fn text_value(text: String, datatype: &DataType, origin: &str) -> Result<Value, String> {
+fn text_value(mut text: String, datatype: &DataType, origin: &str) -> Result<Value, String> {
     match datatype {
         DataType::String => Ok(Value::String(text)),
         DataType::Vec(inner) if matches!(**inner, DataType::Byte) => Ok(Value::Packed(
             PackedArray::Byte(Arc::new(text.into_bytes())),
         )),
-        other => Err(format!("{origin} cannot be given as {other}")),
+        other => {
+            text.zeroize();
+            Err(format!("{origin} cannot be given as {other}"))
+        }
     }
 }
 
@@ -47,9 +51,15 @@ impl SecretSource for EnvironmentSource {
             Err(std::env::VarError::NotPresent) => {
                 Err(format!("environment variable '{path}' is not set"))
             }
-            Err(std::env::VarError::NotUnicode(_)) => Err(format!(
-                "environment variable '{path}' is not valid unicode"
-            )),
+            Err(std::env::VarError::NotUnicode(content)) => {
+                #[cfg(unix)]
+                std::os::unix::ffi::OsStringExt::into_vec(content).zeroize();
+                #[cfg(not(unix))]
+                drop(content);
+                Err(format!(
+                    "environment variable '{path}' is not valid unicode"
+                ))
+            }
         }
     }
 }
@@ -74,7 +84,7 @@ impl SecretSource for FileSource {
 
     #[cfg(not(target_os = "unknown"))]
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
-        let content = async_std::fs::read(path)
+        let mut content = async_std::fs::read(path)
             .await
             .map_err(|err| format!("file '{path}' cannot be read: {}", err.kind()))?;
         match datatype {
@@ -82,8 +92,10 @@ impl SecretSource for FileSource {
                 Ok(Value::Packed(PackedArray::Byte(Arc::new(content))))
             }
             DataType::String => {
-                let mut text = String::from_utf8(content)
-                    .map_err(|_| format!("file '{path}' is not valid UTF-8"))?;
+                let mut text = String::from_utf8(content).map_err(|err| {
+                    err.into_bytes().zeroize();
+                    format!("file '{path}' is not valid UTF-8")
+                })?;
                 if text.ends_with('\n') {
                     text.pop();
                     if text.ends_with('\r') {
@@ -92,7 +104,10 @@ impl SecretSource for FileSource {
                 }
                 Ok(Value::String(text))
             }
-            other => Err(format!("file '{path}' cannot be given as {other}")),
+            other => {
+                content.zeroize();
+                Err(format!("file '{path}' cannot be given as {other}"))
+            }
         }
     }
 

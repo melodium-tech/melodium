@@ -12,7 +12,7 @@ fn key_file(name: &str, content: &str) -> PathBuf {
 }
 
 fn dist(args: &[&str], env: &[(&str, &str)]) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_melodium"));
+    let mut command = Command::new("melodium");
     command
         .arg("dist")
         .args(["--port", "0", "--wait", "1"])
@@ -28,7 +28,6 @@ fn dist(args: &[&str], env: &[(&str, &str)]) -> Output {
 const RECV_KEY: &str = "4b1f6c8e-7d2a-4f0e-9c3b-1a2b3c4d5e6f";
 const SEND_KEY: &str = "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b";
 
-#[test]
 fn keys_come_from_files_or_environment() {
     let recv = key_file("recv", &format!("{RECV_KEY}\n"));
     let send = key_file("send", SEND_KEY);
@@ -57,7 +56,6 @@ fn keys_come_from_files_or_environment() {
     assert!(output.stderr.is_empty(), "{:?}", output);
 }
 
-#[test]
 fn key_errors_are_explicit() {
     let recv = key_file("errors_recv", RECV_KEY);
     let invalid = key_file("invalid", "invalid-key-sentinel");
@@ -100,7 +98,6 @@ fn key_errors_are_explicit() {
         .contains("--recv-key and --recv-key-file cannot be given together"));
 }
 
-#[test]
 fn keys_as_arguments_are_deprecated() {
     let output = dist(
         &[
@@ -118,7 +115,6 @@ fn keys_as_arguments_are_deprecated() {
     assert!(stderr.contains("prefer --send-key-file or MELODIUM_DIST_SEND_KEY"));
 }
 
-#[test]
 fn plain_tcp_is_refused_on_other_than_loopback_unless_allowed() {
     let keys = [
         ("MELODIUM_DIST_RECV_KEY", RECV_KEY),
@@ -139,4 +135,26 @@ fn plain_tcp_is_refused_on_other_than_loopback_unless_allowed() {
         assert!(allowed.status.success(), "{:?}", allowed);
         assert!(String::from_utf8_lossy(&allowed.stderr).contains("TLS is disabled"));
     }
+}
+
+pub fn run_cases() -> ! {
+    let mut cases: Vec<(&str, fn())> = Vec::new();
+    cases.push((
+        "keys_come_from_files_or_environment",
+        keys_come_from_files_or_environment,
+    ));
+    cases.push(("key_errors_are_explicit", key_errors_are_explicit));
+    cases.push((
+        "keys_as_arguments_are_deprecated",
+        keys_as_arguments_are_deprecated,
+    ));
+    cases.push((
+        "plain_tcp_is_refused_on_other_than_loopback_unless_allowed",
+        plain_tcp_is_refused_on_other_than_loopback_unless_allowed,
+    ));
+    tester::cases(&cases)
+}
+
+fn main() {
+    run_cases();
 }

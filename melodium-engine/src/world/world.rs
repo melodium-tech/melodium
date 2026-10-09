@@ -30,11 +30,11 @@ use melodium_common::descriptor::{
     Collection, Entry as CollectionEntry, Flow, Identifier, Treatment,
 };
 use melodium_common::executive::{
-    check_secret_resolution, Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback,
-    Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput,
-    ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretError, SecretId, SecretSource,
-    SecretTransmission, SecretsHost, TrackCreationCallback, TrackFuture, TrackId, Value,
-    World as ExecutiveWorld,
+    check_secret_resolution, register_wipe, Context as ExecutiveContext, ContinuousFuture,
+    DirectCreationCallback, Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId,
+    Output as ExecutiveOutput, ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretError,
+    SecretId, SecretSource, SecretTransmission, SecretsHost, TrackCreationCallback, TrackFuture,
+    TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -50,7 +50,7 @@ pub struct World {
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
     secret_sources: RwLock<HashMap<String, Arc<dyn SecretSource>>>,
-    masking: Masking,
+    masking: Arc<Masking>,
     /// Whether models can register secret sources, only while genesis asks them to.
     secret_sources_registration: AtomicBool,
     /// Schemes for which a source was registered more than once.
@@ -235,7 +235,11 @@ impl World {
             models: RwLock::new(Vec::new()),
             sources: RwLock::new(HashMap::new()),
             secret_sources: RwLock::new(Self::builtin_secret_sources()),
-            masking: Masking::new(),
+            masking: {
+                let masking = Arc::new(Masking::new());
+                register_wipe(Arc::downgrade(&masking) as Weak<dyn Wipe>);
+                masking
+            },
             secret_sources_registration: AtomicBool::new(false),
             duplicate_secret_sources: RwLock::new(Vec::new()),
             launch_secrets: RwLock::new(HashMap::new()),

@@ -1,10 +1,11 @@
 use aho_corasick::{AhoCorasick, MatchKind};
 use base64::Engine;
-use melodium_common::executive::{PackedArray, Value};
+use melodium_common::executive::{count_wiped, PackedArray, Value, Wipe};
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::RwLock;
+use zeroize::Zeroize;
 
 /// Shortest text masked, shorter ones would mask ordinary words.
 pub const MIN_MASKED_LENGTH: usize = 8;
@@ -49,8 +50,10 @@ impl Masking {
 
         let mut patterns = self.patterns.write().unwrap();
         let mut added = false;
-        for text in texts {
-            if !patterns.names.contains_key(&text) {
+        for mut text in texts {
+            if patterns.names.contains_key(&text) {
+                text.zeroize();
+            } else {
                 patterns.names.insert(text, name.to_string());
                 added = true;
             }
@@ -81,9 +84,12 @@ impl Masking {
         }
     }
 
-    /// Forgets every registered value.
+    /// Forgets every registered value, overwriting them.
+    ///
+    /// The matcher built from them is dropped without being overwritten,
+    /// its memory being out of reach.
     pub fn clear(&self) {
-        *self.patterns.write().unwrap() = Patterns::default();
+        self.wipe();
     }
 
     /// Gives the texts to mask for `value`.
@@ -122,8 +128,41 @@ impl Masking {
                 );
             }
         }
-        forms.retain(|form| form.len() >= MIN_MASKED_LENGTH);
+        if let Cow::Owned(mut bytes) = bytes {
+            bytes.zeroize();
+        }
         forms
+            .into_iter()
+            .filter_map(|mut form| {
+                if form.len() >= MIN_MASKED_LENGTH {
+                    Some(form)
+                } else {
+                    form.zeroize();
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+impl Drop for Masking {
+    fn drop(&mut self) {
+        self.wipe();
+    }
+}
+
+impl Wipe for Masking {
+    fn wipe(&self) -> bool {
+        let mut patterns = self.patterns.write().unwrap();
+        let wiped = !patterns.names.is_empty();
+        for (mut text, _) in patterns.names.drain() {
+            text.zeroize();
+        }
+        patterns.matcher = None;
+        if wiped {
+            count_wiped();
+        }
+        wiped
     }
 }
 
@@ -234,6 +273,15 @@ mod tests {
                 elapsed.as_nanos() as f64 / LINES as f64
             );
         }
+    }
+
+    #[test]
+    fn wiping_forgets_values() {
+        let masking = Masking::new();
+        assert!(!masking.wipe());
+        masking.add("token", &Value::String("t0k:en/value@1".to_string()));
+        assert!(masking.wipe());
+        assert_eq!(masking.mask("t0k:en/value@1"), "t0k:en/value@1");
     }
 
     #[test]

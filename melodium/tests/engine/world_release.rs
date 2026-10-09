@@ -6,18 +6,7 @@ use melodium_common::executive::Level;
 use melodium_engine::debug::DebugLevel;
 use std::{collections::HashMap, sync::Arc};
 
-const SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = world_release
-#! version = 0.10.4
-#! require = std:0.10.4
-
-use std/engine/util::startup
-
-treatment main()
-{
-    startup()
-}
-"#;
+const SCRIPT: &str = include_str!("scripts/world_release.mel");
 
 #[test]
 fn world_is_released_once_engine_is_dropped() {

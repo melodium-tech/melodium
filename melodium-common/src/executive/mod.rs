@@ -17,6 +17,7 @@ mod secret;
 mod transmission;
 mod treatment;
 mod value;
+mod wipe;
 mod world;
 
 pub use context::Context;
@@ -39,4 +40,5 @@ pub use value::{
     GetData, PackedArray, Secret, SecretId, SecretOrigin, SecretPolicy, SecretReveal,
     SecretTransmission, Value,
 };
+pub use wipe::{count_wiped, register_wipe, wipe_all, wipe_value, wiped_count, Wipe};
 pub use world::{DirectCreationCallback, TrackCreationCallback, TrackId, World};

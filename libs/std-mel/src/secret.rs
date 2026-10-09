@@ -17,6 +17,14 @@
 //!
 //! The functions derive and narrow secrets given as parameters; the treatments of
 //! `std/secret/block` do the same for secrets received at runtime.
+//!
+//! Plaintext held by Mélodium (values of concealed secrets, revealed values, values masked
+//! in logs, vault caches) is overwritten once not needed anymore, and before the process
+//! exits, including on SIGINT, SIGTERM and SIGHUP. This is best effort, and does not cover:
+//! - a process stopped by SIGKILL, the out-of-memory killer or a power loss;
+//! - memory written to swap or to core dumps;
+//! - copies made by libraries, child processes and remote services given the value,
+//! nor values made plain by `reveal`, which become ordinary data.
 
 use crate::data::map::*;
 use base64::Engine;
@@ -30,6 +38,7 @@ use melodium_macro::{mel_function, mel_treatment};
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use std::collections::HashMap;
 use std::sync::Arc;
+use zeroize::Zeroize;
 
 pub mod block;
 
@@ -220,26 +229,35 @@ impl SecretDerivation for FormatDerivation {
             ));
         }
         let mut entries = self.plain_entries.clone();
+        let mut invalid = None;
         for (entry, value) in self.secret_entries.iter().zip(inputs) {
             match value {
                 Value::String(text) => {
                     entries.insert(entry.clone(), text.clone());
                 }
-                _ => return Err(format!("entry '{entry}' is not a string")),
+                _ => {
+                    invalid = Some(format!("entry '{entry}' is not a string"));
+                    break;
+                }
             }
         }
+        let formatted = match invalid {
+            Some(invalid) => Err(invalid),
+            None => Ok(strfmt::strfmt(&self.template, &entries)),
+        };
+        for (_, mut text) in entries.drain() {
+            text.zeroize();
+        }
         // strfmt errors may quote formatted content, so only their kind is kept.
-        strfmt::strfmt(&self.template, &entries)
-            .map(Value::String)
-            .map_err(|err| match err {
-                strfmt::FmtError::Invalid(_) => "the template is not valid".to_string(),
-                strfmt::FmtError::KeyError(_) => {
-                    "the template uses an entry that is not given".to_string()
-                }
-                strfmt::FmtError::TypeError(_) => {
-                    "the template has an invalid placeholder format".to_string()
-                }
-            })
+        formatted?.map(Value::String).map_err(|err| match err {
+            strfmt::FmtError::Invalid(_) => "the template is not valid".to_string(),
+            strfmt::FmtError::KeyError(_) => {
+                "the template uses an entry that is not given".to_string()
+            }
+            strfmt::FmtError::TypeError(_) => {
+                "the template has an invalid placeholder format".to_string()
+            }
+        })
     }
 }
 
@@ -252,9 +270,11 @@ impl SecretDerivation for Base64Derivation {
             .first()
             .and_then(value_bytes)
             .ok_or_else(|| "base64 needs a string or bytes".to_string())?;
-        Ok(Value::String(
-            base64::engine::general_purpose::STANDARD.encode(bytes),
-        ))
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        if let std::borrow::Cow::Owned(mut bytes) = bytes {
+            bytes.zeroize();
+        }
+        Ok(Value::String(encoded))
     }
 }
 

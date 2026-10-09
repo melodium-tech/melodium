@@ -1,14 +1,15 @@
 use super::Value;
 use crate::descriptor::DataType;
 use crate::executive::{
-    SecretAudit, SecretAuditOutcome, SecretDerivation, SecretError, SecretsAccess, SecretsHost,
+    count_wiped, register_wipe, wipe_value, SecretAudit, SecretAuditOutcome, SecretDerivation,
+    SecretError, SecretsAccess, SecretsHost, Wipe,
 };
 use core::fmt::{Debug, Display, Formatter, Result};
 use core::future::Future;
 use core::pin::Pin;
 use core::str::FromStr;
 use core::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, Weak};
 
 pub type SecretId = u64;
 
@@ -143,6 +144,52 @@ impl Debug for SecretOrigin {
     }
 }
 
+/// Value of an inline secret, wiped once the secret is dropped, or before the process exits.
+struct InlineValue(Mutex<Option<Value>>);
+
+impl Wipe for InlineValue {
+    fn wipe(&self) -> bool {
+        match self.0.lock().unwrap().take() {
+            Some(mut value) => {
+                wipe_value(&mut value);
+                count_wiped();
+                true
+            }
+            None => false,
+        }
+    }
+}
+
+impl Drop for InlineValue {
+    fn drop(&mut self) {
+        self.wipe();
+    }
+}
+
+/// Origin as kept by a secret.
+enum Origin {
+    Locator(String),
+    Inline(Arc<InlineValue>),
+    Derived {
+        inputs: Vec<Secret>,
+        derivation: Arc<dyn SecretDerivation>,
+    },
+}
+
+impl Debug for Origin {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Origin::Locator(locator) => f.debug_tuple("Locator").field(locator).finish(),
+            Origin::Inline(_) => f.debug_tuple("Inline").finish_non_exhaustive(),
+            Origin::Derived { inputs, derivation } => f
+                .debug_struct("Derived")
+                .field("inputs", inputs)
+                .field("derivation", derivation)
+                .finish(),
+        }
+    }
+}
+
 /// Splits a `<scheme>:<path>` locator, the scheme being made of ASCII letters,
 /// digits, `-` and `_`, and starting with a letter.
 fn split_locator(locator: &str) -> Option<(&str, &str)> {
@@ -162,7 +209,7 @@ struct SecretInner {
     name: String,
     datatype: DataType,
     policy: SecretPolicy,
-    origin: Arc<SecretOrigin>,
+    origin: Arc<Origin>,
 }
 
 /// Sensitive value, carried as `Value::Secret`.
@@ -209,6 +256,16 @@ impl Secret {
             SecretOrigin::Derived { inputs, .. } => inputs
                 .iter()
                 .fold(policy, |policy, input| policy.narrow(input.policy())),
+        };
+
+        let origin = match origin {
+            SecretOrigin::Locator(locator) => Origin::Locator(locator),
+            SecretOrigin::Inline(value) => {
+                let inline = Arc::new(InlineValue(Mutex::new(Some(value))));
+                register_wipe(Arc::downgrade(&inline) as Weak<dyn Wipe>);
+                Origin::Inline(inline)
+            }
+            SecretOrigin::Derived { inputs, derivation } => Origin::Derived { inputs, derivation },
         };
 
         Ok(Self(Arc::new(SecretInner {
@@ -278,15 +335,15 @@ impl Secret {
     /// Locator of the secret, if its value is resolved from a source.
     pub fn locator(&self) -> Option<&str> {
         match &*self.0.origin {
-            SecretOrigin::Locator(locator) => Some(locator),
-            SecretOrigin::Inline(_) | SecretOrigin::Derived { .. } => None,
+            Origin::Locator(locator) => Some(locator),
+            Origin::Inline(_) | Origin::Derived { .. } => None,
         }
     }
 
     /// Gives the secrets a derived secret is computed from, at any depth.
     pub fn derived_from(&self) -> Vec<Secret> {
         let mut secrets = Vec::new();
-        if let SecretOrigin::Derived { inputs, .. } = &*self.0.origin {
+        if let Origin::Derived { inputs, .. } = &*self.0.origin {
             for input in inputs {
                 secrets.push(input.clone());
                 secrets.extend(input.derived_from());
@@ -311,14 +368,12 @@ impl Secret {
         &self,
         host: &dyn SecretsHost,
     ) -> core::result::Result<(), SecretError> {
-        match &*self.0.origin {
-            SecretOrigin::Inline(_) => Ok(()),
-            _ => self
-                .resolve(host, false)
-                .await
-                .map(|_| ())
-                .map_err(SecretError::ResolveFailed),
-        }
+        let mut value = self
+            .resolve(host, false)
+            .await
+            .map_err(SecretError::ResolveFailed)?;
+        wipe_value(&mut value);
+        Ok(())
     }
 
     /// Lends the value of the secret to `f`, for the element `access` belongs to,
@@ -360,14 +415,8 @@ impl Secret {
             return Err(SecretError::Denied(reason));
         }
 
-        if let SecretOrigin::Inline(value) = &*self.0.origin {
-            host.add_masked_value(&self.0.name, value);
-            host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
-            return Ok(f(value));
-        }
-
         match self.resolve(&*host, true).await {
-            Ok(value) => {
+            Ok(mut value) => {
                 host.add_masked_value(&self.0.name, &value);
                 // The value of a derived secret exposes the values it is computed from.
                 for input in self.derived_from() {
@@ -375,7 +424,9 @@ impl Secret {
                         .await;
                 }
                 host.secret_audit(audit(SecretAuditOutcome::Revealed)).await;
-                Ok(f(&value))
+                let result = f(&value);
+                wipe_value(&mut value);
+                Ok(result)
             }
             Err(error) => {
                 host.secret_audit(audit(SecretAuditOutcome::ResolveFailed(error.clone())))
@@ -389,13 +440,13 @@ impl Secret {
     /// or of the first such source a derived secret comes from.
     fn plain_reveal_refusal(&self, host: &dyn SecretsHost) -> Option<String> {
         match &*self.0.origin {
-            SecretOrigin::Inline(_) => None,
-            SecretOrigin::Locator(locator) => {
+            Origin::Inline(_) => None,
+            Origin::Locator(locator) => {
                 let (scheme, _) = split_locator(locator)?;
                 let source = host.secret_source(scheme)?;
                 (!source.plain_reveal()).then(|| scheme.to_string())
             }
-            SecretOrigin::Derived { inputs, .. } => inputs
+            Origin::Derived { inputs, .. } => inputs
                 .iter()
                 .find_map(|input| input.plain_reveal_refusal(host)),
         }
@@ -419,8 +470,13 @@ impl Secret {
     ) -> Pin<Box<dyn Future<Output = core::result::Result<Value, String>> + Send + 'a>> {
         Box::pin(async move {
             let value = match &*self.0.origin {
-                SecretOrigin::Inline(value) => value.clone(),
-                SecretOrigin::Locator(locator) => {
+                Origin::Inline(inline) => inline
+                    .0
+                    .lock()
+                    .unwrap()
+                    .clone()
+                    .ok_or_else(|| "the value was wiped".to_string())?,
+                Origin::Locator(locator) => {
                     let (scheme, path) = split_locator(locator)
                         .ok_or_else(|| format!("'{locator}' is not a locator"))?;
                     let source = host
@@ -428,24 +484,36 @@ impl Secret {
                         .ok_or_else(|| format!("no secret source '{scheme}' for '{locator}'"))?;
                     source.resolve(path, &self.0.datatype).await?
                 }
-                SecretOrigin::Derived { inputs, derivation } => {
+                Origin::Derived { inputs, derivation } => {
                     let mut values = Vec::with_capacity(inputs.len());
+                    let mut failure = None;
                     for input in inputs {
-                        let value = input
-                            .resolve(host, revealing)
-                            .await
-                            .map_err(|error| format!("{input}: {error}"))?;
-                        if revealing {
-                            host.add_masked_value(input.name(), &value);
+                        match input.resolve(host, revealing).await {
+                            Ok(value) => {
+                                if revealing {
+                                    host.add_masked_value(input.name(), &value);
+                                }
+                                values.push(value);
+                            }
+                            Err(error) => {
+                                failure = Some(format!("{input}: {error}"));
+                                break;
+                            }
                         }
-                        values.push(value);
                     }
-                    derivation.derive(&values)?
+                    let derived = match failure {
+                        Some(failure) => Err(failure),
+                        None => derivation.derive(&values),
+                    };
+                    values.iter_mut().for_each(wipe_value);
+                    derived?
                 }
             };
             if value.datatype() == self.0.datatype {
                 Ok(value)
             } else {
+                let mut value = value;
+                wipe_value(&mut value);
                 Err(format!("{self} did not get a {} value", self.0.datatype))
             }
         })
@@ -873,6 +941,27 @@ mod tests {
                 DataType::String
             ))))
         );
+    }
+
+    #[test]
+    fn inline_values_are_wiped_when_dropped_or_asked() {
+        let wiped = crate::executive::wiped_count();
+        let dropped = inline_secret();
+        let narrowed = dropped.narrow(&SecretPolicy::unrestricted());
+        drop(dropped);
+        // Still held by the narrowed secret, sharing the origin.
+        drop(narrowed);
+        assert!(crate::executive::wiped_count() > wiped);
+
+        let kept = inline_secret();
+        match &*kept.0.origin {
+            Origin::Inline(inline) => {
+                assert!(inline.wipe());
+                assert!(inline.0.lock().unwrap().is_none());
+                assert!(!inline.wipe());
+            }
+            _ => panic!("inline origin expected"),
+        }
     }
 
     #[test]

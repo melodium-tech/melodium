@@ -310,6 +310,12 @@ enum Commands {
     Doc(Doc),
 }
 
+/// Exits the process, wiping plaintext held from secrets before.
+fn exit(code: i32) -> ! {
+    melodium_common::executive::wipe_all();
+    std::process::exit(code)
+}
+
 pub fn main() {
     #[cfg(windows)]
     let _ = colored::control::set_virtual_terminal(true);
@@ -368,8 +374,10 @@ pub fn main() {
             "{}: run `melodium --help` get commands",
             "info".bold().blue()
         );
-        std::process::exit(1);
+        exit(1);
     }
+
+    exit(0);
 }
 
 fn run(args: Run) {
@@ -404,7 +412,7 @@ fn run(args: Run) {
             tr
         } else {
             eprintln!("{}: entrypoint must be a treatment", "failure".bold().red());
-            std::process::exit(1);
+            exit(1);
         };
 
         let params = parse_args(
@@ -434,21 +442,21 @@ fn run(args: Run) {
             .iter()
             .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
         if launch.is_failure() {
-            std::process::exit(1);
+            exit(1);
         }
         if let Some(Some(interruption)) = launch.success() {
-            std::process::exit(interruption.exit_code());
+            exit(interruption.exit_code());
         }
     } else {
-        std::process::exit(1);
+        exit(1);
     }
 }
 
 fn check(args: Check) {
     if let Ok(_) = check_load(args) {
-        std::process::exit(0);
+        exit(0);
     } else {
-        std::process::exit(1);
+        exit(1);
     }
 }
 
@@ -575,7 +583,7 @@ fn info(args: Info) {
         }
         let _ = cmd.print_long_help();
     } else {
-        std::process::exit(1);
+        exit(1);
     }
 }
 
@@ -589,7 +597,7 @@ fn new(args: New) {
         Ok(version) => version,
         Err(err) => {
             eprintln!("{}: {err}", "error".bold().red());
-            std::process::exit(1);
+            exit(1);
         }
     };
 
@@ -597,7 +605,7 @@ fn new(args: New) {
         Ok(path) => path,
         Err(err) => {
             eprintln!("{}: {err}", "error".bold().red());
-            std::process::exit(1);
+            exit(1);
         }
     };
 
@@ -618,7 +626,7 @@ fn new(args: New) {
 
         if let Err(err) = std::fs::write(&path, contents) {
             eprintln!("{}: {err}", "error".bold().red());
-            std::process::exit(1);
+            exit(1);
         }
 
         println!(
@@ -637,7 +645,7 @@ fn new(args: New) {
                     full_path.push(filename);
                     if let Err(err) = std::fs::write(full_path, content) {
                         eprintln!("{}: {err}", "error".bold().red());
-                        std::process::exit(1);
+                        exit(1);
                     }
                 }
 
@@ -649,7 +657,7 @@ fn new(args: New) {
             }
             Err(err) => {
                 eprintln!("{}: {err}", "error".bold().red());
-                std::process::exit(1);
+                exit(1);
             }
         }
     }
@@ -987,12 +995,12 @@ fn dist(args: Dist) {
                 "{}: monitoring tasks did not complete in time, forcing exit",
                 "warning".bold().yellow()
             );
-            std::process::exit(interruption.map(|i| i.exit_code()).unwrap_or(0));
+            exit(interruption.map(|i| i.exit_code()).unwrap_or(0));
         }
     });
 
     if let Some(interruption) = interruption {
-        std::process::exit(interruption.exit_code());
+        exit(interruption.exit_code());
     }
 }
 
@@ -1061,7 +1069,7 @@ fn doc(args: Doc) {
         melodium_doc::Documentation::new(PathBuf::from(&args.output), collection, subject);
     if let Err(err) = documentation.make_documentation() {
         eprintln!("{}: {err}", "error".bold().red());
-        std::process::exit(1);
+        exit(1);
     } else {
         println!(
             "{}: documentation generated, run `mdbook build` in '{path}' to build publishable book",
@@ -1121,7 +1129,7 @@ fn parse_args(
                                 "{}: argument '{name}' cannot be parsed",
                                 "failure".bold().red()
                             );
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
                     words.push(melodium_lang::text::Word::default());
@@ -1136,7 +1144,7 @@ fn parse_args(
                                 "{}: argument '{name}' cannot be parsed: {err}",
                                 "failure".bold().red()
                             );
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
 
@@ -1147,7 +1155,7 @@ fn parse_args(
                                 errors
                                     .iter()
                                     .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                                std::process::exit(1);
+                                exit(1);
                             }
                             success
                         }
@@ -1156,7 +1164,7 @@ fn parse_args(
                             errors
                                 .iter()
                                 .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
 
@@ -1168,7 +1176,7 @@ fn parse_args(
                         "{}: provided treatment have generics, it cannot be used as entrypoint",
                         "failure".bold().red()
                     );
-                            std::process::exit(1);
+                            exit(1);
                         };
 
                     let value = match value.read().unwrap().make_executive_value(&datatype) {
@@ -1177,7 +1185,7 @@ fn parse_args(
                                 errors
                                     .iter()
                                     .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                                std::process::exit(1);
+                                exit(1);
                             }
                             success
                         }
@@ -1186,7 +1194,7 @@ fn parse_args(
                             errors
                                 .iter()
                                 .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
 
@@ -1200,7 +1208,7 @@ fn parse_args(
                         "{}: provided treatment have generics, it cannot be used as entrypoint",
                         "failure".bold().red()
                     );
-                            std::process::exit(1);
+                            exit(1);
                         };
 
                     fn naive_parse(name: &str, dt: &DataType, value: &str) -> Value {
@@ -1213,7 +1221,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1225,7 +1233,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1237,7 +1245,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1249,7 +1257,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1261,7 +1269,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1273,7 +1281,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1285,7 +1293,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1297,7 +1305,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1309,7 +1317,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1321,7 +1329,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1333,7 +1341,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1345,7 +1353,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1357,7 +1365,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1369,7 +1377,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1381,7 +1389,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1406,13 +1414,13 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 }
                             }
                             _ => {
                                 eprintln!("{}: parameter '{name}' is type '{dt}', that cannot be set up without parsing, see --parse-arguments option", "failure".bold().red());
-                                std::process::exit(1);
+                                exit(1);
                             }
                         }
                     }
@@ -1438,7 +1446,7 @@ fn build_jeu(args: JeuBuild) {
     print_result(&result);
 
     if result.is_failure() {
-        std::process::exit(1);
+        exit(1);
     }
 }
 
@@ -1449,7 +1457,7 @@ fn extract_jeu(args: JeuExtract) {
 
     if let Err(err) = melodium_loader::extract_jeu(&input, &output) {
         eprintln!("{}: {err}", "error".bold().red());
-        std::process::exit(1);
+        exit(1);
     }
 }
 

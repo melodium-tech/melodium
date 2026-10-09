@@ -3,6 +3,7 @@ use crate::executive::{PackedArray, Secret, SecretId, TrackId, Value};
 use async_trait::async_trait;
 use core::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Weak};
+use zeroize::Zeroize;
 
 /// Resolves the value of secrets designated by a locator scheme.
 ///
@@ -143,10 +144,15 @@ impl SecretsAccess {
                 for value in values {
                     match value {
                         Value::Byte(byte) | Value::U8(byte) => bytes.push(*byte),
-                        _ => return Err(SecretError::MismatchingValue),
+                        _ => {
+                            bytes.zeroize();
+                            return Err(SecretError::MismatchingValue);
+                        }
                     }
                 }
-                Ok(f(&bytes))
+                let result = f(&bytes);
+                bytes.zeroize();
+                Ok(result)
             }
             _ => Err(SecretError::MismatchingValue),
         })

@@ -4675,6 +4675,7 @@ dependencies = [
  "serde",
  "serde_json",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -4733,6 +4734,7 @@ dependencies = [
  "stacker",
  "uuid",
  "windows-sys 0.61.2",
+ "zeroize",
 ]
 
 [[package]]
@@ -7293,6 +7295,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "strfmt",
+ "zeroize",
 ]
 
 [[package]]
@@ -8543,6 +8546,7 @@ dependencies = [
  "melodium-macro",
  "percent-encoding",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

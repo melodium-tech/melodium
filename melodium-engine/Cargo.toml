@@ -26,6 +26,7 @@ downcast-rs = "1.2.0"
 futures = "0.3.28"
 lazy_static = "1.4"
 percent-encoding = "2.3"
+zeroize = "1.9"
 serde = { version = "1", features = ["derive"] }
 stacker = "0.1"
 uuid = { version = "1.7", features = ["v4", "fast-rng"] }
