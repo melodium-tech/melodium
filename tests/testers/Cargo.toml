@@ -25,4 +25,5 @@ members = [
     "sql",
     "stop_before_data_drained",
     "tester",
+    "wipe",
 ]
