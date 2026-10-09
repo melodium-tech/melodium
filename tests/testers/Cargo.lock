@@ -36,6 +36,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "dist_keys"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "distribution_engine_never_started"
 version = "0.1.0"
 
@@ -203,6 +210,13 @@ name = "interruption"
 version = "0.1.0"
 
 [[package]]
+name = "interruption_signals"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -292,6 +306,20 @@ name = "regex"
 version = "0.1.0"
 
 [[package]]
+name = "secret_access_cli"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
+name = "secret_masking"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -361,6 +389,10 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "tester"
+version = "0.1.0"
 
 [[package]]
 name = "tinystr"

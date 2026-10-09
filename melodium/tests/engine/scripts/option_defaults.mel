@@ -1,0 +1,17 @@
+#!/usr/bin/env melodium
+#! name = option_defaults
+#! version = 0.10.4
+#! require = std:0.10.4 work:0.10.4 record:0.10.4
+
+use std/engine/util::startup
+use work/distant::DistantEngine
+use record/audio::recordMono
+
+treatment main()
+  model distant: DistantEngine()
+{
+    startup()
+    recordMono()
+
+    startup.trigger -> recordMono.trigger
+}

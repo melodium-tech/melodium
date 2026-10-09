@@ -2,10 +2,10 @@
 //! logging in with a JWT such as a GitLab CI ID token, and caching what it reads.
 //! The server is a mock answering the few requests involved.
 
-use async_std::channel::unbounded;
-use melodium::{load_raw, LoadingConfig};
-use melodium_common::executive::{Level, Log, SecretPolicy, SecretTransmission, Value};
-use melodium_engine::debug::{DataContent, DebugLevel, Event, EventKind};
+use super::common::{self, genesis_errors, sent};
+use melodium_common::descriptor::DataType;
+use melodium_common::executive::{Log, Secret, SecretPolicy, SecretTransmission, Value};
+use melodium_engine::debug::{DataContent, Event, EventKind};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
@@ -108,133 +108,33 @@ fn vault_server(revoke_first: bool) -> (String, Arc<Mutex<Vec<String>>>) {
     (address, requests)
 }
 
-const SCRIPT: &str = r#"#!/usr/bin/env melodium
-#! name = secret_vault
-#! version = 0.10.4
-#! require = std:0.10.4 vault:0.10.4
+const SCRIPT: &str = include_str!("scripts/secret_vault.mel");
 
-use std/engine/util::startup
-use std/flow::emit
-use std/flow::stream
-use std/flow::trigger
-use std/engine/log::logInfo
-use std/engine/log::logError
-use std/ops/option/block::unwrap
-use std/secret::reveal
-use std/secret::|locate
-use vault::Vault
-use vault::get
-
-treatment main(const address: string)
-  model vault: Vault(address = address, MODEL_PARAMETERS)
-{
-    startup()
-
-    emitPassword: emit<Option<Secret<string>>>(value=|locate<string>("vault:kv/data/app/db#password", "db_password", "local", true))
-    unwrapPassword: unwrap<Secret<string>>()
-    revealPassword: reveal<string>()
-    logPassword: logInfo(label="password")
-    logPasswordError: logError(label="password-error")
-
-    startup.trigger -> emitPassword.trigger,emit -> unwrapPassword.option,value -> revealPassword.secret,value -> logPassword.message
-    revealPassword.error -> logPasswordError.message
-
-    // Once the password is revealed, from the cache.
-    stream<string>()
-    trigger<string>()
-    revealPassword.value -> stream.block,stream -> trigger.stream
-
-    emitUser: emit<string>(value="kv/data/app/db#user")
-    getUser: get[vault=vault](name="db_user")
-    trigger.end -> emitUser.trigger,emit -> getUser.path
-
-    emitMissing: emit<string>(value="kv/data/app/missing#password")
-    getMissing: get[vault=vault](name="missing")
-    logMissing: logError(label="missing")
-    trigger.end -> emitMissing.trigger,emit -> getMissing.path,error -> logMissing.message
-
-    // Read at runtime, and plainly revealed as its policy allows.
-    emitShown: emit<string>(value="kv/data/app/db#user")
-    getShown: get[vault=vault](name="db_user_shown", transmission="value", plain_reveal=true)
-    revealShown: reveal<string>()
-    trigger.end -> emitShown.trigger,emit -> getShown.path,secret -> revealShown.secret
-
-    emitInvalid: emit<string>(value="kv/data/app/db#user")
-    getInvalid: get[vault=vault](name="invalid", transmission="everywhere")
-    logInvalid: logError(label="invalid")
-    trigger.end -> emitInvalid.trigger,emit -> getInvalid.path,error -> logInvalid.message
+/// Runs `SCRIPT` against the vault at `address`, with the other parameters of its `Vault`.
+fn run(address: &str, parameters: Vec<(&str, Value)>) -> (Vec<Log>, Vec<Event>) {
+    let mut parameters: HashMap<String, Value> = parameters
+        .into_iter()
+        .map(|(name, value)| (name.to_string(), value))
+        .collect();
+    parameters.insert("address".to_string(), Value::String(address.to_string()));
+    run_script(SCRIPT.to_string(), parameters)
 }
-"#;
 
-fn run(address: &str, model_parameters: &str) -> (Vec<Log>, Vec<Event>) {
+fn text(value: &str) -> Value {
+    Value::String(value.to_string())
+}
+
+fn run_script(script: String, parameters: HashMap<String, Value>) -> (Vec<Log>, Vec<Event>) {
     std::env::set_var("MELODIUM_SECRET_VAULT_ID_TOKEN", ID_TOKEN);
     std::env::set_var("MELODIUM_SECRET_VAULT_TOKEN", CLIENT_TOKEN);
 
-    let (pkg, collection) = load_raw(
-        Arc::new(
-            SCRIPT
-                .replace("MODEL_PARAMETERS", model_parameters)
-                .into_bytes(),
-        ),
-        "main",
-        LoadingConfig {
-            core_packages: Vec::new(),
-            search_locations: Vec::new(),
-            raw_elements: Vec::new(),
-        },
-    )
-    .into_result()
-    .expect("script loads");
-    let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
-
-    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::Detailed);
-    let (logs_sender, logs_receiver) = unbounded();
-    let (debug_sender, debug_receiver) = unbounded();
-    engine.add_logs_listener(logs_sender);
-    engine.add_debug_listener(debug_sender);
-
-    assert!(engine
-        .genesis(
-            &entrypoint,
-            HashMap::from([("address".to_string(), Value::String(address.to_string()))]),
-        )
-        .is_success());
-    async_std::task::block_on(async {
-        engine.live().await;
-        engine.end().await;
-    });
-
-    let mut logs = Vec::new();
-    while let Ok(log) = logs_receiver.try_recv() {
-        logs.push(log);
-    }
-    let mut events = Vec::new();
-    while let Ok(event) = debug_receiver.try_recv() {
-        events.push(event);
-    }
-    (logs, events)
-}
-
-/// Values sent by the output `name` of the instance labelled `label`.
-fn sent(events: &[Event], label: &str, name: &str) -> Vec<Value> {
-    events
-        .iter()
-        .filter_map(|event| match &event.kind {
-            EventKind::DataSent {
-                output,
-                data: DataContent::Values { values },
-                ..
-            } if output.label == label && output.name == name => Some(values.clone()),
-            _ => None,
-        })
-        .flatten()
-        .collect()
+    common::run(&script, parameters)
 }
 
 #[test]
 fn vault_secrets_are_read_with_jwt_authentication() {
     let (address, requests) = vault_server(false);
-    let (logs, events) = run(&address, "auth = \"jwt\", role = \"app\"");
+    let (logs, events) = run(&address, vec![("auth", text("jwt")), ("role", text("app"))]);
 
     // The password comes from vault, and is masked once revealed.
     assert_eq!(
@@ -317,7 +217,7 @@ fn vault_secrets_are_read_with_jwt_authentication() {
 #[test]
 fn vault_secrets_are_read_with_a_token() {
     let (address, requests) = vault_server(false);
-    let (_, events) = run(&address, "auth = \"token\"");
+    let (_, events) = run(&address, vec![("auth", text("token"))]);
 
     assert_eq!(
         sent(&events, "revealPassword", "value"),
@@ -337,7 +237,17 @@ fn credentials_cannot_come_from_the_same_vault() {
     let (address, requests) = vault_server(false);
     let (logs, _) = run(
         &address,
-        "auth = \"jwt\", role = \"app\", jwt = \"vault:kv/data/app/db#password\"",
+        vec![
+            ("auth", text("jwt")),
+            ("role", text("app")),
+            (
+                "jwt",
+                Value::Secret(
+                    Secret::from_locator("vault:kv/data/app/db#password", DataType::String)
+                        .unwrap(),
+                ),
+            ),
+        ],
     );
 
     let error = logs
@@ -357,7 +267,14 @@ fn credentials_cannot_come_from_the_same_vault() {
 #[test]
 fn refused_tokens_are_renewed_once() {
     let (address, requests) = vault_server(true);
-    let (_, events) = run(&address, "auth = \"jwt\", role = \"app\", cache_ttl = 0");
+    let (_, events) = run(
+        &address,
+        vec![
+            ("auth", text("jwt")),
+            ("role", text("app")),
+            ("cache_ttl", Value::U64(0)),
+        ],
+    );
 
     assert_eq!(
         sent(&events, "revealPassword", "value"),
@@ -388,73 +305,15 @@ fn refused_tokens_are_renewed_once() {
     );
 }
 
-/// Errors of the genesis of `script`, which has to fail.
-fn genesis_errors(script: &str) -> Vec<String> {
-    let (pkg, collection) = load_raw(
-        Arc::new(script.as_bytes().to_vec()),
-        "main",
-        LoadingConfig {
-            core_packages: Vec::new(),
-            search_locations: Vec::new(),
-            raw_elements: Vec::new(),
-        },
-    )
-    .into_result()
-    .expect("script loads");
-    let entrypoint = pkg.entrypoints().get("main").cloned().unwrap();
-    let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::None);
-    let result = engine.genesis(&entrypoint, HashMap::new());
-    assert!(result.is_failure());
-    result
-        .failure()
-        .into_iter()
-        .chain(result.errors().iter())
-        .map(|error| error.to_string())
-        .collect()
-}
-
 #[test]
 fn sources_are_registered_before_launch_and_once() {
-    let duplicate = genesis_errors(
-        r#"#!/usr/bin/env melodium
-#! name = secret_vault_duplicate
-#! version = 0.10.4
-#! require = std:0.10.4 vault:0.10.4
-
-use std/engine/util::startup
-use vault::Vault
-
-treatment main()
-  model first: Vault(address = "http://127.0.0.1:1")
-  model second: Vault(address = "http://127.0.0.1:2")
-{
-    startup()
-}
-"#,
-    );
+    let duplicate = genesis_errors(include_str!("scripts/secret_vault_duplicate.mel"));
     assert_eq!(
         duplicate,
         vec!["D0252: A secret source is already registered for 'vault:'".to_string()]
     );
 
-    let missing = genesis_errors(
-        r#"#!/usr/bin/env melodium
-#! name = secret_vault_missing
-#! version = 0.10.4
-#! require = std:0.10.4
-
-use std/engine/util::startup
-use std/flow::emit
-use std/secret::|locate
-
-treatment main()
-{
-    startup()
-    emitPassword: emit<Option<Secret<string>>>(value=|locate<string>("vault:kv/data/app/db#password", "db_password", "local", true))
-    startup.trigger -> emitPassword.trigger
-}
-"#,
-    );
+    let missing = genesis_errors(include_str!("scripts/secret_vault_missing.mel"));
     assert_eq!(
         missing,
         vec!["D0253: Secret 'db_password' is located in 'vault:', for which no source is registered on this engine".to_string()]
