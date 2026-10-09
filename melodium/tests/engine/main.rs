@@ -2,8 +2,8 @@
 //! gives: logs, debug events, launch errors, descriptors. The programs are in `scripts/`.
 //!
 //! These tests share one binary, as each test binary links the whole engine and every
-//! package. Tests checking programs from outside, through the `melodium` executable, are in
-//! their own files.
+//! package. Tests checking programs from outside, through the `melodium` executable, are
+//! testers, in `tests/testers`.
 
 mod common;
 mod crypto;
