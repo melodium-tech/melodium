@@ -36,8 +36,20 @@ fn secret_parameters_take_locators_on_the_command_line() {
     assert!(output.status.success(), "{}", stdout);
     assert!(!stdout.contains("token-sentinel"), "{}", stdout);
     assert!(!stdout.contains("password-sentinel"), "{}", stdout);
-    assert!(stdout.contains(&format!("secret \"file:{}\" denied", password.display())));
-    assert!(stdout.contains("secrets from 'file:' cannot be plainly revealed"));
+    // Names are quoted and escaped, as backslashes of Windows paths are.
+    assert!(
+        stdout.contains(&format!(
+            "secret {:?} denied",
+            format!("file:{}", password.display())
+        )),
+        "{}",
+        stdout
+    );
+    assert!(
+        stdout.contains("secrets from 'file:' cannot be plainly revealed"),
+        "{}",
+        stdout
+    );
 
     let output = Command::new("melodium")
         .args(["run", "--check-secrets"])
