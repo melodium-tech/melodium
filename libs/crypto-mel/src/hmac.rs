@@ -1,16 +1,18 @@
 //! HMAC signatures of data, such as those of webhooks.
 //!
 //! Keys are secrets, revealed by the treatments when they start. Signatures are encoded as
-//! text, in hexadecimal or base64, as services usually give them in headers.
+//! text, in hexadecimal, base64 or base64url, as services usually give them in headers.
 
-use base64::Engine;
+use crate::encoding::{check_encoding, decode, encode};
 use hmac::{Hmac, Mac};
 use melodium_core::*;
 use melodium_macro::mel_treatment;
+use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
 
 /// HMAC being computed, with one of the supported hash functions.
 pub(crate) enum Signer {
+    Sha1(Hmac<Sha1>),
     Sha256(Hmac<Sha256>),
     Sha384(Hmac<Sha384>),
     Sha512(Hmac<Sha512>),
@@ -21,6 +23,9 @@ impl Signer {
         // HMAC takes keys of any length, so creating one never fails.
         let invalid = |_| "the key cannot be used".to_string();
         match algorithm {
+            "sha1" => Ok(Self::Sha1(
+                Hmac::<Sha1>::new_from_slice(key).map_err(invalid)?,
+            )),
             "sha256" => Ok(Self::Sha256(
                 Hmac::<Sha256>::new_from_slice(key).map_err(invalid)?,
             )),
@@ -31,13 +36,14 @@ impl Signer {
                 Hmac::<Sha512>::new_from_slice(key).map_err(invalid)?,
             )),
             _ => Err(format!(
-                "'{algorithm}' is not a supported algorithm, expected 'sha256', 'sha384' or 'sha512'"
+                "'{algorithm}' is not a supported algorithm, expected 'sha1', 'sha256', 'sha384' or 'sha512'"
             )),
         }
     }
 
     pub(crate) fn update(&mut self, data: &[u8]) {
         match self {
+            Self::Sha1(mac) => mac.update(data),
             Self::Sha256(mac) => mac.update(data),
             Self::Sha384(mac) => mac.update(data),
             Self::Sha512(mac) => mac.update(data),
@@ -46,6 +52,7 @@ impl Signer {
 
     pub(crate) fn sign(self) -> Vec<u8> {
         match self {
+            Self::Sha1(mac) => mac.finalize().into_bytes().to_vec(),
             Self::Sha256(mac) => mac.finalize().into_bytes().to_vec(),
             Self::Sha384(mac) => mac.finalize().into_bytes().to_vec(),
             Self::Sha512(mac) => mac.finalize().into_bytes().to_vec(),
@@ -55,34 +62,11 @@ impl Signer {
     /// Tells, in constant time, whether `signature` is the HMAC of the data.
     pub(crate) fn verify(self, signature: &[u8]) -> bool {
         match self {
+            Self::Sha1(mac) => mac.verify_slice(signature).is_ok(),
             Self::Sha256(mac) => mac.verify_slice(signature).is_ok(),
             Self::Sha384(mac) => mac.verify_slice(signature).is_ok(),
             Self::Sha512(mac) => mac.verify_slice(signature).is_ok(),
         }
-    }
-}
-
-fn check_encoding(encoding: &str) -> Result<(), String> {
-    match encoding {
-        "hex" | "base64" => Ok(()),
-        _ => Err(format!(
-            "'{encoding}' is not a supported encoding, expected 'hex' or 'base64'"
-        )),
-    }
-}
-
-pub(crate) fn encode(bytes: &[u8], encoding: &str) -> String {
-    match encoding {
-        "base64" => base64::engine::general_purpose::STANDARD.encode(bytes),
-        _ => hex::encode(bytes),
-    }
-}
-
-/// Gives the bytes of `text` encoded as `encoding`, none if it is not valid.
-pub(crate) fn decode(text: &str, encoding: &str) -> Option<Vec<u8>> {
-    match encoding {
-        "base64" => base64::engine::general_purpose::STANDARD.decode(text).ok(),
-        _ => hex::decode(text).ok(),
     }
 }
 
@@ -103,9 +87,10 @@ async fn signer(
 /// Signs data with HMAC.
 ///
 /// The HMAC of the bytes received through `data` is computed with `key` and `algorithm`
-/// (`sha256`, `sha384` or `sha512`), and given through `signature` once `data` ends,
-/// encoded with `encoding` (`hex`, in lowercase, or `base64`), such as to sign the body of
-/// an outgoing webhook. The key is revealed when the treatment starts.
+/// (`sha256`, `sha384`, `sha512`, or `sha1` for services still using it), and given through
+/// `signature` once `data` ends, encoded with `encoding` (`hex`, in lowercase, `base64`, or
+/// `base64url`, without padding), such as to sign the body of an outgoing webhook.
+/// The key is revealed when the treatment starts.
 ///
 /// If the key cannot be revealed, or `algorithm` or `encoding` is not supported,
 /// `failed` is emitted and `error` contains the reason.
@@ -138,10 +123,12 @@ pub async fn sign(key: Secret<string>, algorithm: string, encoding: string) {
 /// Verifies the HMAC signature of data.
 ///
 /// The HMAC of the bytes received through `data` is computed with `key` and `algorithm`
-/// (`sha256`, `sha384` or `sha512`), and compared in constant time with `signature`, once
-/// `data` ends. `signature` is encoded with `encoding` (`hex`, in any case, or `base64`),
-/// and starts with `prefix` when given, such as `sha256=` for GitHub webhooks
-/// (`X-Hub-Signature-256` header). The key is revealed when the treatment starts.
+/// (`sha256`, `sha384`, `sha512`, or `sha1` for services still using it, such as Twilio or
+/// the legacy `X-Hub-Signature` header of GitHub), and compared in constant time with
+/// `signature`, once `data` ends. `signature` is encoded with `encoding` (`hex`, in any
+/// case, `base64`, or `base64url`, with or without padding), and starts with `prefix` when
+/// given, such as `sha256=` for GitHub webhooks (`X-Hub-Signature-256` header).
+/// The key is revealed when the treatment starts.
 ///
 /// `valid` is emitted if `signature` matches, `invalid` otherwise, including when
 /// `signature` is none, lacks `prefix`, or is not validly encoded.
@@ -193,7 +180,7 @@ pub async fn verify(key: Secret<string>, algorithm: string, encoding: string, pr
 mod tests {
     use super::*;
 
-    /// RFC 4231, test case 2.
+    /// RFC 4231 and RFC 2202, test case 2.
     const KEY: &[u8] = b"Jefe";
     const DATA: &[u8] = b"what do ya want for nothing?";
 
@@ -203,6 +190,14 @@ mod tests {
             signer.update(chunk);
         }
         hex::encode(signer.sign())
+    }
+
+    #[test]
+    fn sha1_signatures_match_rfc_2202() {
+        assert_eq!(
+            sign("sha1", &[DATA]),
+            "effcdf6ae5eb2fa2d27416d5f184df9c259a7c79"
+        );
     }
 
     #[test]
@@ -244,18 +239,7 @@ mod tests {
     }
 
     #[test]
-    fn signatures_are_encoded_and_decoded() {
-        let bytes = [0x5b, 0xdc, 0xff];
-        assert_eq!(encode(&bytes, "hex"), "5bdcff");
-        assert_eq!(encode(&bytes, "base64"), "W9z/");
-        assert_eq!(decode("5BDCFF", "hex"), Some(bytes.to_vec()));
-        assert_eq!(decode("W9z/", "base64"), Some(bytes.to_vec()));
-        assert_eq!(decode("not hex", "hex"), None);
-    }
-
-    #[test]
     fn unsupported_settings_are_refused() {
         assert!(Signer::new("md5", KEY).is_err());
-        assert!(check_encoding("base32").is_err());
     }
 }

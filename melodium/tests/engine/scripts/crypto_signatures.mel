@@ -1,0 +1,77 @@
+#!/usr/bin/env melodium
+#! name = crypto_signatures
+#! version = 0.1.0
+#! require = std:0.11.0 crypto:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfo
+use std/engine/log::logInfoMessage
+use std/flow::emit
+use std/flow::stream
+use std/ops/option::|wrap
+use std/secret::reveal
+use std/text/convert/string::toUtf8
+use crypto/ed25519::verify as verifyEd25519
+use crypto/jwt::|sign
+use crypto/jwt::verify as verifyJwt
+use crypto/random::token
+
+// Ed25519 signatures, JSON Web Tokens and random tokens.
+treatment main(
+    const message: string,
+    const public_key: string,
+    const signature: string,
+    const jwt_key: Secret<string>,
+    const jwt_public_key: string,
+    const hmac_key: Secret<string>
+)
+{
+    startup()
+
+    // A signature made by OpenSSL, and a wrong one.
+    emitMessage: emit<string>(value=message)
+    asStream: stream<string>()
+    toUtf8()
+    startup.trigger -> emitMessage.trigger,emit -> asStream.block,stream -> toUtf8.text
+
+    goodEd25519: verifyEd25519(public_key=public_key)
+    emitSignature: emit<Option<string>>(value=|wrap<string>(signature))
+    logGoodValid: logInfoMessage(label="ed25519-good", message="valid")
+    logGoodInvalid: logInfoMessage(label="ed25519-good", message="invalid")
+    toUtf8.encoded -> goodEd25519.data
+    startup.trigger -> emitSignature.trigger,emit -> goodEd25519.signature
+    goodEd25519.valid -> logGoodValid.trigger
+    goodEd25519.invalid -> logGoodInvalid.trigger
+
+    wrongEd25519: verifyEd25519(public_key=public_key)
+    emitWrong: emit<Option<string>>(value=|wrap<string>("00"))
+    logWrongValid: logInfoMessage(label="ed25519-wrong", message="valid")
+    logWrongInvalid: logInfoMessage(label="ed25519-wrong", message="invalid")
+    toUtf8.encoded -> wrongEd25519.data
+    startup.trigger -> emitWrong.trigger,emit -> wrongEd25519.signature
+    wrongEd25519.valid -> logWrongValid.trigger
+    wrongEd25519.invalid -> logWrongInvalid.trigger
+
+    // A token signed with Ed25519, then verified.
+    emitJwt: emit<Option<Secret<string>>>(value=|wrap<Secret<string>>(
+        |sign(jwt_key, "EdDSA", "{\"iss\":\"ci\",\"aud\":\"melodium\"}", 600, "jwt")
+    ))
+    verifyJwt(public_key=jwt_public_key, algorithm="EdDSA", issuer="ci", audience="melodium")
+    logClaims: logInfo(label="jwt-claims")
+    logReason: logInfo(label="jwt-reason")
+    logJwtError: logInfo(label="jwt-error")
+    startup.trigger -> emitJwt.trigger,emit -> verifyJwt.token
+    verifyJwt.claims -> logClaims.message
+    verifyJwt.reason -> logReason.message
+    verifyJwt.error -> logJwtError.message
+
+    // A token signed with HMAC, plainly revealed as its key allows it.
+    emitHmacJwt: emit<Secret<string>>(value=|sign(hmac_key, "HS256", "{\"iss\":\"ci\"}", 0, "hmac_jwt"))
+    revealHmacJwt: reveal<string>()
+    startup.trigger -> emitHmacJwt.trigger,emit -> revealHmacJwt.secret
+
+    // A random token, plainly revealed as its policy allows it.
+    token(name="csrf", bytes=16, encoding="hex", plain_reveal=true)
+    revealToken: reveal<string>()
+    startup.trigger -> token.trigger,token -> revealToken.secret
+}

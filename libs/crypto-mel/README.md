@@ -1,6 +1,6 @@
 # Mélodium cryptography library
 
-This library provides cryptography utilities for the Mélodium environment, such as signing and verifying data with HMAC, and checking received tokens against secrets in constant time.
+This library provides cryptography utilities for the Mélodium environment: signing and verifying data with HMAC, verifying Ed25519 signatures, signing and verifying JSON Web Tokens, generating random tokens, and checking received tokens against secrets in constant time.
 
 ## For Mélodium project
 

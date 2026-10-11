@@ -20,16 +20,26 @@ name = "crypto_mel"
 melodium-core = { path = "../../melodium-core", version = "0.11.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
 base64 = "0.22"
+ed25519-dalek = { version = "2.2", default-features = false, features = ["fast", "zeroize", "pem"] }
 hex = "0.4"
 hmac = "0.12"
-sha2 = "0.10"
+p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pem"] }
+p384 = { version = "0.13", default-features = false, features = ["ecdsa", "pem"] }
+rand_core = { version = "0.6", features = ["getrandom"], optional = true }
+rsa = { version = "0.9", default-features = false, features = ["pem", "u64_digit"] }
+serde_json = "1"
+sha1 = "0.10"
+sha2 = { version = "0.10", features = ["oid"] }
 subtle = "2.6"
 zeroize = "1.9"
+
+[dev-dependencies]
+rand_core = { version = "0.6", features = ["getrandom"] }
 
 [features]
 mock = []
 plugin = []
-real = []
+real = ["dep:rand_core"]
 "docs.rs" = ["mock"]
 
 [package.metadata.docs.rs]

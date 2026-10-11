@@ -405,7 +405,7 @@ Built with `melodium jeu build <project_dir> <output.jeu>`. Already bzip2-compre
 | `audio`      | Audio data processing: decode, encode, channel/format transforms |
 | `record`     | Audio recording from an input device (mock mode when no real device is available) |
 | `vault`      | Secrets read from HashiCorp Vault or OpenBao (`vault:` locators) |
-| `crypto`     | HMAC signing and verification, constant-time checking of received tokens against secrets, such as for webhooks |
+| `crypto`     | HMAC and Ed25519 signatures, JSON Web Tokens, random tokens, constant-time checking of received tokens against secrets, such as for webhooks |
 
 Always check https://doc.melodium.tech/latest/en/ for the exact treatment/function signatures.
 

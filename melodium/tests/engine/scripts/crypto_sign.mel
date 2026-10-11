@@ -21,18 +21,26 @@ treatment main(const key: Secret<string> = "env:MELODIUM_SECRET_CRYPTO_TEST_KEY"
     hex: sign(key=key)
     base64: sign(key=key, encoding="base64")
     sha512: sign(key=key, algorithm="sha512")
+    sha1: sign(key=key, algorithm="sha1")
+    base64url: sign(key=key, encoding="base64url")
     unknown: sign(key=key, algorithm="md5")
     toUtf8.encoded -> hex.data
     toUtf8.encoded -> base64.data
     toUtf8.encoded -> sha512.data
+    toUtf8.encoded -> sha1.data
+    toUtf8.encoded -> base64url.data
     toUtf8.encoded -> unknown.data
 
     logHex: logInfo(label="hex")
     logBase64: logInfo(label="base64")
     logSha512: logInfo(label="sha512")
+    logSha1: logInfo(label="sha1")
+    logBase64url: logInfo(label="base64url")
     logUnknown: logInfo(label="unknown")
     hex.signature -> logHex.message
     base64.signature -> logBase64.message
     sha512.signature -> logSha512.message
+    sha1.signature -> logSha1.message
+    base64url.signature -> logBase64url.message
     unknown.error -> logUnknown.message
 }
