@@ -171,6 +171,10 @@ pub fn environment(
 /// only when a command is run, and never put in command arguments. Entries can also be
 /// `Option<Secret<string>>`, as given by `std/secret::|locate`. Running a command fails if
 /// an entry holds no `Secret<string>`. Variables given here replace those of the same name.
+///
+/// Kubernetes pods (`work` package) only take command arguments and standard input, so
+/// there commands receiving secret variables run through `/bin/sh`, reading them from
+/// standard input: the container image needs `/bin/sh`.
 #[mel_function]
 pub fn with_secret_variables(mut environment: Environment, secret_variables: Map) -> Environment {
     add_secret_variables(&mut environment, secret_variables.map);

@@ -9,6 +9,7 @@ use async_walkdir::{Filtering, WalkDir};
 use core::fmt::Debug;
 use fs_mel::filesystem::{self, FileSystemEngine};
 use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Status;
 use kube::{api::AttachParams, Api, Client};
 use melodium_macro::check;
 use process_mel::{
@@ -169,6 +170,24 @@ impl KubeExecutor {
     }
 }
 
+/// Describes a command that Kubernetes failed to run, from the status it gives.
+///
+/// Commands receiving secret variables run through `/bin/sh` (see
+/// `RevealedSecrets::shell_command`), which the container image must have.
+fn exec_failure(status: &Status, secrets: &RevealedSecrets) -> String {
+    let reason = status.reason.as_deref().unwrap_or("No reason provided");
+    let message = status.message.as_deref().unwrap_or_default();
+    let mut description = if message.is_empty() {
+        reason.to_string()
+    } else {
+        format!("{reason}: {message}")
+    };
+    if !secrets.variables.is_empty() && message.contains("/bin/sh") {
+        description.push_str(", receiving secret variables needs /bin/sh in the container image");
+    }
+    description
+}
+
 #[async_trait]
 impl ExecutorEngine for KubeExecutor {
     async fn exec(
@@ -244,53 +263,49 @@ impl ExecutorEngine for KubeExecutor {
 
                 let mut to_terminate = false;
                 {
-                    let status =
-                        async {
-                            if let Some(status_waiter) = process.take_status() {
-                                if let Some(status) = status_waiter.await {
-                                    match status.status.as_ref().map(|s| s.as_str()) {
-                                        Some("Success") => {
-                                            completed().await;
-                                            if let Some(causes) =
-                                                status.details.map(|d| d.causes).flatten()
-                                            {
-                                                let code = causes
-                                                    .iter()
-                                                    .filter(|cause| {
-                                                        cause.reason.as_deref() == Some("ExitCode")
-                                                    })
-                                                    .map(|cause| {
-                                                        cause
-                                                            .message
-                                                            .as_ref()
-                                                            .map(|msg| msg.parse().ok())
-                                                    })
-                                                    .next()
-                                                    .flatten()
-                                                    .flatten();
-                                                exit(code).await;
-                                            } else {
-                                                exit(None).await;
-                                            }
-                                        }
-                                        _ => {
-                                            failed().await;
-                                            error(status.reason.unwrap_or_else(|| {
-                                                "No reason provided".to_string()
-                                            }))
-                                            .await;
+                    let status = async {
+                        if let Some(status_waiter) = process.take_status() {
+                            if let Some(status) = status_waiter.await {
+                                match status.status.as_ref().map(|s| s.as_str()) {
+                                    Some("Success") => {
+                                        completed().await;
+                                        if let Some(causes) =
+                                            status.details.map(|d| d.causes).flatten()
+                                        {
+                                            let code = causes
+                                                .iter()
+                                                .filter(|cause| {
+                                                    cause.reason.as_deref() == Some("ExitCode")
+                                                })
+                                                .map(|cause| {
+                                                    cause
+                                                        .message
+                                                        .as_ref()
+                                                        .map(|msg| msg.parse().ok())
+                                                })
+                                                .next()
+                                                .flatten()
+                                                .flatten();
+                                            exit(code).await;
+                                        } else {
+                                            exit(None).await;
                                         }
                                     }
-                                } else {
-                                    failed().await;
-                                    error("No output status provided".to_string()).await;
+                                    _ => {
+                                        failed().await;
+                                        error(exec_failure(&status, secrets)).await;
+                                    }
                                 }
                             } else {
                                 failed().await;
-                                error("Unable to take status waiter".to_string()).await;
+                                error("No output status provided".to_string()).await;
                             }
+                        } else {
+                            failed().await;
+                            error("Unable to take status waiter".to_string()).await;
                         }
-                        .fuse();
+                    }
+                    .fuse();
 
                     let terminate = async {
                         to_terminate = terminate().await;
@@ -475,12 +490,7 @@ impl ExecutorEngine for KubeExecutor {
                                 }
                                 _ => {
                                     failed().await;
-                                    error(
-                                        status
-                                            .reason
-                                            .unwrap_or_else(|| "No reason provided".to_string()),
-                                    )
-                                    .await;
+                                    error(exec_failure(&status, secrets)).await;
                                 }
                             }
                         } else {
@@ -662,12 +672,7 @@ impl ExecutorEngine for KubeExecutor {
                                 }
                                 _ => {
                                     failed().await;
-                                    error(
-                                        status
-                                            .reason
-                                            .unwrap_or_else(|| "No reason provided".to_string()),
-                                    )
-                                    .await;
+                                    error(exec_failure(&status, secrets)).await;
                                 }
                             }
                         } else {
