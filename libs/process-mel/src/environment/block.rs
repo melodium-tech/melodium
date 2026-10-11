@@ -10,9 +10,10 @@ use std::sync::Arc;
 ///
 /// Same as `process/environment::|with_secret_variables`, for secrets received at runtime:
 /// each entry of `secret_variables`, a map built with the treatments of
-/// `std/data/map/block`, gives the `Secret<string>` value of a variable, possibly in an
-/// option. Values are revealed only when a command is run, and never put in command
-/// arguments. Running a command fails if an entry holds no `Secret<string>`.
+/// `std/data/map/block`, gives the `Secret<string>` value of a variable, which can also be
+/// in an option, as `std/secret::|locate` gives secrets. Values are revealed only when a
+/// command is run, and never put in command arguments. Running a command fails if an
+/// entry holds no `Secret<string>`, an empty option included.
 ///
 /// Commands take the environment as an option, see `std/ops/option/block::wrap`.
 #[mel_treatment(

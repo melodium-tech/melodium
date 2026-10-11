@@ -233,6 +233,8 @@ fn format_entries(
     for (entry, value) in entries {
         let value = match value {
             Value::Option(Some(value)) => *value,
+            // An empty option counts as no entry.
+            Value::Option(None) => continue,
             value => value,
         };
         match value {
@@ -355,13 +357,14 @@ impl SecretDerivation for BytesDerivation {
 /// Secret made of `template` filled with `entries`, computed when revealed.
 ///
 /// `template` contains braced placeholders, such as `"Bearer {token}"`.
-/// `entries` maps placeholders to `string` values or `Secret<string>` values, possibly in
-/// an option such as given by `|locate`, built with `std/data/map::|map` and `|entry`.
+/// `entries` maps placeholders to `string` or `Secret<string>` values, built with
+/// `std/data/map::|map` and `|entry`. Values can also be in an option, as `|locate`
+/// gives secrets: an empty option counts as no entry for its placeholder.
 /// The secret is named `name`, and gets the most restrictive combination
 /// of the policies of the secrets in `entries`.
 ///
-/// Revealing fails if a placeholder has no entry, or if an entry is neither
-/// a `string` nor a `Secret<string>`.
+/// Revealing fails if the template uses a placeholder with no entry, or if an entry
+/// is neither a `string` nor a `Secret<string>`.
 #[mel_function]
 pub fn format(template: string, entries: Map, name: string) -> Secret<string> {
     formatted(template, entries.map, name)
@@ -549,6 +552,10 @@ mod tests {
                 Value::Option(Some(Box::new(Value::String("ci".to_string())))),
             ),
             ("none".to_string(), Value::Option(None)),
+            (
+                "count".to_string(),
+                Value::Option(Some(Box::new(Value::U64(3)))),
+            ),
         ]));
         let (plain, secret_entries, invalid, inputs) = format_entries(entries.map);
         assert_eq!(
@@ -556,8 +563,31 @@ mod tests {
             HashMap::from([("user".to_string(), "ci".to_string())])
         );
         assert_eq!(secret_entries, vec!["token".to_string()]);
-        assert_eq!(invalid, vec!["none".to_string()]);
+        // The empty option is no entry, the other one holds neither a string nor a secret.
+        assert_eq!(invalid, vec!["count".to_string()]);
         assert_eq!(inputs, vec![secret]);
+    }
+
+    #[test]
+    fn format_takes_empty_options_as_no_entries() {
+        let (plain_entries, secret_entries, invalid_entries, _) = format_entries(HashMap::from([
+            ("user".to_string(), Value::String("ci".to_string())),
+            ("none".to_string(), Value::Option(None)),
+        ]));
+        let derivation = |template: &str| FormatDerivation {
+            template: template.to_string(),
+            plain_entries: plain_entries.clone(),
+            secret_entries: secret_entries.clone(),
+            invalid_entries: invalid_entries.clone(),
+        };
+        assert_eq!(
+            derivation("{user}").derive(&[]),
+            Ok(Value::String("ci".to_string()))
+        );
+        assert_eq!(
+            derivation("{user}:{none}").derive(&[]),
+            Err("the template uses an entry that is not given".to_string())
+        );
     }
 
     #[test]

@@ -8,12 +8,14 @@ use super::*;
 /// Secret made of `template` filled with `entries`, computed when revealed.
 ///
 /// Same as `std/secret::|format`, for entries received at runtime, built with the
-/// treatments of `std/data/map/block`. `entries` maps placeholders to `string` values or
-/// `Secret<string>` values, possibly in an option. The secret is named `name`, and gets the most restrictive
-/// combination of the policies of the secrets in `entries`.
+/// treatments of `std/data/map/block`. `entries` maps placeholders to `string` or
+/// `Secret<string>` values. Values can also be in an option, as `|locate` gives secrets:
+/// an empty option counts as no entry for its placeholder.
+/// The secret is named `name`, and gets the most restrictive combination of the policies
+/// of the secrets in `entries`.
 ///
-/// Revealing fails if a placeholder has no entry, or if an entry is neither
-/// a `string` nor a `Secret<string>`.
+/// Revealing fails if the template uses a placeholder with no entry, or if an entry
+/// is neither a `string` nor a `Secret<string>`.
 #[mel_treatment(
     input entries Block<Map>
     output secret Block<Secret<string>>
