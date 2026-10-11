@@ -11,10 +11,9 @@
 //! (the reporting channel is bounded, and `report_logs` itself drops rather than queuing
 //! indefinitely once too many batches are stuck failing to upload).
 //!
-//! Run with: cargo run --release -p work-mel --example reporting_leak_repro --features real,net-mel/real,std-mel/real,fs-mel/real,process-mel/real,async-std/tokio1
+//! Run with: cargo run --release -p work-mel --example reporting_leak_repro --features real,net-mel/real,std-mel/real,fs-mel/real,process-mel/real
 
-use async_std::channel::Sender;
-use async_std::task;
+use async_channel::Sender;
 use melodium_core::common::executive::{Level, Log};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -52,35 +51,36 @@ async fn producer(tx: Sender<Log>, id: u32) {
         // starving the executor; still far faster than a 5s/5000-item batched uploader
         // could ever drain once uploads are failing.
         if i % 5000 == 0 {
-            task::sleep(Duration::from_millis(1)).await;
+            smol::Timer::after(Duration::from_millis(1)).await;
         }
     }
 }
 
 fn main() {
-    task::block_on(async {
+    smol::block_on(async {
         // Matches the bound `melodium/src/lib.rs`'s `api_report` now puts on its
         // logs/debug reporting channels, so this repro exercises the same end-to-end
         // shape as production instead of an artificially-unbounded upstream.
-        let (tx, rx) = async_std::channel::bounded::<Log>(200_000);
+        let (tx, rx) = async_channel::bounded::<Log>(200_000);
 
         // Four parallel producers, mirroring .cadence-ci's four concurrent legs
         // (unit tests + 3 target architectures).
         for id in 0..4 {
-            task::spawn(producer(tx.clone(), id));
+            smol::spawn(producer(tx.clone(), id)).detach();
         }
 
         let watchdog_tx = tx.clone();
-        task::spawn(async move {
+        smol::spawn(async move {
             loop {
                 eprintln!(
                     "[repro][rss] rss_kb={:?} channel_backlog={}",
                     rss_kb(),
                     watchdog_tx.len()
                 );
-                task::sleep(Duration::from_secs(2)).await;
+                smol::Timer::after(Duration::from_secs(2)).await;
             }
-        });
+        })
+        .detach();
         drop(tx);
 
         eprintln!("[repro] starting report_logs against an unreachable S3 target; ^C to stop");

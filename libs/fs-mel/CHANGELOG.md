@@ -3,7 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
-- No changes in this crate.
+- Using async-fs and standard paths instead of async-std, which is discontinued (#104).
 
 ## [v0.10.4] (2026-09-24)
 

@@ -952,8 +952,8 @@ mod secret_tests {
 mod secret_wire_tests {
     use super::*;
     use crate::SecretTransmission;
-    use async_std::task::block_on;
     use async_trait::async_trait;
+    use futures_lite::future::block_on;
     use melodium_common::executive::{SecretAudit, SecretSource, SecretsHost};
     use melodium_common::{
         descriptor::DataType as CommonDataType,

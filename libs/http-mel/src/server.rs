@@ -1,7 +1,7 @@
 use crate::method::*;
 use crate::status::*;
+use async_lock::{Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use async_ringbuf::{AsyncHeapRb, AsyncProducer, AsyncRb};
-use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use core::{fmt::Debug, mem::MaybeUninit};
 use melodium_core::{
     common::{
@@ -15,6 +15,7 @@ use net_mel::ip::*;
 use ringbuf::SharedRb;
 use routefinder::RouteSpec;
 use routefinder::Segment;
+use std::sync::Arc as AsyncArc;
 use std::sync::Arc;
 use std::{
     collections::HashMap,
@@ -145,7 +146,7 @@ pub struct HttpServer {
     headers: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerHeaders>>>,
     outgoing: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerOutgoing>>>,
     #[cfg(feature = "real")]
-    shutdown: trillium_async_std::Stopper,
+    shutdown: trillium_smol::Stopper,
 }
 
 impl Debug for HttpServer {
@@ -179,7 +180,7 @@ impl HttpServer {
             headers: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
             outgoing: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
             #[cfg(feature = "real")]
-            shutdown: trillium_async_std::Stopper::new(),
+            shutdown: trillium_smol::Stopper::new(),
         }
     }
 
@@ -403,9 +404,9 @@ impl HttpServer {
             }
         }
 
-        match async_std::net::TcpListener::bind((model.get_host().0, model.get_port())).await {
+        match smol::net::TcpListener::bind((model.get_host().0, model.get_port())).await {
             Ok(listener) => {
-                trillium_async_std::config()
+                trillium_smol::config()
                     .without_signals()
                     .with_stopper(self.shutdown.clone())
                     .with_prebound_server(listener)

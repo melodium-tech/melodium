@@ -9,7 +9,7 @@ compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
 mod engine;
 
-use async_std::sync::Mutex;
+use async_lock::Mutex;
 use engine::Engine;
 use json_mel::*;
 use melodium_core::*;
@@ -61,18 +61,15 @@ impl JavaScriptEngine {
             model.get_code(),
         );
 
-        async_std::task::block_on(async move {
-            *model.inner().engine.lock().await = Some(engine);
-        });
+        *futures_lite::future::block_on(model.inner().engine.lock()) = Some(engine);
     }
 
     fn shutdown(&self) {
         let model = self.model.upgrade().unwrap();
-        async_std::task::block_on(async move {
-            if let Some(engine) = model.inner().engine.lock().await.as_ref() {
-                engine.stop();
-            }
-        });
+        let engine = futures_lite::future::block_on(model.inner().engine.lock());
+        if let Some(engine) = engine.as_ref() {
+            engine.stop();
+        }
     }
 
     pub async fn process(

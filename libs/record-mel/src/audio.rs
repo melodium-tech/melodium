@@ -69,20 +69,20 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
 
         // Future A: set up cpal and run the stream on the audio thread.
         // cpal stream callbacks are synchronous and run on a dedicated audio thread.
-        // We keep the Stream alive inside spawn_blocking until mono_sender is disconnected
+        // We keep the Stream alive inside `blocking::unblock` until mono_sender is disconnected
         // (i.e. the consumer stopped reading) or a fatal error occurs.
         let capture_fut = async move {
-            let _ = async_std::task::spawn_blocking(move || {
+            let _ = blocking::unblock(move || {
                 let host = cpal::default_host();
 
                 let input_device = match &device {
                     None => match host.default_input_device() {
                         Some(d) => d,
                         None => {
-                            let _ = async_std::task::block_on(
-                                err_sender
-                                    .send((true, "no default input device available".to_string())),
-                            );
+                            let _ = err_sender.send_blocking((
+                                true,
+                                "no default input device available".to_string(),
+                            ));
                             return;
                         }
                     },
@@ -97,10 +97,10 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
                         match found {
                             Some(d) => d,
                             None => {
-                                let _ = async_std::task::block_on(
-                                    err_sender
-                                        .send((true, format!("input device not found: {name}"))),
-                                );
+                                let _ = err_sender.send_blocking((
+                                    true,
+                                    format!("input device not found: {name}"),
+                                ));
                                 return;
                             }
                         }
@@ -110,9 +110,8 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
                 let config = match input_device.default_input_config() {
                     Ok(c) => c,
                     Err(e) => {
-                        let _ = async_std::task::block_on(
-                            err_sender.send((true, format!("failed to get input config: {e}"))),
-                        );
+                        let _ = err_sender
+                            .send_blocking((true, format!("failed to get input config: {e}")));
                         return;
                     }
                 };
@@ -137,10 +136,10 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
                     match supported {
                         Some(range) => range.with_sample_rate(rate).config(),
                         None => {
-                            let _ = async_std::task::block_on(err_sender.send((
+                            let _ = err_sender.send_blocking((
                                 true,
                                 format!("requested sample rate {rate} not supported by device"),
-                            )));
+                            ));
                             return;
                         }
                     }
@@ -160,17 +159,15 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
                 let stream = match stream_result {
                     Ok(s) => s,
                     Err(e) => {
-                        let _ = async_std::task::block_on(
-                            err_sender.send((true, format!("failed to build input stream: {e}"))),
-                        );
+                        let _ = err_sender
+                            .send_blocking((true, format!("failed to build input stream: {e}")));
                         return;
                     }
                 };
 
                 if let Err(e) = stream.play() {
-                    let _ = async_std::task::block_on(
-                        err_sender.send((true, format!("failed to start stream: {e}"))),
-                    );
+                    let _ =
+                        err_sender.send_blocking((true, format!("failed to start stream: {e}")));
                     return;
                 }
 
@@ -180,7 +177,7 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
                     sample_rate: stream_config.sample_rate,
                     duration_seconds: None,
                 };
-                let _ = async_std::task::block_on(info_sender.send(audio_info));
+                let _ = info_sender.send_blocking(audio_info);
 
                 // Park this thread. The stream keeps running via its internal audio thread.
                 // We unpark when mono_sender's receiver side is gone (consumer closed signal).
@@ -263,14 +260,12 @@ fn build_stream(
                     config,
                     move |data: &[$t], _: &cpal::InputCallbackInfo| {
                         let mono = mix_to_mono::<$t>(data, num_channels);
-                        if async_std::task::block_on(sender.send(mono)).is_err() {
+                        if sender.send_blocking(mono).is_err() {
                             // receiver gone; stream will be dropped when capture_fut exits
                         }
                     },
                     move |e| {
-                        let _ = async_std::task::block_on(
-                            err.send((false, format!("stream error: {e}"))),
-                        );
+                        let _ = err.send_blocking((false, format!("stream error: {e}")));
                     },
                     None,
                 )

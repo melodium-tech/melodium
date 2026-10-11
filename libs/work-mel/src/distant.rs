@@ -1,5 +1,7 @@
 use crate::access::*;
 use crate::api;
+#[cfg(feature = "real")]
+use crate::http;
 use crate::resources::arch::*;
 use crate::resources::*;
 use core::time::Duration;
@@ -160,45 +162,25 @@ impl DistantEngine {
         let api_url = self.api_url.read().unwrap().clone();
         let api_token = self.authorization().await?;
         if let (Some(api_url), Some(api_token)) = (&api_url, &api_token) {
-            match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/run/start"
-            ))
-            .add_header("User-Agent", crate::USER_AGENT)
-            .map_err(|err| err.to_string())?
-            .add_header("Authorization", api_token.as_bytes())
-            .map_err(|err| err.to_string())?
-            .add_header("Content-Type", "application/json")
-            .map_err(|err| err.to_string())?
-            .body(serde_json::to_string(&request).unwrap())
-            .map_err(|err| err.to_string())?
-            .exec()
+            match http::post(
+                &format!("{api_url}/execution/run/start"),
+                api_token,
+                serde_json::to_string(&request).unwrap(),
+            )
             .await
             {
-                Ok(mut response) => {
-                    if response.status_code() == 200 {
-                        match response.json::<api::Response>().await {
-                            Ok(response) => match response {
-                                api::Response::Ok(id) => {
-                                    run_api_id = Some(id);
-                                    request.id = Some(id);
-                                }
-                                api::Response::Error(errs) => {
-                                    api_errors.extend(errs);
-                                }
-                            },
-                            Err(error) => api_errors.push(Self::manage_error(error).await),
-                        }
-                    } else {
-                        match response.text().await {
-                            Ok(body) => api_errors.push(format!(
-                                "Server {} response: {body}",
-                                response.status_code()
-                            )),
-                            Err(error) => api_errors.push(Self::manage_error(error).await),
-                        }
+                Ok(response) if response.status == 200 => match response.json::<api::Response>() {
+                    Ok(api::Response::Ok(id)) => {
+                        run_api_id = Some(id);
+                        request.id = Some(id);
                     }
-                }
-                Err(error) => api_errors.push(Self::manage_error(error).await),
+                    Ok(api::Response::Error(errs)) => {
+                        api_errors.extend(errs);
+                    }
+                    Err(error) => api_errors.push(error),
+                },
+                Ok(response) => api_errors.push(response.error()),
+                Err(error) => api_errors.push(error),
             }
         } else {
             api_errors.push("API address and token missing".into());
@@ -209,16 +191,9 @@ impl DistantEngine {
         if let (Some(run_api_id), Some(api_url), Some(api_token)) =
             (run_api_id.clone(), &api_url, &api_token)
         {
-            match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/run/launched"
-            ))
-            .add_header("User-Agent", crate::USER_AGENT)
-            .map_err(|err| err.to_string())?
-            .add_header("Authorization", api_token.as_bytes())
-            .map_err(|err| err.to_string())?
-            .add_header("Content-Type", "application/json")
-            .map_err(|err| err.to_string())?
-            .body(
+            match http::post(
+                &format!("{api_url}/execution/run/launched"),
+                api_token,
                 serde_json::to_string(&api::LocalLaunched {
                     run_id: run_api_id,
                     response: match &response {
@@ -228,22 +203,11 @@ impl DistantEngine {
                 })
                 .unwrap(),
             )
-            .map_err(|err| err.to_string())?
-            .exec()
             .await
             {
-                Ok(mut response) => {
-                    if response.status_code() != 200 {
-                        match response.text().await {
-                            Ok(body) => api_errors.push(format!(
-                                "Server {} response: {body}",
-                                response.status_code()
-                            )),
-                            Err(error) => api_errors.push(Self::manage_error(error).await),
-                        }
-                    }
-                }
-                Err(error) => api_errors.push(Self::manage_error(error).await),
+                Ok(response) if response.status == 200 => {}
+                Ok(response) => api_errors.push(response.error()),
+                Err(error) => api_errors.push(error),
             }
         }
 
@@ -256,117 +220,60 @@ impl DistantEngine {
                     // ...d & wait` loop) should tear down near-instantly - this timeout guards
                     // that teardown handshake, not the job's actual runtime, which this
                     // `.await` otherwise spans in full.
-                    let status =
-                        async_std::future::timeout(Duration::from_secs(10), child.status()).await;
-                    match status {
-                        Ok(Ok(exit)) => {
-                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
-                                (run_api_id, api_url, api_token)
-                            {
-                                let _ = generic_async_http_client::Request::post(&format!(
-                                    "{api_url}/execution/run/ended"
-                                ))
-                                .add_header("User-Agent", crate::USER_AGENT)?
-                                .add_header("Authorization", api_token.as_bytes())?
-                                .add_header("Content-Type", "application/json")?
-                                .body(
-                                    serde_json::to_string(&api::LocalEnd {
-                                        run_id: run_api_id,
-                                        result: if exit.success() {
-                                            api::DistributionResult::Success(None)
-                                        } else {
-                                            api::DistributionResult::Failure(Some(vec![format!(
-                                                "Compose exit code {}",
-                                                exit.code()
-                                                    .map(|code| code.to_string())
-                                                    .unwrap_or("undefined".into())
-                                            )]))
-                                        },
-                                    })
-                                    .unwrap(),
-                                )?
-                                .exec()
-                                .await;
-
-                                if !exit.success() {
-                                    possible_errors.push(format!(
-                                        "Compose exited with code {}",
-                                        exit.code()
-                                            .map(|code| code.to_string())
-                                            .unwrap_or("undefined".into())
-                                    ));
-                                }
-                            }
+                    let status = smol::future::or(async { Some(child.status().await) }, async {
+                        smol::Timer::after(Duration::from_secs(10)).await;
+                        None
+                    })
+                    .await;
+                    let (result, error) = match status {
+                        Some(Ok(exit)) if exit.success() => {
+                            (api::DistributionResult::Success(None), None)
                         }
-                        Ok(Err(err)) => {
-                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
-                                (run_api_id, api_url, api_token)
-                            {
-                                let _ = generic_async_http_client::Request::post(&format!(
-                                    "{api_url}/execution/run/ended"
-                                ))
-                                .add_header("User-Agent", crate::USER_AGENT)?
-                                .add_header("Authorization", api_token.as_bytes())?
-                                .add_header("Content-Type", "application/json")?
-                                .body(
-                                    serde_json::to_string(&api::LocalEnd {
-                                        run_id: run_api_id,
-                                        result: api::DistributionResult::Failure(Some(vec![
-                                            err.to_string()
-                                        ])),
-                                    })
-                                    .unwrap(),
-                                )?
-                                .exec()
-                                .await;
-
-                                possible_errors.push(err.to_string());
-                            }
+                        Some(Ok(exit)) => {
+                            let code = exit
+                                .code()
+                                .map(|code| code.to_string())
+                                .unwrap_or("undefined".into());
+                            (
+                                api::DistributionResult::Failure(Some(vec![format!(
+                                    "Compose exit code {code}"
+                                )])),
+                                Some(format!("Compose exited with code {code}")),
+                            )
                         }
+                        Some(Err(err)) => (
+                            api::DistributionResult::Failure(Some(vec![err.to_string()])),
+                            Some(err.to_string()),
+                        ),
                         // The container never tore down within the timeout after the job
                         // finished: report the run as ended anyway (rather than leaving the
                         // API waiting forever for a call that will never come), flagging the
                         // stuck teardown as a warning rather than a job failure, since the
                         // actual work already completed successfully by this point.
-                        Err(err) => {
-                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
-                                (run_api_id, api_url, api_token)
-                            {
-                                let _ = generic_async_http_client::Request::post(&format!(
-                                    "{api_url}/execution/run/ended"
-                                ))
-                                .add_header("User-Agent", crate::USER_AGENT)?
-                                .add_header("Authorization", api_token.as_bytes())?
-                                .add_header("Content-Type", "application/json")?
-                                .body(
-                                    serde_json::to_string(&api::LocalEnd {
-                                        run_id: run_api_id,
-                                        result: api::DistributionResult::Success(Some(vec![
-                                            format!("Compose exit timeout: {}", err.to_string()),
-                                        ])),
-                                    })
-                                    .unwrap(),
-                                )?
-                                .exec()
-                                .await;
-
-                                possible_errors
-                                    .push(format!("Compose exit timeout: {}", err.to_string()));
-                            }
+                        None => {
+                            let warning = "Compose exit timeout: future has timed out".to_string();
+                            (
+                                api::DistributionResult::Success(Some(vec![warning.clone()])),
+                                Some(warning),
+                            )
                         }
+                    };
+                    if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+                        (run_api_id, api_url, api_token)
+                    {
+                        let _ = http::post(
+                            &format!("{api_url}/execution/run/ended"),
+                            &api_token,
+                            serde_json::to_string(&api::LocalEnd {
+                                run_id: run_api_id,
+                                result,
+                            })
+                            .unwrap(),
+                        )
+                        .await;
+                        possible_errors.extend(error);
                     }
-
-                    Ok::<Vec<String>, generic_async_http_client::Error>(possible_errors)
-                };
-
-                let finish_notification = async move {
-                    match finish_notification.await {
-                        Ok(possible_errors) => possible_errors,
-                        Err(err) => vec![format!(
-                            "Error while sending run end notification: {}",
-                            err.to_string()
-                        )],
-                    }
+                    possible_errors
                 };
 
                 Ok((
@@ -398,123 +305,46 @@ impl DistantEngine {
         let api_url = self.api_url.read().unwrap().clone();
         let api_token = self.authorization().await?;
         if let (Some(api_url), Some(api_token)) = (api_url, api_token) {
-            match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/run/start"
-            ))
-            .add_header("User-Agent", crate::USER_AGENT)
-            .map_err(|err| err.to_string())?
-            .add_header("Authorization", api_token.as_bytes())
-            .map_err(|err| err.to_string())?
-            .add_header("Content-Type", "application/json")
-            .map_err(|err| err.to_string())?
-            .body(serde_json::to_string(&request).unwrap())
-            .map_err(|err| err.to_string())?
-            .exec()
-            .await
-            {
-                Ok(mut response) => {
-                    if response.status_code() == 200 {
-                        match response.json::<api::Response>().await {
-                            Ok(response) => match response {
-                                api::Response::Ok(id) => {
-                                    async_std::task::sleep(Duration::from_secs(1)).await;
-                                    loop {
-                                        match generic_async_http_client::Request::get(&format!(
-                                            "{api_url}/execution/run/{id}/access"
-                                        ))
-                                        .add_header("User-Agent", crate::USER_AGENT)
-                                        .map_err(|err| err.to_string())?
-                                        .add_header("Authorization", api_token.as_bytes())
-                                        .map_err(|err| err.to_string())?
-                                        .exec()
-                                        .await
-                                        {
-                                            Ok(mut response) => match response.status_code() {
-                                                202 => {
-                                                    async_std::task::sleep(Duration::from_secs(5))
-                                                        .await
-                                                }
-                                                200 => match response
-                                                    .json::<api::DistributionResponse>()
-                                                    .await
-                                                {
-                                                    Ok(distribution) => {
-                                                        return Ok((distribution, vec![], None))
-                                                    }
-                                                    Err(error) => {
-                                                        return Err(Self::manage_error(error).await)
-                                                    }
-                                                },
-                                                code => {
-                                                    return Err(format!(
-                                                        "API {code} response: {response}",
-                                                        response = match response.text().await {
-                                                            Ok(response) => response,
-                                                            Err(error) =>
-                                                                Box::pin(Self::manage_error(error))
-                                                                    .await,
-                                                        }
-                                                    ))
-                                                }
-                                            },
-                                            Err(error) => {
-                                                return Err(Self::manage_error(error).await)
-                                            }
-                                        }
-                                    }
-                                }
-                                api::Response::Error(errs) => {
-                                    Ok((api::DistributionResponse::Error(errs), vec![], None))
-                                }
-                            },
-                            Err(error) => Err(Self::manage_error(error).await),
-                        }
-                    } else {
-                        match response.text().await {
-                            Ok(body) => Err(format!(
-                                "Server {} response: {body}",
-                                response.status_code()
-                            )),
-                            Err(error) => Err(Self::manage_error(error).await),
+            let response = http::post(
+                &format!("{api_url}/execution/run/start"),
+                &api_token,
+                serde_json::to_string(&request).unwrap(),
+            )
+            .await?;
+            if response.status != 200 {
+                return Err(response.error());
+            }
+            match response.json::<api::Response>()? {
+                api::Response::Ok(id) => {
+                    smol::Timer::after(Duration::from_secs(1)).await;
+                    loop {
+                        let response =
+                            http::get(&format!("{api_url}/execution/run/{id}/access"), &api_token)
+                                .await?;
+                        match response.status {
+                            202 => {
+                                smol::Timer::after(Duration::from_secs(5)).await;
+                            }
+                            200 => {
+                                return Ok((
+                                    response.json::<api::DistributionResponse>()?,
+                                    vec![],
+                                    None,
+                                ))
+                            }
+                            code if code < 400 => {
+                                return Err(format!("API {code} response: {}", response.body))
+                            }
+                            _ => return Err(response.error()),
                         }
                     }
                 }
-                Err(error) => Err(Self::manage_error(error).await),
+                api::Response::Error(errs) => {
+                    Ok((api::DistributionResponse::Error(errs), vec![], None))
+                }
             }
         } else {
             Err("API address and token missing".into())
-        }
-    }
-
-    #[cfg(feature = "real")]
-    async fn manage_error(error: generic_async_http_client::Error) -> String {
-        match error {
-            generic_async_http_client::Error::Io(error) => error.to_string(),
-            generic_async_http_client::Error::HTTPServerErr(code, mut response) => format!(
-                "API {code} error: {response}",
-                response = match response.text().await {
-                    Ok(text) =>
-                        if text.is_empty() {
-                            response.status().to_string()
-                        } else {
-                            format!("{}: {}", response.status(), text)
-                        },
-                    Err(error) => Box::pin(Self::manage_error(error)).await,
-                }
-            ),
-            generic_async_http_client::Error::HTTPClientErr(code, mut response) => format!(
-                "API {code} error: {response}",
-                response = match response.text().await {
-                    Ok(text) =>
-                        if text.is_empty() {
-                            response.status().to_string()
-                        } else {
-                            format!("{}: {}", response.status(), text)
-                        },
-                    Err(error) => Box::pin(Self::manage_error(error)).await,
-                }
-            ),
-            generic_async_http_client::Error::Other(error) => error.to_string(),
         }
     }
 }

@@ -8,11 +8,8 @@
 ))]
 compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
-use async_std::channel::{bounded, Receiver, Sender};
-use async_std::io::{Read, Write};
-#[cfg(feature = "real")]
-use async_std::net::{SocketAddr, TcpStream};
-use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
+use async_channel::{bounded, Receiver, Sender};
+use async_lock::{Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
 use common::executive::{Level, Secret as ExecutiveSecret, SecretError, SecretsAccess, TrackId};
@@ -20,6 +17,7 @@ use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use event_listener::{Event, IntoNotification};
+use futures::io::{AsyncRead as Read, AsyncWrite as Write};
 #[cfg(feature = "real")]
 use futures::stream::{unfold, FuturesUnordered};
 #[cfg(feature = "real")]
@@ -35,6 +33,9 @@ use melodium_distribution::{
 };
 use melodium_macro::{mel_model, mel_package, mel_treatment};
 use melodium_share::{Collection, RawValue, TransmissionValue as WireTransmissionValue};
+#[cfg(feature = "real")]
+use smol::net::{SocketAddr, TcpStream};
+use std::sync::Arc as AsyncArc;
 use std::{
     collections::HashMap,
     sync::{Arc, Weak},
@@ -880,7 +881,7 @@ impl DistributionEngine {
         let probe = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
-                    async_std::task::sleep(Duration::from_secs(10)).await;
+                    smol::Timer::after(Duration::from_secs(10)).await;
                     // A single failed probe send doesn't prove the connection is dead: it
                     // can just as well be a transient hiccup over a real network (TLS
                     // renegotiation, a brief stall, ordinary internet jitter) on an otherwise
@@ -898,7 +899,7 @@ impl DistributionEngine {
                         }
                         attempts += 1;
                         if attempts < PROBE_RETRY_ATTEMPTS {
-                            async_std::task::sleep(PROBE_RETRY_DELAY).await;
+                            smol::Timer::after(PROBE_RETRY_DELAY).await;
                         }
                     }
                     if !succeeded {
@@ -945,7 +946,7 @@ impl DistributionEngine {
     }
 
     fn shutdown(&self) {
-        async_std::task::block_on(async move {
+        smol::block_on(async move {
             self.close_all().await;
             if let Some(protocol) = (*self.protocol.read().await).as_ref().cloned() {
                 let _ = protocol.send_message(Message::Ended).await;
@@ -1332,16 +1333,25 @@ async fn tls_stream(
 
 #[cfg(all(test, feature = "real"))]
 mod graceful_shutdown_drain_tests {
-    use async_std::channel::bounded as async_bounded;
-    use async_std::sync::Arc as AsyncArc;
+    use async_channel::bounded as async_bounded;
     use core::future::Future;
     use core::pin::Pin;
     use core::sync::atomic::{AtomicBool, Ordering};
     use core::time::Duration;
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
+    use std::sync::Arc as AsyncArc;
 
     type BoxFut = Pin<Box<dyn Future<Output = ()>>>;
+
+    /// Gives the output of `future`, or an error if it takes longer than `duration`.
+    async fn timeout<T>(duration: Duration, future: impl Future<Output = T>) -> Result<T, ()> {
+        smol::future::or(async { Ok(future.await) }, async {
+            smol::Timer::after(duration).await;
+            Err(())
+        })
+        .await
+    }
 
     // Mirrors the exact drain-before-exit guard used in `continuous()`'s message loop:
     // the loop must not consider itself done just because a terminal flag flipped, it
@@ -1361,7 +1371,7 @@ mod graceful_shutdown_drain_tests {
     // `messages_futures.is_empty()` as well must keep the loop alive until it finishes.
     #[test]
     fn drain_waits_for_slow_handler_still_pending_when_flag_flips() {
-        async_std::task::block_on(async {
+        smol::block_on(async {
             let (unblock_tx, unblock_rx) = async_bounded::<()>(1);
             let processed = AsyncArc::new(AtomicBool::new(false));
             let log_ended = AsyncArc::new(AtomicBool::new(false));
@@ -1387,7 +1397,7 @@ mod graceful_shutdown_drain_tests {
 
             // The drain must not be able to finish while the slow handler is still
             // blocked, even though `log_ended` will already be true almost immediately.
-            let still_pending = async_std::future::timeout(
+            let still_pending = timeout(
                 Duration::from_millis(200),
                 drain_until_done(&mut messages_futures, &log_ended),
             )
@@ -1406,7 +1416,7 @@ mod graceful_shutdown_drain_tests {
             // Once the slow handler is allowed to finish, the drain must complete and the
             // handler must have actually run - nothing was silently dropped.
             unblock_tx.send(()).await.unwrap();
-            async_std::future::timeout(
+            timeout(
                 Duration::from_secs(1),
                 drain_until_done(&mut messages_futures, &log_ended),
             )

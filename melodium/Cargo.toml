@@ -23,7 +23,7 @@ name = "melodium"
 required-features = ["cli"]
 
 [dependencies]
-async-std = "1.13"
+async-channel = "2.5"
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4.0.32", features = ["cargo", "derive", "string"], optional = true }
 colored = { version = "2.0.2" }
@@ -85,6 +85,9 @@ container-edition = ["standard-edition", "record-mel/mock", "work-mel/kubernetes
 webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "crypto-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "vault-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
 mock-edition = ["jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "crypto-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "vault-mel/mock", "distrib-mel/mock", "work-mel/mock", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
 "docs.rs" = ["std-mel/docs.rs", "fs"]
+
+[target.'cfg(not(target_os = "unknown"))'.dependencies]
+smol = "2.0"
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom_0_2 = { package = "getrandom", version = "0.2", features = ["js"] }

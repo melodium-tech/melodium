@@ -1,12 +1,14 @@
 use crate::framing::max_frame_bytes;
 use crate::messages::Message;
-use async_std::io::{timeout, BufReader, BufWriter, Read, Write};
-use async_std::sync::Mutex;
+use async_lock::Mutex;
 use core::fmt::Display;
 use core::sync::atomic::AtomicBool;
 use core::time::Duration;
-use futures::io::{AsyncReadExt, ReadHalf, WriteHalf};
+use futures::io::{
+    AsyncRead as Read, AsyncReadExt, AsyncWrite as Write, BufReader, BufWriter, ReadHalf, WriteHalf,
+};
 use futures::AsyncWriteExt;
+use std::future::Future;
 use std::sync::OnceLock;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -32,9 +34,24 @@ fn timeout_secs() -> u64 {
     })
 }
 
+/// Gives the result of `future`, or a `TimedOut` error if it takes longer than `duration`.
+async fn timeout<T>(
+    duration: Duration,
+    future: impl Future<Output = std::io::Result<T>>,
+) -> std::io::Result<T> {
+    smol::future::or(future, async {
+        smol::Timer::after(duration).await;
+        Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "future timed out",
+        ))
+    })
+    .await
+}
+
 #[derive(Debug)]
 pub enum Error {
-    Io(async_std::io::Error),
+    Io(std::io::Error),
     Deserialization(ciborium::de::Error<std::io::Error>),
     Serialization(ciborium::ser::Error<std::io::Error>),
     /// A peer claimed a frame length above `max_frame_bytes()`. Rejected before any
@@ -71,8 +88,8 @@ impl std::error::Error for Error {
     }
 }
 
-impl From<async_std::io::Error> for Error {
-    fn from(value: async_std::io::Error) -> Self {
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
         Error::Io(value)
     }
 }
@@ -166,7 +183,7 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
 mod tests {
     use super::*;
     use crate::framing::max_frame_bytes;
-    use async_std::os::unix::net::UnixStream;
+    use smol::net::unix::UnixStream;
 
     /// Both sides probe every 10s to keep an idle-but-healthy connection from
     /// tripping the read timeout. Regression guard: the default timeout must stay
@@ -191,7 +208,7 @@ mod tests {
     // attempting the multi-gigabyte allocation the old code trusted blindly.
     #[test]
     fn oversized_claimed_frame_is_rejected_without_reading_its_body() {
-        async_std::task::block_on(async {
+        smol::block_on(async {
             let (mut client, server) = UnixStream::pair().unwrap();
             let server_protocol = Protocol::new(server);
 

@@ -3,6 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
+- Serving and requesting with trillium-smol instead of trillium-async-std (#104).
 - Adding `secret_headers` to `HttpClient` and to the client helpers, revealed for each request, and `requestWithSecretHeaders` and `requestWithBodyAndSecretHeaders` for secret headers received at runtime (#136).
 - Fixing `HttpClient` ignoring its `headers` parameter.
 - Breaking: the `Authorization` and `Cookie` headers of incoming requests are only given as `@HttpRequest` secrets, out of the request headers, as are the headers listed in the new `secret_headers` parameter of `HttpServer`, in the `secret_headers` map of `@HttpRequest` (#136).

@@ -7,6 +7,8 @@ use std::sync::Mutex;
 use std::sync::Weak;
 
 #[cfg(feature = "real")]
+use async_compat::Compat;
+#[cfg(feature = "real")]
 use futures::StreamExt;
 #[cfg(feature = "real")]
 use llm::{
@@ -225,7 +227,7 @@ pub async fn chat() {
             let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
             if let Some(provider) = maybe_provider {
                 let messages = vec![ChatMessage::user().content(text).build()];
-                match provider.chat(&messages).await {
+                match Compat::new(provider.chat(&messages)).await {
                     Ok(resp) => {
                         let text = resp.text().unwrap_or_default();
                         check!(response.send_one_as(text).await);
@@ -309,9 +311,9 @@ pub async fn stream() {
             let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
             if let Some(provider) = maybe_provider {
                 let messages = vec![ChatMessage::user().content(text).build()];
-                match provider.chat_stream(&messages).await {
+                match Compat::new(provider.chat_stream(&messages)).await {
                     Ok(mut s) => {
-                        while let Some(chunk) = s.next().await {
+                        while let Some(chunk) = Compat::new(s.next()).await {
                             match chunk {
                                 Ok(t) => {
                                     check!(token.send_one_as(t).await);
@@ -438,7 +440,7 @@ pub async fn vision_chat() {
 
         let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
         if let Some(provider) = maybe_provider {
-            match provider.chat(&messages).await {
+            match Compat::new(provider.chat(&messages)).await {
                 Ok(resp) => {
                     let text = resp.text().unwrap_or_default();
                     let _ = response.send_one_as(text).await;

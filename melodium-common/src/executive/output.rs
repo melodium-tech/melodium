@@ -46,7 +46,7 @@ impl<O: Output + ?Sized> OutputExt for O {}
 mod output_ext_tests {
     use super::*;
     use crate::executive::PackedArray;
-    use async_std::sync::Mutex;
+    use async_lock::Mutex;
     use std::convert::TryInto;
 
     // Minimal `Output` recording whatever it's given, just enough to exercise
@@ -83,7 +83,7 @@ mod output_ext_tests {
 
     #[test]
     fn send_one_as_converts_through_into_value() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let output = fake_output();
             output.send_one_as::<u64>(42).await.unwrap();
             assert_eq!(output.sent_one.lock().await.take(), Some(Value::U64(42)));
@@ -95,7 +95,7 @@ mod output_ext_tests {
     // the ordinary per-tick scalar packing from ticket #120, not `Packed`.
     #[test]
     fn send_many_as_sends_a_batch_of_scalar_ticks() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let output = fake_output();
             output.send_many_as(vec![1u8, 2, 3]).await.unwrap();
             let sent = output.sent_many.lock().await.take().unwrap();
@@ -110,7 +110,7 @@ mod output_ext_tests {
     // must arrive as `Value::Packed`, with no call site touching `Value`/`PackedArray`.
     #[test]
     fn send_one_as_auto_packs_a_vec_of_a_packable_type() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let output = fake_output();
             output.send_one_as(vec![1u8, 2, 3]).await.unwrap();
             assert!(matches!(
@@ -125,7 +125,7 @@ mod output_ext_tests {
     // which is many scalar ticks matching a `Stream<byte>`).
     #[test]
     fn send_many_as_packed_arrays_sends_a_batch_of_arrays() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let output = fake_output();
             output
                 .send_many_as(vec![
@@ -142,7 +142,7 @@ mod output_ext_tests {
 
     #[test]
     fn send_many_as_still_works_for_a_non_packable_type() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let output = fake_output();
             output
                 .send_many_as(vec!["a".to_string(), "b".to_string()])
@@ -155,7 +155,7 @@ mod output_ext_tests {
 
     #[test]
     fn send_one_as_packed_array_produces_value_packed() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let output = fake_output();
             let arr = PackedArray::Byte(std::sync::Arc::new(vec![1u8, 2, 3]));
             output.send_one_as(arr).await.unwrap();

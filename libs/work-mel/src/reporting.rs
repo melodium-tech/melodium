@@ -1,7 +1,11 @@
 use crate::api::{DistributionResponse, LocalEnd, LocalLaunched, ModeRequest, Request};
 #[cfg(feature = "real")]
-use async_std::channel::TrySendError;
-use async_std::channel::Receiver;
+use crate::http::{self, CLIENT};
+use async_channel::Receiver;
+#[cfg(feature = "real")]
+use async_channel::TrySendError;
+#[cfg(feature = "real")]
+use async_compat::Compat;
 use core::sync::atomic::{AtomicBool, Ordering};
 use melodium_core::common::{descriptor::Version, executive::Log};
 use melodium_share::{Identifier, RawValue};
@@ -67,14 +71,6 @@ pub enum PushSpecs {
     },
 }
 
-#[cfg(feature = "real")]
-static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
-    std::sync::LazyLock::new(|| {
-        reqwest::Client::builder()
-            .user_agent(crate::USER_AGENT)
-            .build()
-            .map_err(|err| err.to_string())
-    });
 pub(crate) static REPORTS_ENABLED: AtomicBool = AtomicBool::new(false);
 pub(crate) static STATUS_ENABLED: AtomicBool = AtomicBool::new(false);
 // Reqwest retry doesn't currently match our needs: multipart form & agnostic host
@@ -95,27 +91,12 @@ pub async fn request_reporting(
         STATUS_ENABLED.store(true, Ordering::Relaxed);
         let mut all_tags = API_TAGS.as_ref().cloned().unwrap_or_default();
         all_tags.extend(tags.unwrap_or_default());
-        match generic_async_http_client::Request::post(&format!(
-            "{api_url}/execution/run/start",
-            api_url = crate::API_URL.as_str()
-        ))
-        .add_header("User-Agent", crate::USER_AGENT)
-        .map_err(|err| err.to_string())?
-        .add_header(
-            "Authorization",
-            format!(
-                "Bearer {api_token}",
-                api_token = crate::API_TOKEN
-                    .as_ref()
-                    .map(|token| token.as_str())
-                    .unwrap_or(&"")
-            )
-            .as_bytes(),
-        )
-        .map_err(|err| err.to_string())?
-        .add_header("Content-Type", "application/json")
-        .map_err(|err| err.to_string())?
-        .body(
+        let response = http::post(
+            &format!(
+                "{api_url}/execution/run/start",
+                api_url = crate::API_URL.as_str()
+            ),
+            &authorization(),
             serde_json::to_string(&Request {
                 config: None,
                 id: Some(request.run_id),
@@ -138,24 +119,10 @@ pub async fn request_reporting(
             })
             .unwrap(),
         )
-        .map_err(|err| err.to_string())?
-        .exec()
-        .await
-        {
-            Ok(mut response) => {
-                if response.status_code() == 200 || response.status_code() == 409 {
-                    // Nothing
-                } else {
-                    return match response.text().await {
-                        Ok(body) => Err(format!(
-                            "Server {} response: {body}",
-                            response.status_code()
-                        )),
-                        Err(error) => Err(error.to_string()),
-                    };
-                }
-            }
-            Err(error) => return Err(error.to_string()),
+        .await?;
+        // A run already started is fine.
+        if response.status != 200 && response.status != 409 {
+            return Err(response.error());
         }
     }
 
@@ -169,52 +136,19 @@ pub async fn request_reporting(
     };
     if enable_reports {
         REPORTS_ENABLED.store(true, Ordering::Relaxed);
-        match generic_async_http_client::Request::post(&format!(
-            "{api_url}/execution/report/request",
-            api_url = crate::API_URL.as_str()
-        ))
-        .add_header("User-Agent", crate::USER_AGENT)
-        .map_err(|err| err.to_string())?
-        .add_header(
-            "Authorization",
-            format!(
-                "Bearer {api_token}",
-                api_token = crate::API_TOKEN
-                    .as_ref()
-                    .map(|token| token.as_str())
-                    .unwrap_or(&"")
-            )
-            .as_bytes(),
+        let response = http::post(
+            &format!(
+                "{api_url}/execution/report/request",
+                api_url = crate::API_URL.as_str()
+            ),
+            &authorization(),
+            serde_json::to_string(&request).unwrap(),
         )
-        .map_err(|err| err.to_string())?
-        .add_header("Content-Type", "application/json")
-        .map_err(|err| err.to_string())?
-        .body(serde_json::to_string(&request).unwrap())
-        .map_err(|err| err.to_string())?
-        .exec()
-        .await
-        {
-            Ok(mut response) => {
-                if response.status_code() == 200 {
-                    match response.json::<Reporting>().await {
-                        Ok(resp_reporting) => {
-                            reporting = resp_reporting;
-                        }
-                        Err(error) => return Err(error.to_string()),
-                    }
-                } else {
-                    match response.text().await {
-                        Ok(body) => {
-                            return Err(format!(
-                                "Server {} response: {body}",
-                                response.status_code()
-                            ))
-                        }
-                        Err(error) => return Err(error.to_string()),
-                    }
-                }
-            }
-            Err(error) => return Err(error.to_string()),
+        .await?;
+        if response.status == 200 {
+            reporting = response.json::<Reporting>()?;
+        } else {
+            return Err(response.error());
         }
     }
 
@@ -226,74 +160,42 @@ pub async fn request_reporting(
         let run_id = request.run_id.clone();
         status_reporting.launched = Some(Box::new(move |result| {
             Box::pin(async move {
-                let call = async || {
-                    generic_async_http_client::Request::post(&format!(
+                let _ = http::post(
+                    &format!(
                         "{api_url}/execution/run/launched",
                         api_url = crate::API_URL.as_str()
-                    ))
-                    .add_header("User-Agent", crate::USER_AGENT)?
-                    .add_header(
-                        "Authorization",
-                        format!(
-                            "Bearer {api_token}",
-                            api_token = crate::API_TOKEN
-                                .as_ref()
-                                .map(|token| token.as_str())
-                                .unwrap_or(&"")
-                        )
-                        .as_bytes(),
-                    )?
-                    .add_header("Content-Type", "application/json")?
-                    .body(
-                        serde_json::to_string(&match result {
-                            Ok(_) => LocalLaunched {
-                                run_id,
-                                response: DistributionResponse::Started(None),
-                            },
-                            Err(err) => LocalLaunched {
-                                run_id,
-                                response: DistributionResponse::Error(vec![err]),
-                            },
-                        })
-                        .unwrap(),
-                    )?
-                    .exec()
-                    .await
-                };
-                let _ = call().await;
+                    ),
+                    &authorization(),
+                    serde_json::to_string(&match result {
+                        Ok(_) => LocalLaunched {
+                            run_id,
+                            response: DistributionResponse::Started(None),
+                        },
+                        Err(err) => LocalLaunched {
+                            run_id,
+                            response: DistributionResponse::Error(vec![err]),
+                        },
+                    })
+                    .unwrap(),
+                )
+                .await;
             })
         }));
         status_reporting.ended = Some(Box::new(move || {
             Box::pin(async move {
-                let call = async || {
-                    generic_async_http_client::Request::post(&format!(
+                let _ = http::post(
+                    &format!(
                         "{api_url}/execution/run/ended",
                         api_url = crate::API_URL.as_str()
-                    ))
-                    .add_header("User-Agent", crate::USER_AGENT)?
-                    .add_header(
-                        "Authorization",
-                        format!(
-                            "Bearer {api_token}",
-                            api_token = crate::API_TOKEN
-                                .as_ref()
-                                .map(|token| token.as_str())
-                                .unwrap_or(&"")
-                        )
-                        .as_bytes(),
-                    )?
-                    .add_header("Content-Type", "application/json")?
-                    .body(
-                        serde_json::to_string(&LocalEnd {
-                            run_id,
-                            result: crate::api::DistributionResult::Success(None),
-                        })
-                        .unwrap(),
-                    )?
-                    .exec()
-                    .await
-                };
-                let _ = call().await;
+                    ),
+                    &authorization(),
+                    serde_json::to_string(&LocalEnd {
+                        run_id,
+                        result: crate::api::DistributionResult::Success(None),
+                    })
+                    .unwrap(),
+                )
+                .await;
             })
         }));
     }
@@ -384,17 +286,19 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
     // gapless count of what's actually on S3.
     let max_pending_batches = report_max_pending_batches();
     let batch_size = report_batch_size();
-    let (pending_tx, pending_rx) = async_std::channel::bounded::<Vec<Log>>(max_pending_batches);
-    let uploader = async_std::task::spawn(async move {
+    let (pending_tx, pending_rx) = async_channel::bounded::<Vec<Log>>(max_pending_batches);
+    let uploader = smol::spawn(async move {
         let mut batch_index: u128 = 0;
         while let Ok(batch) = pending_rx.recv().await {
             let mut fields = fields.clone();
             fields.insert("key".to_string(), format!("{path}/logs_{batch_index}.json"));
 
-            match send_logs_to_s3(&uri, fields, &batch).await {
+            match Compat::new(send_logs_to_s3(&uri, fields, &batch)).await {
                 Ok(()) => {
                     batch_index += 1;
-                    if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                    if let Err(err) =
+                        Compat::new(chunks_update(&chunks_update_uri, batch_index)).await
+                    {
                         eprintln!("Failed to send logs chunk to API: {err}");
                     }
                 }
@@ -413,7 +317,8 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
     let mut dropped: u64 = 0;
     while let Ok(log) = logs.recv().await {
         buffer_logs.push(log);
-        if buffer_logs.len() >= batch_size || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
+        if buffer_logs.len() >= batch_size
+            || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
         {
             let batch = std::mem::replace(&mut buffer_logs, Vec::with_capacity(batch_size));
             if let Err(TrySendError::Full(batch)) = pending_tx.try_send(batch) {
@@ -456,8 +361,8 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
     let max_pending_batches = report_max_pending_batches();
     let batch_size = report_batch_size();
     let (pending_tx, pending_rx) =
-        async_std::channel::bounded::<Vec<melodium_share::Event>>(max_pending_batches);
-    let uploader = async_std::task::spawn(async move {
+        async_channel::bounded::<Vec<melodium_share::Event>>(max_pending_batches);
+    let uploader = smol::spawn(async move {
         let mut batch_index: u128 = 0;
         while let Ok(batch) = pending_rx.recv().await {
             let mut fields = fields.clone();
@@ -466,10 +371,12 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
                 format!("{path}/debug_{batch_index}.json"),
             );
 
-            match send_debug_to_s3(&uri, fields, &batch).await {
+            match Compat::new(send_debug_to_s3(&uri, fields, &batch)).await {
                 Ok(()) => {
                     batch_index += 1;
-                    if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                    if let Err(err) =
+                        Compat::new(chunks_update(&chunks_update_uri, batch_index)).await
+                    {
                         eprintln!("Failed to send debug chunk to API: {err}");
                     }
                 }
@@ -488,7 +395,8 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
     let mut dropped: u64 = 0;
     while let Ok(event) = events.recv().await {
         buffer_events.push(melodium_share::Event::from(&event));
-        if buffer_events.len() >= batch_size || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
+        if buffer_events.len() >= batch_size
+            || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
         {
             let batch = std::mem::replace(&mut buffer_events, Vec::with_capacity(batch_size));
             if let Err(TrySendError::Full(batch)) = pending_tx.try_send(batch) {
@@ -529,11 +437,7 @@ pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDu
             let request = headers
                 .into_iter()
                 .fold(request, |req, (key, value)| req.header(key, value));
-            match request
-                .body(serde_json::to_vec(&program).unwrap())
-                .send()
-                .await
-            {
+            match Compat::new(request.body(serde_json::to_vec(&program).unwrap()).send()).await {
                 Ok(response) => {
                     if !response.status().is_success() {
                         eprintln!(
@@ -553,28 +457,13 @@ pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDu
 
 #[cfg(feature = "real")]
 async fn report_program_details(program: &melodium_share::ProgramDump) -> Result<(), String> {
-    match generic_async_http_client::Request::post(&format!(
-        "{api_url}/execution/report/run/{run_id}/program/details",
-        api_url = crate::API_URL.as_str(),
-        run_id = melodium_engine::execution_run_id(),
-    ))
-    .add_header("User-Agent", crate::USER_AGENT)
-    .map_err(|err| err.to_string())?
-    .add_header(
-        "Authorization",
-        format!(
-            "Bearer {api_token}",
-            api_token = crate::API_TOKEN
-                .as_ref()
-                .map(|token| token.as_str())
-                .unwrap_or(&"")
-        )
-        .as_bytes(),
-    )
-    .map_err(|err| err.to_string())?
-    .add_header("Content-Type", "application/json")
-    .map_err(|err| err.to_string())?
-    .body(
+    let response = http::post(
+        &format!(
+            "{api_url}/execution/report/run/{run_id}/program/details",
+            api_url = crate::API_URL.as_str(),
+            run_id = melodium_engine::execution_run_id(),
+        ),
+        &authorization(),
         serde_json::to_string(&ReportingProgramDetails {
             run_id: melodium_engine::execution_run_id().clone(),
             group_id: melodium_engine::execution_group_id().clone(),
@@ -583,26 +472,24 @@ async fn report_program_details(program: &melodium_share::ProgramDump) -> Result
         })
         .unwrap(),
     )
-    .map_err(|err| err.to_string())?
-    .exec()
-    .await
-    {
-        Ok(mut response) => {
-            if response.status_code() == 200 {
-                // Nothing
-            } else {
-                return match response.text().await {
-                    Ok(body) => Err(format!(
-                        "Server {} response: {body}",
-                        response.status_code()
-                    )),
-                    Err(error) => Err(error.to_string()),
-                };
-            }
-        }
-        Err(error) => return Err(error.to_string()),
+    .await?;
+    if response.status == 200 {
+        Ok(())
+    } else {
+        Err(response.error())
     }
-    Ok(())
+}
+
+/// Authorization to the API, from `MELODIUM_API_TOKEN`.
+#[cfg(feature = "real")]
+fn authorization() -> String {
+    format!(
+        "Bearer {api_token}",
+        api_token = crate::API_TOKEN
+            .as_ref()
+            .map(|token| token.as_str())
+            .unwrap_or(&"")
+    )
 }
 
 #[cfg(feature = "real")]

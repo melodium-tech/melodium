@@ -1,9 +1,8 @@
 use crate::{command::*, environment::*, exec::*};
-use async_std::io::BufReader;
 #[cfg(feature = "real")]
-use async_std::process::Command as ProcessCommand;
+use async_process::Command as ProcessCommand;
 use async_trait::async_trait;
-use futures::{select, AsyncReadExt, AsyncWriteExt};
+use futures::{io::BufReader, select, AsyncReadExt, AsyncWriteExt};
 use melodium_macro::{check, mel_function};
 use regex::{Captures, Replacer};
 use std::{fmt::Debug, process::Stdio, sync::Arc};
@@ -31,7 +30,7 @@ impl LocalExecutorEngine {
     /// Writes the secret input, if any, to `stdin`, then closes it.
     #[cfg(feature = "real")]
     async fn write_secret_stdin(
-        stdin: Option<async_std::process::ChildStdin>,
+        stdin: Option<async_process::ChildStdin>,
         secrets: &RevealedSecrets,
     ) {
         if let (Some(mut stdin), Some(input)) = (stdin, &secrets.stdin) {

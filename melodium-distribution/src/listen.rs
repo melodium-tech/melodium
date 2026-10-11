@@ -5,16 +5,11 @@ use crate::{messages, messages::*, VERSION};
 
 /// Time given to running tracks to finish once the process is interrupted.
 const INTERRUPTION_GRACE: Duration = Duration::from_secs(10);
-use async_std::channel::{bounded, Sender};
-use async_std::sync::Barrier;
-use async_std::{
-    future::timeout,
-    io::{Read, Write},
-    net::{SocketAddr, TcpListener},
-    sync::RwLock as AsyncRwLock,
-};
+use async_channel::{bounded, Sender};
+use async_lock::{Barrier, RwLock as AsyncRwLock};
 use core::sync::atomic::AtomicBool;
 use core::time::Duration;
+use futures::io::{AsyncRead as Read, AsyncWrite as Write};
 use futures::stream::{unfold, FuturesUnordered};
 use futures::{pin_mut, select, FutureExt, StreamExt};
 use futures_rustls::TlsAcceptor;
@@ -31,8 +26,10 @@ use melodium_loader::Loader;
 use melodium_share::{
     ProgramDump, SharingError, SharingResult, TransmissionValue as WireTransmissionValue,
 };
+use smol::net::{SocketAddr, TcpListener};
 use std::{
     collections::HashMap,
+    future::Future,
     sync::{Arc, OnceLock},
 };
 use uuid::Uuid;
@@ -46,6 +43,15 @@ const DEFAULT_TEARDOWN_TIMEOUT_SECS: u64 = 60;
 const PROBE_RETRY_ATTEMPTS: u32 = 3;
 /// Delay between probe retry attempts.
 const PROBE_RETRY_DELAY: Duration = Duration::from_secs(2);
+
+/// Gives the output of `future`, or an error if it takes longer than `duration`.
+async fn timeout<T>(duration: Duration, future: impl Future<Output = T>) -> Result<T, ()> {
+    smol::future::or(async { Ok(future.await) }, async {
+        smol::Timer::after(duration).await;
+        Err(())
+    })
+    .await
+}
 
 /// Grace period, after the distributed engine and connection are expected to
 /// be done, before forcing teardown of the connection and log/debug channels.
@@ -560,7 +566,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     }
                     .boxed(),
                     async {
-                        async_std::task::sleep(max_duration).await;
+                        smol::Timer::after(max_duration).await;
                         expired.store(true, core::sync::atomic::Ordering::Relaxed);
                     }
                     .boxed(),
@@ -937,7 +943,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let protocol = Arc::clone(&protocol);
         async move {
             loop {
-                async_std::task::sleep(Duration::from_secs(10)).await;
+                smol::Timer::after(Duration::from_secs(10)).await;
                 // A single failed probe send doesn't prove the connection is dead: it can
                 // just as well be a transient hiccup over a real network (TLS
                 // renegotiation, a brief stall, ordinary internet jitter) on an otherwise
@@ -953,7 +959,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     }
                     attempts += 1;
                     if attempts < PROBE_RETRY_ATTEMPTS {
-                        async_std::task::sleep(PROBE_RETRY_DELAY).await;
+                        smol::Timer::after(PROBE_RETRY_DELAY).await;
                     }
                 }
                 if !succeeded {
@@ -965,15 +971,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     };
 
-    let probe = async_std::task::spawn(probe);
+    let probe = smol::spawn(probe);
 
     // `logs`/`debug` are spawned as independent tasks, not joined alongside
     // `limit`/`live`/`run` below: they must be actively polled and forwarding to the
     // peer for the whole duration of the run, not just after the real work is done -
     // otherwise log/debug events only get sent once the job already finished, instead
     // of arriving live while it's in progress.
-    let logs = async_std::task::spawn(logs);
-    let debug = async_std::task::spawn(debug);
+    let logs = smol::spawn(logs);
+    let debug = smol::spawn(debug);
 
     // `limit`/`live`/`run` complete once real work is genuinely done: `max_duration`
     // elapsing, the engine reporting itself ended, or the peer confirming `Ended` /

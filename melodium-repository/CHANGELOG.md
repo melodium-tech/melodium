@@ -3,7 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
-- No changes in this crate.
+- Downloading packages with trillium-client on smol, instead of http-client on async-std (#104).
 
 ## [v0.10.4] (2026-09-24)
 

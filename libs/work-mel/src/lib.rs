@@ -13,6 +13,8 @@ pub mod api;
 pub mod compose;
 pub mod container;
 pub mod distant;
+#[cfg(feature = "real")]
+mod http;
 pub mod reporting;
 pub mod resources;
 

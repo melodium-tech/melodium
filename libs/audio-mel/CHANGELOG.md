@@ -3,7 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
-- No changes in this crate.
+- Decoding and encoding on the threads of the blocking crate instead of async-std, which is discontinued (#104).
 
 ## [v0.10.4] (2026-09-24)
 

@@ -1,6 +1,6 @@
 //! Running programs in the engine, and reading what it gives.
 
-use async_std::channel::unbounded;
+use async_channel::unbounded;
 use melodium::{load_raw, LoadingConfig};
 use melodium_common::descriptor::{Collection, Identifier};
 use melodium_common::executive::{Level, Log, Value};
@@ -35,7 +35,7 @@ pub fn run(script: &str, parameters: HashMap<String, Value>) -> (Vec<Log>, Vec<E
     engine.add_debug_listener(debug_sender);
 
     assert!(engine.genesis(&entrypoint, parameters).is_success());
-    async_std::task::block_on(async {
+    smol::block_on(async {
         engine.live().await;
         engine.end().await;
     });

@@ -16,9 +16,8 @@ use crate::debug::{
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
 use crate::transmission::{Input, Output, Outputs};
-use async_std::channel::{unbounded, Receiver, Sender};
-use async_std::sync::{Barrier, Mutex, RwLock as AsyncRwLock};
-use async_std::task::block_on;
+use async_channel::{unbounded, Receiver, Sender};
+use async_lock::{Barrier, Mutex, RwLock as AsyncRwLock};
 use async_trait::async_trait;
 use chrono::Utc;
 use core::fmt::Debug;
@@ -47,7 +46,7 @@ use uuid::Uuid;
 
 /// Track or continuous task running on the thread pool, cancelled when dropped.
 #[cfg(not(target_os = "unknown"))]
-type Running<T> = async_global_executor::Task<T>;
+type Running<T> = async_executor::Task<T>;
 /// Track or continuous task, polled in place, as WebAssembly has no threads.
 #[cfg(target_os = "unknown")]
 type Running<T> = core::pin::Pin<Box<dyn Future<Output = T> + Send>>;
@@ -56,7 +55,7 @@ type Running<T> = core::pin::Pin<Box<dyn Future<Output = T> + Send>>;
 fn run<T: Send + 'static>(future: impl Future<Output = T> + Send + 'static) -> Running<T> {
     #[cfg(not(target_os = "unknown"))]
     {
-        async_global_executor::spawn(future)
+        crate::runtime::spawn(future)
     }
     #[cfg(target_os = "unknown")]
     {
@@ -329,7 +328,7 @@ impl World {
         self.sources.write().unwrap().insert(id, sources);
 
         self.debug_sender
-            .send_blocking(Event::new(EventKind::ModelAdded {
+            .try_send(Event::new(EventKind::ModelAdded {
                 model_id: id,
                 model: model.descriptor(),
             }))
@@ -472,7 +471,7 @@ impl World {
     }
 
     pub fn send_debug(&self, event: Event) {
-        let _ = self.debug_sender.send_blocking(event);
+        let _ = self.debug_sender.try_send(event);
     }
 
     pub async fn send_debug_async(&self, event: Event) {
@@ -482,7 +481,8 @@ impl World {
     async fn run_tracks(&self) {
         let mut futures = FuturesUnordered::new();
 
-        let mut tracks_receiver = self.tracks_receiver.clone();
+        let tracks_receiver = self.tracks_receiver.clone();
+        pin_mut!(tracks_receiver);
         let continous_ended_barrier = self.continous_ended_barrier.wait().fuse();
         pin_mut!(continous_ended_barrier);
 
@@ -850,8 +850,8 @@ impl Engine for World {
         // TODO for WASM
         #[cfg(not(target_os = "unknown"))]
         let (logs_transmission, debug_transmission) = (
-            async_std::task::spawn(logs_transmission),
-            async_std::task::spawn(debug_transmission),
+            crate::runtime::spawn(logs_transmission),
+            crate::runtime::spawn(debug_transmission),
         );
 
         self.continuous_tasks_sender.close();
@@ -1050,10 +1050,7 @@ impl ExecutiveWorld for World {
     }
 
     fn add_continuous_task(&self, task: ContinuousFuture) {
-        let me = self.auto_reference.upgrade().unwrap();
-        block_on(async move {
-            let _ = me.continuous_tasks_sender.send(task).await;
-        });
+        let _ = self.continuous_tasks_sender.try_send(task);
     }
 
     async fn create_track(
@@ -1196,8 +1193,7 @@ impl ExecutiveWorld for World {
     }
 
     async fn wait_no_more_tracks(&self) {
-        let mut receiver = self.no_more_tracks_receiver.clone();
-        let _ = receiver.next().await;
+        let _ = self.no_more_tracks_receiver.recv().await;
     }
 }
 
@@ -1309,6 +1305,7 @@ mod tests {
     use super::*;
     use melodium_common::descriptor::DataType;
     use melodium_common::executive::{SecretOrigin, SecretPolicy, SecretReveal};
+    use smol::block_on;
 
     #[derive(Debug)]
     struct TestSource;
@@ -1420,13 +1417,20 @@ mod tests {
             futures::future::pending::<()>().await;
         })));
 
-        let ended = block_on(async_std::future::timeout(Duration::from_secs(10), async {
-            join!(world.live(), async {
-                async_std::task::sleep(Duration::from_millis(200)).await;
-                world.stop().await;
-            });
-        }));
-        assert!(ended.is_ok(), "live did not end once stopped");
+        let ended = block_on(smol::future::or(
+            async {
+                join!(world.live(), async {
+                    smol::Timer::after(Duration::from_millis(200)).await;
+                    world.stop().await;
+                });
+                true
+            },
+            async {
+                smol::Timer::after(Duration::from_secs(10)).await;
+                false
+            },
+        ));
+        assert!(ended, "live did not end once stopped");
         assert!(track_dropped.load(Ordering::SeqCst));
         assert!(task_dropped.load(Ordering::SeqCst));
     }
@@ -1582,14 +1586,14 @@ mod tests {
         );
 
         assert_eq!(
-            async_std::task::block_on(access.reveal(&inline, |value| value.clone())),
+            block_on(access.reveal(&inline, |value| value.clone())),
             Err(SecretError::Denied(
                 "secrets are only revealed once every model is initialized".to_string()
             ))
         );
         world.secrets_revealing.store(true, Ordering::Relaxed);
         assert_eq!(
-            async_std::task::block_on(access.reveal(&inline, |value| value.clone())),
+            block_on(access.reveal(&inline, |value| value.clone())),
             Ok(Value::String("inline".to_string()))
         );
     }
@@ -1598,6 +1602,7 @@ mod tests {
 #[cfg(test)]
 mod masking_tests {
     use super::*;
+    use smol::block_on;
 
     #[test]
     fn remote_logs_and_debug_texts_are_masked() {

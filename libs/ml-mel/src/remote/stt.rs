@@ -7,6 +7,8 @@ use std::sync::Mutex;
 use std::sync::Weak;
 
 #[cfg(feature = "real")]
+use async_compat::Compat;
+#[cfg(feature = "real")]
 use llm::{
     builder::{LLMBackend, LLMBuilder},
     LLMProvider,
@@ -184,7 +186,7 @@ pub async fn transcribe() {
     {
         let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
         if let Some(provider) = maybe_provider {
-            match provider.transcribe(audio_bytes).await {
+            match Compat::new(provider.transcribe(audio_bytes)).await {
                 Ok(text) => {
                     let _ = transcript.send_one_as(text).await;
                 }
@@ -271,7 +273,7 @@ pub async fn transcribe_continuous() {
         {
             let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
             if let Some(provider) = maybe_provider {
-                match provider.transcribe(segment_bytes).await {
+                match Compat::new(provider.transcribe(segment_bytes)).await {
                     Ok(text) => {
                         check!(transcript.send_one_as(text).await);
                     }

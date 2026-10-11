@@ -17,18 +17,19 @@ crate-type = ["lib", "cdylib"]
 name = "sql_mel"
 
 [dependencies]
-async-std = {version="1.13", features=["unstable"]}
+async-lock = "3.4"
+futures-lite = "2.6"
 melodium-core = { path = "../../melodium-core", version = "0.11.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
 std-mel = { path = "../std-mel", version = "0.11.0" }
-sqlx = { version = "0.8" }
+sqlx = { version = "0.9" }
 url = "2.5"
 zeroize = "1.9"
 
 [features]
 mock = []
 plugin = []
-real = ["sqlx/runtime-async-std", "sqlx/postgres", "sqlx/mysql", "sqlx/tls-rustls"]
+real = ["sqlx/runtime-smol", "sqlx/postgres", "sqlx/mysql", "sqlx/tls-rustls"]
 "docs.rs" = ["mock", "std-mel/docs.rs"]
 
 [package.metadata.docs.rs]

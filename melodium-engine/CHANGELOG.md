@@ -3,6 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
+- Moving from async-std, which is discontinued, to smol: tracks and continuous tasks run on threads owned by the engine (`runtime` module), one per core unless the `MELODIUM_THREADS` environment variable gives another number, and Unix signals are received through async-signal (#104).
 - Running each track, and each continuous task of models, on the thread pool, so that tracks run in parallel; `Engine::stop` stops them, at the end of the grace period of interruptions or on a second one (#147).
 - Adding the `env:` and `file:` secret sources, the first one giving only the environment variables prefixed `MELODIUM_SECRET_`, behind the `environment` and `filesystem` features and never plainly revealing their secrets, the secret audit as debug events (and log lines for refusals and failures), and the masking of revealed values in logs (#134, #137).
 - Adding `Engine::check_secrets` and `Engine::secrets_access`, breaking for `Engine` implementors (#134, #139).

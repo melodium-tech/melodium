@@ -3,6 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
+- Moving from async-std, which is discontinued, to smol (#104).
 - Sending secrets to distant engines following their transmission policy, values only over TLS (#139).
 - Failing the launch, instead of panicking, when a parameter cannot be received (#139).
 - Ending distributed runs gracefully on interruption (#131).
