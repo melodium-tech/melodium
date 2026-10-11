@@ -23,8 +23,6 @@ treatment main(
     const signature: string,
     const jwt_key: Secret<string>,
     const jwt_public_key: string,
-    const es_key: Secret<string>,
-    const es_public_key: string,
     const hmac_key: Secret<string>
 )
 {
@@ -66,19 +64,6 @@ treatment main(
     verifyJwt.claims -> logClaims.message
     verifyJwt.reason -> logReason.message
     verifyJwt.error -> logJwtError.message
-
-    // A token signed with ECDSA, which the engine signs out of its thread.
-    emitEsJwt: emit<Option<Secret<string>>>(value=|wrap<Secret<string>>(
-        |sign(es_key, "ES256", "{\"iss\":\"ci\"}", 600, "es_jwt")
-    ))
-    verifyEsJwt: verifyJwt(algorithm="ES256", public_key=es_public_key, issuer="ci")
-    logEsClaims: logInfo(label="es-jwt-claims")
-    logEsReason: logInfo(label="es-jwt-reason")
-    logEsError: logInfo(label="es-jwt-error")
-    startup.trigger -> emitEsJwt.trigger,emit -> verifyEsJwt.token
-    verifyEsJwt.claims -> logEsClaims.message
-    verifyEsJwt.reason -> logEsReason.message
-    verifyEsJwt.error -> logEsError.message
 
     // A token signed with HMAC, plainly revealed as its key allows it.
     emitHmacJwt: emit<Secret<string>>(value=|sign(hmac_key, "HS256", "{\"iss\":\"ci\"}", 0, "hmac_jwt"))

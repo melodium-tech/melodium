@@ -31,8 +31,8 @@ pub use model::{Model, ModelId};
 pub use output::{Output, OutputExt, Outputs};
 pub use result_status::ResultStatus;
 pub use secret::{
-    check_secret_resolution, with_secret_wire, CostlyWork, SecretAudit, SecretAuditOutcome,
-    SecretDerivation, SecretError, SecretSource, SecretWire, SecretsAccess, SecretsHost,
+    check_secret_resolution, with_secret_wire, SecretAudit, SecretAuditOutcome, SecretDerivation,
+    SecretError, SecretSource, SecretWire, SecretsAccess, SecretsHost,
 };
 pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};
 pub use treatment::Treatment;

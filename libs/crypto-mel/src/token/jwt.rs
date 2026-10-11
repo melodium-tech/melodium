@@ -379,19 +379,6 @@ impl SecretDerivation for SignDerivation {
             _ => Err("the key is not a string".to_string()),
         }
     }
-
-    /// Signing with RSA takes milliseconds, and ECDSA half a millisecond, while HMAC and
-    /// Ed25519 take microseconds.
-    fn costly(&self) -> bool {
-        matches!(
-            Algorithm::from_str(&self.algorithm),
-            Ok(Algorithm::Rs256
-                | Algorithm::Rs384
-                | Algorithm::Rs512
-                | Algorithm::Es256
-                | Algorithm::Es384)
-        )
-    }
 }
 
 /// Secret holding a JSON Web Token signed with `key`, made when revealed.
@@ -708,21 +695,6 @@ mod tests {
             NOW
         )
         .is_err());
-    }
-
-    #[test]
-    fn rsa_and_ecdsa_signing_is_costly() {
-        let derivation = |algorithm: &str| SignDerivation {
-            algorithm: algorithm.to_string(),
-            claims: CLAIMS.to_string(),
-            lifetime: 0,
-        };
-        for algorithm in ["RS256", "RS384", "RS512", "ES256", "ES384"] {
-            assert!(derivation(algorithm).costly(), "{algorithm}");
-        }
-        for algorithm in ["HS256", "HS384", "HS512", "EdDSA", "none"] {
-            assert!(!derivation(algorithm).costly(), "{algorithm}");
-        }
     }
 
     #[test]

@@ -573,27 +573,12 @@ impl Secret {
                             }
                         }
                     }
-                    match failure {
-                        Some(failure) => {
-                            values.iter_mut().for_each(wipe_value);
-                            return Err(failure);
-                        }
-                        // Away from the tasks of the engine, the values going along.
-                        None if derivation.costly() => {
-                            let derivation = Arc::clone(derivation);
-                            host.run_costly(Box::new(move || {
-                                let derived = derivation.derive(&values);
-                                values.iter_mut().for_each(wipe_value);
-                                derived
-                            }))
-                            .await?
-                        }
-                        None => {
-                            let derived = derivation.derive(&values);
-                            values.iter_mut().for_each(wipe_value);
-                            derived?
-                        }
-                    }
+                    let derived = match failure {
+                        Some(failure) => Err(failure),
+                        None => derivation.derive(&values),
+                    };
+                    values.iter_mut().for_each(wipe_value);
+                    derived?
                 }
             };
             if value.datatype() == self.0.datatype {
@@ -1084,82 +1069,6 @@ mod tests {
         );
         let debug = format!("{nested:?} {:?}", nested.0.origin);
         assert!(!debug.contains(SENTINEL), "leaked in {}", debug);
-    }
-
-    #[derive(Debug)]
-    struct CostlyConcatenation;
-
-    impl SecretDerivation for CostlyConcatenation {
-        fn derive(&self, inputs: &[Value]) -> core::result::Result<Value, String> {
-            Concatenation.derive(inputs)
-        }
-
-        fn costly(&self) -> bool {
-            true
-        }
-    }
-
-    /// Host counting the work it runs as costly.
-    #[derive(Debug, Default)]
-    struct CountingHost(std::sync::atomic::AtomicUsize);
-
-    #[async_trait::async_trait]
-    impl SecretsHost for CountingHost {
-        fn secret_source(&self, _scheme: &str) -> Option<Arc<dyn crate::executive::SecretSource>> {
-            None
-        }
-        fn register_secret_source(
-            &self,
-            _scheme: &str,
-            _source: Arc<dyn crate::executive::SecretSource>,
-        ) -> core::result::Result<(), SecretError> {
-            Ok(())
-        }
-        fn revealing(&self) -> bool {
-            true
-        }
-        fn add_masked_value(&self, _secret_name: &str, _value: &Value) {}
-        async fn secret_audit(&self, _audit: crate::executive::SecretAudit) {}
-        async fn run_costly(
-            &self,
-            work: crate::executive::CostlyWork,
-        ) -> core::result::Result<Value, String> {
-            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            work()
-        }
-    }
-
-    #[test]
-    fn only_costly_derivations_are_run_as_costly_work() {
-        let input = Secret::new(
-            "input".to_string(),
-            DataType::String,
-            SecretPolicy::default(),
-            SecretOrigin::Inline(Value::String("ab".to_string())),
-        )
-        .unwrap();
-        let derived = |derivation: Arc<dyn SecretDerivation>| {
-            Secret::derive(
-                "derived".to_string(),
-                DataType::String,
-                vec![input.clone(), input.clone()],
-                derivation,
-            )
-            .unwrap()
-        };
-        let host = CountingHost::default();
-        let resolve = |secret: &Secret| async_std::task::block_on(secret.resolve(&host, false));
-
-        assert_eq!(
-            resolve(&derived(Arc::new(Concatenation))),
-            Ok(Value::String("abab".to_string()))
-        );
-        assert_eq!(host.0.load(std::sync::atomic::Ordering::SeqCst), 0);
-        assert_eq!(
-            resolve(&derived(Arc::new(CostlyConcatenation))),
-            Ok(Value::String("abab".to_string()))
-        );
-        assert_eq!(host.0.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
     #[test]

@@ -5,7 +5,6 @@
 
 - Adding the `env:` and `file:` secret sources, the first one giving only the environment variables prefixed `MELODIUM_SECRET_`, behind the `environment` and `filesystem` features and never plainly revealing their secrets, the secret audit as debug events (and log lines for refusals and failures), and the masking of revealed values in logs (#134, #137).
 - Adding `Engine::check_secrets` and `Engine::secrets_access`, breaking for `Engine` implementors (#134, #139).
-- Running costly secret derivations, such as signing with RSA or ECDSA, on the threads kept for blocking work, as all the tasks of the engine are run by one thread (#136).
 - Registering the secret sources of models before any model is initialized, and checking at launch that secrets only this engine resolves have a source for their scheme; a scheme registered twice fails the launch (D0252), as does a secret located in a scheme without source (D0253). Secrets are only revealed once every model is initialized (#134).
 - Ending runs gracefully on SIGINT, SIGTERM and SIGHUP, and as a best effort on the console control events of Windows, through `interruption::live_until_interrupted` (#131).
 - Fixing models keeping their world alive through a reference cycle: models hold it weakly, and `world()` gives an owned `Arc` (#132).

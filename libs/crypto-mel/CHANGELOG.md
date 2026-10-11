@@ -6,6 +6,5 @@
 - Verifying Ed25519 signatures of data (`crypto/signature/ed25519::verify`), such as Discord interactions (#136).
 - Signing JSON Web Tokens with HMAC, RSA, ECDSA or Ed25519, as secrets made when revealed (`crypto/token/jwt::|sign`), such as to authenticate as a GitHub App, and verifying received ones against a shared secret or a public key (`crypto/token/jwt::verify`) (#136).
 - Generating random tokens as secrets (`crypto/random::token`) (#136).
-- Signing JSON Web Tokens with RSA or ECDSA as a costly derivation, out of the thread running the engine (#136).
 - Encoding signatures and tokens in hexadecimal, base64 or base64url (#136).
 - Built on the RustCrypto crates (`hmac`, `sha1`, `sha2`, `p256`, `p384`, `ed25519-dalek`, `rsa`); `rsa` 0.10, matching the others, is only available as a release candidate yet, pinned to `0.10.0-rc.19` (#136).
