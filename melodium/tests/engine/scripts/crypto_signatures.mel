@@ -9,10 +9,11 @@ use std/engine/log::logInfoMessage
 use std/flow::emit
 use std/flow::stream
 use std/ops/option::|wrap
+use std/ops/option/block::wrap
 use std/secret::reveal
 use std/text/convert/string::toUtf8
 use crypto/signature/ed25519::verify as verifyEd25519
-use crypto/token/jwt::|sign
+use crypto/token/jwt::sign as signJwt
 use crypto/token/jwt::verify as verifyJwt
 use crypto/random::token
 
@@ -23,6 +24,8 @@ treatment main(
     const signature: string,
     const jwt_key: Secret<string>,
     const jwt_public_key: string,
+    const es_key: Secret<string>,
+    const es_public_key: string,
     const hmac_key: Secret<string>
 )
 {
@@ -53,35 +56,57 @@ treatment main(
     wrongEd25519.invalid -> logWrongInvalid.trigger
 
     // A token signed with Ed25519, then verified.
-    emitJwt: emit<Option<Secret<string>>>(value=|wrap<Secret<string>>(
-        |sign(jwt_key, "EdDSA", "{\"iss\":\"ci\",\"aud\":\"melodium\"}", 600, "jwt")
-    ))
+    emitClaims: emit<string>(value="{\"iss\":\"ci\",\"aud\":\"melodium\"}")
+    signEd25519: signJwt(key=jwt_key, algorithm="EdDSA", lifetime=600, name="jwt")
+    wrapJwt: wrap<Secret<string>>()
     verifyJwt(public_key=jwt_public_key, algorithm="EdDSA", issuer="ci", audience="melodium")
     logClaims: logInfo(label="jwt-claims")
     logReason: logInfo(label="jwt-reason")
     logJwtError: logInfo(label="jwt-error")
-    startup.trigger -> emitJwt.trigger,emit -> verifyJwt.token
+    startup.trigger -> emitClaims.trigger,emit -> signEd25519.claims,token -> wrapJwt.value,option -> verifyJwt.token
+    logJwtSignError: logInfo(label="jwt-sign-error")
+    signEd25519.error -> logJwtSignError.message
     verifyJwt.claims -> logClaims.message
     verifyJwt.reason -> logReason.message
     verifyJwt.error -> logJwtError.message
 
-    // A token signed with HMAC, plainly revealed as its key allows it.
-    emitHmacJwt: emit<Secret<string>>(value=|sign(hmac_key, "HS256", "{\"iss\":\"ci\"}", 0, "hmac_jwt"))
-    revealHmacJwt: reveal<string>()
-    startup.trigger -> emitHmacJwt.trigger,emit -> revealHmacJwt.secret
+    // A token signed with ECDSA, then verified.
+    emitIssuer: emit<string>(value="{\"iss\":\"ci\"}")
+    signP256: signJwt(key=es_key, algorithm="ES256", lifetime=600, name="es_jwt")
+    wrapEsJwt: wrap<Secret<string>>()
+    verifyEsJwt: verifyJwt(algorithm="ES256", public_key=es_public_key, issuer="ci")
+    logEsClaims: logInfo(label="es-jwt-claims")
+    logEsReason: logInfo(label="es-jwt-reason")
+    logEsError: logInfo(label="es-jwt-error")
+    startup.trigger -> emitIssuer.trigger,emit -> signP256.claims,token -> wrapEsJwt.value,option -> verifyEsJwt.token
+    logEsSignError: logInfo(label="es-jwt-sign-error")
+    signP256.error -> logEsSignError.message
+    verifyEsJwt.claims -> logEsClaims.message
+    verifyEsJwt.reason -> logEsReason.message
+    verifyEsJwt.error -> logEsError.message
 
-    // The same token verified with the shared secret.
-    emitHmacJwtOption: emit<Option<Secret<string>>>(value=|wrap<Secret<string>>(
-        |sign(hmac_key, "HS256", "{\"iss\":\"ci\"}", 0, "hmac_jwt")
-    ))
+    // A token signed with HMAC, plainly revealed as its policy allows it, and verified
+    // with the shared secret.
+    signHmac: signJwt(key=hmac_key, algorithm="HS256", name="hmac_jwt", plain_reveal=true)
+    revealHmacJwt: reveal<string>()
+    wrapHmacJwt: wrap<Secret<string>>()
     verifyHmacJwt: verifyJwt(algorithm="HS256", secret=|wrap<Secret<string>>(hmac_key), issuer="ci")
     logHmacClaims: logInfo(label="hmac-jwt-claims")
     logHmacReason: logInfo(label="hmac-jwt-reason")
     logHmacError: logInfo(label="hmac-jwt-error")
-    startup.trigger -> emitHmacJwtOption.trigger,emit -> verifyHmacJwt.token
+    emitIssuer.emit -> signHmac.claims,token -> revealHmacJwt.secret
+    signHmac.token -> wrapHmacJwt.value,option -> verifyHmacJwt.token
+    logHmacSignError: logInfo(label="hmac-jwt-sign-error")
+    signHmac.error -> logHmacSignError.message
     verifyHmacJwt.claims -> logHmacClaims.message
     verifyHmacJwt.reason -> logHmacReason.message
     verifyHmacJwt.error -> logHmacError.message
+
+    // An algorithm that is not supported.
+    signNone: signJwt(key=hmac_key, algorithm="none", name="none_jwt")
+    logNoneError: logInfo(label="none-jwt-error")
+    emitIssuer.emit -> signNone.claims
+    signNone.error -> logNoneError.message
 
     // A random token, plainly revealed as its policy allows it.
     token(name="csrf", bytes=16, encoding="hex", plain_reveal=true)

@@ -1,23 +1,24 @@
 //! JSON Web Tokens (RFC 7519), signed with HMAC, RSA, ECDSA or Ed25519.
 //!
-//! Tokens made by `|sign` are secrets computed when revealed, as they are credentials,
-//! and `verify` checks received tokens against a public key.
+//! `sign` gives tokens as secrets, as they are credentials, and `verify` checks received
+//! tokens against a shared secret or a public key.
 
 use crate::encoding::{base64url, from_base64url};
 use crate::signature::hmac::Signer as HmacSigner;
 use core::str::FromStr;
 use melodium_core::common::{
     descriptor::DataType,
-    executive::{Secret as ExecutiveSecret, SecretDerivation},
+    executive::{
+        Secret as ExecutiveSecret, SecretOrigin, SecretPolicy, SecretReveal, SecretTransmission,
+    },
 };
 use melodium_core::*;
-use melodium_macro::{mel_function, mel_treatment};
+use melodium_macro::mel_treatment;
 use p256::pkcs8::{DecodePrivateKey, DecodePublicKey};
 use rsa::pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey};
 use rsa::signature::{Signer, Verifier};
 use serde_json::{Map as JsonMap, Value as Json};
 use sha2::{Sha256, Sha384, Sha512};
-use std::sync::Arc;
 use zeroize::Zeroizing;
 
 /// Algorithms of the `alg` header.
@@ -361,63 +362,103 @@ pub(crate) fn check(
     Ok(payload)
 }
 
-/// Token signed when revealed, from the key given as input.
-#[derive(Debug)]
-struct SignDerivation {
-    algorithm: String,
-    claims: String,
+/// Signs a token of `claims` with `key`, giving it as a secret named `name`.
+async fn signed_token(
+    access: &melodium_core::common::executive::SecretsAccess,
+    key: &ExecutiveSecret,
+    algorithm: &str,
+    claims: &str,
     lifetime: u64,
+    name: String,
+    transmission: &str,
+    plain_reveal: bool,
+) -> Result<ExecutiveSecret, String> {
+    let algorithm = Algorithm::from_str(algorithm)?;
+    let transmission = transmission
+        .parse::<SecretTransmission>()
+        .map_err(|error| error.to_string())?;
+    let token = access
+        .reveal_str(key, |key| token(algorithm, key, claims, lifetime, now))
+        .await
+        .map_err(|error| format!("key: {error}"))??;
+    ExecutiveSecret::new(
+        name,
+        DataType::String,
+        SecretPolicy {
+            transmission,
+            reveal: SecretReveal::Any,
+            plain_reveal,
+        },
+        SecretOrigin::Inline(Value::String(token)),
+    )
+    .map_err(|error| error.to_string())
 }
 
-impl SecretDerivation for SignDerivation {
-    fn derive(&self, inputs: &[Value]) -> Result<Value, String> {
-        let algorithm = Algorithm::from_str(&self.algorithm)?;
-        match inputs {
-            [Value::String(key)] => {
-                token(algorithm, key, &self.claims, self.lifetime, now).map(Value::String)
-            }
-            _ => Err("the key is not a string".to_string()),
-        }
-    }
-}
-
-/// Secret holding a JSON Web Token signed with `key`, made when revealed.
+/// Signs a JSON Web Token, given as a secret.
 ///
+/// Once `claims` is received, a JSON object such as `{"iss": "123456"}`, the token is signed
+/// with `key` and `algorithm`, and given through `token`:
 /// - `key`: for `HS256`, `HS384` and `HS512`, the secret shared with the receiver; for
 ///   `RS256`, `RS384` and `RS512` (RSA), `ES256` and `ES384` (ECDSA with P-256 and P-384),
 ///   and `EdDSA` (Ed25519), the private key in PEM, PKCS#8 (`-----BEGIN PRIVATE KEY-----`)
 ///   or the `RSA PRIVATE KEY` and `EC PRIVATE KEY` forms, such as GitHub App keys.
 /// - `algorithm`: one of the above, written in the token header.
-/// - `claims`: the claims, a JSON object, such as `{"iss": "123456"}`.
-/// - `lifetime`: when not `0`, the token is valid for `lifetime` seconds from the moment it
-///   is revealed: `exp` is set accordingly, and `iat` a minute before that moment, for clocks
-///   running slightly ahead of the receiver's.
-/// - `name`: name of the secret.
+/// - `lifetime`: when not `0`, the token is valid for `lifetime` seconds from its signing:
+///   `exp` is set accordingly, and `iat` a minute before signing, for clocks running
+///   slightly ahead of the receiver's.
 ///
-/// The token is made each time it is revealed, such as to authenticate a request, so it is
-/// always fresh. The secret gets the policy of `key`.
+/// The key is revealed only to sign. The token is a secret named `name`, kept in memory
+/// until it is dropped, whose policy is given by `transmission` (`local`, `reference` or
+/// `value`) and `plain_reveal` (whether the plain `std/secret::reveal` treatment may reveal
+/// it), as `std/secret::conceal` takes. Programs running longer than `lifetime` sign again
+/// before the token expires, as receivers refuse expired tokens.
 ///
-/// Revealing fails if `algorithm` is not supported, if `claims` is not a JSON object, or if
-/// `key` does not fit `algorithm`.
-#[mel_function]
-pub fn sign(
+/// Signing takes microseconds with HMAC and Ed25519, half a millisecond with ECDSA, and a
+/// few milliseconds with RSA, more with keys longer than 2048 bits.
+///
+/// If the key cannot be revealed or does not fit `algorithm`, `algorithm` is not supported,
+/// `claims` is not a JSON object, or `transmission` is not valid, `failed` is emitted and
+/// `error` contains the reason.
+#[mel_treatment(
+    input claims Block<string>
+    output token Block<Secret<string>>
+    output failed Block<void>
+    output error Block<string>
+    default lifetime 0
+    default transmission "local"
+    default plain_reveal false
+    secrets_access
+)]
+pub async fn sign(
     key: Secret<string>,
     algorithm: string,
-    claims: string,
     lifetime: u64,
     name: string,
-) -> Secret<string> {
-    ExecutiveSecret::derive(
-        name,
-        DataType::String,
-        vec![key],
-        Arc::new(SignDerivation {
-            algorithm,
-            claims,
+    transmission: string,
+    plain_reveal: bool,
+) {
+    if let Ok(received) = claims.recv_one_as::<String>().await {
+        match signed_token(
+            &secrets_access,
+            &key,
+            &algorithm,
+            &received,
             lifetime,
-        }),
-    )
-    .unwrap()
+            name,
+            &transmission,
+            plain_reveal,
+        )
+        .await
+        {
+            Ok(signed) => {
+                let _ = token.send_one(Value::Secret(signed)).await;
+            }
+            Err(message) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(message).await;
+            }
+        }
+    }
 }
 
 /// Key given to `verify`, according to the algorithm.

@@ -50,6 +50,18 @@ const ED25519_PUBLIC_KEY: &str = "-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAd+fOas/+v316/EwswKbhnpu5Of4/edtkcUsQLNRTMrA=
 -----END PUBLIC KEY-----
 ";
+/// P-256 key made with OpenSSL for these tests only.
+const P256_PRIVATE_KEY: &str = "-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgFHPaHDzi562WnBao
+qb3LdsR3zDFxnfHU7/yROyWdF3uhRANCAAQRPrWKG8vG9B/yv5nJP/ImXRz/xp1l
+RCEvMaHPRQiJ7c2dYG42ZQZmiQzD3TOlrBMWsSJtUCMAoD/FSKLQe5q/
+-----END PRIVATE KEY-----
+";
+const P256_PUBLIC_KEY: &str = "-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEET61ihvLxvQf8r+ZyT/yJl0c/8ad
+ZUQhLzGhz0UIie3NnWBuNmUGZokMw90zpawTFrEibVAjAKA/xUii0Huavw==
+-----END PUBLIC KEY-----
+";
 const ED25519_PUBLIC_KEY_HEX: &str =
     "77e7ce6acffebf7d7afc4c2cc0a6e19e9bb939fe3f79db64714b102cd45332b0";
 const ED25519_MESSAGE: &str = r#"1700000000{"type":1}"#;
@@ -96,8 +108,16 @@ fn signatures_tokens_and_random_values() {
                 Value::String(ED25519_PUBLIC_KEY.to_string()),
             ),
             (
+                "es_key".to_string(),
+                inline_secret("es_key", P256_PRIVATE_KEY, false),
+            ),
+            (
+                "es_public_key".to_string(),
+                Value::String(P256_PUBLIC_KEY.to_string()),
+            ),
+            (
                 "hmac_key".to_string(),
-                inline_secret("hmac_key", "shared", true),
+                inline_secret("hmac_key", "shared", false),
             ),
         ]),
     );
@@ -112,7 +132,27 @@ fn signatures_tokens_and_random_values() {
     assert!(claims.contains(r#""iss":"ci""#), "{}", claims);
     assert!(claims.contains(r#""exp":"#), "{}", claims);
 
-    assert!(common::log(&logs, "hmac-jwt-reason").is_none(), "{:?}", logs);
+    for label in ["jwt-sign-error", "es-jwt-sign-error", "hmac-jwt-sign-error"] {
+        assert!(common::log(&logs, label).is_none(), "{:?}", logs);
+    }
+    assert!(common::log(&logs, "es-jwt-reason").is_none(), "{:?}", logs);
+    assert!(common::log(&logs, "es-jwt-error").is_none(), "{:?}", logs);
+    assert!(
+        message("es-jwt-claims").contains(r#""iss":"ci""#),
+        "{}",
+        message("es-jwt-claims")
+    );
+    assert!(
+        message("none-jwt-error").contains("'none' is not a supported algorithm"),
+        "{}",
+        message("none-jwt-error")
+    );
+
+    assert!(
+        common::log(&logs, "hmac-jwt-reason").is_none(),
+        "{:?}",
+        logs
+    );
     assert!(common::log(&logs, "hmac-jwt-error").is_none(), "{:?}", logs);
     assert_eq!(message("hmac-jwt-claims"), r#"{"iss":"ci"}"#);
 

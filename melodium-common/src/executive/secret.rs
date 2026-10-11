@@ -29,7 +29,9 @@ pub trait SecretSource: Debug + Send + Sync {
 /// Computes the value of a derived secret from the values of its input secrets.
 ///
 /// Derivations are built by functions, they describe an operation and never hold
-/// any secret value themselves.
+/// any secret value themselves. They run each time the derived secret is revealed, within
+/// the element revealing it, so they stay cheap, such as formatting or encoding: costly
+/// operations, such as signing, belong to treatments.
 pub trait SecretDerivation: Debug + Send + Sync {
     /// Gives the derived value from `inputs`, the values of the input secrets, in order.
     ///
