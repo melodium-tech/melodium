@@ -1,10 +1,12 @@
-//! Tokens received from clients, checked against secrets.
+//! Tokens received from clients, checked against secrets, and JSON Web Tokens.
 
 use melodium_core::common::executive::Secret as ExecutiveSecret;
 use melodium_core::*;
 use melodium_macro::mel_treatment;
 use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
+
+pub mod jwt;
 
 /// Tells, in constant time for a given length, whether `received` equals `expected`.
 pub(crate) fn equal(received: &[u8], expected: &[u8]) -> bool {

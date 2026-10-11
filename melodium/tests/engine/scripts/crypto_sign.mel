@@ -8,7 +8,7 @@ use std/engine/log::logInfo
 use std/flow::emit
 use std/flow::stream
 use std/text/convert/string::toUtf8
-use crypto/hmac::sign
+use crypto/signature/hmac::sign
 
 treatment main(const key: Secret<string> = "env:MELODIUM_SECRET_CRYPTO_TEST_KEY")
 {

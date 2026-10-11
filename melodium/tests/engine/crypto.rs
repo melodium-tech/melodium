@@ -112,6 +112,10 @@ fn signatures_tokens_and_random_values() {
     assert!(claims.contains(r#""iss":"ci""#), "{}", claims);
     assert!(claims.contains(r#""exp":"#), "{}", claims);
 
+    assert!(common::log(&logs, "hmac-jwt-reason").is_none(), "{:?}", logs);
+    assert!(common::log(&logs, "hmac-jwt-error").is_none(), "{:?}", logs);
+    assert_eq!(message("hmac-jwt-claims"), r#"{"iss":"ci"}"#);
+
     // Header and claims of the token, then its HMAC-SHA256 signature, as computed apart.
     assert_eq!(
         revealed(&events, "revealHmacJwt"),

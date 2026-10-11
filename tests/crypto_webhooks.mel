@@ -22,7 +22,7 @@ use http/status::HttpStatus
 use net/ip::|localhost_ipv4
 use net/ip::|from_ipv4
 use encoding::encode
-use crypto/hmac::verify
+use crypto/signature/hmac::verify
 use crypto/token::check
 
 treatment main(

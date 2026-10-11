@@ -4,7 +4,7 @@
 //! and `verify` checks received tokens against a public key.
 
 use crate::encoding::{base64url, from_base64url};
-use crate::hmac::Signer as HmacSigner;
+use crate::signature::hmac::Signer as HmacSigner;
 use core::str::FromStr;
 use melodium_core::common::{
     descriptor::DataType,
@@ -18,6 +18,7 @@ use rsa::signature::{Signer, Verifier};
 use serde_json::{Map as JsonMap, Value as Json};
 use sha2::{Sha256, Sha384, Sha512};
 use std::sync::Arc;
+use zeroize::Zeroizing;
 
 /// Algorithms of the `alg` header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -233,7 +234,29 @@ impl PublicKey {
             Self::P384(key) => p384::ecdsa::Signature::from_slice(signature)
                 .map(|signature| key.verify(message, &signature).is_ok())
                 .unwrap_or(false),
-            Self::Ed25519(key) => crate::ed25519::verified(key, message, signature),
+            Self::Ed25519(key) => crate::signature::ed25519::verified(key, message, signature),
+        }
+    }
+}
+
+/// Key checking the signature of a token: a public key, or the secret shared with the
+/// issuer for HMAC.
+pub(crate) enum Key<'a> {
+    Public(&'a PublicKey),
+    Shared(&'a [u8]),
+}
+
+impl Key<'_> {
+    fn verify(&self, algorithm: Algorithm, message: &[u8], signature: &[u8]) -> bool {
+        match (self, algorithm.hmac()) {
+            (Self::Public(key), None) => key.verify(algorithm, message, signature),
+            (Self::Shared(secret), Some(hash)) => HmacSigner::new(hash, secret)
+                .map(|mut signer| {
+                    signer.update(message);
+                    signer.verify(signature)
+                })
+                .unwrap_or(false),
+            _ => false,
         }
     }
 }
@@ -272,7 +295,7 @@ pub(crate) fn token(
 pub(crate) fn check(
     token: &str,
     algorithm: Algorithm,
-    key: &PublicKey,
+    key: &Key,
     issuer: &str,
     audience: &str,
     leeway: u64,
@@ -397,21 +420,30 @@ pub fn sign(
     .unwrap()
 }
 
+/// Key given to `verify`, according to the algorithm.
+enum VerifyingKey {
+    Public(PublicKey),
+    Shared(ExecutiveSecret),
+}
+
 /// Verifies a received JSON Web Token.
 ///
 /// `token`, after `prefix` when given (such as `Bearer ` for the `authorization` secret of
-/// `@HttpRequest`), is checked against `public_key`, a PEM public key
-/// (`-----BEGIN PUBLIC KEY-----`) for `algorithm` (`RS256`, `RS384`, `RS512`, `ES256`,
-/// `ES384` or `EdDSA`), which the token header must name. Its `exp` and `nbf` claims, when
-/// given, must hold with a tolerance of `leeway` seconds, and its `iss` and `aud` claims
-/// must be `issuer` and include `audience`, when those are not empty. The token is revealed
-/// only to be checked.
+/// `@HttpRequest`), is checked for `algorithm`, which the token header must name:
+/// - `HS256`, `HS384` and `HS512` against `secret`, the key shared with the issuer;
+/// - `RS256`, `RS384`, `RS512`, `ES256`, `ES384` and `EdDSA` against `public_key`, a PEM
+///   public key (`-----BEGIN PUBLIC KEY-----`).
+///
+/// A token naming another algorithm is invalid, so a public key is never taken as a shared
+/// secret. Its `exp` and `nbf` claims, when given, must hold with a tolerance of `leeway`
+/// seconds, and its `iss` and `aud` claims must be `issuer` and include `audience`, when
+/// those are not empty. The token and `secret` are revealed only to be checked.
 ///
 /// If the token is valid, `claims` gives its claims as JSON, then `valid` is emitted.
 /// Otherwise `reason` tells why, then `invalid` is emitted, including when `token` is none
 /// or is not a `Secret<string>`.
-/// If `algorithm` or `public_key` is not valid, or the token cannot be revealed, `failed`
-/// is emitted and `error` contains the reason.
+/// If `algorithm` is not valid, the key it needs is not given or not valid, or a secret
+/// cannot be revealed, `failed` is emitted and `error` contains the reason.
 #[mel_treatment(
     input token Block<Option<Secret<string>>>
     output claims Block<string>
@@ -420,6 +452,8 @@ pub fn sign(
     output invalid Block<void>
     output failed Block<void>
     output error Block<string>
+    default public_key ""
+    default secret none
     default prefix ""
     default issuer ""
     default audience ""
@@ -427,15 +461,25 @@ pub fn sign(
     secrets_access
 )]
 pub async fn verify(
-    public_key: string,
     algorithm: string,
+    public_key: string,
+    secret: Option<Secret<string>>,
     prefix: string,
     issuer: string,
     audience: string,
     leeway: u64,
 ) {
     let prepared = Algorithm::from_str(&algorithm).and_then(|algorithm| {
-        let key = PublicKey::from_pem(algorithm, &public_key)?;
+        let key = match (algorithm.hmac(), secret) {
+            (Some(_), Some(secret)) => VerifyingKey::Shared(secret),
+            (Some(_), None) => {
+                return Err(format!(
+                    "{} tokens are checked with a secret, and none is given",
+                    algorithm.name()
+                ))
+            }
+            (None, _) => VerifyingKey::Public(PublicKey::from_pem(algorithm, &public_key)?),
+        };
         Ok((algorithm, key, now()?))
     });
     let (algorithm, key, checked_at) = match prepared {
@@ -460,16 +504,32 @@ pub async fn verify(
         return;
     };
 
-    let checked = secrets_access
-        .reveal_str(&received, |token| {
-            match token.strip_prefix(prefix.as_str()) {
-                Some(token) => check(
-                    token, algorithm, &key, &issuer, &audience, leeway, checked_at,
-                ),
-                None => Err("the token does not start with the expected prefix".to_string()),
+    let check = |token: &str, key: &Key| match token.strip_prefix(prefix.as_str()) {
+        Some(token) => check(
+            token, algorithm, key, &issuer, &audience, leeway, checked_at,
+        ),
+        None => Err("the token does not start with the expected prefix".to_string()),
+    };
+    let checked = match &key {
+        VerifyingKey::Public(public) => secrets_access
+            .reveal_str(&received, |token| check(token, &Key::Public(public)))
+            .await
+            .map_err(|error| format!("token: {error}")),
+        VerifyingKey::Shared(secret) => {
+            match secrets_access
+                .reveal_str(&received, |token| Zeroizing::new(token.to_string()))
+                .await
+            {
+                Ok(token) => secrets_access
+                    .reveal_str(secret, |shared| {
+                        check(&token, &Key::Shared(shared.as_bytes()))
+                    })
+                    .await
+                    .map_err(|error| format!("secret: {error}")),
+                Err(error) => Err(format!("token: {error}")),
             }
-        })
-        .await;
+        }
+    };
     match checked {
         Ok(Ok(checked_claims)) => {
             let _ = claims.send_one_as(checked_claims).await;
@@ -479,9 +539,9 @@ pub async fn verify(
             let _ = reason.send_one_as(why).await;
             let _ = invalid.send_one_as(()).await;
         }
-        Err(secret_error) => {
+        Err(message) => {
             let _ = failed.send_one_as(()).await;
-            let _ = error.send_one_as(format!("token: {secret_error}")).await;
+            let _ = error.send_one_as(message).await;
         }
     }
 }
@@ -503,12 +563,20 @@ mod tests {
     fn round_trip(algorithm: Algorithm, private: &str, public: &str) {
         let token = token(algorithm, private, CLAIMS, 600, || Ok(NOW)).unwrap();
         let key = PublicKey::from_pem(algorithm, public).unwrap();
-        let checked = check(&token, algorithm, &key, "123456", "melodium", 60, NOW + 10);
+        let checked = check(
+            &token,
+            algorithm,
+            &Key::Public(&key),
+            "123456",
+            "melodium",
+            60,
+            NOW + 10,
+        );
         assert!(checked.is_ok(), "{algorithm:?}: {checked:?}");
 
         let mut forged = token.clone();
         forged.insert_str(token.find('.').unwrap() + 1, "e30");
-        assert!(check(&forged, algorithm, &key, "", "", 60, NOW).is_err());
+        assert!(check(&forged, algorithm, &Key::Public(&key), "", "", 60, NOW).is_err());
     }
 
     #[test]
@@ -575,6 +643,60 @@ mod tests {
     }
 
     #[test]
+    fn hmac_tokens_are_checked_with_the_shared_secret() {
+        let token = token(Algorithm::Hs256, "shared", CLAIMS, 600, || Ok(NOW)).unwrap();
+        let check = |token: &str, algorithm: Algorithm, secret: &[u8]| {
+            super::check(token, algorithm, &Key::Shared(secret), "", "", 60, NOW)
+        };
+        assert!(check(&token, Algorithm::Hs256, b"shared").is_ok());
+        assert_eq!(
+            check(&token, Algorithm::Hs256, b"other"),
+            Err("the token signature does not match".to_string())
+        );
+        assert_eq!(
+            check(&token, Algorithm::Hs384, b"shared"),
+            Err("the token is signed with 'HS256', not 'HS384'".to_string())
+        );
+
+        // A public key given as shared secret never checks a token naming a public key
+        // algorithm, nor the other way round.
+        let ed25519 = ed25519_dalek::SigningKey::from_bytes(&[7; 32]);
+        let signed = super::token(
+            Algorithm::EdDsa,
+            &ed25519.to_pkcs8_pem(LineEnding::LF).unwrap(),
+            CLAIMS,
+            600,
+            || Ok(NOW),
+        )
+        .unwrap();
+        let public = ed25519
+            .verifying_key()
+            .to_public_key_pem(LineEnding::LF)
+            .unwrap();
+        assert!(super::check(
+            &signed,
+            Algorithm::EdDsa,
+            &Key::Shared(public.as_bytes()),
+            "",
+            "",
+            60,
+            NOW
+        )
+        .is_err());
+        let key = PublicKey::from_pem(Algorithm::EdDsa, &public).unwrap();
+        assert!(super::check(
+            &token,
+            Algorithm::Hs256,
+            &Key::Public(&key),
+            "",
+            "",
+            60,
+            NOW
+        )
+        .is_err());
+    }
+
+    #[test]
     fn lifetimes_set_issue_and_expiration_times() {
         let token = token(Algorithm::Hs256, "shared", CLAIMS, 600, || Ok(NOW)).unwrap();
         let claims = claims(&token);
@@ -596,7 +718,15 @@ mod tests {
         .unwrap();
         let token = token(Algorithm::EdDsa, &private, CLAIMS, 600, || Ok(NOW)).unwrap();
         let check = |token: &str, issuer: &str, audience: &str, now: u64| {
-            super::check(token, Algorithm::EdDsa, &public, issuer, audience, 60, now)
+            super::check(
+                token,
+                Algorithm::EdDsa,
+                &Key::Public(&public),
+                issuer,
+                audience,
+                60,
+                now,
+            )
         };
 
         assert_eq!(

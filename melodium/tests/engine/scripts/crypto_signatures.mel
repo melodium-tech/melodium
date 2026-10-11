@@ -11,9 +11,9 @@ use std/flow::stream
 use std/ops/option::|wrap
 use std/secret::reveal
 use std/text/convert/string::toUtf8
-use crypto/ed25519::verify as verifyEd25519
-use crypto/jwt::|sign
-use crypto/jwt::verify as verifyJwt
+use crypto/signature/ed25519::verify as verifyEd25519
+use crypto/token/jwt::|sign
+use crypto/token/jwt::verify as verifyJwt
 use crypto/random::token
 
 // Ed25519 signatures, JSON Web Tokens and random tokens.
@@ -69,6 +69,19 @@ treatment main(
     emitHmacJwt: emit<Secret<string>>(value=|sign(hmac_key, "HS256", "{\"iss\":\"ci\"}", 0, "hmac_jwt"))
     revealHmacJwt: reveal<string>()
     startup.trigger -> emitHmacJwt.trigger,emit -> revealHmacJwt.secret
+
+    // The same token verified with the shared secret.
+    emitHmacJwtOption: emit<Option<Secret<string>>>(value=|wrap<Secret<string>>(
+        |sign(hmac_key, "HS256", "{\"iss\":\"ci\"}", 0, "hmac_jwt")
+    ))
+    verifyHmacJwt: verifyJwt(algorithm="HS256", secret=|wrap<Secret<string>>(hmac_key), issuer="ci")
+    logHmacClaims: logInfo(label="hmac-jwt-claims")
+    logHmacReason: logInfo(label="hmac-jwt-reason")
+    logHmacError: logInfo(label="hmac-jwt-error")
+    startup.trigger -> emitHmacJwtOption.trigger,emit -> verifyHmacJwt.token
+    verifyHmacJwt.claims -> logHmacClaims.message
+    verifyHmacJwt.reason -> logHmacReason.message
+    verifyHmacJwt.error -> logHmacError.message
 
     // A random token, plainly revealed as its policy allows it.
     token(name="csrf", bytes=16, encoding="hex", plain_reveal=true)
