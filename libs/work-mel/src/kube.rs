@@ -886,7 +886,7 @@ impl FileSystemEngine for KubeFileSystem {
             match file {
                 Ok(mut file) => {
                     let mut written_amount = 0u128;
-                    let mut fail = false;
+                    let mut error = None;
                     while let Ok(data) = data().await {
                         match file.write_all(&data).await {
                             Ok(_) => {
@@ -894,15 +894,21 @@ impl FileSystemEngine for KubeFileSystem {
                                 let _ = amount(written_amount).await;
                             }
                             Err(err) => {
-                                failed().await;
-                                let _ = errors(err.to_string()).await;
-                                fail = true;
+                                error = Some(err);
                                 break;
                             }
                         }
                     }
-                    if !fail {
-                        completed().await;
+                    // Writes run in the background: flushing waits for them, and gives their errors.
+                    if error.is_none() {
+                        error = file.flush().await.err();
+                    }
+                    match error {
+                        None => completed().await,
+                        Some(err) => {
+                            failed().await;
+                            let _ = errors(err.to_string()).await;
+                        }
                     }
                 }
                 Err(err) => {
