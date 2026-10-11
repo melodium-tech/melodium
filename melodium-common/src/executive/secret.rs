@@ -35,7 +35,20 @@ pub trait SecretDerivation: Debug + Send + Sync {
     ///
     /// Errors must describe what failed without including any part of the values.
     fn derive(&self, inputs: &[Value]) -> Result<Value, String>;
+
+    /// Whether deriving takes long, such as signing with RSA, in the order of milliseconds.
+    ///
+    /// The engine then derives away from the tasks it runs, so that they keep running
+    /// meanwhile (see [`SecretsHost::run_costly`]). Derivations taking microseconds are
+    /// better run in place, as moving them costs more than they do.
+    fn costly(&self) -> bool {
+        false
+    }
 }
+
+/// Costly work given to [`SecretsHost::run_costly`].
+#[doc(hidden)]
+pub type CostlyWork = Box<dyn FnOnce() -> Result<Value, String> + Send>;
 
 /// Writes and reads secrets held inside data values crossing to a distant engine.
 ///
@@ -98,6 +111,11 @@ pub trait SecretsHost: Debug + Send + Sync {
     /// Records an access to a secret, as a debug event, and also in the log
     /// for denials and resolution failures.
     async fn secret_audit(&self, audit: SecretAudit);
+    /// Runs `work`, such as a costly derivation, away from the tasks of the engine when it
+    /// can, so that they keep running meanwhile. Runs it in place by default.
+    async fn run_costly(&self, work: CostlyWork) -> Result<Value, String> {
+        work()
+    }
 }
 
 /// Resolves the value of `secret` and drops it right away, for the engine itself,

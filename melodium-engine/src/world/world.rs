@@ -31,10 +31,10 @@ use melodium_common::descriptor::{
 };
 use melodium_common::executive::{
     check_secret_resolution, register_wipe, Context as ExecutiveContext, ContinuousFuture,
-    DirectCreationCallback, Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId,
-    Output as ExecutiveOutput, ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretError,
-    SecretId, SecretSource, SecretTransmission, SecretsAccess, SecretsHost, TrackCreationCallback,
-    TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
+    CostlyWork, DirectCreationCallback, Input as ExecutiveInput, Level as LogLevel, Log, Model,
+    ModelId, Output as ExecutiveOutput, ResultStatus, Secret, SecretAudit, SecretAuditOutcome,
+    SecretError, SecretId, SecretSource, SecretTransmission, SecretsAccess, SecretsHost,
+    TrackCreationCallback, TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -1228,6 +1228,19 @@ impl SecretsHost for World {
         };
         let _ = self.debug_sender.send(Event::new(kind)).await;
     }
+
+    /// Runs `work` on the threads kept for blocking work, as the tasks of the engine are
+    /// all run by one thread, which `work` would otherwise hold.
+    async fn run_costly(&self, work: CostlyWork) -> Result<Value, String> {
+        #[cfg(not(target_os = "unknown"))]
+        {
+            async_std::task::spawn_blocking(work).await
+        }
+        #[cfg(target_os = "unknown")]
+        {
+            work()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1252,6 +1265,16 @@ mod tests {
             LogLevel::Info,
             DebugLevel::None,
         )
+    }
+
+    #[test]
+    fn costly_work_runs_out_of_the_calling_thread() {
+        let world = world();
+        let caller = format!("{:?}", std::thread::current().id());
+        let ran_on = async_std::task::block_on(world.run_costly(Box::new(|| {
+            Ok(Value::String(format!("{:?}", std::thread::current().id())))
+        })));
+        assert!(matches!(ran_on, Ok(Value::String(thread)) if thread != caller));
     }
 
     fn secret(origin: SecretOrigin, transmission: SecretTransmission) -> Secret {
