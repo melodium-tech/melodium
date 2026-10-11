@@ -2,19 +2,20 @@
 //! the distant engine resolves the locator with its own sources, by value the resolved
 //! value is sent over TLS only, and local secrets are refused with an explicit error.
 //!
-//! Each test runs an orchestrating `melodium run` and, when a connection is needed,
-//! a `melodium dist --localhost` node, both with different values for the same
-//! variables. The node reveals what it receives and sends it back, and values known
-//! to the orchestrator are masked in its logs. Secrets held inside data values, such as
+//! Each test runs a program with `melodium run`, the engine asking for the distribution,
+//! and when a connection is needed a `melodium dist --localhost` node, both with
+//! different values for the same variables. The node reveals what it receives and sends
+//! it back, and values known to the requesting engine are masked in its logs. Secrets held inside data values, such as
 //! process environments, follow the same rules. Received references stay secrets from
 //! the environment of the node, which it never reveals plainly: its refusals come back
 //! with its debug events, and the commands it runs get the values.
 
 #![cfg_attr(not(unix), allow(dead_code, unused_imports))]
 
+use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const SCRIPT: &str = include_str!("../../../secret_distribution.mel");
 
@@ -39,8 +40,8 @@ fn probe() -> PathBuf {
     script("probe", SCRIPT)
 }
 
-/// Starts a node, that ends a few seconds after the orchestrator connects
-/// and sends its debug events to it.
+/// Starts a node, that sends its debug events to the requesting engine, and ends once
+/// the program stops the distribution, or at the latest 5 seconds after it started.
 fn node(port: u16, tls: bool) -> Child {
     let mut command = Command::new("melodium");
     command
@@ -60,11 +61,33 @@ fn node(port: u16, tls: bool) -> Child {
         command.arg("--disable-tls");
     }
     let child = command.spawn().unwrap();
-    std::thread::sleep(Duration::from_secs(3));
+    wait_listening(port, tls);
     child
 }
 
-fn orchestrate(script: &PathBuf, port: u16, options: &[&str], args: &[&str]) -> String {
+/// Waits for the node to listen on `port`.
+///
+/// A TLS node goes on listening after connections failing their handshake, so connecting
+/// tells when it listens. A plain TCP node takes the first connection as the distribution
+/// one, so it is given a fixed delay instead.
+fn wait_listening(port: u16, tls: bool) {
+    if !tls {
+        std::thread::sleep(Duration::from_secs(3));
+        return;
+    }
+    let start = Instant::now();
+    while TcpStream::connect(("127.0.0.1", port)).is_err() {
+        assert!(
+            start.elapsed() < Duration::from_secs(30),
+            "node not listening on port {port}"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// Runs `script`, asking the node on `port` for a distribution, and gives its standard
+/// output.
+fn distribute(script: &PathBuf, port: u16, options: &[&str], args: &[&str]) -> String {
     let output: Output = Command::new("melodium")
         .arg("run")
         .args(options)
@@ -74,13 +97,10 @@ fn orchestrate(script: &PathBuf, port: u16, options: &[&str], args: &[&str]) -> 
         .env("MELODIUM_SECRET_DIST_RECV_KEY", NODE_SEND_KEY)
         .args(args)
         .env("MELODIUM_GROUP_ID", GROUP_ID)
-        .env(
-            "MELODIUM_SECRET_DIST_PARAM_TOKEN",
-            "orchestrator-param-value",
-        )
-        .env("MELODIUM_SECRET_DIST_DATA_TOKEN", "orchestrator-data-value")
-        .env("MELODIUM_SECRET_DIST_ENV_TOKEN", "orchestrator-token")
-        .env("MELODIUM_SECRET_DIST_ENV_INPUT", "orchestrator-input")
+        .env("MELODIUM_SECRET_DIST_PARAM_TOKEN", "requester-param-value")
+        .env("MELODIUM_SECRET_DIST_DATA_TOKEN", "requester-data-value")
+        .env("MELODIUM_SECRET_DIST_ENV_TOKEN", "requester-token")
+        .env("MELODIUM_SECRET_DIST_ENV_INPUT", "requester-input")
         .output()
         .unwrap();
     assert!(output.status.success(), "{:?}", output);
@@ -89,13 +109,13 @@ fn orchestrate(script: &PathBuf, port: u16, options: &[&str], args: &[&str]) -> 
 
 fn with_node(script: &PathBuf, port: u16, tls: bool, options: &[&str], args: &[&str]) -> String {
     let mut node = node(port, tls);
-    let stdout = orchestrate(script, port, options, args);
+    let stdout = distribute(script, port, options, args);
     let _ = node.kill();
     let _ = node.wait();
     stdout
 }
 
-/// Debug file of the orchestrator for `test`.
+/// Debug file of the requesting engine for `test`.
 fn debug_file(test: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
         "melodium_secret_distribution_{}_{test}_debug.json",
@@ -104,7 +124,7 @@ fn debug_file(test: &str) -> PathBuf {
 }
 
 /// Secret names and reasons of the plain reveals the node refused, from the debug
-/// events it sent to the orchestrator.
+/// events it sent to the requesting engine.
 fn distant_denials(debug: &PathBuf) -> Vec<(String, String)> {
     let debug = std::fs::read_to_string(debug).unwrap();
     let events: Vec<serde_json::Value> = serde_json::from_str(&debug).unwrap();
@@ -159,13 +179,13 @@ fn references_reach_the_distant_engine_as_locators() {
     assert!(!stdout.contains("param:"), "{}", stdout);
     assert!(!stdout.contains("revealed:"), "{}", stdout);
     assert!(!stdout.contains("node-"), "{}", stdout);
-    assert!(!stdout.contains("orchestrator-"), "{}", stdout);
+    assert!(!stdout.contains("requester-"), "{}", stdout);
     let debug = std::fs::read_to_string(&debug).unwrap();
     assert!(!debug.contains("node-"), "{}", debug);
-    assert!(!debug.contains("orchestrator-"), "{}", debug);
+    assert!(!debug.contains("requester-"), "{}", debug);
 }
 
-fn values_are_resolved_by_the_orchestrating_engine() {
+fn values_are_resolved_by_the_requesting_engine() {
     let debug = std::env::temp_dir().join(format!(
         "melodium_secret_distribution_{}_debug.json",
         std::process::id()
@@ -177,15 +197,16 @@ fn values_are_resolved_by_the_orchestrating_engine() {
         &["--debug", debug.to_str().unwrap()],
         &["--param", "value", "--data", "value"],
     );
-    // Values the orchestrator resolved are masked in its logs.
+    // Values the requesting engine resolved are masked in its logs.
     assert_contains(&stdout, "param: <secret \"param_token\">");
     assert_contains(&stdout, "revealed: <secret \"data_token\">");
     assert!(!stdout.contains("node-"), "{}", stdout);
-    assert!(!stdout.contains("orchestrator-"), "{}", stdout);
+    assert!(!stdout.contains("requester-"), "{}", stdout);
 
-    // Transmissions are recorded by the orchestrator, reveals by the node and sent back.
+    // Transmissions are recorded by the requesting engine, reveals by the node and sent
+    // back.
     let debug = std::fs::read_to_string(&debug).unwrap();
-    assert!(!debug.contains("orchestrator-"), "{}", debug);
+    assert!(!debug.contains("requester-"), "{}", debug);
     let events: Vec<serde_json::Value> = serde_json::from_str(&debug).unwrap();
     let transmitted: Vec<_> = events
         .iter()
@@ -212,7 +233,7 @@ fn values_are_resolved_by_the_orchestrating_engine() {
 
 fn local_secrets_are_refused() {
     // Parameters are refused before connecting.
-    let stdout = orchestrate(&probe(), 62613, &[], &["--param", "local"]);
+    let stdout = distribute(&probe(), 62613, &[], &["--param", "local"]);
     assert_contains(
         &stdout,
         "start: Cannot distribute, parameter 'token' cannot be sent to the distant engine, access denied: its policy keeps it on this engine",
@@ -236,7 +257,7 @@ fn local_secrets_are_refused() {
 }
 
 fn values_are_refused_over_plain_tcp() {
-    let stdout = orchestrate(
+    let stdout = distribute(
         &probe(),
         62615,
         &[],
@@ -261,7 +282,7 @@ fn values_are_refused_over_plain_tcp() {
     );
     // The parameter, sent by reference, reached the node.
     assert_refused_by_node(&debug, &["param_token"]);
-    assert!(!stdout.contains("orchestrator-"), "{}", stdout);
+    assert!(!stdout.contains("requester-"), "{}", stdout);
 }
 
 /// The keys of the access are secrets: only `distrib::start` reveals them, to authenticate
@@ -324,7 +345,7 @@ fn access_keys_are_secrets() {
         std::process::id()
     ));
     std::fs::write(&malformed, "malformed-key-sentinel").unwrap();
-    let stdout = orchestrate(
+    let stdout = distribute(
         &probe(),
         62621,
         &[],
@@ -341,11 +362,7 @@ fn access_keys_are_secrets() {
 fn secrets_inside_data_values_follow_their_policy() {
     let script = script("environment", ENVIRONMENT_SCRIPT);
     for (port, transmission, expected) in [
-        (
-            62617,
-            "value",
-            Some(("orchestrator-token", "orchestrator-input")),
-        ),
+        (62617, "value", Some(("requester-token", "requester-input"))),
         (62618, "reference", Some(("node-token", "node-input"))),
         (62619, "local", None),
     ] {
@@ -399,8 +416,8 @@ pub fn run_cases() -> ! {
         references_reach_the_distant_engine_as_locators,
     ));
     cases.push((
-        "values_are_resolved_by_the_orchestrating_engine",
-        values_are_resolved_by_the_orchestrating_engine,
+        "values_are_resolved_by_the_requesting_engine",
+        values_are_resolved_by_the_requesting_engine,
     ));
     cases.push(("local_secrets_are_refused", local_secrets_are_refused));
     cases.push((
