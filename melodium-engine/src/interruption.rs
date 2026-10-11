@@ -155,7 +155,7 @@ async fn live_interruptible(
     let second = interruptions.next().fuse();
     pin_mut!(second);
     select! {
-        _ = live => Some(Interruption::Ended(signal)),
+        _ = live => return Some(Interruption::Ended(signal)),
         _ = grace_end => {
             engine
                 .log(
@@ -164,7 +164,6 @@ async fn live_interruptible(
                     "still running at the end of the grace period, stopping".to_string(),
                 )
                 .await;
-            Some(Interruption::Stopped(signal))
         },
         second = second => {
             engine
@@ -177,10 +176,19 @@ async fn live_interruptible(
                     ),
                 )
                 .await;
-            Some(Interruption::Stopped(signal))
         },
     }
+
+    // Tracks are dropped at their next await point; one computing without awaiting
+    // is left behind after `STOP_TIMEOUT`.
+    engine.stop().await;
+    let _ = async_std::future::timeout(STOP_TIMEOUT, live).await;
+    Some(Interruption::Stopped(signal))
 }
+
+/// Time given to stopped tracks and continuous tasks to be dropped.
+#[cfg(any(unix, windows))]
+const STOP_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[cfg(unix)]
 struct Interruptions {

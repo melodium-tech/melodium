@@ -23,6 +23,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use core::fmt::Debug;
 use core::sync::atomic::AtomicUsize;
+use futures::future::{abortable, AbortHandle, Aborted};
 use futures::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::{pin_mut, select, FutureExt};
@@ -37,11 +38,31 @@ use melodium_common::executive::{
     TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
+use std::future::Future;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, RwLock, Weak,
+    Arc, Mutex as SyncMutex, RwLock, Weak,
 };
 use uuid::Uuid;
+
+/// Track or continuous task running on the thread pool, cancelled when dropped.
+#[cfg(not(target_os = "unknown"))]
+type Running<T> = async_global_executor::Task<T>;
+/// Track or continuous task, polled in place, as WebAssembly has no threads.
+#[cfg(target_os = "unknown")]
+type Running<T> = core::pin::Pin<Box<dyn Future<Output = T> + Send>>;
+
+/// Runs `future` on the thread pool, or in place in WebAssembly.
+fn run<T: Send + 'static>(future: impl Future<Output = T> + Send + 'static) -> Running<T> {
+    #[cfg(not(target_os = "unknown"))]
+    {
+        async_global_executor::spawn(future)
+    }
+    #[cfg(target_os = "unknown")]
+    {
+        Box::pin(future)
+    }
+}
 
 pub struct World {
     collection: Arc<Collection>,
@@ -77,6 +98,8 @@ pub struct World {
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
     tracks_running: AtomicUsize,
+    /// Tracks whose identifier is given, not sent to run yet.
+    tracks_creating: AtomicUsize,
 
     logs_level: LogLevel,
     logs_sender: Sender<Log>,
@@ -103,6 +126,13 @@ pub struct World {
     no_more_tracks_receiver: Receiver<()>,
     no_more_tracks_signaled: AtomicBool,
     has_run_any_track: AtomicBool,
+
+    /// Whether the engine is stopping its tracks and continuous tasks, see `Engine::stop`.
+    stopping: AtomicBool,
+    /// Aborts the tracks still running.
+    tracks_aborts: SyncMutex<HashMap<TrackId, AbortHandle>>,
+    /// Aborts the continuous tasks.
+    continuous_aborts: SyncMutex<Vec<AbortHandle>>,
 }
 
 impl Debug for World {
@@ -258,6 +288,7 @@ impl World {
             tracks_sender,
             tracks_receiver,
             tracks_running: AtomicUsize::new(0),
+            tracks_creating: AtomicUsize::new(0),
             logs_level,
             logs_sender,
             logs_receiver,
@@ -274,6 +305,9 @@ impl World {
             no_more_tracks_receiver,
             no_more_tracks_signaled: AtomicBool::new(false),
             has_run_any_track: AtomicBool::new(false),
+            stopping: AtomicBool::new(false),
+            tracks_aborts: SyncMutex::new(HashMap::new()),
+            continuous_aborts: SyncMutex::new(Vec::new()),
         })
     }
 
@@ -475,11 +509,26 @@ impl World {
                 received_track = tracks_receiver.select_next_some() => {
                     self.has_run_any_track.store(true, Ordering::Relaxed);
                     let _ = self.tracks_running.fetch_add(1, Ordering::Relaxed);
-                    futures.push(track_future(received_track));
-
+                    let id = received_track.id;
+                    let (track, abort) = abortable(track_future(received_track));
+                    self.tracks_aborts.lock().unwrap().insert(id, abort.clone());
+                    // Stopping may have begun before the abort handle was registered.
+                    if self.stopping.load(Ordering::SeqCst) {
+                        abort.abort();
+                    }
+                    futures.push(run(async move { (id, track.await) }));
                 },
-                result = futures.select_next_some() => {
+                (id, result) = futures.select_next_some() => {
                     let _ = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
+                    self.tracks_aborts.lock().unwrap().remove(&id);
+                    let result = match result {
+                        Ok(result) => result,
+                        // Stopped, it has no result.
+                        Err(Aborted) => {
+                            self.check_closing().await;
+                            continue;
+                        }
+                    };
                     let track_info = match result {
                         TrackResult::AllOk(id) => {
                             if let Some(info) = self.tracks_info.lock().await.get_mut(&id) {
@@ -512,8 +561,13 @@ impl World {
     async fn check_closing(&self) {
         let tracks_recv = self.tracks_receiver.len();
         let tracks_run = self.tracks_running.load(Ordering::Relaxed);
-        let no_more_tracks =
-            self.has_run_any_track.load(Ordering::Relaxed) && tracks_recv == 0 && tracks_run == 0;
+        // A track being created counts, as tracks run in parallel: others can end while it
+        // is being built.
+        let tracks_creating = self.tracks_creating.load(Ordering::SeqCst);
+        let no_more_tracks = self.has_run_any_track.load(Ordering::Relaxed)
+            && tracks_recv == 0
+            && tracks_run == 0
+            && tracks_creating == 0;
 
         if no_more_tracks && !self.no_more_tracks_signaled.swap(true, Ordering::SeqCst) {
             self.no_more_tracks_sender.close();
@@ -729,7 +783,12 @@ impl Engine for World {
                 let mut continuous = FuturesUnordered::new();
 
                 while let Ok(c) = me.continuous_tasks_receiver.recv().await {
-                    continuous.push(c);
+                    let (c, abort) = abortable(c);
+                    me.continuous_aborts.lock().unwrap().push(abort.clone());
+                    if me.stopping.load(Ordering::SeqCst) {
+                        abort.abort();
+                    }
+                    continuous.push(run(c));
                 }
 
                 let _ = me
@@ -834,6 +893,7 @@ impl Engine for World {
             let mut counter = self.tracks_counter.lock().await;
             track_id = *counter;
             *counter = track_id + 1;
+            self.tracks_creating.fetch_add(1, Ordering::SeqCst);
         }
 
         let contextual_environment = ContextualEnvironment::new(track_id);
@@ -905,6 +965,7 @@ impl Engine for World {
             .await
             .insert(track_id, info_track.clone());
         let _ = self.tracks_sender.send(execution_track).await;
+        self.tracks_creating.fetch_sub(1, Ordering::SeqCst);
         let _ = self
             .debug_sender
             .send(Event::new(EventKind::TrackAdded {
@@ -921,6 +982,17 @@ impl Engine for World {
         Probably prepare a distinction between "closing", that ends the program and let all stored tracks to finish (even create new ones?),
         and termination, that jut allows already running tracks to finish and ends models.
     */
+    async fn stop(&self) {
+        self.stopping.store(true, Ordering::SeqCst);
+        self.end().await;
+        for abort in self.tracks_aborts.lock().unwrap().values() {
+            abort.abort();
+        }
+        for abort in self.continuous_aborts.lock().unwrap().iter() {
+            abort.abort();
+        }
+    }
+
     async fn end(&self) {
         if !self.closing.load(Ordering::Relaxed) {
             self.models
@@ -998,6 +1070,7 @@ impl ExecutiveWorld for World {
             let mut counter = self.tracks_counter.lock().await;
             track_id = *counter;
             *counter = track_id + 1;
+            self.tracks_creating.fetch_add(1, Ordering::SeqCst);
         }
 
         let mut track_futures: Vec<TrackFuture> = Vec::new();
@@ -1074,6 +1147,7 @@ impl ExecutiveWorld for World {
             .await
             .insert(track_id, info_track.clone());
         let _ = self.tracks_sender.send(execution_track).await;
+        self.tracks_creating.fetch_sub(1, Ordering::SeqCst);
         let _ = self
             .debug_sender
             .send(Event::new(EventKind::TrackAdded {
@@ -1252,6 +1326,109 @@ mod tests {
             LogLevel::Info,
             DebugLevel::None,
         )
+    }
+
+    /// Sends a track made of `future` to be run by `world`.
+    fn send_track(
+        world: &World,
+        id: TrackId,
+        future: impl Future<Output = ResultStatus> + Send + 'static,
+    ) {
+        let futures = FuturesUnordered::new();
+        futures.push(Box::new(Box::pin(future)) as TrackFuture);
+        block_on(
+            world
+                .tracks_sender
+                .send(ExecutionTrack::new(id, 0, futures)),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn tracks_run_on_the_thread_pool_in_parallel() {
+        use std::time::{Duration, Instant};
+        let world = world();
+        let runs = Arc::new(SyncMutex::new(Vec::new()));
+        for id in 0..2 {
+            let runs = Arc::clone(&runs);
+            send_track(&world, id, async move {
+                let start = Instant::now();
+                // Computing without awaiting holds the thread running the track.
+                std::thread::sleep(Duration::from_millis(300));
+                runs.lock()
+                    .unwrap()
+                    .push((std::thread::current().id(), start, Instant::now()));
+                ResultStatus::Ok
+            });
+        }
+        block_on(async {
+            world.end().await;
+            world.live().await;
+        });
+
+        let runs = runs.lock().unwrap();
+        assert_eq!(runs.len(), 2);
+        let caller = std::thread::current().id();
+        assert!(runs.iter().all(|(thread, _, _)| *thread != caller));
+        if std::thread::available_parallelism().map_or(1, |cores| cores.get()) > 1 {
+            let (_, first_start, first_end) = runs[0];
+            let (_, second_start, second_end) = runs[1];
+            assert!(
+                first_start < second_end && second_start < first_end,
+                "the tracks did not run at the same time"
+            );
+        }
+    }
+
+    #[test]
+    fn tracks_being_created_keep_the_engine_from_having_no_more_tracks() {
+        let world = world();
+        world.has_run_any_track.store(true, Ordering::SeqCst);
+        world.tracks_creating.store(1, Ordering::SeqCst);
+        block_on(world.check_closing());
+        assert!(!world.no_more_tracks_receiver.is_closed());
+
+        world.tracks_creating.store(0, Ordering::SeqCst);
+        block_on(world.check_closing());
+        assert!(world.no_more_tracks_receiver.is_closed());
+    }
+
+    #[test]
+    fn stopping_drops_tracks_and_continuous_tasks() {
+        use std::time::Duration;
+
+        /// Sets its flag when dropped.
+        struct Dropped(Arc<AtomicBool>);
+        impl Drop for Dropped {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+
+        let world = world();
+        let track_dropped = Arc::new(AtomicBool::new(false));
+        let task_dropped = Arc::new(AtomicBool::new(false));
+        let guard = Dropped(Arc::clone(&track_dropped));
+        send_track(&world, 0, async move {
+            let _guard = guard;
+            futures::future::pending::<()>().await;
+            ResultStatus::Ok
+        });
+        let guard = Dropped(Arc::clone(&task_dropped));
+        world.add_continuous_task(Box::new(Box::pin(async move {
+            let _guard = guard;
+            futures::future::pending::<()>().await;
+        })));
+
+        let ended = block_on(async_std::future::timeout(Duration::from_secs(10), async {
+            join!(world.live(), async {
+                async_std::task::sleep(Duration::from_millis(200)).await;
+                world.stop().await;
+            });
+        }));
+        assert!(ended.is_ok(), "live did not end once stopped");
+        assert!(track_dropped.load(Ordering::SeqCst));
+        assert!(task_dropped.load(Ordering::SeqCst));
     }
 
     fn secret(origin: SecretOrigin, transmission: SecretTransmission) -> Secret {
