@@ -4,7 +4,7 @@
 //! text, in hexadecimal, base64 or base64url, as services usually give them in headers.
 
 use crate::encoding::{check_encoding, decode, encode};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use melodium_core::*;
 use melodium_macro::mel_treatment;
 use sha1::Sha1;

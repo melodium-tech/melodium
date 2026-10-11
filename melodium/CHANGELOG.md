@@ -2,6 +2,7 @@
 
 ## [v0.11.0] (unreleased)
 
+- Requiring Rust 1.85, as the cryptography crates of the `crypto` package do (#136).
 - Adding secret parameters, given as locators on the command line, and `--check-secrets` to resolve them before running (#134).
 - Adding the `environment` feature, giving programs the environment variables prefixed `MELODIUM_SECRET_` as `env:` secrets, and the `file:` secret source to the `fs` feature; the standard and desktop editions have both, the WebAssembly and mock ones neither (#134).
 - Ending runs gracefully on SIGINT, SIGTERM and SIGHUP, exiting with code 128 plus the signal number, and as a best effort on Windows on Ctrl+C, Ctrl+Break, console close, logoff and shutdown, exiting with `STATUS_CONTROL_C_EXIT`; a failed launch now exits with code 1 (#131, #134).

@@ -17,10 +17,8 @@ const MAX_BYTES: u64 = 4096;
 /// Gives `count` random bytes from the operating system.
 #[cfg(feature = "real")]
 fn random_bytes(count: usize) -> Result<Zeroizing<Vec<u8>>, String> {
-    use rand_core::RngCore;
     let mut bytes = Zeroizing::new(vec![0; count]);
-    rand_core::OsRng
-        .try_fill_bytes(&mut bytes)
+    getrandom::fill(&mut bytes)
         .map_err(|_| "the operating system gave no random bytes".to_string())?;
     Ok(bytes)
 }

@@ -148,7 +148,7 @@ fn sign_rsa(
 ) -> Result<Vec<u8>, String> {
     use rsa::pkcs1v15::SigningKey;
     use rsa::signature::{RandomizedSigner, SignatureEncoding};
-    let mut rng = rand_core::OsRng;
+    let mut rng = rsa::rand_core::UnwrapErr(getrandom::SysRng);
     Ok(match algorithm {
         Algorithm::Rs256 => SigningKey::<Sha256>::new(key)
             .sign_with_rng(&mut rng, message)
@@ -549,6 +549,7 @@ pub async fn verify(
 #[cfg(all(test, feature = "real"))]
 mod tests {
     use super::*;
+    use p256::elliptic_curve::Generate;
     use p256::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
     use rsa::pkcs1::EncodeRsaPrivateKey;
 
@@ -581,7 +582,7 @@ mod tests {
 
     #[test]
     fn tokens_are_signed_and_checked_with_every_public_key_algorithm() {
-        let mut rng = rand_core::OsRng;
+        let mut rng = rsa::rand_core::UnwrapErr(getrandom::SysRng);
         let rsa = rsa::RsaPrivateKey::new(&mut rng, 2048).unwrap();
         let rsa_public = rsa::RsaPublicKey::from(&rsa)
             .to_public_key_pem(LineEnding::LF)
@@ -594,7 +595,7 @@ mod tests {
             round_trip(algorithm, &rsa_pkcs8, &rsa_public);
         }
 
-        let p256 = p256::ecdsa::SigningKey::random(&mut rng);
+        let p256 = p256::ecdsa::SigningKey::generate_from_rng(&mut rng);
         round_trip(
             Algorithm::Es256,
             &p256.to_pkcs8_pem(LineEnding::LF).unwrap(),
@@ -603,7 +604,7 @@ mod tests {
                 .to_public_key_pem(LineEnding::LF)
                 .unwrap(),
         );
-        let p384 = p384::ecdsa::SigningKey::random(&mut rng);
+        let p384 = p384::ecdsa::SigningKey::generate_from_rng(&mut rng);
         round_trip(
             Algorithm::Es384,
             &p384.to_pkcs8_pem(LineEnding::LF).unwrap(),
