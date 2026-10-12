@@ -15,7 +15,7 @@ use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
-use common::executive::{Level, SecretError, SecretsAccess, TrackId};
+use common::executive::{Level, Secret as ExecutiveSecret, SecretError, SecretsAccess, TrackId};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
@@ -205,9 +205,32 @@ impl DistributionEngine {
         self.encrypted.load(Ordering::SeqCst)
     }
 
+    /// Reveals the key `name` of an access, giving it as a UUID.
+    async fn reveal_key(
+        &self,
+        secret: &ExecutiveSecret,
+        name: &str,
+        secrets_access: &SecretsAccess,
+    ) -> Result<Uuid, String> {
+        let message = match secrets_access
+            .reveal_str(secret, |value| Uuid::from_str(value).ok())
+            .await
+        {
+            Ok(Some(key)) => return Ok(key),
+            Ok(None) => format!("Cannot distribute, the access {name} is not a UUID"),
+            Err(error) => format!("Cannot distribute, the access {name}: {error}"),
+        };
+        let model = self.model.upgrade().unwrap();
+        model
+            .world()
+            .log(Level::Error, "distrib".to_string(), message.clone(), None)
+            .await;
+        Err(message)
+    }
+
     pub async fn start(
         &self,
-        access: &work_mel::api::CommonAccess,
+        access: &Access,
         params: HashMap<String, Value>,
         secrets_access: &SecretsAccess,
     ) -> Result<(), String> {
@@ -223,7 +246,7 @@ impl DistributionEngine {
 
     async fn do_start(
         &self,
-        access: &work_mel::api::CommonAccess,
+        access: &Access,
         params: HashMap<String, Value>,
         secrets_access: &SecretsAccess,
     ) -> Result<(), String> {
@@ -249,6 +272,14 @@ impl DistributionEngine {
                 }
             }
         }
+
+        // The keys are only revealed to authenticate the connection.
+        let remote_key = self
+            .reveal_key(&access.remote_key, "remote_key", secrets_access)
+            .await?;
+        let self_key = self
+            .reveal_key(&access.self_key, "self_key", secrets_access)
+            .await?;
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
             Ok(id) => match Version::from_str(&model.get_version()) {
@@ -321,7 +352,7 @@ impl DistributionEngine {
                     .send_message(Message::AskDistribution(AskDistribution {
                         melodium_version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap(),
                         distribution_version: melodium_distribution::VERSION.clone(),
-                        key: access.remote_key,
+                        key: remote_key,
                         asking_run_id: *melodium_engine::execution_run_id(),
                         group_id: *melodium_engine::execution_group_id(),
                     }))
@@ -333,7 +364,7 @@ impl DistributionEngine {
                                 if !confirm.accept {
                                     return Err(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distribution::VERSION));
                                 }
-                                if confirm.key != access.self_key {
+                                if confirm.key != self_key {
                                     return Err("Cannot distribute, remote engine did not provided valid key.".to_string());
                                 }
                                 self.distant_run_id
@@ -963,7 +994,7 @@ pub async fn start(params: Map) {
 
     #[cfg(feature = "real")]
     if let Ok(access) = access.recv_one_as::<Arc<Access>>().await {
-        match distributor.start(&access.0, params, &secrets_access).await {
+        match distributor.start(&access, params, &secrets_access).await {
             Ok(_) => {
                 let _ = ready.send_one_as(()).await;
             }
@@ -1161,26 +1192,23 @@ pub async fn send_stream(name: string) {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
-        let secrets = S.contains_secret();
         let encrypted = distributor.encrypted();
 
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             // Converts the already-packed local batch directly into the wire batch
             // type, preserving whatever shape `recv_many` produced instead of exploding
-            // it into one `Value`/`RawValue` per tick first.
+            // it into one `Value`/`RawValue` per tick first. Secrets, including those
+            // held inside data values, follow their transmission policy.
             while let Ok(data) = data.recv_many().await {
-                let data = if secrets {
+                let data =
                     match WireTransmissionValue::to_wire(data, &secrets_access, encrypted).await {
                         Ok(data) => data,
                         Err(error) => {
                             log_secret_refusal(&model, &name, error, track_id).await;
                             break;
                         }
-                    }
-                } else {
-                    data.into()
-                };
+                    };
                 if sender.send(data).await.is_err() {
                     voluntary_close = false;
                     break;

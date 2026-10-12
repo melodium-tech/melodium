@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Requiring Rust 1.94, as the dependencies of the editions do (#136).
+- Adding secret parameters, given as locators on the command line, and `--check-secrets` to resolve them before running (#134).
+- Adding the `environment` feature, giving programs the environment variables prefixed `MELODIUM_SECRET_` as `env:` secrets, and the `file:` secret source to the `fs` feature; the standard and desktop editions have both, the WebAssembly and mock ones neither (#134).
+- Ending runs gracefully on SIGINT, SIGTERM and SIGHUP, exiting with code 128 plus the signal number, and as a best effort on Windows on Ctrl+C, Ctrl+Break, console close, logoff and shutdown, exiting with `STATUS_CONTROL_C_EXIT`; a failed launch now exits with code 1 (#131, #134).
+- Wiping plaintext held from secrets before exiting, including on handled signals (#140).
+- Taking `melodium dist` keys from `--recv-key-file`/`--send-key-file` or the `MELODIUM_DIST_RECV_KEY`/`MELODIUM_DIST_SEND_KEY` environment variables; `--recv-key`/`--send-key` still work with a warning, as other local users can read process arguments (#130).
+- Breaking: `melodium dist` refuses plain TCP (`--disable-tls`) on addresses other than loopback ones unless `--allow-plain-tcp` is given, and warns about plain TCP otherwise (#130).
+- Taking the API token of the `cicd` template of `melodium new` as a secret, and fixing its `advanced` entrypoint (#136).
+- Adding the `vault` and `crypto` packages, the latter signing and verifying data with HMAC and checking received tokens against secrets, such as for webhooks (#138, #136).
+
 ## [v0.10.4] (2026-09-24)
 
 - No longer defaulting execution debug level to `Detailed`, which cloned every transmitted payload into debug events and could grow memory without bound on byte-heavy streams; now defaults to `Basic` when something will consume debug events (`--debug` path given, or `--api-report` enabled) and `None` otherwise, overridable with the new `--debug-level` option.

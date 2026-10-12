@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Adding the `password: Option<Secret<string>>` parameter to `SqlPool`, put into the connection URL when connecting (#136).
+- Refusing query bindings holding secrets, previously bound as NULL (#136).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

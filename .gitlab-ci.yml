@@ -8,7 +8,7 @@ include:
   - local: /.gitlab/ci/releases.yml
 
 variables:
-  PACKAGES: audio cicd distrib encoding fs http javascript json ml net process record regex sql std vault work
+  PACKAGES: audio cicd crypto distrib encoding fs http javascript json ml net process record regex sql std vault work
 
 workflow:
   rules:
@@ -29,11 +29,16 @@ melodium:melodium_gitlab:
   needs: []
   rules:
     - if: '$MELODIUM == "true"'
+  # Programs only get the environment variables prefixed `MELODIUM_SECRET_`.
+  variables:
+    MELODIUM_SECRET_SERVICE_KEY: $MELODIUM_SERVICE_KEY
+    MELODIUM_SECRET_CI_TOKEN: $API_TOKEN
   image:
-    name: registry.gitlab.com/melodium/melodium:alpine-0.10.4
+    name: registry.gitlab.com/melodium/melodium:alpine-0.11.0
     entrypoint: [""]
   script:
-    - melodium run .melodium/Compo.toml main --on_gitlab=true --test=true --out_directory="\"$CI_PROJECT_DIR/results\"" --key "\"$MELODIUM_SERVICE_KEY\"" --repository_url "\"$CI_REPOSITORY_URL\"" --ci_token "\"$API_TOKEN\"" --project "\"$CI_PROJECT_ID\"" --sha "\"$CI_COMMIT_SHA\"" --ref "\"$CI_COMMIT_REF_NAME\"" --pipeline "\"$CI_PIPELINE_ID\""
+    - mkdir -p "$CI_PROJECT_DIR/results/logs"
+    - melodium run --logs "$CI_PROJECT_DIR/results/logs/full.log" .melodium/Compo.toml main --on_gitlab=true --test=true --out_directory "$CI_PROJECT_DIR/results" --key env:MELODIUM_SECRET_SERVICE_KEY --repository_url "$CI_PROJECT_URL.git" --ci_token env:MELODIUM_SECRET_CI_TOKEN --project "$CI_PROJECT_ID" --sha "$CI_COMMIT_SHA" --ref "$CI_COMMIT_REF_NAME" --pipeline "$CI_PIPELINE_ID"
   artifacts:
     paths:
       - $CI_PROJECT_DIR/results

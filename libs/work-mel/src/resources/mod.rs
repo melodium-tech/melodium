@@ -3,6 +3,7 @@ pub mod arch;
 use crate::api;
 use arch::*;
 use fs_mel::filesystem::*;
+use melodium_core::common::executive::Secret as ExecutiveSecret;
 use melodium_core::*;
 use melodium_macro::{mel_data, mel_function, mel_treatment};
 use process_mel::exec::*;
@@ -177,9 +178,13 @@ pub async fn getFileSystem() {
 /// Container specification for a work request.
 ///
 /// Used in `distant` to request containers that run alongside the Mélodium engine as executors.
+/// The pull secret is held apart, and revealed only to send the request.
 #[mel_data]
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Container(pub api::Container);
+pub struct Container(
+    pub api::Container,
+    #[serde(default)] pub Option<ExecutiveSecret>,
+);
 
 /// Build a `Container` specification.
 ///
@@ -190,7 +195,7 @@ pub struct Container(pub api::Container);
 /// - `arch`: CPU architecture required.
 /// - `mounts`: list of volume mounts.
 /// - `image`: container image reference.
-/// - `pull_secret`: optional image pull secret (defaults to `"{}"`).
+/// - `pull_secret`: optional image pull secret, the registry credentials as a Docker configuration JSON (defaults to `"{}"`).
 #[mel_function]
 pub fn container(
     name: string,
@@ -200,27 +205,34 @@ pub fn container(
     arch: Arch,
     mounts: Vec<Mount>,
     image: string,
-    pull_secret: Option<string>,
+    pull_secret: Option<Secret<string>>,
 ) -> Container {
-    Container(api::Container {
-        name,
-        image,
-        pull_secret: pull_secret.unwrap_or_else(|| "{}".to_string()),
-        memory,
-        cpu,
-        storage,
-        arch: arch.0,
-        mounts: mounts.into_iter().map(|mount| mount.0).collect(),
-    })
+    Container(
+        api::Container {
+            name,
+            image,
+            pull_secret: "{}".to_string(),
+            memory,
+            cpu,
+            storage,
+            arch: arch.0,
+            mounts: mounts.into_iter().map(|mount| mount.0).collect(),
+        },
+        pull_secret,
+    )
 }
 
 /// Service container specification for a work request.
 ///
 /// Service containers run alongside the Mélodium engine and are accessible as network services,
 /// but are not directly used as executors.
+/// The pull secret is held apart, and revealed only to send the request.
 #[mel_data]
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ServiceContainer(pub api::ServiceContainer);
+pub struct ServiceContainer(
+    pub api::ServiceContainer,
+    #[serde(default)] pub Option<ExecutiveSecret>,
+);
 
 /// Build a `ServiceContainer` specification.
 ///
@@ -237,22 +249,25 @@ pub fn service_container(
     arch: Arch,
     mounts: Vec<Mount>,
     image: string,
-    pull_secret: Option<string>,
+    pull_secret: Option<Secret<string>>,
     env: Option<StringMap>,
     command: Option<Vec<string>>,
 ) -> ServiceContainer {
-    ServiceContainer(api::ServiceContainer {
-        name,
-        image,
-        pull_secret: pull_secret.unwrap_or_else(|| "{}".to_string()),
-        memory,
-        cpu,
-        storage,
-        arch: arch.0,
-        mounts: mounts.into_iter().map(|mount| mount.0).collect(),
-        env: env.map(|map| map.map).unwrap_or_default(),
-        command: command,
-    })
+    ServiceContainer(
+        api::ServiceContainer {
+            name,
+            image,
+            pull_secret: "{}".to_string(),
+            memory,
+            cpu,
+            storage,
+            arch: arch.0,
+            mounts: mounts.into_iter().map(|mount| mount.0).collect(),
+            env: env.map(|map| map.map).unwrap_or_default(),
+            command: command,
+        },
+        pull_secret,
+    )
 }
 
 /// A volume mount point that maps a named volume into a container.

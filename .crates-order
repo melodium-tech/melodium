@@ -11,6 +11,7 @@ melodium-share
 melodium-distribution
 melodium-doc
 std-mel
+crypto-mel
 encoding-mel
 vault-mel
 regex-mel

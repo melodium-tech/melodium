@@ -1,6 +1,12 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Sending secrets to distant engines following their transmission policy, values only over TLS (#139).
+- Failing the launch, instead of panicking, when a parameter cannot be received (#139).
+- Ending distributed runs gracefully on interruption (#131).
+
 ## [v0.10.4] (2026-09-24)
 
 - Adding a `debug_level: Option<DebugLevel>` parameter to `launch_listen`, `launch_listen_localcert`, and `launch_listen_unsecure`, so callers can pick the debug event detail level instead of always running at `Detailed`, which cloned every transmitted payload into debug events. Defaults to `Basic` when debug senders are given and `None` otherwise.

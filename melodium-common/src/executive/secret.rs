@@ -29,12 +29,49 @@ pub trait SecretSource: Debug + Send + Sync {
 /// Computes the value of a derived secret from the values of its input secrets.
 ///
 /// Derivations are built by functions, they describe an operation and never hold
-/// any secret value themselves.
+/// any secret value themselves. They run each time the derived secret is revealed, within
+/// the element revealing it, so they stay cheap, such as formatting or encoding: costly
+/// operations, such as signing, belong to treatments.
 pub trait SecretDerivation: Debug + Send + Sync {
     /// Gives the derived value from `inputs`, the values of the input secrets, in order.
     ///
     /// Errors must describe what failed without including any part of the values.
     fn derive(&self, inputs: &[Value]) -> Result<Value, String>;
+}
+
+/// Writes and reads secrets held inside data values crossing to a distant engine.
+///
+/// The distribution layer sets one with `with_secret_wire` around the serialization of a
+/// data value, and secrets met there are written and read through it. Out of it, secrets
+/// refuse to be serialized or deserialized.
+pub trait SecretWire {
+    /// Gives what to write for `secret`.
+    ///
+    /// Errors must describe what failed without including any part of the value.
+    fn write(&self, secret: &Secret) -> Result<Box<dyn erased_serde::Serialize + '_>, String>;
+
+    /// Reads a secret written by `write` on the sending engine.
+    fn read<'de>(
+        &self,
+        deserializer: &mut dyn erased_serde::Deserializer<'de>,
+    ) -> Result<Secret, String>;
+}
+
+scoped_tls::scoped_thread_local!(static SECRET_WIRE: Box<dyn SecretWire>);
+
+/// Runs `f` with `wire` writing and reading the secrets serialized or deserialized meanwhile
+/// on this thread.
+pub fn with_secret_wire<R>(wire: &Box<dyn SecretWire>, f: impl FnOnce() -> R) -> R {
+    SECRET_WIRE.set(wire, f)
+}
+
+/// Runs `f` with the secret wire set by `with_secret_wire`, if any.
+pub(crate) fn current_secret_wire<R>(f: impl FnOnce(Option<&dyn SecretWire>) -> R) -> R {
+    if SECRET_WIRE.is_set() {
+        SECRET_WIRE.with(|wire| f(Some(wire.as_ref())))
+    } else {
+        f(None)
+    }
 }
 
 /// Engine side of secrets: registered sources, audit, and the phases of a run.

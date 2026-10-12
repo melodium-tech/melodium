@@ -25,7 +25,7 @@ Process dispatcher to spawn workers.
 - `"api"` (default): ask the API to spawn required job-worker somewhere;
 - `"compose"`: uses `podman compose` or `docker compose` (tried is this order) to spawn locally (or as the Podman/Docker configuration specifies) the job-worker, useful to test or run on local resources.
 */
-model CicdDispatchEngine(location: string = "api", api_token: Option<string> = _, api_url: Option<string> = _): DistantEngine {
+model CicdDispatchEngine(location: string = "api", api_token: Option<Secret<string>> = _, api_url: Option<string> = _): DistantEngine {
     api_token = api_token
     api_url = api_url
     location = location

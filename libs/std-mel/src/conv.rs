@@ -27,6 +27,7 @@ pub async fn to_void() {
 ///
 /// ℹ️ While this conversion is infaillible, resulting vector may be empty.
 /// Content format and length of vector is totally dependent on data type given, and might not be constant (like for `char` or `string` types).
+/// A secret gives an empty vector, its content is never exposed: `std/secret::|to_bytes` derives a secret holding the bytes of a string secret.
 #[mel_function(
     generic T ()
 )]
@@ -77,6 +78,7 @@ pub fn to_bytes(value: T) -> Vec<byte> {
 ///
 /// ℹ️ While this conversion is infaillible, resulting vector may be empty.
 /// Content format and length of each vector is totally dependent on data type given, and might not be constant (like for `char` or `string` types).
+/// A secret gives an empty vector, its content is never exposed: `std/secret::|to_bytes` derives a secret holding the bytes of a string secret.
 #[mel_treatment(
     generic T ()
     input value Stream<T>

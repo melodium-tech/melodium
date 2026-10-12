@@ -64,10 +64,8 @@ fn main() {
         .arg("process_distributed.mel")
         .arg("--distrib_port")
         .arg(PROXY_PORT.to_string())
-        .arg("--remote_key")
-        .arg("6d7e8f9a-0b4c-1d8e-2f3a-4b5c6d7e8f9a")
-        .arg("--self_key")
-        .arg("7e8f9a0b-4c1d-8e2f-3a4b-5c6d7e8f9a0b")
+        .env("MELODIUM_SECRET_DIST_REMOTE_KEY", "6d7e8f9a-0b4c-1d8e-2f3a-4b5c6d7e8f9a")
+        .env("MELODIUM_SECRET_DIST_SELF_KEY", "7e8f9a0b-4c1d-8e2f-3a4b-5c6d7e8f9a0b")
         .spawn()
         .expect("failed to launch Mélodium executable");
 

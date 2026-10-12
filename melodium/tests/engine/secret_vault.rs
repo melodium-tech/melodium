@@ -1,6 +1,7 @@
 //! `vault:` secrets are read from a Vault server when revealed, the `Vault` model
 //! logging in with a JWT such as a GitLab CI ID token, and caching what it reads.
-//! The server is a mock answering the few requests involved.
+//! The server is a mock answering the few requests involved. A `SqlPool` password
+//! read from Vault reaches a mock Postgres server asking for it.
 
 use super::common::{self, genesis_errors, sent};
 use melodium_common::descriptor::DataType;
@@ -8,7 +9,7 @@ use melodium_common::executive::{Log, Secret, SecretPolicy, SecretTransmission, 
 use melodium_engine::debug::{DataContent, Event, EventKind};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
 const ID_TOKEN: &str = "eyJ.id-token-sentinel.sig";
@@ -303,6 +304,120 @@ fn refused_tokens_are_renewed_once() {
             "GET /v1/kv/data/app/missing".to_string(),
         ]
     );
+}
+
+const SQL_SCRIPT: &str = include_str!("scripts/secret_vault_sql.mel");
+
+/// Starts a mock Postgres server asking for a cleartext password, giving a
+/// connection URL without password and the passwords it receives.
+fn postgres_server() -> (String, Arc<Mutex<Vec<String>>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("postgres://app@{}/app", listener.local_addr().unwrap());
+    let passwords = Arc::new(Mutex::new(Vec::new()));
+
+    let received = Arc::clone(&passwords);
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            if let Ok(mut stream) = stream {
+                let _ = postgres_login(&mut stream, &received);
+            }
+        }
+    });
+
+    (url, passwords)
+}
+
+/// Reads a message body preceded by its length, the length counting itself.
+fn postgres_message(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
+    let mut length = [0u8; 4];
+    stream.read_exact(&mut length)?;
+    let length = u32::from_be_bytes(length) as usize;
+    if length > 65536 {
+        return Err(std::io::Error::other("unexpected message"));
+    }
+    let mut body = vec![0u8; length.saturating_sub(4)];
+    stream.read_exact(&mut body)?;
+    Ok(body)
+}
+
+fn postgres_login(stream: &mut TcpStream, passwords: &Mutex<Vec<String>>) -> std::io::Result<()> {
+    // TLS is refused, then comes the startup message.
+    while postgres_message(stream)?.starts_with(&80877103u32.to_be_bytes()) {
+        stream.write_all(b"N")?;
+    }
+    // AuthenticationCleartextPassword
+    stream.write_all(&[b'R', 0, 0, 0, 8, 0, 0, 0, 3])?;
+    let mut tag = [0u8; 1];
+    stream.read_exact(&mut tag)?;
+    let body = postgres_message(stream)?;
+    if tag[0] == b'p' {
+        passwords
+            .lock()
+            .unwrap()
+            .push(String::from_utf8_lossy(body.strip_suffix(&[0]).unwrap_or(&body)).to_string());
+    }
+    let fields = b"SFATAL\0C28P01\0Mpassword authentication failed\0\0";
+    let mut error = vec![b'E'];
+    error.extend_from_slice(&(fields.len() as u32 + 4).to_be_bytes());
+    error.extend_from_slice(fields);
+    stream.write_all(&error)
+}
+
+#[test]
+fn sql_pool_password_comes_from_vault() {
+    let (address, requests) = vault_server(false);
+    let (database, passwords) = postgres_server();
+    let (logs, events) = run_script(
+        SQL_SCRIPT.to_string(),
+        HashMap::from([
+            ("address".to_string(), Value::String(address)),
+            ("database".to_string(), Value::String(database)),
+        ]),
+    );
+
+    let passwords = passwords.lock().unwrap().clone();
+    assert!(!passwords.is_empty(), "{:?}", logs);
+    assert!(passwords.iter().all(|password| password == PASSWORD));
+    assert!(requests
+        .lock()
+        .unwrap()
+        .contains(&"GET /v1/kv/data/app/db".to_string()));
+
+    assert!(
+        logs.iter().any(|log| log.label == "sql-error"),
+        "{:?}",
+        logs
+    );
+    assert!(logs.iter().all(|log| !log.message.contains(PASSWORD)));
+    let values = event_values(&events);
+    assert!(values
+        .iter()
+        .any(|value| value.contains("name: \"db_password\"")));
+    assert!(values.iter().all(|value| !value.contains(PASSWORD)));
+}
+
+/// Values held by debug events, as model parameters or transmitted data.
+fn event_values(events: &[Event]) -> Vec<String> {
+    events
+        .iter()
+        .flat_map(|event| match &event.kind {
+            EventKind::ModelBuilt { parameters, .. } => parameters.values().cloned().collect(),
+            EventKind::DataSent {
+                data: DataContent::Values { values },
+                ..
+            }
+            | EventKind::DataTransmitted {
+                data: DataContent::Values { values },
+                ..
+            }
+            | EventKind::DataReceived {
+                data: DataContent::Values { values },
+                ..
+            } => values.clone(),
+            _ => Vec::new(),
+        })
+        .map(|value| format!("{:?}", value))
+        .collect()
 }
 
 #[test]

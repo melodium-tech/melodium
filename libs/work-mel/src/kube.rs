@@ -9,11 +9,12 @@ use async_walkdir::{Filtering, WalkDir};
 use core::fmt::Debug;
 use fs_mel::filesystem::{self, FileSystemEngine};
 use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Status;
 use kube::{api::AttachParams, Api, Client};
 use melodium_macro::check;
 use process_mel::{
     command::Command,
-    environment::{environment_variable_regex, Environment},
+    environment::{environment_variable_regex, Environment, RevealedSecrets},
     exec::*,
 };
 use regex::{Captures, Replacer};
@@ -169,12 +170,31 @@ impl KubeExecutor {
     }
 }
 
+/// Describes a command that Kubernetes failed to run, from the status it gives.
+///
+/// Commands receiving secret variables run through `/bin/sh` (see
+/// `RevealedSecrets::shell_command`), which the container image must have.
+fn exec_failure(status: &Status, secrets: &RevealedSecrets) -> String {
+    let reason = status.reason.as_deref().unwrap_or("No reason provided");
+    let message = status.message.as_deref().unwrap_or_default();
+    let mut description = if message.is_empty() {
+        reason.to_string()
+    } else {
+        format!("{reason}: {message}")
+    };
+    if !secrets.variables.is_empty() && message.contains("/bin/sh") {
+        description.push_str(", receiving secret variables needs /bin/sh in the container image");
+    }
+    description
+}
+
 #[async_trait]
 impl ExecutorEngine for KubeExecutor {
     async fn exec(
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -209,14 +229,19 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
 
-            env_command.push(command.command.clone());
-
             env_command
         } else {
-            vec![command.command.clone()]
+            Vec::new()
         };
 
-        full_command.extend(command.arguments.clone());
+        // Secret variables are read from the standard input, out of the arguments.
+        full_command.extend(
+            secrets.shell_command(
+                std::iter::once(command.command.clone())
+                    .chain(command.arguments.iter().cloned())
+                    .collect(),
+            ),
+        );
 
         eprintln!("Running command '{full_command:?}'");
 
@@ -224,7 +249,9 @@ impl ExecutorEngine for KubeExecutor {
             .exec(
                 &self.pod,
                 full_command,
-                &AttachParams::default().container(self.container_full_name.clone()),
+                &AttachParams::default()
+                    .container(self.container_full_name.clone())
+                    .stdin(secrets.has_input()),
             )
             .await
         {
@@ -232,56 +259,53 @@ impl ExecutorEngine for KubeExecutor {
                 use futures::{pin_mut, select, FutureExt};
 
                 started().await;
+                write_secret_input(&mut process, secrets).await;
 
                 let mut to_terminate = false;
                 {
-                    let status =
-                        async {
-                            if let Some(status_waiter) = process.take_status() {
-                                if let Some(status) = status_waiter.await {
-                                    match status.status.as_ref().map(|s| s.as_str()) {
-                                        Some("Success") => {
-                                            completed().await;
-                                            if let Some(causes) =
-                                                status.details.map(|d| d.causes).flatten()
-                                            {
-                                                let code = causes
-                                                    .iter()
-                                                    .filter(|cause| {
-                                                        cause.reason.as_deref() == Some("ExitCode")
-                                                    })
-                                                    .map(|cause| {
-                                                        cause
-                                                            .message
-                                                            .as_ref()
-                                                            .map(|msg| msg.parse().ok())
-                                                    })
-                                                    .next()
-                                                    .flatten()
-                                                    .flatten();
-                                                exit(code).await;
-                                            } else {
-                                                exit(None).await;
-                                            }
-                                        }
-                                        _ => {
-                                            failed().await;
-                                            error(status.reason.unwrap_or_else(|| {
-                                                "No reason provided".to_string()
-                                            }))
-                                            .await;
+                    let status = async {
+                        if let Some(status_waiter) = process.take_status() {
+                            if let Some(status) = status_waiter.await {
+                                match status.status.as_ref().map(|s| s.as_str()) {
+                                    Some("Success") => {
+                                        completed().await;
+                                        if let Some(causes) =
+                                            status.details.map(|d| d.causes).flatten()
+                                        {
+                                            let code = causes
+                                                .iter()
+                                                .filter(|cause| {
+                                                    cause.reason.as_deref() == Some("ExitCode")
+                                                })
+                                                .map(|cause| {
+                                                    cause
+                                                        .message
+                                                        .as_ref()
+                                                        .map(|msg| msg.parse().ok())
+                                                })
+                                                .next()
+                                                .flatten()
+                                                .flatten();
+                                            exit(code).await;
+                                        } else {
+                                            exit(None).await;
                                         }
                                     }
-                                } else {
-                                    failed().await;
-                                    error("No output status provided".to_string()).await;
+                                    _ => {
+                                        failed().await;
+                                        error(exec_failure(&status, secrets)).await;
+                                    }
                                 }
                             } else {
                                 failed().await;
-                                error("Unable to take status waiter".to_string()).await;
+                                error("No output status provided".to_string()).await;
                             }
+                        } else {
+                            failed().await;
+                            error("Unable to take status waiter".to_string()).await;
                         }
-                        .fuse();
+                    }
+                    .fuse();
 
                     let terminate = async {
                         to_terminate = terminate().await;
@@ -313,6 +337,7 @@ impl ExecutorEngine for KubeExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -353,14 +378,19 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
 
-            env_command.push(command.command.clone());
-
             env_command
         } else {
-            vec![command.command.clone()]
+            Vec::new()
         };
 
-        full_command.extend(command.arguments.clone());
+        // Secret variables are read from the standard input, out of the arguments.
+        full_command.extend(
+            secrets.shell_command(
+                std::iter::once(command.command.clone())
+                    .chain(command.arguments.iter().cloned())
+                    .collect(),
+            ),
+        );
 
         eprintln!("Running command '{full_command:?}'");
 
@@ -394,9 +424,17 @@ impl ExecutorEngine for KubeExecutor {
                     started().await;
 
                     let write_stdin = async {
-                        while let Ok(data) = stdin().await {
-                            check!(process_stdin.write_all(&data).await);
-                            check!(process_stdin.flush().await);
+                        let input_written = !secrets.has_input()
+                            || (process_stdin
+                                .write_all(&secrets.shell_input())
+                                .await
+                                .is_ok()
+                                && process_stdin.flush().await.is_ok());
+                        if input_written {
+                            while let Ok(data) = stdin().await {
+                                check!(process_stdin.write_all(&data).await);
+                                check!(process_stdin.flush().await);
+                            }
                         }
                     }
                     .fuse();
@@ -452,12 +490,7 @@ impl ExecutorEngine for KubeExecutor {
                                 }
                                 _ => {
                                     failed().await;
-                                    error(
-                                        status
-                                            .reason
-                                            .unwrap_or_else(|| "No reason provided".to_string()),
-                                    )
-                                    .await;
+                                    error(exec_failure(&status, secrets)).await;
                                 }
                             }
                         } else {
@@ -511,6 +544,7 @@ impl ExecutorEngine for KubeExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -549,14 +583,19 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
 
-            env_command.push(command.command.clone());
-
             env_command
         } else {
-            vec![command.command.clone()]
+            Vec::new()
         };
 
-        full_command.extend(command.arguments.clone());
+        // Secret variables are read from the standard input, out of the arguments.
+        full_command.extend(
+            secrets.shell_command(
+                std::iter::once(command.command.clone())
+                    .chain(command.arguments.iter().cloned())
+                    .collect(),
+            ),
+        );
 
         eprintln!("Running command '{full_command:?}'");
 
@@ -566,7 +605,7 @@ impl ExecutorEngine for KubeExecutor {
                 full_command,
                 &AttachParams::default()
                     .container(self.container_full_name.clone())
-                    .stdin(false)
+                    .stdin(secrets.has_input())
                     .stdout(true)
                     .stderr(true),
             )
@@ -574,6 +613,7 @@ impl ExecutorEngine for KubeExecutor {
         {
             Ok(mut process) => {
                 let mut to_terminate = false;
+                write_secret_input(&mut process, secrets).await;
                 if let (Some(status_waiter), Some(process_stdout), Some(process_stderr)) =
                     (process.take_status(), process.stdout(), process.stderr())
                 {
@@ -632,12 +672,7 @@ impl ExecutorEngine for KubeExecutor {
                                 }
                                 _ => {
                                     failed().await;
-                                    error(
-                                        status
-                                            .reason
-                                            .unwrap_or_else(|| "No reason provided".to_string()),
-                                    )
-                                    .await;
+                                    error(exec_failure(&status, secrets)).await;
                                 }
                             }
                         } else {
@@ -961,6 +996,17 @@ impl FileSystemEngine for KubeFileSystem {
             completed().await;
         } else {
             failed().await;
+        }
+    }
+}
+
+/// Writes the secret variables and input, if any, to the standard input of `process`,
+/// then closes it.
+async fn write_secret_input(process: &mut kube::api::AttachedProcess, secrets: &RevealedSecrets) {
+    if secrets.has_input() {
+        if let Some(mut process_stdin) = process.stdin() {
+            let _ = process_stdin.write_all(&secrets.shell_input()).await;
+            let _ = process_stdin.shutdown().await;
         }
     }
 }

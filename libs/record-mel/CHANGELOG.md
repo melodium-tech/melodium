@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- Giving `none` defaults to the optional `device` and `sample_rate` parameters of `recordMono` (#123).
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

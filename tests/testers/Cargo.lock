@@ -25,6 +25,13 @@ name = "complex_call"
 version = "0.1.0"
 
 [[package]]
+name = "crypto_webhooks"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "displaydoc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -93,6 +100,14 @@ name = "http_javascript"
 version = "0.1.0"
 dependencies = [
  "ureq 2.12.1",
+]
+
+[[package]]
+name = "http_secrets"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tester",
 ]
 
 [[package]]
@@ -245,6 +260,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "new_templates"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -295,6 +317,14 @@ name = "process_distributed_slow"
 version = "0.1.0"
 
 [[package]]
+name = "process_secrets"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tester",
+]
+
+[[package]]
 name = "protocol_timeout_survives_jitter"
 version = "0.1.0"
 
@@ -323,6 +353,13 @@ name = "secret_distribution"
 version = "0.1.0"
 dependencies = [
  "serde_json",
+ "tester",
+]
+
+[[package]]
+name = "secret_leaks"
+version = "0.1.0"
+dependencies = [
  "tester",
 ]
 
@@ -500,6 +537,13 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "wipe"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
+name = "work_secrets"
 version = "0.1.0"
 dependencies = [
  "tester",

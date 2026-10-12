@@ -6,6 +6,7 @@
 //! testers, in `tests/testers`.
 
 mod common;
+mod crypto;
 mod option_defaults;
 mod secret_access;
 mod secret_derivation;
