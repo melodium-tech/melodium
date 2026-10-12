@@ -61,3 +61,6 @@ targets = [
     "x86_64-pc-windows-gnu",
     "wasm32-unknown-unknown"
 ]
+
+[target.'cfg(not(target_os = "unknown"))'.dependencies]
+async-global-executor = "2.4"

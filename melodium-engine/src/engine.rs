@@ -26,6 +26,9 @@ pub trait Engine: Send + Sync {
     async fn live(&self);
     async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()>;
     async fn end(&self);
+    /// Stops every running track and continuous task, after ending as `end` does: their
+    /// futures are dropped at their next await point, and `live` then ends.
+    async fn stop(&self);
     /// Resolves the secrets given for each parameter and drops their values right away,
     /// to check that they can be resolved.
     async fn check_secrets(&self, secrets: Vec<(String, Secret)>) -> LogicResult<()>;

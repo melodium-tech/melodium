@@ -2,6 +2,7 @@
 
 ## [v0.11.0] (unreleased)
 
+- Running tracks in parallel, on one thread per core by default (#147).
 - Requiring Rust 1.94, as the dependencies of the editions do (#136).
 - Adding secret parameters, given as locators on the command line, and `--check-secrets` to resolve them before running (#134).
 - Adding the `environment` feature, giving programs the environment variables prefixed `MELODIUM_SECRET_` as `env:` secrets, and the `file:` secret source to the `fs` feature; the standard and desktop editions have both, the WebAssembly and mock ones neither (#134).
