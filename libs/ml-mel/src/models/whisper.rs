@@ -399,10 +399,8 @@ pub async fn load() {
         let model_arc = WhisperModel::into(whisper);
 
         let model_arc2 = model_arc.clone();
-        let result = async_std::task::spawn_blocking(move || {
-            model_arc2.inner().load(shard_paths, tokenizer_path)
-        })
-        .await;
+        let result =
+            blocking::unblock(move || model_arc2.inner().load(shard_paths, tokenizer_path)).await;
 
         match result {
             Ok(()) => {

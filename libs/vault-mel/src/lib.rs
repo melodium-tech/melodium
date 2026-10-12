@@ -128,7 +128,7 @@ impl Vault {
 
     fn shutdown(&self) {
         #[cfg(feature = "real")]
-        async_std::task::block_on(self.client.forget());
+        futures_lite::future::block_on(self.client.forget());
     }
 
     /// Gives the value at `path` (`<path>#<field>`) as `datatype`.

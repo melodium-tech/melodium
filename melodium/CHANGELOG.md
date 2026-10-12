@@ -2,6 +2,7 @@
 
 ## [v0.11.0] (unreleased)
 
+- Moving from async-std, which is discontinued, to smol; the number of threads running tracks is given by `MELODIUM_THREADS`, one per core by default, and `api_report` gives a `smol::Task`, breaking for library users (#104).
 - Running tracks in parallel, on one thread per core by default (#147).
 - Requiring Rust 1.94, as the dependencies of the editions do (#136).
 - Adding secret parameters, given as locators on the command line, and `--check-secrets` to resolve them before running (#134).

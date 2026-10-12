@@ -84,7 +84,7 @@ impl SecretSource for FileSource {
 
     #[cfg(not(target_os = "unknown"))]
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
-        let mut content = async_std::fs::read(path)
+        let mut content = smol::fs::read(path)
             .await
             .map_err(|err| format!("file '{path}' cannot be read: {}", err.kind()))?;
         match datatype {
@@ -131,12 +131,11 @@ mod tests {
         std::fs::write(&path, "sentinel\n").unwrap();
         let path = path.to_string_lossy().to_string();
 
-        let text = async_std::task::block_on(FileSource.resolve(&path, &DataType::String));
+        let text = smol::block_on(FileSource.resolve(&path, &DataType::String));
         assert_eq!(text, Ok(Value::String("sentinel".to_string())));
 
-        let bytes = async_std::task::block_on(
-            FileSource.resolve(&path, &DataType::Vec(Box::new(DataType::Byte))),
-        );
+        let bytes =
+            smol::block_on(FileSource.resolve(&path, &DataType::Vec(Box::new(DataType::Byte))));
         assert_eq!(
             bytes,
             Ok(Value::Packed(PackedArray::Byte(Arc::new(
@@ -149,11 +148,11 @@ mod tests {
     #[test]
     fn environment_variables_are_given_as_text() {
         std::env::set_var("MELODIUM_SECRET_SOURCES_TEST", "sentinel");
-        let text = async_std::task::block_on(
+        let text = smol::block_on(
             EnvironmentSource.resolve("MELODIUM_SECRET_SOURCES_TEST", &DataType::String),
         );
         assert_eq!(text, Ok(Value::String("sentinel".to_string())));
-        assert!(async_std::task::block_on(
+        assert!(smol::block_on(
             EnvironmentSource.resolve("MELODIUM_SECRET_SOURCES_UNSET", &DataType::String)
         )
         .is_err());
@@ -163,7 +162,7 @@ mod tests {
     #[test]
     fn only_prefixed_environment_variables_are_given() {
         std::env::set_var("SECRET_SOURCES_TEST_UNPREFIXED", "sentinel");
-        let refused = async_std::task::block_on(
+        let refused = smol::block_on(
             EnvironmentSource.resolve("SECRET_SOURCES_TEST_UNPREFIXED", &DataType::String),
         );
         assert_eq!(

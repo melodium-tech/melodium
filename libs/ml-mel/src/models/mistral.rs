@@ -540,10 +540,8 @@ pub async fn load() {
         // run it on a blocking thread so the async executor is not stalled.
         // Clone the Arc so the model stays alive inside the blocking closure.
         let model_arc2 = model_arc.clone();
-        let result = async_std::task::spawn_blocking(move || {
-            model_arc2.inner().load(shard_paths, tokenizer_path)
-        })
-        .await;
+        let result =
+            blocking::unblock(move || model_arc2.inner().load(shard_paths, tokenizer_path)).await;
 
         match result {
             Ok(()) => {

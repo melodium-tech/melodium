@@ -3,6 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
+- Running commands with async-process instead of async-std, which is discontinued (#104).
 - Adding secret environment variables (`|with_secret_variables`) and a secret standard input (`|with_secret_stdin`) to `Environment`, also for secrets received at runtime (`process/environment/block`), revealed by the treatment running commands and never put in command arguments (#136).
 - Breaking: `ExecutorEngine` methods take the revealed secrets (#136).
 

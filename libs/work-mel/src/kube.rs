@@ -1,13 +1,10 @@
-use async_std::{
-    fs::{self, DirBuilder, OpenOptions},
-    io::{ReadExt, WriteExt},
-    path::{Path, PathBuf},
-    stream::StreamExt,
-};
+use async_compat::Compat;
+use async_fs::{self as fs, DirBuilder, OpenOptions};
 use async_trait::async_trait;
 use async_walkdir::{Filtering, WalkDir};
 use core::fmt::Debug;
 use fs_mel::filesystem::{self, FileSystemEngine};
+use futures::{AsyncReadExt as ReadExt, AsyncWriteExt as WriteExt, StreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Status;
 use kube::{api::AttachParams, Api, Client};
@@ -19,6 +16,7 @@ use process_mel::{
 };
 use regex::{Captures, Replacer};
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 
 pub struct KubeExecutor {
@@ -43,7 +41,7 @@ impl KubeExecutor {
             std::env::var(format!("MELODIUM_RUN_CONTAINER_{container}"))
         {
             if let Ok(pod) = std::env::var("MELODIUM_POD_NAME") {
-                Client::try_default()
+                Compat::new(Client::try_default())
                     .await
                     .map(|client| Self {
                         client,
@@ -203,68 +201,275 @@ impl ExecutorEngine for KubeExecutor {
         error: OnceMessageCall<'async_trait>,
         exit: OnceCodeCall<'async_trait>,
     ) {
-        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
+        // The Kubernetes client runs on Tokio.
+        Compat::new(async move {
+            let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
-        let mut full_command = if let Some(environment) = environment {
-            let mut env_command = vec!["/usr/bin/env".to_string()];
+            let mut full_command = if let Some(environment) = environment {
+                let mut env_command = vec!["/usr/bin/env".to_string()];
 
-            if let Some(dir) = &environment.working_directory {
-                env_command.push(format!("--chdir={dir}"));
-            }
-
-            if environment.clear_env {
-                env_command.push("--ignore-environment".to_string());
-            }
-
-            if environment.expand_variables {
-                let variables = self
-                    .manage_variable_substitution(&environment.variables.map)
-                    .await;
-                for (name, val) in variables {
-                    env_command.push(format!("{name}={val}"));
+                if let Some(dir) = &environment.working_directory {
+                    env_command.push(format!("--chdir={dir}"));
                 }
+
+                if environment.clear_env {
+                    env_command.push("--ignore-environment".to_string());
+                }
+
+                if environment.expand_variables {
+                    let variables = self
+                        .manage_variable_substitution(&environment.variables.map)
+                        .await;
+                    for (name, val) in variables {
+                        env_command.push(format!("{name}={val}"));
+                    }
+                } else {
+                    for (name, val) in &environment.variables.map {
+                        env_command.push(format!("{name}={val}"));
+                    }
+                }
+
+                env_command
             } else {
-                for (name, val) in &environment.variables.map {
-                    env_command.push(format!("{name}={val}"));
+                Vec::new()
+            };
+
+            // Secret variables are read from the standard input, out of the arguments.
+            full_command.extend(
+                secrets.shell_command(
+                    std::iter::once(command.command.clone())
+                        .chain(command.arguments.iter().cloned())
+                        .collect(),
+                ),
+            );
+
+            eprintln!("Running command '{full_command:?}'");
+
+            match pod
+                .exec(
+                    &self.pod,
+                    full_command,
+                    &AttachParams::default()
+                        .container(self.container_full_name.clone())
+                        .stdin(secrets.has_input()),
+                )
+                .await
+            {
+                Ok(mut process) => {
+                    use futures::{pin_mut, select, FutureExt};
+
+                    started().await;
+                    write_secret_input(&mut process, secrets).await;
+
+                    let mut to_terminate = false;
+                    {
+                        let status = async {
+                            if let Some(status_waiter) = process.take_status() {
+                                if let Some(status) = status_waiter.await {
+                                    match status.status.as_ref().map(|s| s.as_str()) {
+                                        Some("Success") => {
+                                            completed().await;
+                                            if let Some(causes) =
+                                                status.details.map(|d| d.causes).flatten()
+                                            {
+                                                let code = causes
+                                                    .iter()
+                                                    .filter(|cause| {
+                                                        cause.reason.as_deref() == Some("ExitCode")
+                                                    })
+                                                    .map(|cause| {
+                                                        cause
+                                                            .message
+                                                            .as_ref()
+                                                            .map(|msg| msg.parse().ok())
+                                                    })
+                                                    .next()
+                                                    .flatten()
+                                                    .flatten();
+                                                exit(code).await;
+                                            } else {
+                                                exit(None).await;
+                                            }
+                                        }
+                                        _ => {
+                                            failed().await;
+                                            error(exec_failure(&status, secrets)).await;
+                                        }
+                                    }
+                                } else {
+                                    failed().await;
+                                    error("No output status provided".to_string()).await;
+                                }
+                            } else {
+                                failed().await;
+                                error("Unable to take status waiter".to_string()).await;
+                            }
+                        }
+                        .fuse();
+
+                        let terminate = async {
+                            to_terminate = terminate().await;
+                            to_terminate
+                        }
+                        .fuse();
+                        pin_mut!(status, terminate);
+
+                        loop {
+                            select! {
+                                () = status => break,
+                                to_terminate = terminate => if to_terminate { break },
+                                complete => break,
+                            }
+                        }
+                    }
+                    if to_terminate {
+                        process.abort();
+                    }
+                }
+                Err(err) => {
+                    failed().await;
+                    error(err.to_string()).await;
                 }
             }
+            finished().await;
+        })
+        .await
+    }
+    async fn spawn(
+        &self,
+        command: &Command,
+        environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
+        terminate: OnceRecvCall<'async_trait>,
+        started: OnceTriggerCall<'async_trait>,
+        finished: OnceTriggerCall<'async_trait>,
+        completed: OnceTriggerCall<'async_trait>,
+        failed: OnceTriggerCall<'async_trait>,
+        error: OnceMessageCall<'async_trait>,
+        exit: OnceCodeCall<'async_trait>,
+        stdin: InDataCall<'async_trait>,
+        _stdinclose: OnceTriggerCall<'async_trait>,
+        stdout: OutDataCall<'async_trait>,
+        _stdoutclose: OnceTriggerCall<'async_trait>,
+        stderr: OutDataCall<'async_trait>,
+        _stderrclose: OnceTriggerCall<'async_trait>,
+    ) {
+        // The Kubernetes client runs on Tokio.
+        Compat::new(async move {
+            let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
-            env_command
-        } else {
-            Vec::new()
-        };
+            let mut full_command = if let Some(environment) = environment {
+                let mut env_command = vec!["/usr/bin/env".to_string()];
 
-        // Secret variables are read from the standard input, out of the arguments.
-        full_command.extend(
-            secrets.shell_command(
-                std::iter::once(command.command.clone())
-                    .chain(command.arguments.iter().cloned())
-                    .collect(),
-            ),
-        );
+                if let Some(dir) = &environment.working_directory {
+                    env_command.push(format!("--chdir={dir}"));
+                }
 
-        eprintln!("Running command '{full_command:?}'");
+                if environment.clear_env {
+                    env_command.push("--ignore-environment".to_string());
+                }
 
-        match pod
-            .exec(
-                &self.pod,
-                full_command,
-                &AttachParams::default()
-                    .container(self.container_full_name.clone())
-                    .stdin(secrets.has_input()),
-            )
-            .await
-        {
-            Ok(mut process) => {
-                use futures::{pin_mut, select, FutureExt};
+                if environment.expand_variables {
+                    let variables = self
+                        .manage_variable_substitution(&environment.variables.map)
+                        .await;
+                    for (name, val) in variables {
+                        env_command.push(format!("{name}={val}"));
+                    }
+                } else {
+                    for (name, val) in &environment.variables.map {
+                        env_command.push(format!("{name}={val}"));
+                    }
+                }
 
-                started().await;
-                write_secret_input(&mut process, secrets).await;
+                env_command
+            } else {
+                Vec::new()
+            };
 
-                let mut to_terminate = false;
-                {
-                    let status = async {
-                        if let Some(status_waiter) = process.take_status() {
+            // Secret variables are read from the standard input, out of the arguments.
+            full_command.extend(
+                secrets.shell_command(
+                    std::iter::once(command.command.clone())
+                        .chain(command.arguments.iter().cloned())
+                        .collect(),
+                ),
+            );
+
+            eprintln!("Running command '{full_command:?}'");
+
+            match pod
+                .exec(
+                    &self.pod,
+                    full_command,
+                    &AttachParams::default()
+                        .container(self.container_full_name.clone())
+                        .stdin(true)
+                        .stdout(true)
+                        .stderr(true),
+                )
+                .await
+            {
+                Ok(mut process) => {
+                    let mut to_terminate = false;
+                    if let (
+                        Some(status_waiter),
+                        Some(mut process_stdin),
+                        Some(process_stdout),
+                        Some(process_stderr),
+                    ) = (
+                        process.take_status(),
+                        process.stdin(),
+                        process.stdout(),
+                        process.stderr(),
+                    ) {
+                        use futures::{pin_mut, select, FutureExt};
+
+                        started().await;
+
+                        let write_stdin = async {
+                            let input_written = !secrets.has_input()
+                                || (process_stdin
+                                    .write_all(&secrets.shell_input())
+                                    .await
+                                    .is_ok()
+                                    && process_stdin.flush().await.is_ok());
+                            if input_written {
+                                while let Ok(data) = stdin().await {
+                                    check!(process_stdin.write_all(&data).await);
+                                    check!(process_stdin.flush().await);
+                                }
+                            }
+                        }
+                        .fuse();
+
+                        let read_stdout = async {
+                            let mut process_stdout = BufReader::new(process_stdout);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = process_stdout.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(stdout(buffer[..n].iter().cloned().collect()).await);
+                            }
+                        }
+                        .fuse();
+
+                        let read_stderr = async {
+                            let mut process_stderr = BufReader::new(process_stderr);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = process_stderr.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(stderr(buffer[..n].iter().cloned().collect()).await);
+                            }
+                        }
+                        .fuse();
+
+                        let status_waiter = async {
                             if let Some(status) = status_waiter.await {
                                 match status.status.as_ref().map(|s| s.as_str()) {
                                     Some("Success") => {
@@ -300,244 +505,49 @@ impl ExecutorEngine for KubeExecutor {
                                 failed().await;
                                 error("No output status provided".to_string()).await;
                             }
-                        } else {
-                            failed().await;
-                            error("Unable to take status waiter".to_string()).await;
                         }
-                    }
-                    .fuse();
+                        .fuse();
 
-                    let terminate = async {
-                        to_terminate = terminate().await;
-                        to_terminate
-                    }
-                    .fuse();
-                    pin_mut!(status, terminate);
-
-                    loop {
-                        select! {
-                            () = status => break,
-                            to_terminate = terminate => if to_terminate { break },
-                            complete => break,
+                        let terminate = async {
+                            to_terminate = terminate().await;
+                            to_terminate
                         }
-                    }
-                }
-                if to_terminate {
-                    process.abort();
-                }
-            }
-            Err(err) => {
-                failed().await;
-                error(err.to_string()).await;
-            }
-        }
-        finished().await;
-    }
-    async fn spawn(
-        &self,
-        command: &Command,
-        environment: Option<&Environment>,
-        secrets: &RevealedSecrets,
-        terminate: OnceRecvCall<'async_trait>,
-        started: OnceTriggerCall<'async_trait>,
-        finished: OnceTriggerCall<'async_trait>,
-        completed: OnceTriggerCall<'async_trait>,
-        failed: OnceTriggerCall<'async_trait>,
-        error: OnceMessageCall<'async_trait>,
-        exit: OnceCodeCall<'async_trait>,
-        stdin: InDataCall<'async_trait>,
-        _stdinclose: OnceTriggerCall<'async_trait>,
-        stdout: OutDataCall<'async_trait>,
-        _stdoutclose: OnceTriggerCall<'async_trait>,
-        stderr: OutDataCall<'async_trait>,
-        _stderrclose: OnceTriggerCall<'async_trait>,
-    ) {
-        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
+                        .fuse();
 
-        let mut full_command = if let Some(environment) = environment {
-            let mut env_command = vec!["/usr/bin/env".to_string()];
+                        pin_mut!(
+                            write_stdin,
+                            read_stdout,
+                            read_stderr,
+                            status_waiter,
+                            terminate
+                        );
 
-            if let Some(dir) = &environment.working_directory {
-                env_command.push(format!("--chdir={dir}"));
-            }
-
-            if environment.clear_env {
-                env_command.push("--ignore-environment".to_string());
-            }
-
-            if environment.expand_variables {
-                let variables = self
-                    .manage_variable_substitution(&environment.variables.map)
-                    .await;
-                for (name, val) in variables {
-                    env_command.push(format!("{name}={val}"));
-                }
-            } else {
-                for (name, val) in &environment.variables.map {
-                    env_command.push(format!("{name}={val}"));
-                }
-            }
-
-            env_command
-        } else {
-            Vec::new()
-        };
-
-        // Secret variables are read from the standard input, out of the arguments.
-        full_command.extend(
-            secrets.shell_command(
-                std::iter::once(command.command.clone())
-                    .chain(command.arguments.iter().cloned())
-                    .collect(),
-            ),
-        );
-
-        eprintln!("Running command '{full_command:?}'");
-
-        match pod
-            .exec(
-                &self.pod,
-                full_command,
-                &AttachParams::default()
-                    .container(self.container_full_name.clone())
-                    .stdin(true)
-                    .stdout(true)
-                    .stderr(true),
-            )
-            .await
-        {
-            Ok(mut process) => {
-                let mut to_terminate = false;
-                if let (
-                    Some(status_waiter),
-                    Some(mut process_stdin),
-                    Some(process_stdout),
-                    Some(process_stderr),
-                ) = (
-                    process.take_status(),
-                    process.stdin(),
-                    process.stdout(),
-                    process.stderr(),
-                ) {
-                    use futures::{pin_mut, select, FutureExt};
-
-                    started().await;
-
-                    let write_stdin = async {
-                        let input_written = !secrets.has_input()
-                            || (process_stdin
-                                .write_all(&secrets.shell_input())
-                                .await
-                                .is_ok()
-                                && process_stdin.flush().await.is_ok());
-                        if input_written {
-                            while let Ok(data) = stdin().await {
-                                check!(process_stdin.write_all(&data).await);
-                                check!(process_stdin.flush().await);
+                        loop {
+                            select! {
+                                () = write_stdin => {},
+                                () = read_stdout => {},
+                                () = read_stderr => {},
+                                () = status_waiter => break,
+                                to_terminate = terminate => if to_terminate { break },
+                                complete => break,
                             }
                         }
+                    } else {
+                        failed().await;
+                        error("Unable to take status waiter and process I/O".to_string()).await;
                     }
-                    .fuse();
-
-                    let read_stdout = async {
-                        let mut process_stdout = BufReader::new(process_stdout);
-                        let mut buffer = vec![0; 2usize.pow(20)];
-
-                        while let Ok(n) = process_stdout.read(&mut buffer[..]).await {
-                            if n == 0 {
-                                break;
-                            }
-                            check!(stdout(buffer[..n].iter().cloned().collect()).await);
-                        }
+                    if to_terminate {
+                        process.abort();
                     }
-                    .fuse();
-
-                    let read_stderr = async {
-                        let mut process_stderr = BufReader::new(process_stderr);
-                        let mut buffer = vec![0; 2usize.pow(20)];
-
-                        while let Ok(n) = process_stderr.read(&mut buffer[..]).await {
-                            if n == 0 {
-                                break;
-                            }
-                            check!(stderr(buffer[..n].iter().cloned().collect()).await);
-                        }
-                    }
-                    .fuse();
-
-                    let status_waiter = async {
-                        if let Some(status) = status_waiter.await {
-                            match status.status.as_ref().map(|s| s.as_str()) {
-                                Some("Success") => {
-                                    completed().await;
-                                    if let Some(causes) = status.details.map(|d| d.causes).flatten()
-                                    {
-                                        let code = causes
-                                            .iter()
-                                            .filter(|cause| {
-                                                cause.reason.as_deref() == Some("ExitCode")
-                                            })
-                                            .map(|cause| {
-                                                cause.message.as_ref().map(|msg| msg.parse().ok())
-                                            })
-                                            .next()
-                                            .flatten()
-                                            .flatten();
-                                        exit(code).await;
-                                    } else {
-                                        exit(None).await;
-                                    }
-                                }
-                                _ => {
-                                    failed().await;
-                                    error(exec_failure(&status, secrets)).await;
-                                }
-                            }
-                        } else {
-                            failed().await;
-                            error("No output status provided".to_string()).await;
-                        }
-                    }
-                    .fuse();
-
-                    let terminate = async {
-                        to_terminate = terminate().await;
-                        to_terminate
-                    }
-                    .fuse();
-
-                    pin_mut!(
-                        write_stdin,
-                        read_stdout,
-                        read_stderr,
-                        status_waiter,
-                        terminate
-                    );
-
-                    loop {
-                        select! {
-                            () = write_stdin => {},
-                            () = read_stdout => {},
-                            () = read_stderr => {},
-                            () = status_waiter => break,
-                            to_terminate = terminate => if to_terminate { break },
-                            complete => break,
-                        }
-                    }
-                } else {
+                }
+                Err(err) => {
                     failed().await;
-                    error("Unable to take status waiter and process I/O".to_string()).await;
-                }
-                if to_terminate {
-                    process.abort();
+                    error(err.to_string()).await;
                 }
             }
-            Err(err) => {
-                failed().await;
-                error(err.to_string()).await;
-            }
-        }
-        finished().await;
+            finished().await;
+        })
+        .await
     }
 
     async fn spawn_out(
@@ -557,162 +567,170 @@ impl ExecutorEngine for KubeExecutor {
         stderr: OutDataCall<'async_trait>,
         _stderrclose: OnceTriggerCall<'async_trait>,
     ) {
-        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
+        // The Kubernetes client runs on Tokio.
+        Compat::new(async move {
+            let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
-        let mut full_command = if let Some(environment) = environment {
-            let mut env_command = vec!["/usr/bin/env".to_string()];
+            let mut full_command = if let Some(environment) = environment {
+                let mut env_command = vec!["/usr/bin/env".to_string()];
 
-            if let Some(dir) = &environment.working_directory {
-                env_command.push(format!("--chdir={dir}"));
-            }
-
-            if environment.clear_env {
-                env_command.push("--ignore-environment".to_string());
-            }
-
-            if environment.expand_variables {
-                let variables = self
-                    .manage_variable_substitution(&environment.variables.map)
-                    .await;
-                for (name, val) in variables {
-                    env_command.push(format!("{name}={val}"));
+                if let Some(dir) = &environment.working_directory {
+                    env_command.push(format!("--chdir={dir}"));
                 }
-            } else {
-                for (name, val) in &environment.variables.map {
-                    env_command.push(format!("{name}={val}"));
+
+                if environment.clear_env {
+                    env_command.push("--ignore-environment".to_string());
                 }
-            }
 
-            env_command
-        } else {
-            Vec::new()
-        };
-
-        // Secret variables are read from the standard input, out of the arguments.
-        full_command.extend(
-            secrets.shell_command(
-                std::iter::once(command.command.clone())
-                    .chain(command.arguments.iter().cloned())
-                    .collect(),
-            ),
-        );
-
-        eprintln!("Running command '{full_command:?}'");
-
-        match pod
-            .exec(
-                &self.pod,
-                full_command,
-                &AttachParams::default()
-                    .container(self.container_full_name.clone())
-                    .stdin(secrets.has_input())
-                    .stdout(true)
-                    .stderr(true),
-            )
-            .await
-        {
-            Ok(mut process) => {
-                let mut to_terminate = false;
-                write_secret_input(&mut process, secrets).await;
-                if let (Some(status_waiter), Some(process_stdout), Some(process_stderr)) =
-                    (process.take_status(), process.stdout(), process.stderr())
-                {
-                    use futures::{pin_mut, select, FutureExt};
-
-                    started().await;
-
-                    let read_stdout = async {
-                        let mut process_stdout = BufReader::new(process_stdout);
-                        let mut buffer = vec![0; 2usize.pow(20)];
-
-                        while let Ok(n) = process_stdout.read(&mut buffer[..]).await {
-                            if n == 0 {
-                                break;
-                            }
-                            check!(stdout(buffer[..n].iter().cloned().collect()).await);
-                        }
-                    }
-                    .fuse();
-
-                    let read_stderr = async {
-                        let mut process_stderr = BufReader::new(process_stderr);
-                        let mut buffer = vec![0; 2usize.pow(20)];
-
-                        while let Ok(n) = process_stderr.read(&mut buffer[..]).await {
-                            if n == 0 {
-                                break;
-                            }
-                            check!(stderr(buffer[..n].iter().cloned().collect()).await);
-                        }
-                    }
-                    .fuse();
-
-                    let status_waiter = async {
-                        if let Some(status) = status_waiter.await {
-                            match status.status.as_ref().map(|s| s.as_str()) {
-                                Some("Success") => {
-                                    completed().await;
-                                    if let Some(causes) = status.details.map(|d| d.causes).flatten()
-                                    {
-                                        let code = causes
-                                            .iter()
-                                            .filter(|cause| {
-                                                cause.reason.as_deref() == Some("ExitCode")
-                                            })
-                                            .map(|cause| {
-                                                cause.message.as_ref().map(|msg| msg.parse().ok())
-                                            })
-                                            .next()
-                                            .flatten()
-                                            .flatten();
-                                        exit(code).await;
-                                    } else {
-                                        exit(None).await;
-                                    }
-                                }
-                                _ => {
-                                    failed().await;
-                                    error(exec_failure(&status, secrets)).await;
-                                }
-                            }
-                        } else {
-                            failed().await;
-                            error("No output status provided".to_string()).await;
-                        }
-                    }
-                    .fuse();
-
-                    let terminate = async {
-                        to_terminate = terminate().await;
-                        to_terminate
-                    }
-                    .fuse();
-
-                    pin_mut!(read_stdout, read_stderr, status_waiter, terminate);
-
-                    loop {
-                        select! {
-                            () = read_stdout => {},
-                            () = read_stderr => {},
-                            () = status_waiter => break,
-                            to_terminate = terminate => if to_terminate { break },
-                            complete => break,
-                        }
+                if environment.expand_variables {
+                    let variables = self
+                        .manage_variable_substitution(&environment.variables.map)
+                        .await;
+                    for (name, val) in variables {
+                        env_command.push(format!("{name}={val}"));
                     }
                 } else {
+                    for (name, val) in &environment.variables.map {
+                        env_command.push(format!("{name}={val}"));
+                    }
+                }
+
+                env_command
+            } else {
+                Vec::new()
+            };
+
+            // Secret variables are read from the standard input, out of the arguments.
+            full_command.extend(
+                secrets.shell_command(
+                    std::iter::once(command.command.clone())
+                        .chain(command.arguments.iter().cloned())
+                        .collect(),
+                ),
+            );
+
+            eprintln!("Running command '{full_command:?}'");
+
+            match pod
+                .exec(
+                    &self.pod,
+                    full_command,
+                    &AttachParams::default()
+                        .container(self.container_full_name.clone())
+                        .stdin(secrets.has_input())
+                        .stdout(true)
+                        .stderr(true),
+                )
+                .await
+            {
+                Ok(mut process) => {
+                    let mut to_terminate = false;
+                    write_secret_input(&mut process, secrets).await;
+                    if let (Some(status_waiter), Some(process_stdout), Some(process_stderr)) =
+                        (process.take_status(), process.stdout(), process.stderr())
+                    {
+                        use futures::{pin_mut, select, FutureExt};
+
+                        started().await;
+
+                        let read_stdout = async {
+                            let mut process_stdout = BufReader::new(process_stdout);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = process_stdout.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(stdout(buffer[..n].iter().cloned().collect()).await);
+                            }
+                        }
+                        .fuse();
+
+                        let read_stderr = async {
+                            let mut process_stderr = BufReader::new(process_stderr);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = process_stderr.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(stderr(buffer[..n].iter().cloned().collect()).await);
+                            }
+                        }
+                        .fuse();
+
+                        let status_waiter = async {
+                            if let Some(status) = status_waiter.await {
+                                match status.status.as_ref().map(|s| s.as_str()) {
+                                    Some("Success") => {
+                                        completed().await;
+                                        if let Some(causes) =
+                                            status.details.map(|d| d.causes).flatten()
+                                        {
+                                            let code = causes
+                                                .iter()
+                                                .filter(|cause| {
+                                                    cause.reason.as_deref() == Some("ExitCode")
+                                                })
+                                                .map(|cause| {
+                                                    cause
+                                                        .message
+                                                        .as_ref()
+                                                        .map(|msg| msg.parse().ok())
+                                                })
+                                                .next()
+                                                .flatten()
+                                                .flatten();
+                                            exit(code).await;
+                                        } else {
+                                            exit(None).await;
+                                        }
+                                    }
+                                    _ => {
+                                        failed().await;
+                                        error(exec_failure(&status, secrets)).await;
+                                    }
+                                }
+                            } else {
+                                failed().await;
+                                error("No output status provided".to_string()).await;
+                            }
+                        }
+                        .fuse();
+
+                        let terminate = async {
+                            to_terminate = terminate().await;
+                            to_terminate
+                        }
+                        .fuse();
+
+                        pin_mut!(read_stdout, read_stderr, status_waiter, terminate);
+
+                        loop {
+                            select! {
+                                () = read_stdout => {},
+                                () = read_stderr => {},
+                                () = status_waiter => break,
+                                to_terminate = terminate => if to_terminate { break },
+                                complete => break,
+                            }
+                        }
+                    } else {
+                        failed().await;
+                        error("Unable to take status waiter and process I/O".to_string()).await;
+                    }
+                    if to_terminate {
+                        process.abort();
+                    }
+                }
+                Err(err) => {
                     failed().await;
-                    error("Unable to take status waiter and process I/O".to_string()).await;
-                }
-                if to_terminate {
-                    process.abort();
+                    error(err.to_string()).await;
                 }
             }
-            Err(err) => {
-                failed().await;
-                error(err.to_string()).await;
-            }
-        }
-        finished().await;
+            finished().await;
+        })
+        .await
     }
 }
 
@@ -753,13 +771,13 @@ impl KubeFileSystem {
         }
     }
 
-    async fn full_path(&self, path: &Path) -> async_std::io::Result<PathBuf> {
+    async fn full_path(&self, path: &Path) -> std::io::Result<PathBuf> {
         let full_path = self.path.join(path);
 
         if full_path.starts_with(&self.path) {
             Ok(full_path)
         } else {
-            Err(async_std::io::Error::new(
+            Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 "file not found",
             ))
@@ -780,10 +798,7 @@ impl FileSystemEngine for KubeFileSystem {
         finished: filesystem::OnceTriggerCall<'async_trait>,
         errors: filesystem::OutMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
-        {
+        let path = match self.full_path(&PathBuf::from(path)).await {
             Ok(path) => path,
             Err(err) => {
                 failed().await;
@@ -842,10 +857,7 @@ impl FileSystemEngine for KubeFileSystem {
         finished: filesystem::OnceTriggerCall<'async_trait>,
         errors: filesystem::OutMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
-        {
+        let path = match self.full_path(&PathBuf::from(path)).await {
             Ok(path) => path,
             Err(err) => {
                 failed().await;
@@ -874,7 +886,7 @@ impl FileSystemEngine for KubeFileSystem {
             match file {
                 Ok(mut file) => {
                     let mut written_amount = 0u128;
-                    let mut fail = false;
+                    let mut error = None;
                     while let Ok(data) = data().await {
                         match file.write_all(&data).await {
                             Ok(_) => {
@@ -882,15 +894,21 @@ impl FileSystemEngine for KubeFileSystem {
                                 let _ = amount(written_amount).await;
                             }
                             Err(err) => {
-                                failed().await;
-                                let _ = errors(err.to_string()).await;
-                                fail = true;
+                                error = Some(err);
                                 break;
                             }
                         }
                     }
-                    if !fail {
-                        completed().await;
+                    // Writes run in the background: flushing waits for them, and gives their errors.
+                    if error.is_none() {
+                        error = file.flush().await.err();
+                    }
+                    match error {
+                        None => completed().await,
+                        Some(err) => {
+                            failed().await;
+                            let _ = errors(err.to_string()).await;
+                        }
                     }
                 }
                 Err(err) => {
@@ -909,10 +927,7 @@ impl FileSystemEngine for KubeFileSystem {
         failed: filesystem::OnceTriggerCall<'async_trait>,
         error: filesystem::OnceMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
-        {
+        let path = match self.full_path(&PathBuf::from(path)).await {
             Ok(path) => path,
             Err(err) => {
                 failed().await;
@@ -946,10 +961,7 @@ impl FileSystemEngine for KubeFileSystem {
         finished: filesystem::OnceTriggerCall<'async_trait>,
         errors: filesystem::OutMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
-        {
+        let path = match self.full_path(&PathBuf::from(path)).await {
             Ok(path) => path,
             Err(err) => {
                 failed().await;

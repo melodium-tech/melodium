@@ -54,12 +54,15 @@ impl Interruption {
 pub fn signal_name(signal: i32) -> String {
     #[cfg(unix)]
     {
-        use signal_hook::consts::{SIGHUP, SIGINT, SIGTERM};
-        match signal {
-            SIGINT => return "SIGINT".to_string(),
-            SIGTERM => return "SIGTERM".to_string(),
-            SIGHUP => return "SIGHUP".to_string(),
-            _ => {}
+        use async_signal::Signal;
+        for (known, name) in [
+            (Signal::Int, "SIGINT"),
+            (Signal::Term, "SIGTERM"),
+            (Signal::Hup, "SIGHUP"),
+        ] {
+            if signal == known as i32 {
+                return name.to_string();
+            }
         }
     }
     #[cfg(windows)]
@@ -150,7 +153,7 @@ async fn live_interruptible(
         .await;
     engine.end().await;
 
-    let grace_end = async_std::task::sleep(grace).fuse();
+    let grace_end = smol::Timer::after(grace).fuse();
     pin_mut!(grace_end);
     let second = interruptions.next().fuse();
     pin_mut!(second);
@@ -182,7 +185,10 @@ async fn live_interruptible(
     // Tracks are dropped at their next await point; one computing without awaiting
     // is left behind after `STOP_TIMEOUT`.
     engine.stop().await;
-    let _ = async_std::future::timeout(STOP_TIMEOUT, live).await;
+    smol::future::or(live, async {
+        smol::Timer::after(STOP_TIMEOUT).await;
+    })
+    .await;
     Some(Interruption::Stopped(signal))
 }
 
@@ -192,41 +198,39 @@ const STOP_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[cfg(unix)]
 struct Interruptions {
-    signals: futures::stream::Fuse<signal_hook_async_std::Signals>,
-    handle: signal_hook_async_std::Handle,
+    signals: async_signal::Signals,
 }
 
 #[cfg(unix)]
 impl Interruptions {
     fn listen() -> Option<Self> {
-        use futures::StreamExt;
-        use signal_hook::consts::{SIGHUP, SIGINT, SIGTERM};
+        use async_signal::{Signal, Signals};
 
-        let signals = signal_hook_async_std::Signals::new([SIGINT, SIGTERM, SIGHUP]).ok()?;
-        let handle = signals.handle();
-        Some(Self {
-            signals: signals.fuse(),
-            handle,
-        })
+        let signals = Signals::new([Signal::Int, Signal::Term, Signal::Hup]).ok()?;
+        Some(Self { signals })
     }
 
     async fn next(&mut self) -> Option<i32> {
         use futures::StreamExt;
-        self.signals.next().await
+        while let Some(signal) = self.signals.next().await {
+            if let Ok(signal) = signal {
+                return Some(signal as i32);
+            }
+        }
+        None
     }
 
     fn grace(_signal: i32, grace: Duration) -> Duration {
         grace
     }
 
-    fn close(self) {
-        self.handle.close();
-    }
+    /// Stops listening, as dropping the signals unregisters them.
+    fn close(self) {}
 }
 
 #[cfg(windows)]
 struct Interruptions {
-    events: async_std::channel::Receiver<i32>,
+    events: async_channel::Receiver<i32>,
 }
 
 #[cfg(windows)]
@@ -256,7 +260,7 @@ impl Interruptions {
 mod console {
     //! Console control events, received through `SetConsoleCtrlHandler`.
 
-    use async_std::channel::{unbounded, Receiver, Sender};
+    use async_channel::{unbounded, Receiver, Sender};
     use core::time::Duration;
     use std::sync::Mutex;
     use windows_sys::core::BOOL;

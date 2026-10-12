@@ -3,6 +3,7 @@
 
 ## [v0.11.0] (unreleased)
 
+- Recording on the threads of the blocking crate instead of async-std, which is discontinued (#104).
 - Giving `none` defaults to the optional `device` and `sample_rate` parameters of `recordMono` (#123).
 
 ## [v0.10.4] (2026-09-24)

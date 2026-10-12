@@ -25,7 +25,7 @@ fn world_is_released_once_engine_is_dropped() {
 
     let engine = melodium_engine::new_engine(collection, Level::Info, DebugLevel::None);
     assert!(engine.genesis(&entrypoint, HashMap::new()).is_success());
-    async_std::task::block_on(async {
+    smol::block_on(async {
         engine.live().await;
         engine.end().await;
     });

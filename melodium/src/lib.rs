@@ -10,11 +10,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-use async_std::{
-    channel::{unbounded, Receiver},
-    io::{BufWriter, WriteExt},
-};
+use async_channel::{unbounded, Receiver};
 use colored::Colorize;
+use futures::io::{AsyncWriteExt, BufWriter};
 use futures::StreamExt;
 use melodium_common::{
     descriptor::{
@@ -355,14 +353,14 @@ pub async fn launch(
     });
     let engine = melodium_engine::new_engine(collection, Level::Trace, debug_level);
 
-    let mut monitoring: futures::stream::FuturesUnordered<async_std::task::JoinHandle<()>> =
+    let mut monitoring: futures::stream::FuturesUnordered<Monitoring> =
         futures::stream::FuturesUnordered::new();
 
     let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
     engine.add_logs_listener(logs_stdout_sender);
     // TODO for WASM
     #[cfg(not(target_os = "unknown"))]
-    monitoring.push(async_std::task::spawn(async move {
+    monitoring.push(smol::spawn(async move {
         display_logs(logs_stdout_receiver).await
     }));
     if let Some(log_path) = log_path.clone() {
@@ -370,7 +368,7 @@ pub async fn launch(
         engine.add_logs_listener(logs_write_sender);
         // TODO for WASM
         #[cfg(not(target_os = "unknown"))]
-        monitoring.push(async_std::task::spawn(async move {
+        monitoring.push(smol::spawn(async move {
             write_logs(log_path, logs_write_receiver).await
         }));
     }
@@ -379,7 +377,7 @@ pub async fn launch(
         engine.add_debug_listener(debug_write_sender);
         // TODO for WASM
         #[cfg(not(target_os = "unknown"))]
-        monitoring.push(async_std::task::spawn(async move {
+        monitoring.push(smol::spawn(async move {
             write_debug(debug_path, debug_write_receiver).await
         }));
     }
@@ -453,9 +451,13 @@ pub async fn launch(
     match interruption {
         // Stopped tracks never close the logs, so writing them out cannot be fully awaited.
         Some(Interruption::Stopped(_)) => {
-            let _ = async_std::future::timeout(STOPPED_FLUSH_TIMEOUT, async {
-                while let Some(_) = monitoring.next().await {}
-            })
+            #[cfg(not(target_os = "unknown"))]
+            smol::future::or(
+                async { while let Some(_) = monitoring.next().await {} },
+                async {
+                    smol::Timer::after(STOPPED_FLUSH_TIMEOUT).await;
+                },
+            )
             .await;
         }
         _ => while let Some(_) = monitoring.next().await {},
@@ -494,7 +496,15 @@ fn parameters_secrets(
 pub const INTERRUPTION_GRACE: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Time given to write logs and reports out once running tracks were stopped.
+#[cfg(not(target_os = "unknown"))]
 const STOPPED_FLUSH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Task following a running engine, such as one writing its logs.
+#[cfg(not(target_os = "unknown"))]
+type Monitoring = smol::Task<()>;
+/// Task following a running engine, none run in WebAssembly yet.
+#[cfg(target_os = "unknown")]
+type Monitoring = core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send>>;
 
 pub fn core_config() -> LoadingConfig {
     LoadingConfig {
@@ -612,10 +622,10 @@ fn display_log(log: &Log) {
 #[cfg(not(target_os = "unknown"))]
 pub async fn write_logs(path: PathBuf, receiver: Receiver<Log>) {
     if let Some(parent) = path.parent() {
-        let _ = async_std::fs::create_dir_all(parent).await;
+        let _ = smol::fs::create_dir_all(parent).await;
     }
 
-    if let Ok(log_file) = async_std::fs::OpenOptions::new()
+    if let Ok(log_file) = smol::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
@@ -646,10 +656,10 @@ pub async fn write_logs(path: PathBuf, receiver: Receiver<Log>) {
 #[cfg(not(target_os = "unknown"))]
 pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
     if let Some(parent) = path.parent() {
-        let _ = async_std::fs::create_dir_all(parent).await;
+        let _ = smol::fs::create_dir_all(parent).await;
     }
 
-    if let Ok(debug_file) = async_std::fs::OpenOptions::new()
+    if let Ok(debug_file) = smol::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
@@ -708,17 +718,17 @@ pub async fn api_report(
     mode: work_mel::api::ModeRequest,
     tags: Option<Vec<String>>,
 ) -> (
-    async_std::channel::Sender<melodium_share::ProgramDump>,
-    async_std::channel::Sender<Log>,
-    async_std::channel::Sender<Event>,
-    async_std::task::JoinHandle<()>,
+    async_channel::Sender<melodium_share::ProgramDump>,
+    async_channel::Sender<Log>,
+    async_channel::Sender<Event>,
+    smol::Task<()>,
     work_mel::reporting::StatusReporting,
 ) {
-    let (program_dump_sender, program_dump_receiver) = async_std::channel::bounded(1);
+    let (program_dump_sender, program_dump_receiver) = async_channel::bounded(1);
     let (logs_report_sender, logs_report_receiver) =
-        async_std::channel::bounded(report_channel_capacity());
+        async_channel::bounded(report_channel_capacity());
     let (debug_report_sender, debug_report_receiver) =
-        async_std::channel::bounded(report_channel_capacity());
+        async_channel::bounded(report_channel_capacity());
 
     let reporting_request = work_mel::reporting::ReportingRequest {
         run_id: *melodium_engine::execution_run_id(),
@@ -744,7 +754,7 @@ pub async fn api_report(
         Ok((reporting, status)) => {
             status_reporting = status;
             if let Some(program_specs) = reporting.program {
-                join_program_dump = Some(async_std::task::spawn(async move {
+                join_program_dump = Some(smol::spawn(async move {
                     if let Ok(program_dump) = program_dump_receiver.recv().await {
                         work_mel::reporting::report_program(program_specs, program_dump).await
                     }
@@ -753,14 +763,14 @@ pub async fn api_report(
                 program_dump_sender.close();
             }
             if let Some(logs_specs) = reporting.logs {
-                join_logs_report = Some(async_std::task::spawn(async move {
+                join_logs_report = Some(smol::spawn(async move {
                     work_mel::reporting::report_logs(logs_specs, logs_report_receiver).await
                 }));
             } else {
                 logs_report_sender.close();
             }
             if let Some(debug_specs) = reporting.debug {
-                join_debug_report = Some(async_std::task::spawn(async move {
+                join_debug_report = Some(smol::spawn(async move {
                     work_mel::reporting::report_debug(debug_specs, debug_report_receiver).await
                 }));
             } else {
@@ -772,7 +782,7 @@ pub async fn api_report(
         }
     }
 
-    let full_join = async_std::task::spawn(async move {
+    let full_join = smol::spawn(async move {
         if let Some(join) = join_program_dump {
             let _ = join.await;
         }

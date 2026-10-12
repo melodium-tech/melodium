@@ -17,7 +17,8 @@ crate-type = ["lib", "cdylib"]
 name = "ml_mel"
 
 [dependencies]
-async-std = { version = "1.13" }
+async-compat = { version = "0.2", optional = true }
+blocking = { version = "1.6", optional = true }
 candle-core = { version = "0.11" }
 candle-nn = { version = "0.11" }
 candle-transformers = { version = "0.11" }
@@ -49,7 +50,7 @@ melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
 [features]
 mock = []
 plugin = []
-real = [ "async-std/tokio1", "hf-hub", "llm" ]
+real = [ "async-compat", "blocking", "hf-hub", "llm" ]
 "docs.rs" = ["mock"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

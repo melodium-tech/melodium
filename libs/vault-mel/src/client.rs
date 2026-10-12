@@ -1,9 +1,11 @@
 use crate::VaultModel;
-use async_std::sync::Mutex;
-use generic_async_http_client::Request;
+use async_compat::Compat;
+use async_lock::Mutex;
 use melodium_core::common::descriptor::DataType;
 use melodium_core::common::executive::{count_wiped, PackedArray, Secret, Value, Wipe};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
+use reqwest::{Client as HttpClient, RequestBuilder, Url};
 use serde_json::{Map, Value as Json};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
@@ -11,6 +13,11 @@ use std::time::{Duration, Instant};
 use zeroize::Zeroize;
 
 const USER_AGENT: &str = concat!("vault-mel/", env!("CARGO_PKG_VERSION"));
+
+/// Parses `address` as the URL of a request.
+fn url(address: &str) -> Result<Url, String> {
+    Url::parse(address).map_err(|err| format!("vault address '{address}' is not valid: {err}"))
+}
 
 /// Overwrites the strings of a JSON value and leaves it null.
 fn wipe_json(json: &mut Json) {
@@ -48,6 +55,7 @@ type Cached = (Instant, Arc<Map<String, Json>>);
 
 pub struct Client {
     model: Weak<VaultModel>,
+    http: HttpClient,
     token: Mutex<Option<Token>>,
     cache: Mutex<HashMap<String, Cached>>,
 }
@@ -85,6 +93,10 @@ impl Client {
     pub fn new(model: Weak<VaultModel>) -> Self {
         Self {
             model,
+            http: HttpClient::builder()
+                .user_agent(USER_AGENT)
+                .build()
+                .unwrap_or_default(),
             token: Mutex::new(None),
             cache: Mutex::new(HashMap::new()),
         }
@@ -198,44 +210,37 @@ impl Client {
 
     async fn get(&self, path: &str, token: &str) -> Result<Json, RequestError> {
         let model = self.model().map_err(RequestError::Other)?;
-        let request = Request::get(&format!(
+        let url = url(&format!(
             "{}/v1/{}",
             model.get_address().trim_end_matches('/'),
             path.trim_start_matches('/')
         ))
-        .add_header("X-Vault-Token", token)
-        .map_err(|err| RequestError::Other(err.to_string()))?;
+        .map_err(RequestError::Other)?;
+        let request = self.http.get(url).header("X-Vault-Token", token);
         self.send(request).await
     }
 
-    async fn send(&self, request: Request) -> Result<Json, RequestError> {
+    async fn send(&self, request: RequestBuilder) -> Result<Json, RequestError> {
         let model = self.model().map_err(RequestError::Other)?;
-        let mut request = request
-            .add_header("User-Agent", USER_AGENT)
-            .map_err(|err| RequestError::Other(err.to_string()))?;
+        let mut request = request;
         let namespace = model.get_namespace();
         if !namespace.is_empty() {
-            request = request
-                .add_header("X-Vault-Namespace", namespace.as_str())
-                .map_err(|err| RequestError::Other(err.to_string()))?;
+            request = request.header("X-Vault-Namespace", namespace);
         }
 
-        // Client and server error statuses come as errors, with their response.
-        let (status, mut response) = match request.exec().await {
-            Ok(response) => (response.status_code(), response),
-            Err(generic_async_http_client::Error::HTTPClientErr(status, response))
-            | Err(generic_async_http_client::Error::HTTPServerErr(status, response)) => {
-                (status, response)
-            }
-            Err(err) => return Err(RequestError::Other(format!("vault request failed: {err}"))),
-        };
-        let mut body = response
-            .content()
-            .await
-            .map_err(|err| RequestError::Other(format!("vault response failed: {err}")))?;
+        // The HTTP client runs on Tokio.
+        let (status, body) = Compat::new(async {
+            let response = request.send().await?;
+            let status = response.status().as_u16();
+            response.bytes().await.map(|body| (status, body))
+        })
+        .await
+        .map_err(|err| RequestError::Other(format!("vault request failed: {err}")))?;
         // Parsing errors are not reported as is, they can quote the content.
         let mut json = serde_json::from_slice::<Json>(&body).ok();
-        body.zeroize();
+        if let Ok(mut body) = body.try_into_mut() {
+            body.as_mut().zeroize();
+        }
         if (200..300).contains(&status) {
             json.ok_or_else(|| RequestError::Other("vault response is not valid JSON".to_string()))
         } else {
@@ -334,16 +339,20 @@ impl Client {
             (_, auth) => auth.to_string(),
         };
 
-        let request = Request::post(&format!(
+        let url = url(&format!(
             "{}/v1/auth/{}/login",
             model.get_address().trim_end_matches('/'),
             mount.trim_matches('/')
-        ))
-        .json(&body)
-        .map_err(|err| err.to_string());
+        ));
+        let request = serde_json::to_vec(&body).map_err(|err| err.to_string());
         wipe_json(&mut body);
+        let request = self
+            .http
+            .post(url?)
+            .header(CONTENT_TYPE, "application/json")
+            .body(request?);
         let mut response = self
-            .send(request?)
+            .send(request)
             .await
             .map_err(|err| format!("vault login failed, {}", err.message()))?;
 
@@ -382,13 +391,11 @@ impl Client {
                 utf8_percent_encode(&audience, NON_ALPHANUMERIC)
             )
         };
-        let mut authorization = format!("bearer {}", self.reveal(model.get_github_token()).await?);
-        let request = Request::get(&url)
-            .add_header("Authorization", authorization.as_str())
-            .map_err(|err| err.to_string());
-        authorization.zeroize();
+        let url = self::url(&url)?;
+        let authorization = format!("bearer {}", self.reveal(model.get_github_token()).await?);
+        let request = self.http.get(url).header(AUTHORIZATION, authorization);
         let mut response = self
-            .send(request?)
+            .send(request)
             .await
             .map_err(|err| format!("GitHub OIDC token request failed, {}", err.message()))?;
         let token = response

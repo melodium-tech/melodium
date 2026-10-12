@@ -422,7 +422,7 @@ fn run(args: Run) {
             args.parse_arguments,
         );
 
-        let launch = async_std::task::block_on(launch(
+        let launch = smol::block_on(launch(
             collection,
             &identifier,
             params,
@@ -699,7 +699,7 @@ fn dist_key(
 
 #[cfg(feature = "distribution")]
 fn dist(args: Dist) {
-    use async_std::channel::unbounded;
+    use async_channel::unbounded;
     use core::time::Duration;
     use melodium_common::descriptor::Version;
     use std::net::{Ipv4Addr, SocketAddr};
@@ -748,7 +748,7 @@ fn dist(args: Dist) {
     let mut monitoring = futures::stream::FuturesUnordered::new();
 
     let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
-    monitoring.push(async_std::task::spawn(async move {
+    monitoring.push(smol::spawn(async move {
         crate::display_logs(logs_stdout_receiver).await
     }));
     let mut logs_senders = vec![logs_stdout_sender];
@@ -756,14 +756,14 @@ fn dist(args: Dist) {
     args.logs.map(|path| {
         let (logs_write_sender, logs_write_receiver) = unbounded();
         logs_senders.push(logs_write_sender);
-        monitoring.push(async_std::task::spawn(async move {
+        monitoring.push(smol::spawn(async move {
             crate::write_logs(path, logs_write_receiver).await
         }));
     });
 
     let mut debug_senders = if let Some(path) = args.debug {
         let (debug_write_sender, debug_write_receiver) = unbounded();
-        monitoring.push(async_std::task::spawn(async move {
+        monitoring.push(smol::spawn(async move {
             crate::write_debug(path, debug_write_receiver).await
         }));
         vec![debug_write_sender]
@@ -781,7 +781,7 @@ fn dist(args: Dist) {
             debug_report_sender,
             full_join,
             status_reporting,
-        ) = async_std::task::block_on(crate::api_report(
+        ) = smol::block_on(crate::api_report(
             !args.api_report_disable_logs,
             !args.api_report_disable_status,
             work_mel::api::ModeRequest::Distribution,
@@ -802,7 +802,7 @@ fn dist(args: Dist) {
     if args.localhost {
         match (args.disable_tls, args.certificate, args.key) {
             (false, None, None) => {
-                async_std::task::block_on(melodium_distribution::launch_listen_localcert(
+                smol::block_on(melodium_distribution::launch_listen_localcert(
                     SocketAddr::new(
                         args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
                         args.port,
@@ -836,7 +836,7 @@ fn dist(args: Dist) {
                         return;
                     }
                 };
-                async_std::task::block_on(melodium_distribution::launch_listen(
+                smol::block_on(melodium_distribution::launch_listen(
                     SocketAddr::new(
                         args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
                         args.port,
@@ -865,7 +865,7 @@ fn dist(args: Dist) {
                 return;
             }
             (true, None, None) => {
-                async_std::task::block_on(melodium_distribution::launch_listen_unsecure(
+                smol::block_on(melodium_distribution::launch_listen_unsecure(
                     SocketAddr::new(
                         args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
                         args.port,
@@ -909,7 +909,7 @@ fn dist(args: Dist) {
                         return;
                     }
                 };
-                async_std::task::block_on(melodium_distribution::launch_listen(
+                smol::block_on(melodium_distribution::launch_listen(
                     SocketAddr::new(ip, args.port),
                     &cert_content,
                     &key_content,
@@ -935,7 +935,7 @@ fn dist(args: Dist) {
                 return;
             }
             (true, Some(ip), None, None) => {
-                async_std::task::block_on(melodium_distribution::launch_listen_unsecure(
+                smol::block_on(melodium_distribution::launch_listen_unsecure(
                     SocketAddr::new(ip, args.port),
                     &Version::parse(melodium::VERSION).unwrap(),
                     recv_key,
@@ -971,7 +971,7 @@ fn dist(args: Dist) {
     // An interrupted node exits with the code of the signal, once its work is written out.
     let interruption = melodium_engine::interruption::last_interruption();
 
-    async_std::task::block_on(async move {
+    smol::block_on(async move {
         use futures::StreamExt;
         // `monitoring` only drains once every logs/debug forwarding task (including
         // the API/S3 reporting join, when enabled) observes its channel close; that's
@@ -985,12 +985,18 @@ fn dist(args: Dist) {
             .and_then(|value| value.parse().ok())
             .map(Duration::from_secs)
             .unwrap_or(Duration::from_secs(60));
-        if async_std::future::timeout(monitoring_timeout, async {
-            while let Some(_) = monitoring.next().await {}
-        })
-        .await
-        .is_err()
-        {
+        let completed = smol::future::or(
+            async {
+                while let Some(_) = monitoring.next().await {}
+                true
+            },
+            async {
+                smol::Timer::after(monitoring_timeout).await;
+                false
+            },
+        )
+        .await;
+        if !completed {
             eprintln!(
                 "{}: monitoring tasks did not complete in time, forcing exit",
                 "warning".bold().yellow()

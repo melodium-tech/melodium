@@ -160,7 +160,7 @@ fn environment_and_file_secrets_are_resolved_when_checked() {
         Level::Info,
         DebugLevel::None,
     );
-    async_std::task::block_on(async {
+    smol::block_on(async {
         assert!(engine
             .check_secrets(vec![
                 (

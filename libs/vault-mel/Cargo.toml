@@ -17,19 +17,21 @@ crate-type = ["lib", "cdylib"]
 name = "vault_mel"
 
 [dependencies]
-async-std = "1.13"
+async-compat = { version = "0.2", optional = true }
+async-lock = "3.4"
 async-trait = "0.1.71"
-generic-async-http-client = { version = "0.7.0", features = ["use_async_h1", "rustls_ring"], optional = true }
+futures-lite = "2.6"
 melodium-core = { path = "../../melodium-core", version = "0.11.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
 percent-encoding = "2.3"
 serde_json = "1.0"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"], optional = true }
 zeroize = "1.9"
 
 [features]
 mock = []
 plugin = []
-real = ["generic-async-http-client"]
+real = ["async-compat", "reqwest"]
 "docs.rs" = ["mock"]
 
 [package.metadata.docs.rs]

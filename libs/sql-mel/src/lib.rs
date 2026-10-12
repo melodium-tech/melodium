@@ -8,15 +8,16 @@
 ))]
 compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
-use async_std::stream::StreamExt;
-use async_std::sync::{Arc as AsyncArc, RwLock as AsyncRwLock};
+use async_lock::RwLock as AsyncRwLock;
 use core::time::Duration;
+use futures_lite::StreamExt;
 use melodium_core::{common::executive::ResultStatus, *};
 use melodium_macro::{check, mel_model, mel_package, mel_treatment};
 use sqlx::any::{AnyArguments, AnyRow, AnyTypeInfoKind};
 use sqlx::query::Query;
 use sqlx::Any;
-use sqlx::{any::AnyPoolOptions, AnyPool, Column, QueryBuilder, Row};
+use sqlx::{any::AnyPoolOptions, AnyPool, AssertSqlSafe, Column, QueryBuilder, Row};
+use std::sync::Arc as AsyncArc;
 use std::{
     collections::HashMap,
     sync::{Arc, Weak},
@@ -60,10 +61,12 @@ fn refuse_secret_bindings(bindings: &[String], bind: &Map) -> Result<(), String>
     }
 }
 
+// SQL comes from the program, as parameters of its treatments, while data only goes
+// through bindings: it is given to sqlx with `AssertSqlSafe`.
 fn bind_value<'q>(
-    query: Query<'q, Any, AnyArguments<'q>>,
+    query: Query<'q, Any, AnyArguments>,
     value: &Value,
-) -> Query<'q, Any, AnyArguments<'q>> {
+) -> Query<'q, Any, AnyArguments> {
     match value {
         Value::Void(_) => query.bind(None::<bool>),
         Value::I8(n) => query.bind(*n as i16),
@@ -317,7 +320,7 @@ impl SqlPool {
 
     fn shutdown(&self) {
         #[cfg(feature = "real")]
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             if let Some(pool) = self.pool.read().await.as_ref() {
                 pool.close().await;
             }
@@ -415,7 +418,10 @@ pub async fn close() {
 )]
 pub async fn execute_raw(sql: string) {
     match SqlPoolModel::into(sql_pool).inner().pool().await {
-        Ok(pool) => match sqlx::raw_sql(&sql).execute(&*pool).await {
+        Ok(pool) => match sqlx::raw_sql(AssertSqlSafe(sql.as_str()))
+            .execute(&*pool)
+            .await
+        {
             Ok(result) => {
                 let _ = completed.send_one_as(()).await;
                 let _ = affected.send_one_as(result.rows_affected()).await;
@@ -483,7 +489,7 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
                 };
                 let result = match refuse_secret_bindings(&bindings, &bind) {
                     Ok(()) => {
-                        let mut query = sqlx::query(&sql);
+                        let mut query = sqlx::query(AssertSqlSafe(sql.as_str()));
 
                         for binding in &bindings {
                             if let Some(val) = bind.map.get(binding) {
@@ -569,7 +575,7 @@ pub async fn execute_each(
                 };
                 let result = match refuse_secret_bindings(&bindings, &bind) {
                     Ok(()) => {
-                        let mut query = sqlx::query(&sql);
+                        let mut query = sqlx::query(AssertSqlSafe(sql.as_str()));
 
                         for binding in &bindings {
                             if let Some(val) = bind.map.get(binding) {
@@ -795,7 +801,7 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
                     return;
                 }
 
-                let mut query = sqlx::query(&sql);
+                let mut query = sqlx::query(AssertSqlSafe(sql.as_str()));
 
                 for binding in &bindings {
                     if let Some(val) = bind.map.get(binding) {

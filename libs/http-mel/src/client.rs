@@ -57,7 +57,7 @@ impl HttpClient {
             let model = self.model.upgrade().unwrap();
 
             let config = trillium_rustls::RustlsConfig::default().with_tcp_config(
-                trillium_async_std::ClientConfig::new().with_nodelay(model.get_tcp_no_delay()),
+                trillium_smol::ClientConfig::new().with_nodelay(model.get_tcp_no_delay()),
             );
 
             let mut client = Client::new(config)
@@ -449,7 +449,7 @@ async fn perform_request(
                         let response_body = conn.response_body();
                         let _ = futures::join!(
                             async {
-                                let _ = async_std::io::copy(response_body, prod).await;
+                                let _ = futures_lite::io::copy(response_body, prod).await;
                                 let _ = completed.send_one_as(()).await;
                             },
                             async {
@@ -586,7 +586,7 @@ async fn perform_request_with_body(
                             let response_body = conn.response_body();
                             let _ = futures::join!(
                                 async {
-                                    let _ = async_std::io::copy(response_body, out_prod).await;
+                                    let _ = futures_lite::io::copy(response_body, out_prod).await;
                                     let _ = completed.send_one_as(()).await;
                                 },
                                 async {

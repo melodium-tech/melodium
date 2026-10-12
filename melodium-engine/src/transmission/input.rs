@@ -1,7 +1,7 @@
 use crate::debug::{DataContent, Event, EventKind, TransmissionDebug};
 use crate::transmission::own;
-use async_std::channel::{bounded, Receiver, Sender};
-use async_std::sync::Mutex as AsyncMutex;
+use async_channel::{bounded, Receiver, Sender};
+use async_lock::Mutex as AsyncMutex;
 use async_trait::async_trait;
 use melodium_common::descriptor::Flow;
 use melodium_common::executive::{

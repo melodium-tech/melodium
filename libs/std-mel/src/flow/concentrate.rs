@@ -1,7 +1,5 @@
-use async_std::{
-    channel::{bounded, Receiver, Sender, WeakSender},
-    sync::Mutex,
-};
+use async_channel::{bounded, Receiver, Sender, WeakSender};
+use async_lock::Mutex;
 use melodium_core::{
     common::{descriptor::DataType, executive::TrackId},
     *,

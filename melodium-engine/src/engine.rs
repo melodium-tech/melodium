@@ -2,7 +2,7 @@ use crate::{
     debug::{DebugLevel, Event},
     error::{LogicErrors, LogicResult},
 };
-use async_std::channel::Sender;
+use async_channel::Sender;
 use async_trait::async_trait;
 use melodium_common::{
     descriptor::{Collection, Identifier},
