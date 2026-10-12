@@ -9,6 +9,7 @@
 - Adding the `wipe` module: plaintext held from secrets is overwritten once not needed, and before the process exits (#140).
 - Adding the `secrets_access` declaration to treatment and model descriptors, and `SecretsHost`, the engine side of secrets, never given to elements (#134).
 - Breaking: `Treatment::prepare` takes a weak reference to the world and the `SecretsAccess` of the treatment, and the `Model` trait has `set_secrets_access` and `register_secret_sources` (#134).
+- `World::wait_no_more_tracks` also waits for every other continuous task to end or wait the same way, and is expected to be waited for by continuous tasks only (#147).
 
 ## [v0.10.4] (2026-09-24)
 

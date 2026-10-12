@@ -115,16 +115,25 @@ pub struct World {
     continous_ended_barrier: Barrier,
     closing: AtomicBool,
 
-    // Closed once no track is running nor pending, independently of
-    // `continous_ended`/`auto_end`. Lets a continuous task (which may itself
-    // be the only reason `continous_ended` never becomes true, e.g. one
-    // waiting on an event only fired once, in reaction to some track having
-    // run) find out that no track will ever run again, without relying on an
-    // arbitrary timeout.
+    // Closed once no track is running nor pending, and every continuous task
+    // ended or waits for it, independently of `continous_ended`/`auto_end`.
+    // Lets a continuous task (which may itself be the only reason
+    // `continous_ended` never becomes true, e.g. one waiting on an event only
+    // fired once, in reaction to some track having run) find out that no track
+    // will ever run again, without relying on an arbitrary timeout.
     no_more_tracks_sender: Sender<()>,
     no_more_tracks_receiver: Receiver<()>,
     no_more_tracks_signaled: AtomicBool,
     has_run_any_track: AtomicBool,
+    /// Continuous tasks given and not ended: as they create tracks, no more tracks can
+    /// only be told once each ended or waits for it too.
+    continuous_alive: AtomicUsize,
+    /// Continuous tasks waiting for no more tracks.
+    continuous_waiting_tracks: AtomicUsize,
+    /// Asks the tracks loop to check again for closing, which is only done there so that
+    /// the tracks it counts cannot change during the check.
+    closing_check_sender: Sender<()>,
+    closing_check_receiver: Receiver<()>,
 
     /// Whether the engine is stopping its tracks and continuous tasks, see `Engine::stop`.
     stopping: AtomicBool,
@@ -257,6 +266,7 @@ impl World {
         let (logs_sender, logs_receiver) = unbounded();
         let (debug_sender, debug_receiver) = unbounded();
         let (no_more_tracks_sender, no_more_tracks_receiver) = unbounded();
+        let (closing_check_sender, closing_check_receiver) = unbounded();
 
         Arc::new_cyclic(|me| Self {
             collection,
@@ -304,6 +314,10 @@ impl World {
             no_more_tracks_receiver,
             no_more_tracks_signaled: AtomicBool::new(false),
             has_run_any_track: AtomicBool::new(false),
+            continuous_alive: AtomicUsize::new(0),
+            continuous_waiting_tracks: AtomicUsize::new(0),
+            closing_check_sender,
+            closing_check_receiver,
             stopping: AtomicBool::new(false),
             tracks_aborts: SyncMutex::new(HashMap::new()),
             continuous_aborts: SyncMutex::new(Vec::new()),
@@ -483,6 +497,8 @@ impl World {
 
         let tracks_receiver = self.tracks_receiver.clone();
         pin_mut!(tracks_receiver);
+        let closing_checks = self.closing_check_receiver.clone();
+        pin_mut!(closing_checks);
         let continous_ended_barrier = self.continous_ended_barrier.wait().fuse();
         pin_mut!(continous_ended_barrier);
 
@@ -553,21 +569,34 @@ impl World {
                 _result = continous_ended_barrier => {
                     self.check_closing().await;
                 },
+                () = closing_checks.select_next_some() => {
+                    self.check_closing().await;
+                },
                 complete => break,
             }
         }
     }
 
+    /// Checks whether no more tracks can run, and ends the engine if it should.
+    ///
+    /// Only called by the tracks loop, so that running tracks are counted in
+    /// the same task.
     async fn check_closing(&self) {
+        // A track being created counts, as tracks run in parallel: others can end while it
+        // is being built. Its creation ends once it is sent, so counting the created ones
+        // before the sent ones misses none of them.
+        let tracks_creating = self.tracks_creating.load(Ordering::SeqCst);
         let tracks_recv = self.tracks_receiver.len();
         let tracks_run = self.tracks_running.load(Ordering::Relaxed);
-        // A track being created counts, as tracks run in parallel: others can end while it
-        // is being built.
-        let tracks_creating = self.tracks_creating.load(Ordering::SeqCst);
+        // Continuous tasks create tracks, at any moment: a running one can create some
+        // after the others ended, unless it waits for no more tracks itself.
+        let continuous_alive = self.continuous_alive.load(Ordering::SeqCst);
+        let continuous_waiting = self.continuous_waiting_tracks.load(Ordering::SeqCst);
         let no_more_tracks = self.has_run_any_track.load(Ordering::Relaxed)
+            && tracks_creating == 0
             && tracks_recv == 0
             && tracks_run == 0
-            && tracks_creating == 0;
+            && continuous_alive == continuous_waiting;
 
         if no_more_tracks && !self.no_more_tracks_signaled.swap(true, Ordering::SeqCst) {
             self.no_more_tracks_sender.close();
@@ -795,7 +824,10 @@ impl Engine for World {
                     .debug_sender
                     .send(Event::new(EventKind::ContinuousModelsStarted))
                     .await;
-                while let Some(_) = continuous.next().await {}
+                while let Some(_) = continuous.next().await {
+                    me.continuous_alive.fetch_sub(1, Ordering::SeqCst);
+                    let _ = me.closing_check_sender.try_send(());
+                }
 
                 me.continous_ended.store(true, Ordering::Relaxed);
                 let _ = me
@@ -1001,6 +1033,7 @@ impl Engine for World {
                 .iter()
                 .for_each(|m| m.shutdown());
             self.tracks_sender.close();
+            self.closing_check_sender.close();
             self.closing.store(true, Ordering::Relaxed);
         }
     }
@@ -1050,7 +1083,9 @@ impl ExecutiveWorld for World {
     }
 
     fn add_continuous_task(&self, task: ContinuousFuture) {
-        let _ = self.continuous_tasks_sender.try_send(task);
+        if self.continuous_tasks_sender.try_send(task).is_ok() {
+            self.continuous_alive.fetch_add(1, Ordering::SeqCst);
+        }
     }
 
     async fn create_track(
@@ -1193,6 +1228,19 @@ impl ExecutiveWorld for World {
     }
 
     async fn wait_no_more_tracks(&self) {
+        /// Counts a continuous task as waiting until it stops waiting.
+        struct Waiting<'a>(&'a AtomicUsize);
+        impl Drop for Waiting<'_> {
+            fn drop(&mut self) {
+                self.0.fetch_sub(1, Ordering::SeqCst);
+            }
+        }
+
+        self.continuous_waiting_tracks
+            .fetch_add(1, Ordering::SeqCst);
+        let _waiting = Waiting(&self.continuous_waiting_tracks);
+        let _ = self.closing_check_sender.try_send(());
+
         let _ = self.no_more_tracks_receiver.recv().await;
     }
 }
@@ -1388,6 +1436,71 @@ mod tests {
         world.tracks_creating.store(0, Ordering::SeqCst);
         block_on(world.check_closing());
         assert!(world.no_more_tracks_receiver.is_closed());
+    }
+
+    #[test]
+    fn continuous_tasks_not_waiting_keep_the_engine_from_having_no_more_tracks() {
+        let world = world();
+        world.has_run_any_track.store(true, Ordering::SeqCst);
+        world.continuous_alive.store(2, Ordering::SeqCst);
+        world.continuous_waiting_tracks.store(1, Ordering::SeqCst);
+        block_on(world.check_closing());
+        assert!(!world.no_more_tracks_receiver.is_closed());
+
+        world.continuous_alive.store(1, Ordering::SeqCst);
+        block_on(world.check_closing());
+        assert!(world.no_more_tracks_receiver.is_closed());
+    }
+
+    #[test]
+    fn waiting_for_no_more_tracks_lasts_until_other_continuous_tasks_created_theirs() {
+        use std::time::Duration;
+
+        let world = world();
+        // A first track ends before the late one is created.
+        send_track(&world, 0, async { ResultStatus::Ok });
+
+        let late_track_ran = Arc::new(AtomicBool::new(false));
+        let released_after_late_track = Arc::new(AtomicBool::new(false));
+        {
+            let world = Arc::clone(&world);
+            let late_track_ran = Arc::clone(&late_track_ran);
+            let released_after_late_track = Arc::clone(&released_after_late_track);
+            world
+                .clone()
+                .add_continuous_task(Box::new(Box::pin(async move {
+                    world.wait_no_more_tracks().await;
+                    released_after_late_track
+                        .store(late_track_ran.load(Ordering::SeqCst), Ordering::SeqCst);
+                })));
+        }
+        {
+            let world = Arc::clone(&world);
+            let late_track_ran = Arc::clone(&late_track_ran);
+            world
+                .clone()
+                .add_continuous_task(Box::new(Box::pin(async move {
+                    smol::Timer::after(Duration::from_millis(300)).await;
+                    send_track(&world, 1, async move {
+                        late_track_ran.store(true, Ordering::SeqCst);
+                        ResultStatus::Ok
+                    });
+                })));
+        }
+
+        let ended = block_on(smol::future::or(
+            async {
+                world.live().await;
+                true
+            },
+            async {
+                smol::Timer::after(Duration::from_secs(10)).await;
+                false
+            },
+        ));
+        assert!(ended, "live did not end");
+        assert!(late_track_ran.load(Ordering::SeqCst));
+        assert!(released_after_late_track.load(Ordering::SeqCst));
     }
 
     #[test]
