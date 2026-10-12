@@ -784,9 +784,9 @@ impl DistributionEngine {
                 // Unlike the server's equivalent unfold (which stops polling once it sees
                 // `Message::Ended`, since that's genuinely the last thing a server connection
                 // ever needs), this side keeps reading after `Ended` - it still needs to see
-                // `LogEnded` before the exit condition below is satisfied, matching the
-                // original sequential loop's `if ended && log_ended { break }`. Only a real
-                // read error stops further polling.
+                // `LogEnded` and `DebugEnded` before the exit condition below is satisfied,
+                // as the distant engine sends these three from independent tasks, in any
+                // order. Only a real read error stops further polling.
                 let unfold_protocol = unfold(true, |still_valid| {
                     let protocol = AsyncArc::clone(&protocol);
                     async move {
@@ -810,7 +810,11 @@ impl DistributionEngine {
                             message = unfold_protocol.select_next_some() => {
                                 match message {
                                     Err(_err) => {
+                                        // Closing the ports ends the handlers still waiting
+                                        // on them; the others give what they carry, such as
+                                        // the last logs and debug events, before leaving.
                                         self.close_all().await;
+                                        while messages_futures.next().await.is_some() {}
                                         break;
                                     }
                                     Ok(msg) => {
@@ -855,7 +859,7 @@ impl DistributionEngine {
                         }
                     }
 
-                    // `messages_futures.is_empty()` matters here, not just the two flags:
+                    // `messages_futures.is_empty()` matters here, not just the flags:
                     // `LogEnded`'s handler is a single atomic store with no `.await` point, so
                     // it can complete before an earlier-arrived `Log`/`OutputData`/etc. handler
                     // that's still doing real async work. Breaking on the flags alone would
@@ -866,6 +870,7 @@ impl DistributionEngine {
                     // that nothing still in flight gets abandoned.
                     if ended.load(Ordering::SeqCst)
                         && log_ended.load(Ordering::SeqCst)
+                        && debug_ended.load(Ordering::SeqCst)
                         && messages_futures.is_empty()
                     {
                         break;
