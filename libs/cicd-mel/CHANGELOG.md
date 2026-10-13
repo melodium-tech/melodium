@@ -5,6 +5,8 @@
 
 - No longer depending on async-std, which is discontinued (#104).
 - Taking the status tokens (`github_token`, `gitlab_token`) as constant secrets, by default `env:MELODIUM_SECRET_GITHUB_TOKEN` and `env:MELODIUM_SECRET_GITLAB_TOKEN`, the `CicdDispatchEngine` API token and pull secrets as secrets, and giving steps `secret_variables` (#136).
+- Adding the `system` parameter to `setupRunner`, to request an operating system or an exact machine image for the worker (#141).
+- Breaking: `simpleStep` and its variants give no architecture to their container when `arch` is none, instead of `arm64`, so the container runs on the architecture of its worker (#141).
 
 ## [v0.10.4] (2026-09-24)
 

@@ -30,7 +30,6 @@ use std/ops/option::|unwrap_or
 use work/resources::|container
 use work/resources::|volume
 use work/resources::|mount
-use work/resources/arch::|arm64
 use work/resources::ServiceContainer
 use work/resources/arch::Arch
 
@@ -398,7 +397,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
         storage=|saturating_add<u32>(|unwrap_or<u32>(out_storage, |div<u32>(storage, 10)), 80),
         volumes=[|volume("data", |unwrap_or<u32>(out_storage, |div<u32>(storage, 10)))],
         containers=[
-            |container(name, cpu, memory, storage, |unwrap_or<Arch>(arch, |arm64()), [|mount("data", "/mnt/data")], image, pull_secret)
+            |container(name, cpu, memory, storage, arch, [|mount("data", "/mnt/data")], image, pull_secret)
         ],
         service_containers=service_containers
     )
@@ -673,7 +672,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
         storage=|saturating_add<u32>(|unwrap_or<u32>(out_storage, |div<u32>(storage, 10)), 80),
         volumes=[|volume("data", |unwrap_or<u32>(out_storage, |div<u32>(storage, 10)))],
         containers=[
-            |container(name, cpu, memory, storage, |unwrap_or<Arch>(arch, |arm64()), [|mount("data", "/mnt/data")], image, pull_secret)
+            |container(name, cpu, memory, storage, arch, [|mount("data", "/mnt/data")], image, pull_secret)
         ],
         service_containers=service_containers
     )

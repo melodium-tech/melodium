@@ -1,4 +1,4 @@
-use crate::api::{Access, /*Arch,*/ ModeRequest, Request};
+use crate::api::{Access, Arch, ModeRequest, OsFamily, Request, System};
 #[cfg(feature = "real")]
 use async_process::{Child, Command};
 use compose_spec::{
@@ -68,6 +68,57 @@ impl Display for Executor {
     }
 }
 
+/// Refuse the needs the Compose location cannot satisfy.
+///
+/// The engine runs in an Alpine-based container, so a bare `linux` family is satisfied,
+/// while any machine image, distribution, version or other family is not.
+/// Only the architecture of the host is satisfied, for the worker and for each container giving one.
+fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+
+    match &request.system.0 {
+        None => {}
+        Some(System::Os(os))
+            if os.family == OsFamily::Linux
+                && os.distribution.is_none()
+                && os.version.is_none() => {}
+        Some(System::Os(os)) => errors.push(format!(
+            "Compose location cannot satisfy the operating system '{os}', only a bare 'linux'"
+        )),
+        Some(System::Image(image)) => errors.push(format!(
+            "Compose location cannot satisfy the machine image '{image}'"
+        )),
+    }
+
+    let archs = request
+        .arch
+        .map(|arch| ("the worker".to_string(), arch))
+        .into_iter()
+        .chain(request.containers.iter().filter_map(|container| {
+            container
+                .arch
+                .map(|arch| (format!("container '{}'", container.name), arch))
+        }))
+        .chain(request.service_containers.iter().filter_map(|container| {
+            container
+                .arch
+                .map(|arch| (format!("service container '{}'", container.name), arch))
+        }));
+    for (who, arch) in archs {
+        if arch != host {
+            errors.push(format!(
+                "Compose location cannot satisfy the architecture '{arch}' requested for {who}, only the host one '{host}'"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 #[cfg(feature = "real")]
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
     use crate::reporting::REPORTS_ENABLED;
@@ -76,25 +127,13 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         request.edition = Some("alpine".to_string())
     }
 
+    check_needs(&request, Arch::host())?;
+
     let enable_reports = REPORTS_ENABLED.load(core::sync::atomic::Ordering::Relaxed);
 
     let enable_debug = std::env::var("MELODIUM_COMPOSE_DEBUG")
         .map(|val| val == "true")
         .unwrap_or(false);
-
-    /*if !request
-        .arch
-        .map(|arch| match env!("ARCH") {
-            "x86_64" => arch == Arch::Amd64,
-            "aarch64" => arch == Arch::Arm64,
-            _ => false,
-        })
-        .unwrap_or(false)
-    {
-        return Err(vec![
-            "Host architecture does not match requirements".to_string()
-        ]);
-    }*/
 
     let executor = if let Some(Ok(_output)) = within(
         detection_timeout(),
@@ -754,5 +793,92 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             }
         }
         Err(err) => Err(vec![err.to_string()]),
+    }
+}
+
+#[cfg(test)]
+mod needs_tests {
+    use super::*;
+
+    fn request(system: Option<System>) -> Request {
+        let mut request: Request = serde_json::from_value(serde_json::json!({
+            "version": "0.11.0", "mode": "direct", "volumes": [], "containers": [],
+            "service_containers": [], "tags": []
+        }))
+        .unwrap();
+        request.system = crate::api::SystemRequest(system);
+        request
+    }
+
+    fn os(family: OsFamily, distribution: Option<&str>, version: Option<&str>) -> Option<System> {
+        Some(System::Os(crate::api::Os {
+            family,
+            distribution: distribution.map(str::to_string),
+            version: version.map(str::to_string),
+        }))
+    }
+
+    #[test]
+    fn satisfied() {
+        assert!(check_needs(&request(None), Arch::Amd64).is_ok());
+        assert!(check_needs(&request(os(OsFamily::Linux, None, None)), Arch::Amd64).is_ok());
+    }
+
+    #[test]
+    fn refused() {
+        for system in [
+            os(OsFamily::Linux, Some("ubuntu"), None),
+            os(OsFamily::Linux, Some("ubuntu"), Some("24.04")),
+            os(OsFamily::Windows, None, None),
+            os(OsFamily::Macos, None, None),
+            os(OsFamily::Unknown, None, None),
+            Some(System::Image("nixos-ci".to_string())),
+        ] {
+            let errors = check_needs(&request(system), Arch::Amd64).unwrap_err();
+            assert_eq!(errors.len(), 1);
+        }
+    }
+
+    fn container(name: &str, arch: Option<Arch>) -> crate::api::Container {
+        crate::api::Container {
+            name: name.to_string(),
+            image: "alpine".to_string(),
+            pull_secret: "{}".to_string(),
+            memory: 100,
+            cpu: 100,
+            storage: 100,
+            arch,
+            mounts: vec![],
+        }
+    }
+
+    #[test]
+    fn architecture() {
+        let mut request = request(None);
+        assert!(check_needs(&request, Arch::Arm64).is_ok());
+
+        request.arch = Some(Arch::Arm64);
+        request.containers = vec![container("main", Some(Arch::Arm64))];
+        assert!(check_needs(&request, Arch::Arm64).is_ok());
+
+        let errors = check_needs(&request, Arch::Amd64).unwrap_err();
+        assert_eq!(errors.len(), 2);
+        assert!(errors[0].contains("the worker"));
+        assert!(errors[1].contains("container 'main'"));
+
+        request.arch = None;
+        request.containers = vec![
+            container("a", Some(Arch::Amd64)),
+            container("b", Some(Arch::Wasm32)),
+            container("c", None),
+        ];
+        let errors = check_needs(&request, Arch::Amd64).unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("'wasm32'"));
+    }
+
+    #[test]
+    fn host_is_known() {
+        assert_ne!(Arch::host(), Arch::Unknown);
     }
 }

@@ -109,6 +109,7 @@ pub async fn request_reporting(
                 cpu: None,
                 storage: None,
                 arch: None,
+                system: Default::default(),
                 volumes: vec![],
                 containers: vec![],
                 service_containers: vec![],

@@ -258,7 +258,7 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
                 2048,
                 2000,
                 4096,
-                |arm64(),
+                |wrap<Arch>(|arm64()),
                 [],
                 "postgres:16",
                 _,

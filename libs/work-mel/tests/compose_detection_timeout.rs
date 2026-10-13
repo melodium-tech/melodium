@@ -54,6 +54,7 @@ async fn detection_does_not_hang() {
         cpu: Some(100),
         storage: Some(100),
         arch: None,
+        system: Default::default(),
         volumes: vec![],
         containers: vec![],
         service_containers: vec![],

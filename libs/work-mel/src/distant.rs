@@ -3,6 +3,7 @@ use crate::api;
 #[cfg(feature = "real")]
 use crate::http;
 use crate::resources::arch::*;
+use crate::resources::system::*;
 use crate::resources::*;
 use core::time::Duration;
 use melodium_core::common::{
@@ -366,10 +367,14 @@ impl DistantEngine {
 ///
 /// - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
 /// - `edition`: Mélodium edition the worker must rely on (see on the Mélodium Services documentation to get the full list, can be none if nothing specific is required);
+/// - `system`: what the worker must run on, either an operating system built with `|linux`, `|windows`, `|macos`, `|freebsd` and the other `work/resources/system` functions, or one exact machine image built with `|image` (a name resolved by whatever spawns the worker, never a container image); none if nothing specific is required, like for `arch`;
 ///
 /// - `containers`: list of containers to instanciate alongside Mélodium engine as executors;
 /// - `service_containers`: list of containers to instanciate alongside Mélodium engine as services;
 /// - `volumes`: list of filesystem volumes that can be shared between the Mélodium engine and containers.
+///
+/// Every need except `tags` is a requirement: the worker is spawned satisfying it, or the request fails with a message naming the need.
+/// An operating system and a machine image cannot be requested together, and when both `system` and `arch` are given the image or system must exist for that architecture.
 ///
 /// It should be noted that the CPU and memory requirements for the Mélodium engine and possible containers are cumulative.
 /// Also, multiple different architecture cannot be requested for the same worker, so containers in the same request all have to use the same architecture.
@@ -383,6 +388,7 @@ impl DistantEngine {
     output failed Block<void>
     output errors Stream<string>
     secrets_access
+    default system none
 )]
 pub async fn distant(
     max_duration: u32,
@@ -391,6 +397,7 @@ pub async fn distant(
     storage: u32,
     edition: Option<string>,
     arch: Option<Arch>,
+    system: Option<System>,
     volumes: Vec<Volume>,
     containers: Vec<Container>,
     service_containers: Vec<ServiceContainer>,
@@ -438,6 +445,7 @@ pub async fn distant(
         version: env!("CARGO_PKG_VERSION").to_string(),
         storage: Some(storage),
         arch: arch.map(|arch| arch.0),
+        system: api::SystemRequest(system.map(|system| system.0.clone())),
         volumes: volumes.into_iter().map(|vol| vol.0.clone()).collect(),
         containers: containers.into_iter().map(|cont| cont.0.clone()).collect(),
         service_containers: service_containers
