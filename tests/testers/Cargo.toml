@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "check_rejections",
     "complex_call",
     "crypto_webhooks",
     "dist_keys",

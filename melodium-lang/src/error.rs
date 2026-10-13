@@ -144,6 +144,16 @@ pub enum ScriptErrorKind {
         text: PositionnedString,
         index: usize,
     },
+    ExtraFunctionParameter {
+        text: PositionnedString,
+        expected: usize,
+        given: usize,
+    },
+    ExtraFunctionGeneric {
+        text: PositionnedString,
+        expected: usize,
+        given: usize,
+    },
     MissingTreatmentGeneric {
         text: PositionnedString,
     },
@@ -239,6 +249,8 @@ impl Display for ScriptErrorKind {
             ScriptErrorKind::ExecutiveRestitutionFailed { text, message } => write!(f, "at line {} position {} error occured with value '{}' because: {}", text.position.line_number, text.position.line_position, text.string, message),
             ScriptErrorKind::MissingFunctionParameter { text, index } => write!(f, "at line {} position {} for function '{}' parameter is missing at position {index}", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::MissingFunctionGeneric { text, index } => write!(f, "at line {} position {} for function '{}' generic is missing at position {index}", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::ExtraFunctionParameter { text, expected, given } => write!(f, "at line {} position {} function '{}' takes {expected} parameters but {given} are given", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::ExtraFunctionGeneric { text, expected, given } => write!(f, "at line {} position {} function '{}' takes {expected} generics but {given} are given", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::MissingTreatmentGeneric { text } => write!(f, "at line {} position {} for treatment '{}' generic is missing", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::InvalidGeneric { text } => write!(f, "at line {} position {} '{}' is not a valid generic name", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::InvalidTrait { text } => write!(f, "at line {} position {} '{}' is not a valid trait", text.position.line_number, text.position.line_position, text.string),
@@ -533,6 +545,38 @@ impl ScriptError {
         Self {
             id,
             kind: ScriptErrorKind::MissingFunctionGeneric { text, index },
+        }
+    }
+
+    pub fn extra_function_parameter(
+        id: u32,
+        text: PositionnedString,
+        expected: usize,
+        given: usize,
+    ) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::ExtraFunctionParameter {
+                text,
+                expected,
+                given,
+            },
+        }
+    }
+
+    pub fn extra_function_generic(
+        id: u32,
+        text: PositionnedString,
+        expected: usize,
+        given: usize,
+    ) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::ExtraFunctionGeneric {
+                text,
+                expected,
+                given,
+            },
         }
     }
 
