@@ -398,7 +398,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
         storage=|saturating_add<u32>(|unwrap_or<u32>(out_storage, |div<u32>(storage, 10)), 80),
         volumes=[|volume("data", |unwrap_or<u32>(out_storage, |div<u32>(storage, 10)))],
         containers=[
-            |container(name, cpu, memory, storage, |unwrap_or<Arch>(arch, |arm64()), [|mount("data", "/mnt/data")], image, pull_secret)
+            |container(name, memory, cpu, storage, |unwrap_or<Arch>(arch, |arm64()), [|mount("data", "/mnt/data")], image, pull_secret)
         ],
         service_containers=service_containers
     )
@@ -673,7 +673,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
         storage=|saturating_add<u32>(|unwrap_or<u32>(out_storage, |div<u32>(storage, 10)), 80),
         volumes=[|volume("data", |unwrap_or<u32>(out_storage, |div<u32>(storage, 10)))],
         containers=[
-            |container(name, cpu, memory, storage, |unwrap_or<Arch>(arch, |arm64()), [|mount("data", "/mnt/data")], image, pull_secret)
+            |container(name, memory, cpu, storage, |unwrap_or<Arch>(arch, |arm64()), [|mount("data", "/mnt/data")], image, pull_secret)
         ],
         service_containers=service_containers
     )
