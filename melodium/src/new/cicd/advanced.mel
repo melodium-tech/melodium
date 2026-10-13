@@ -59,11 +59,11 @@ treatment build[cicd: CicdDispatchEngine](repository_clone_url: string, reposito
         runner=runner
     ](
         name="build",
-        cpu=10,
+        cpu=1000,
         memory=500,
         storage=1000,
         volumes=[|volume("build-result", 30)],
-        containers=[|container("ubuntu", 1000, 10, 8000, |amd64(), [|mount("build-result", "/mounted/result")], "ubuntu:noble", _)]
+        containers=[|container("ubuntu", 1000, 1000, 8000, |amd64(), [|mount("build-result", "/mounted/result")], "ubuntu:noble", _)]
     )
     gitClone: stepOn[runner=runner](
         name="git",
@@ -107,11 +107,11 @@ treatment test[cicd: CicdDispatchEngine]()
         runner=runner
     ](
         name="test",
-        cpu=10,
+        cpu=1000,
         memory=500,
         storage=1000,
         volumes=[|volume("tested-data", 30)],
-        containers=[|container("alpine", 500, 10, 1000, |amd64(), [|mount("tested-data", "/mounted/data")], "alpine:3", _)]
+        containers=[|container("alpine", 500, 1000, 1000, |amd64(), [|mount("tested-data", "/mounted/data")], "alpine:3", _)]
     )
     makeTest: stepOnWithInput[runner=runner](
         name="test",
