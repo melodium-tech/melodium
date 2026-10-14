@@ -7,6 +7,7 @@
 - Sending secrets to distant engines following their transmission policy, values only over TLS (#139).
 - Failing the launch, instead of panicking, when a parameter cannot be received (#139).
 - Ending distributed runs gracefully on interruption (#131).
+- Testing that the embedded certificates do not expire within 180 days (#128).
 
 ## [v0.10.4] (2026-09-24)
 
