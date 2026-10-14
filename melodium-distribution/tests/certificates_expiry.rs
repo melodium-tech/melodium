@@ -1,5 +1,5 @@
-//! Fails when a certificate embedded for the distribution protocol expires within 90 days,
-//! to renew them in time (see `melodium-certs/README.md`).
+//! Fails when a certificate embedded for the distribution protocol expires within 180 days,
+//! to renew them in time.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -72,7 +72,7 @@ fn not_after(certificate: &[u8]) -> (i64, String) {
 }
 
 #[test]
-fn embedded_certificates_do_not_expire_within_90_days() {
+fn embedded_certificates_do_not_expire_within_180_days() {
     let today = (SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -107,7 +107,7 @@ fn embedded_certificates_do_not_expire_within_90_days() {
 
     assert!(
         expiring.is_empty(),
-        "renew them, see melodium-certs/README.md:\n{}",
+        "renew them:\n{}",
         expiring.join("\n")
     );
 }
