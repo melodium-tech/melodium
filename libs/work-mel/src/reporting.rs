@@ -1,7 +1,7 @@
 use crate::api::{DistributionResponse, LocalEnd, LocalLaunched, ModeRequest, Request};
+use async_std::channel::Receiver;
 #[cfg(feature = "real")]
 use async_std::channel::TrySendError;
-use async_std::channel::Receiver;
 use core::sync::atomic::{AtomicBool, Ordering};
 use melodium_core::common::{descriptor::Version, executive::Log};
 use melodium_share::{Identifier, RawValue};
@@ -413,7 +413,8 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
     let mut dropped: u64 = 0;
     while let Ok(log) = logs.recv().await {
         buffer_logs.push(log);
-        if buffer_logs.len() >= batch_size || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
+        if buffer_logs.len() >= batch_size
+            || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
         {
             let batch = std::mem::replace(&mut buffer_logs, Vec::with_capacity(batch_size));
             if let Err(TrySendError::Full(batch)) = pending_tx.try_send(batch) {
@@ -488,7 +489,8 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
     let mut dropped: u64 = 0;
     while let Ok(event) = events.recv().await {
         buffer_events.push(melodium_share::Event::from(&event));
-        if buffer_events.len() >= batch_size || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
+        if buffer_events.len() >= batch_size
+            || timestamp.elapsed().unwrap_or_default() >= report_batch_interval()
         {
             let batch = std::mem::replace(&mut buffer_events, Vec::with_capacity(batch_size));
             if let Err(TrySendError::Full(batch)) = pending_tx.try_send(batch) {

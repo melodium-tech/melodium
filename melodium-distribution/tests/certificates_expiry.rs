@@ -3,7 +3,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const WARNING_DAYS: i64 = 90;
+const WARNING_DAYS: i64 = 180;
 
 /// Splits a DER element into its tag, its content, and what follows it.
 fn element(der: &[u8]) -> (u8, &[u8], &[u8]) {
