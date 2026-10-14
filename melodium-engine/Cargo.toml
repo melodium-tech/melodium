@@ -1,8 +1,8 @@
 [package]
 name = "melodium-engine"
-version = "0.10.4"
+version = "0.11.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
-rust-version = "1.83"
+rust-version = "1.94"
 edition = "2018"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"
@@ -16,20 +16,35 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_engine"
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "0.10.4" }
-async-std = { version = "1.13", features = ["unstable"] }
+melodium-common = { path = "../melodium-common", version = "0.11.0" }
+aho-corasick = "1.1"
+async-channel = "2.5"
+async-lock = "3.4"
 async-trait = "0.1.71"
+base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["now"] }
 downcast-rs = "1.2.0"
 futures = "0.3.28"
 lazy_static = "1.4"
+percent-encoding = "2.3"
+zeroize = "1.9"
 serde = { version = "1", features = ["derive"] }
 stacker = "0.1"
 uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 
+[target.'cfg(unix)'.dependencies]
+async-signal = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
+
 [features]
 default = []
 doc = []
+# `env:` secret source, reading environment variables.
+environment = []
+# `file:` secret source, reading files.
+filesystem = []
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
@@ -46,3 +61,7 @@ targets = [
     "x86_64-pc-windows-gnu",
     "wasm32-unknown-unknown"
 ]
+
+[target.'cfg(not(target_os = "unknown"))'.dependencies]
+async-executor = "1.14"
+smol = "2.0"

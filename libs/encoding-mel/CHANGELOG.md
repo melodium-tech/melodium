@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.11.0] (unreleased)
+
+- No changes in this crate.
+
 ## [v0.10.4] (2026-09-24)
 
 - No changes in this crate.

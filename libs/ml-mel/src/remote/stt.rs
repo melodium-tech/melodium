@@ -1,12 +1,13 @@
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
-use std::collections::HashMap;
 #[cfg(feature = "real")]
 use std::sync::Arc;
 #[cfg(feature = "real")]
 use std::sync::Mutex;
 use std::sync::Weak;
 
+#[cfg(feature = "real")]
+use async_compat::Compat;
 #[cfg(feature = "real")]
 use llm::{
     builder::{LLMBackend, LLMBuilder},
@@ -121,8 +122,6 @@ impl RemoteStt {
             *self.provider.lock().unwrap() = None;
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Transcribe audio bytes to text using a remote speech-to-text service.
@@ -187,7 +186,7 @@ pub async fn transcribe() {
     {
         let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
         if let Some(provider) = maybe_provider {
-            match provider.transcribe(audio_bytes).await {
+            match Compat::new(provider.transcribe(audio_bytes)).await {
                 Ok(text) => {
                     let _ = transcript.send_one_as(text).await;
                 }
@@ -274,7 +273,7 @@ pub async fn transcribe_continuous() {
         {
             let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
             if let Some(provider) = maybe_provider {
-                match provider.transcribe(segment_bytes).await {
+                match Compat::new(provider.transcribe(segment_bytes)).await {
                     Ok(text) => {
                         check!(transcript.send_one_as(text).await);
                     }

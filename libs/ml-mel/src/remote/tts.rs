@@ -1,6 +1,5 @@
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
-use std::collections::HashMap;
 use std::collections::VecDeque;
 #[cfg(feature = "real")]
 use std::sync::Arc;
@@ -8,6 +7,8 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
 
+#[cfg(feature = "real")]
+use async_compat::Compat;
 #[cfg(feature = "real")]
 use llm::{
     builder::{LLMBackend, LLMBuilder},
@@ -132,8 +133,6 @@ impl RemoteTts {
             *self.provider.lock().unwrap() = None;
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Synthesize speech audio from text using a remote text-to-speech service.
@@ -190,7 +189,7 @@ pub async fn synthesize() {
         {
             let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
             if let Some(provider) = maybe_provider {
-                match provider.speech(&text_str).await {
+                match Compat::new(provider.speech(&text_str)).await {
                     Ok(bytes) => {
                         let batch = TransmissionValue::Byte(VecDeque::from(bytes));
                         check!(audio.send_many(batch).await);

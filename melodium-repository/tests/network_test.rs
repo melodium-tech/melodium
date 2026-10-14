@@ -7,6 +7,7 @@ use melodium_repository::{
 };
 
 #[test]
+#[ignore = "needs the network and the repository of this version, published with its release"]
 fn get_remote_packages() {
     let config = RepositoryConfig {
         repository_location: "/tmp/repo".into(),

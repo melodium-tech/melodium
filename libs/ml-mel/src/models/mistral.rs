@@ -10,6 +10,7 @@ use melodium_core::*;
 #[cfg(feature = "real")]
 use melodium_macro::check;
 use melodium_macro::{mel_model, mel_treatment};
+#[cfg(feature = "real")]
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
 #[cfg(feature = "real")]
@@ -141,8 +142,6 @@ impl Mistral {
             *self.request_tx.lock().unwrap() = None;
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     #[cfg(feature = "real")]
     pub fn alloc_conversation_id(&self) -> u64 {
@@ -541,10 +540,8 @@ pub async fn load() {
         // run it on a blocking thread so the async executor is not stalled.
         // Clone the Arc so the model stays alive inside the blocking closure.
         let model_arc2 = model_arc.clone();
-        let result = async_std::task::spawn_blocking(move || {
-            model_arc2.inner().load(shard_paths, tokenizer_path)
-        })
-        .await;
+        let result =
+            blocking::unblock(move || model_arc2.inner().load(shard_paths, tokenizer_path)).await;
 
         match result {
             Ok(()) => {

@@ -1,3 +1,6 @@
+mod masking;
+#[cfg(any(feature = "environment", feature = "filesystem"))]
+mod secret_sources;
 mod source_entry;
 mod track;
 pub(crate) mod world;

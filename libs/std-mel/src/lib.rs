@@ -14,6 +14,7 @@ pub mod data;
 pub mod engine;
 pub mod flow;
 pub mod ops;
+pub mod secret;
 pub mod text;
 pub mod types;
 

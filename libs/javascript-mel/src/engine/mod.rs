@@ -1,5 +1,6 @@
-use async_std::channel::{bounded, Receiver, Sender};
+use async_channel::{bounded, Receiver, Sender};
 use boa_engine::{Context, JsString, JsValue, Source};
+use futures_lite::future::block_on;
 use serde_json::Value;
 use std::sync::Mutex;
 use std::thread::JoinHandle;
@@ -66,7 +67,7 @@ impl Engine {
             Err(_err) => {}
         }
 
-        while let Ok((val, code)) = receiver.recv_blocking() {
+        while let Ok((val, code)) = block_on(receiver.recv()) {
             match JsValue::from_json(&val, &mut context) {
                 Ok(value) => {
                     let _ = context
@@ -91,12 +92,12 @@ impl Engine {
                         Err(err) => Err(err.to_string()),
                     };
 
-                    if sender.send_blocking(result).is_err() {
+                    if block_on(sender.send(result)).is_err() {
                         break;
                     }
                 }
                 Err(err) => {
-                    if sender.send_blocking(Err(err.to_string())).is_err() {
+                    if block_on(sender.send(Err(err.to_string()))).is_err() {
                         break;
                     }
                 }

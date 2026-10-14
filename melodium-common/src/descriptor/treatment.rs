@@ -23,6 +23,10 @@ pub trait Treatment:
     fn models(&self) -> &HashMap<String, Arc<dyn Model>>;
     fn contexts(&self) -> &HashMap<String, Arc<dyn Context>>;
     fn source_from(&self) -> &HashMap<String, Vec<String>>;
+    /// Whether the treatment reveals secrets, getting an access to them from the engine.
+    fn secrets_access(&self) -> bool {
+        false
+    }
     fn as_identified(&self) -> Arc<dyn Identified>;
     fn as_buildable(&self) -> Arc<dyn Buildable<TreatmentBuildMode>>;
     fn as_parameterized(&self) -> Arc<dyn Parameterized>;

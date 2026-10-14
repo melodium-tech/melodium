@@ -6,7 +6,6 @@ use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::{self as whisper_model, audio, Config};
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_treatment};
-use std::collections::HashMap;
 use std::sync::Weak;
 
 #[cfg(feature = "real")]
@@ -96,8 +95,6 @@ impl Whisper {
     }
 
     fn shutdown(&self) {}
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     /// Load weights from `shard_paths` into the model, replacing any previously loaded weights.
     #[cfg(feature = "real")]
@@ -402,10 +399,8 @@ pub async fn load() {
         let model_arc = WhisperModel::into(whisper);
 
         let model_arc2 = model_arc.clone();
-        let result = async_std::task::spawn_blocking(move || {
-            model_arc2.inner().load(shard_paths, tokenizer_path)
-        })
-        .await;
+        let result =
+            blocking::unblock(move || model_arc2.inner().load(shard_paths, tokenizer_path)).await;
 
         match result {
             Ok(()) => {

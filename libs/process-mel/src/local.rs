@@ -1,9 +1,8 @@
 use crate::{command::*, environment::*, exec::*};
-use async_std::io::BufReader;
 #[cfg(feature = "real")]
-use async_std::process::Command as ProcessCommand;
+use async_process::Command as ProcessCommand;
 use async_trait::async_trait;
-use futures::{select, AsyncReadExt, AsyncWriteExt};
+use futures::{io::BufReader, select, AsyncReadExt, AsyncWriteExt};
 use melodium_macro::{check, mel_function};
 use regex::{Captures, Replacer};
 use std::{fmt::Debug, process::Stdio, sync::Arc};
@@ -20,6 +19,26 @@ impl Replacer for VarReplacer {
 pub struct LocalExecutorEngine {}
 
 impl LocalExecutorEngine {
+    /// Sets the secret variables, out of the command arguments.
+    #[cfg(feature = "real")]
+    fn manage_secrets(process_command: &mut ProcessCommand, secrets: &RevealedSecrets) {
+        for (name, value) in &secrets.variables {
+            process_command.env(name, value.as_str());
+        }
+    }
+
+    /// Writes the secret input, if any, to `stdin`, then closes it.
+    #[cfg(feature = "real")]
+    async fn write_secret_stdin(
+        stdin: Option<async_process::ChildStdin>,
+        secrets: &RevealedSecrets,
+    ) {
+        if let (Some(mut stdin), Some(input)) = (stdin, &secrets.stdin) {
+            let _ = stdin.write_all(input.as_bytes()).await;
+            let _ = stdin.close().await;
+        }
+    }
+
     #[cfg(feature = "real")]
     fn manage_env(process_command: &mut ProcessCommand, env: &Environment) {
         if env.clear_env {
@@ -49,6 +68,7 @@ impl ExecutorEngine for LocalExecutorEngine {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -64,10 +84,15 @@ impl ExecutorEngine for LocalExecutorEngine {
             if let Some(environment) = environment.as_ref() {
                 LocalExecutorEngine::manage_env(&mut process_command, environment);
             }
+            LocalExecutorEngine::manage_secrets(&mut process_command, secrets);
 
             process_command.args(command.arguments.iter());
 
-            process_command.stdin(Stdio::null());
+            process_command.stdin(if secrets.stdin.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            });
             process_command.stdout(Stdio::null());
             process_command.stderr(Stdio::null());
 
@@ -78,6 +103,7 @@ impl ExecutorEngine for LocalExecutorEngine {
                     use futures::{pin_mut, FutureExt};
 
                     started().await;
+                    LocalExecutorEngine::write_secret_stdin(child.stdin.take(), secrets).await;
 
                     let mut to_terminate = false;
 
@@ -134,6 +160,7 @@ impl ExecutorEngine for LocalExecutorEngine {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -155,6 +182,7 @@ impl ExecutorEngine for LocalExecutorEngine {
             if let Some(environment) = environment.as_ref() {
                 LocalExecutorEngine::manage_env(&mut process_command, environment);
             }
+            LocalExecutorEngine::manage_secrets(&mut process_command, secrets);
 
             process_command.args(command.arguments.iter());
 
@@ -179,9 +207,18 @@ impl ExecutorEngine for LocalExecutorEngine {
 
                         let write_stdin = async {
                             if let Some(mut child_stdin) = child_stdin {
-                                while let Ok(data) = stdin().await {
-                                    check!(child_stdin.write_all(&data).await);
-                                    check!(child_stdin.flush().await);
+                                let input_written = match &secrets.stdin {
+                                    Some(input) => {
+                                        child_stdin.write_all(input.as_bytes()).await.is_ok()
+                                            && child_stdin.flush().await.is_ok()
+                                    }
+                                    None => true,
+                                };
+                                if input_written {
+                                    while let Ok(data) = stdin().await {
+                                        check!(child_stdin.write_all(&data).await);
+                                        check!(child_stdin.flush().await);
+                                    }
                                 }
 
                                 let _ = child_stdin.close().await;
@@ -281,6 +318,7 @@ impl ExecutorEngine for LocalExecutorEngine {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -300,10 +338,15 @@ impl ExecutorEngine for LocalExecutorEngine {
             if let Some(environment) = environment.as_ref() {
                 LocalExecutorEngine::manage_env(&mut process_command, environment);
             }
+            LocalExecutorEngine::manage_secrets(&mut process_command, secrets);
 
             process_command.args(command.arguments.iter());
 
-            process_command.stdin(Stdio::null());
+            process_command.stdin(if secrets.stdin.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            });
             process_command.stdout(Stdio::piped());
             process_command.stderr(Stdio::piped());
 
@@ -314,6 +357,8 @@ impl ExecutorEngine for LocalExecutorEngine {
                     started().await;
 
                     let mut to_terminate = false;
+
+                    LocalExecutorEngine::write_secret_stdin(child.stdin.take(), secrets).await;
 
                     {
                         use futures::{pin_mut, FutureExt};

@@ -1,5 +1,5 @@
 use super::super::Data;
-use super::Value;
+use super::{Secret, Value};
 use std::sync::Arc;
 
 /// Trait allowing to get real data based on Rust type.
@@ -340,6 +340,21 @@ where
                     Ok(result)
                 }
             },
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<Secret> for Value {
+    fn from(value: Secret) -> Self {
+        Value::Secret(value)
+    }
+}
+
+impl GetData<Secret> for Value {
+    fn try_data(self) -> Result<Secret, ()> {
+        match self {
+            Value::Secret(secret) => Ok(secret),
             _ => Err(()),
         }
     }

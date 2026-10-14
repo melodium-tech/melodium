@@ -1,21 +1,21 @@
 use crate::compose::Executor;
 #[cfg(feature = "real")]
-use async_std::{
-    fs::{self, DirBuilder, OpenOptions},
-    io::BufReader,
-    path::{Path, PathBuf},
-};
+use async_fs::{self as fs, DirBuilder, OpenOptions};
 use async_trait::async_trait;
 use async_walkdir::{Filtering, WalkDir};
 use fs_mel::filesystem::{self, FileSystemEngine};
+#[cfg(feature = "real")]
+use futures::io::BufReader;
 use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use melodium_macro::check;
 use process_mel::{
     command::Command,
-    environment::{environment_variable_regex, Environment},
+    environment::{environment_variable_regex, Environment, RevealedSecrets},
     exec::*,
 };
 use regex::{Captures, Replacer};
+#[cfg(feature = "real")]
+use std::path::{Path, PathBuf};
 use std::{
     collections::{HashMap, HashSet},
     process::Stdio,
@@ -128,7 +128,7 @@ impl ContainerExecutor {
             var_command.push("echo".to_string());
             var_command.push(format!("${key}"));
 
-            match async_std::process::Command::new(self.executor_entrypoint.clone())
+            match async_process::Command::new(self.executor_entrypoint.clone())
                 .args(var_command)
                 .output()
                 .await
@@ -167,6 +167,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -208,15 +209,34 @@ impl ExecutorEngine for ContainerExecutor {
                 }
             }
 
+            // The client takes their values from its own environment, out of its arguments.
+            for (name, _) in &secrets.variables {
+                arguments.push("--env".to_string());
+                arguments.push(name.clone());
+            }
+            if secrets.stdin.is_some() && !arguments.iter().any(|arg| arg == "--interactive") {
+                arguments.push("--interactive".to_string());
+            }
+
             arguments.push(self.container_name.clone());
 
             arguments.push(command.command.clone());
 
             arguments.extend(command.arguments.clone());
 
-            match async_std::process::Command::new(self.executor_entrypoint.clone())
+            match async_process::Command::new(self.executor_entrypoint.clone())
                 .args(arguments)
-                .stdin(Stdio::null())
+                .envs(
+                    secrets
+                        .variables
+                        .iter()
+                        .map(|(name, value)| (name, value.as_str())),
+                )
+                .stdin(if secrets.stdin.is_some() {
+                    Stdio::piped()
+                } else {
+                    Stdio::null()
+                })
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
@@ -225,6 +245,7 @@ impl ExecutorEngine for ContainerExecutor {
                     use futures::{pin_mut, select, FutureExt};
 
                     started().await;
+                    write_secret_stdin(child.stdin.take(), secrets).await;
 
                     let mut to_terminate = false;
 
@@ -281,6 +302,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -329,14 +351,29 @@ impl ExecutorEngine for ContainerExecutor {
                 }
             }
 
+            // The client takes their values from its own environment, out of its arguments.
+            for (name, _) in &secrets.variables {
+                arguments.push("--env".to_string());
+                arguments.push(name.clone());
+            }
+            if secrets.stdin.is_some() && !arguments.iter().any(|arg| arg == "--interactive") {
+                arguments.push("--interactive".to_string());
+            }
+
             arguments.push(self.container_name.clone());
 
             arguments.push(command.command.clone());
 
             arguments.extend(command.arguments.clone());
 
-            match async_std::process::Command::new(self.executor_entrypoint.clone())
+            match async_process::Command::new(self.executor_entrypoint.clone())
                 .args(arguments)
+                .envs(
+                    secrets
+                        .variables
+                        .iter()
+                        .map(|(name, value)| (name, value.as_str())),
+                )
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -356,9 +393,18 @@ impl ExecutorEngine for ContainerExecutor {
 
                         let write_stdin = async {
                             if let Some(mut child_stdin) = child_stdin {
-                                while let Ok(data) = stdin().await {
-                                    check!(child_stdin.write_all(&data).await);
-                                    check!(child_stdin.flush().await);
+                                let input_written = match &secrets.stdin {
+                                    Some(input) => {
+                                        child_stdin.write_all(input.as_bytes()).await.is_ok()
+                                            && child_stdin.flush().await.is_ok()
+                                    }
+                                    None => true,
+                                };
+                                if input_written {
+                                    while let Ok(data) = stdin().await {
+                                        check!(child_stdin.write_all(&data).await);
+                                        check!(child_stdin.flush().await);
+                                    }
                                 }
 
                                 let _ = child_stdin.close().await;
@@ -458,6 +504,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -503,21 +550,41 @@ impl ExecutorEngine for ContainerExecutor {
                 }
             }
 
+            // The client takes their values from its own environment, out of its arguments.
+            for (name, _) in &secrets.variables {
+                arguments.push("--env".to_string());
+                arguments.push(name.clone());
+            }
+            if secrets.stdin.is_some() && !arguments.iter().any(|arg| arg == "--interactive") {
+                arguments.push("--interactive".to_string());
+            }
+
             arguments.push(self.container_name.clone());
 
             arguments.push(command.command.clone());
 
             arguments.extend(command.arguments.clone());
 
-            match async_std::process::Command::new(self.executor_entrypoint.clone())
+            match async_process::Command::new(self.executor_entrypoint.clone())
                 .args(arguments)
-                .stdin(Stdio::null())
+                .envs(
+                    secrets
+                        .variables
+                        .iter()
+                        .map(|(name, value)| (name, value.as_str())),
+                )
+                .stdin(if secrets.stdin.is_some() {
+                    Stdio::piped()
+                } else {
+                    Stdio::null()
+                })
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
             {
                 Ok(mut child) => {
                     started().await;
+                    write_secret_stdin(child.stdin.take(), secrets).await;
 
                     let mut to_terminate = false;
 
@@ -641,13 +708,13 @@ impl ContainerFileSystem {
         }
     }
 
-    async fn full_path(&self, path: &Path) -> async_std::io::Result<PathBuf> {
+    async fn full_path(&self, path: &Path) -> std::io::Result<PathBuf> {
         let full_path = self.path.join(path);
 
         if full_path.starts_with(&self.path) {
             Ok(full_path)
         } else {
-            Err(async_std::io::Error::new(
+            Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 "file not found",
             ))
@@ -671,10 +738,7 @@ impl FileSystemEngine for ContainerFileSystem {
     ) {
         #[cfg(feature = "real")]
         {
-            let path = match self
-                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-                .await
-            {
+            let path = match self.full_path(&PathBuf::from(path)).await {
                 Ok(path) => path,
                 Err(err) => {
                     failed().await;
@@ -742,10 +806,7 @@ impl FileSystemEngine for ContainerFileSystem {
     ) {
         #[cfg(feature = "real")]
         {
-            let path = match self
-                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-                .await
-            {
+            let path = match self.full_path(&PathBuf::from(path)).await {
                 Ok(path) => path,
                 Err(err) => {
                     failed().await;
@@ -774,7 +835,7 @@ impl FileSystemEngine for ContainerFileSystem {
                 match file {
                     Ok(mut file) => {
                         let mut written_amount = 0u128;
-                        let mut fail = false;
+                        let mut error = None;
                         while let Ok(data) = data().await {
                             match file.write_all(&data).await {
                                 Ok(_) => {
@@ -782,15 +843,21 @@ impl FileSystemEngine for ContainerFileSystem {
                                     let _ = amount(written_amount).await;
                                 }
                                 Err(err) => {
-                                    failed().await;
-                                    let _ = errors(err.to_string()).await;
-                                    fail = true;
+                                    error = Some(err);
                                     break;
                                 }
                             }
                         }
-                        if !fail {
-                            completed().await;
+                        // Writes run in the background: flushing waits for them, and gives their errors.
+                        if error.is_none() {
+                            error = file.flush().await.err();
+                        }
+                        match error {
+                            None => completed().await,
+                            Some(err) => {
+                                failed().await;
+                                let _ = errors(err.to_string()).await;
+                            }
                         }
                     }
                     Err(err) => {
@@ -818,10 +885,7 @@ impl FileSystemEngine for ContainerFileSystem {
     ) {
         #[cfg(feature = "real")]
         {
-            let path = match self
-                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-                .await
-            {
+            let path = match self.full_path(&PathBuf::from(path)).await {
                 Ok(path) => path,
                 Err(err) => {
                     failed().await;
@@ -864,10 +928,7 @@ impl FileSystemEngine for ContainerFileSystem {
     ) {
         #[cfg(feature = "real")]
         {
-            let path = match self
-                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-                .await
-            {
+            let path = match self.full_path(&PathBuf::from(path)).await {
                 Ok(path) => path,
                 Err(err) => {
                     failed().await;
@@ -922,5 +983,14 @@ impl FileSystemEngine for ContainerFileSystem {
             let _ = errors("Mock mode".to_string()).await;
             let _ = finished().await;
         }
+    }
+}
+
+/// Writes the secret input, if any, to `stdin`, then closes it.
+#[cfg(feature = "real")]
+async fn write_secret_stdin(stdin: Option<async_process::ChildStdin>, secrets: &RevealedSecrets) {
+    if let (Some(mut stdin), Some(input)) = (stdin, &secrets.stdin) {
+        let _ = stdin.write_all(input.as_bytes()).await;
+        let _ = stdin.close().await;
     }
 }

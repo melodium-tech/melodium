@@ -1,11 +1,30 @@
 use crate::restitution::describe_type;
 use melodium_common::descriptor::Identifier;
+use melodium_common::executive::Value as ExecutiveValue;
 use melodium_engine::designer::Value;
 use std::collections::BTreeMap;
 
+/// Gives the literal of a raw value, secrets being written as their locator.
+///
+/// Secrets without locator have no literal, they keep their placeholder.
+fn raw(value: &ExecutiveValue) -> String {
+    match value {
+        ExecutiveValue::Secret(secret) => match secret.locator() {
+            Some(locator) => ExecutiveValue::String(locator.to_string()).to_string(),
+            None => secret.to_string(),
+        },
+        ExecutiveValue::Vec(values) => format!(
+            "[{}]",
+            values.iter().map(raw).collect::<Vec<_>>().join(", ")
+        ),
+        ExecutiveValue::Option(Some(value)) => raw(value),
+        other => other.to_string(),
+    }
+}
+
 pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) -> String {
     match value {
-        Value::Raw(val) => val.to_string(),
+        Value::Raw(val) => raw(val),
         Value::Array(array) => format!(
             "[{opt_n}{opt_space}{array}{opt_n}{opt_space_n1}]",
             opt_n = if array.is_empty() { "" } else { "\n" },
@@ -73,5 +92,56 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) 
                 }
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use melodium_common::descriptor::DataType;
+    use melodium_common::executive::{Secret, SecretOrigin, SecretPolicy};
+
+    #[test]
+    fn secrets_are_written_as_their_locator() {
+        let secret = |locator: &str| {
+            ExecutiveValue::Secret(Secret::from_locator(locator, DataType::String).unwrap())
+        };
+        let names = BTreeMap::new();
+
+        assert_eq!(
+            value(&Value::Raw(secret("env:DB_PASSWORD")), &names, 1),
+            "\"env:DB_PASSWORD\""
+        );
+        assert_eq!(
+            value(
+                &Value::Raw(ExecutiveValue::Vec(vec![
+                    secret("file:/run/secrets/a"),
+                    secret("vault:kv/data/b#c")
+                ])),
+                &names,
+                1
+            ),
+            "[\"file:/run/secrets/a\", \"vault:kv/data/b#c\"]"
+        );
+        assert_eq!(
+            value(
+                &Value::Raw(ExecutiveValue::Option(Some(Box::new(secret("env:A"))))),
+                &names,
+                1
+            ),
+            "\"env:A\""
+        );
+
+        let inline = Secret::new(
+            "runtime".to_string(),
+            DataType::String,
+            SecretPolicy::default(),
+            SecretOrigin::Inline(ExecutiveValue::String("hidden-value".to_string())),
+        )
+        .unwrap();
+        assert_eq!(
+            value(&Value::Raw(ExecutiveValue::Secret(inline)), &names, 1),
+            "<secret \"runtime\">"
+        );
     }
 }

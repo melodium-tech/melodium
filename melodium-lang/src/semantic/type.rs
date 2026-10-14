@@ -70,6 +70,7 @@ enum TypeContent {
 
     Option(Arc<RwLock<TypeContent>>),
     Vec(Arc<RwLock<TypeContent>>),
+    Secret(Arc<RwLock<TypeContent>>),
 
     Other((Weak<RwLock<dyn DeclarativeElement>>, RefersTo)),
 }
@@ -108,6 +109,7 @@ impl TypeContent {
                 "string" => Self::String,
                 "Option" => Self::Option(Self::from_positionned_string(iter, scope)?),
                 "Vec" => Self::Vec(Self::from_positionned_string(iter, scope)?),
+                "Secret" => Self::Secret(Self::from_positionned_string(iter, scope)?),
                 other => {
                     Self::Other((scope, RefersTo::Implicit(Reference::new(other.to_string()))))
                 }
@@ -147,6 +149,11 @@ impl TypeContent {
                 .unwrap()
                 .to_descriptor(collection)
                 .map(|int| DescribedTypeDescriptor::Vec(Box::new(int))),
+            Self::Secret(internal) => internal
+                .read()
+                .unwrap()
+                .to_descriptor(collection)
+                .map(|int| DescribedTypeDescriptor::Secret(Box::new(int))),
             Self::Other((_, refer)) => match refer {
                 RefersTo::Implicit(implicit) => Some(DescribedTypeDescriptor::Generic(Box::new(
                     Generic::new(implicit.name.clone(), Vec::new()),
@@ -195,6 +202,9 @@ impl TypeContent {
             Self::Vec(internal) => Ok(DataTypeDescriptor::Vec(Box::new(
                 internal.read().unwrap().to_datatype()?,
             ))),
+            Self::Secret(internal) => Ok(DataTypeDescriptor::Secret(Box::new(
+                internal.read().unwrap().to_datatype()?,
+            ))),
             Self::Other(_) => Err(()),
         }
     }
@@ -222,6 +232,7 @@ impl fmt::Display for TypeContent {
             TypeContent::String => write!(f, "string"),
             TypeContent::Option(inner) => write!(f, "Option<{}>", inner.read().unwrap()),
             TypeContent::Vec(inner) => write!(f, "Vec<{}>", inner.read().unwrap()),
+            TypeContent::Secret(inner) => write!(f, "Secret<{}>", inner.read().unwrap()),
             TypeContent::Other((_, refer)) => write!(
                 f,
                 "{}",
@@ -275,7 +286,9 @@ impl Node for TypeContent {
 
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
         match self {
-            TypeContent::Option(inner) | TypeContent::Vec(inner) => vec![inner.clone()],
+            TypeContent::Option(inner) | TypeContent::Vec(inner) | TypeContent::Secret(inner) => {
+                vec![inner.clone()]
+            }
             _ => Vec::new(),
         }
     }
@@ -325,6 +338,19 @@ impl Type {
             level_structure.remove(0);
         }
         level_structure.push(text.name.clone());
+
+        // A secret cannot hold another secret.
+        if let Some(nested_secret) = level_structure
+            .iter()
+            .skip_while(|step| step.string != "Secret")
+            .skip(1)
+            .find(|step| step.string == "Secret")
+        {
+            return ScriptResult::new_failure(ScriptError::invalid_type(
+                189,
+                nested_secret.clone(),
+            ));
+        }
 
         match TypeContent::from_positionned_strings(&level_structure, Arc::downgrade(&scope))
             .map_err(|_| ScriptError::invalid_structure(177, text.name.clone()))

@@ -1,11 +1,11 @@
 use crate::filesystem::*;
-use async_std::path::{Path, PathBuf};
-use async_std::stream::StreamExt;
 use async_trait::async_trait;
 use async_walkdir::{Filtering, WalkDir};
+use futures::StreamExt;
 use futures::{AsyncReadExt, AsyncWriteExt};
 use melodium_core::*;
 use melodium_macro::{check, mel_function};
+use std::path::{Path, PathBuf};
 use std::{fmt::Debug, sync::Arc};
 
 #[derive(Debug)]
@@ -14,14 +14,14 @@ struct LocalFileSystemEngine {
 }
 
 impl LocalFileSystemEngine {
-    async fn full_path(&self, path: &Path) -> async_std::io::Result<PathBuf> {
+    async fn full_path(&self, path: &Path) -> std::io::Result<PathBuf> {
         if let Some(root_path) = self.path.as_ref() {
             let full_path = root_path.join(path);
 
             if full_path.starts_with(root_path) {
                 Ok(full_path)
             } else {
-                Err(async_std::io::Error::new(
+                Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     "file not found",
                 ))
@@ -47,10 +47,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
     ) {
         #[cfg(feature = "real")]
         {
-            let path = match self
-                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-                .await
-            {
+            let path = match self.full_path(&PathBuf::from(path)).await {
                 Ok(path) => path,
                 Err(err) => {
                     failed().await;
@@ -60,10 +57,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
                 }
             };
 
-            let file = async_std::fs::OpenOptions::new()
-                .read(true)
-                .open(path)
-                .await;
+            let file = async_fs::OpenOptions::new().read(true).open(path).await;
             match file {
                 Ok(mut file) => {
                     reached().await;
@@ -121,10 +115,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
     ) {
         #[cfg(feature = "real")]
         {
-            let path = match self
-                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-                .await
-            {
+            let path = match self.full_path(&PathBuf::from(path)).await {
                 Ok(path) => path,
                 Err(err) => {
                     failed().await;
@@ -134,7 +125,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
                 }
             };
 
-            if let Err(err) = async_std::fs::DirBuilder::new()
+            if let Err(err) = async_fs::DirBuilder::new()
                 .recursive(true)
                 .create(path.parent().unwrap_or(Path::new("")))
                 .await
@@ -143,7 +134,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
                 let _ = errors(err.to_string()).await;
                 finished().await;
             } else {
-                let file = async_std::fs::OpenOptions::new()
+                let file = async_fs::OpenOptions::new()
                     .write(true)
                     .append(append)
                     .create(create)
@@ -153,7 +144,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
                 match file {
                     Ok(mut file) => {
                         let mut written_amount = 0u128;
-                        let mut fail = false;
+                        let mut error = None;
                         while let Ok(data) = data().await {
                             match file.write_all(&data).await {
                                 Ok(_) => {
@@ -161,15 +152,21 @@ impl FileSystemEngine for LocalFileSystemEngine {
                                     let _ = amount(written_amount).await;
                                 }
                                 Err(err) => {
-                                    failed().await;
-                                    let _ = errors(err.to_string()).await;
-                                    fail = true;
+                                    error = Some(err);
                                     break;
                                 }
                             }
                         }
-                        if !fail {
-                            completed().await;
+                        // Writes run in the background: flushing waits for them, and gives their errors.
+                        if error.is_none() {
+                            error = file.flush().await.err();
+                        }
+                        match error {
+                            None => completed().await,
+                            Some(err) => {
+                                failed().await;
+                                let _ = errors(err.to_string()).await;
+                            }
                         }
                     }
                     Err(err) => {
@@ -197,10 +194,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
     ) {
         #[cfg(feature = "real")]
         {
-            let path = match self
-                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-                .await
-            {
+            let path = match self.full_path(&PathBuf::from(path)).await {
                 Ok(path) => path,
                 Err(err) => {
                     failed().await;
@@ -210,9 +204,9 @@ impl FileSystemEngine for LocalFileSystemEngine {
             };
 
             match if recursive {
-                async_std::fs::create_dir_all(path).await
+                async_fs::create_dir_all(path).await
             } else {
-                async_std::fs::create_dir(path).await
+                async_fs::create_dir(path).await
             } {
                 Ok(()) => {
                     success().await;
@@ -240,10 +234,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
         finished: OnceTriggerCall<'async_trait>,
         errors: OutMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
-        {
+        let path = match self.full_path(&PathBuf::from(path)).await {
             Ok(path) => path,
             Err(err) => {
                 failed().await;

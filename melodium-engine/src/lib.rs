@@ -12,6 +12,9 @@ pub mod designer;
 pub mod engine;
 pub mod error;
 pub(crate) mod ids;
+pub mod interruption;
+#[cfg(not(target_os = "unknown"))]
+pub mod runtime;
 mod transmission;
 mod world;
 

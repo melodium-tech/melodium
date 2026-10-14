@@ -1,0 +1,116 @@
+#!/usr/bin/env melodium
+#! name = crypto_webhooks
+#! version = 0.1.0
+#! require = std:0.11.0 http:0.11.0 net:0.11.0 encoding:0.11.0 crypto:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfo
+use std/flow::emit
+use std/flow::stream
+use std/data/map::|get
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/string_map/block::get as getHeader
+use std/ops/option/block::unwrapOr
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/server::@HttpRequest
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::encode
+use crypto/signature/hmac::verify
+use crypto/token::check
+
+treatment main(
+    const port: u16,
+    const key: Secret<string> = "env:MELODIUM_SECRET_WEBHOOK_KEY",
+    const token: Secret<string> = "env:MELODIUM_SECRET_WEBHOOK_TOKEN"
+)
+  model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port, secret_headers="X-Gitlab-Token")
+{
+    startup()
+    start[http_server=server]()
+    startup.trigger -> start.trigger
+
+    github[http_server=server](key=key)
+    gitlab[http_server=server](token=token)
+}
+
+treatment respond()
+  input  trigger: Block<void>
+  output status:  Block<HttpStatus>
+  output headers: Block<StringMap>
+  output data:    Stream<byte>
+{
+    emitStatus:  emit<HttpStatus>(value=|ok())
+    emitHeaders: emit<StringMap>(value=|map([]))
+    reply:   emit<string>(value="received")
+    asBytes: stream<string>()
+    encoded: encode()
+    Self.trigger -> emitStatus.trigger,emit -> Self.status
+    Self.trigger -> emitHeaders.trigger,emit -> Self.headers
+    Self.trigger -> reply.trigger,emit -> asBytes.block,stream -> encoded.text,data -> Self.data
+}
+
+// Verifies the `X-Hub-Signature-256` HMAC signature of the body.
+treatment github[http_server: HttpServer](const key: Secret<string>)
+{
+    connection[http_server=http_server](method=|post(), route="/github")
+    respond()
+    connection.started -> respond.trigger
+    respond.status -> connection.status
+    respond.headers -> connection.headers
+    respond.data -> connection.data
+
+    signature: getHeader(key="X-Hub-Signature-256")
+    verify(key=key, prefix="sha256=")
+    connection.headers -> signature.map,value -> verify.signature
+    connection.data -> verify.data
+
+    validMessage:   emit<string>(value="valid")
+    invalidMessage: emit<string>(value="invalid")
+    logValid:   logInfo(label="github")
+    logInvalid: logInfo(label="github")
+    verify.valid -> validMessage.trigger,emit -> logValid.message
+    verify.invalid -> invalidMessage.trigger,emit -> logInvalid.message
+}
+
+// Checks the `X-Gitlab-Token` header, given as a secret only.
+treatment gitlab[http_server: HttpServer](const token: Secret<string>)
+{
+    connection[http_server=http_server](method=|post(), route="/gitlab")
+    respond()
+    connection.started -> respond.trigger
+    respond.status -> connection.status
+    respond.headers -> connection.headers
+    respond.data -> connection.data
+
+    received()
+    check(token=token)
+    connection.started -> received.trigger,token -> check.received
+
+    validMessage:   emit<string>(value="valid")
+    invalidMessage: emit<string>(value="invalid")
+    logValid:   logInfo(label="gitlab")
+    logInvalid: logInfo(label="gitlab")
+    check.valid -> validMessage.trigger,emit -> logValid.message
+    check.invalid -> invalidMessage.trigger,emit -> logInvalid.message
+
+    plain: getHeader(key="X-Gitlab-Token")
+    plainOrAbsent: unwrapOr<string>(default="absent")
+    logPlain: logInfo(label="plain gitlab token")
+    connection.headers -> plain.map,value -> plainOrAbsent.option,value -> logPlain.message
+}
+
+treatment received()
+  require @HttpRequest
+  input  trigger: Block<void>
+  output token:   Block<Option<Secret<string>>>
+{
+    emitToken: emit<Option<Secret<string>>>(value=|get<Secret<string>>(@HttpRequest[secret_headers], "X-Gitlab-Token"))
+    Self.trigger -> emitToken.trigger,emit -> Self.token
+}

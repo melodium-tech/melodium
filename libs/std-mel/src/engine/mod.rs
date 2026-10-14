@@ -45,8 +45,6 @@ impl Engine {
         trigger.close().await;
         ResultStatus::Ok
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Return the current Mélodium engine version string.

@@ -1,3 +1,4 @@
+use std/data/map::Map
 use std/data/string_map::StringMap
 use std/data/string_map::|map
 use std/flow::emit
@@ -20,6 +21,7 @@ use root/client::trace as fullTrace
 
     - `url`: the URL to call DELETE on.
     - `headers`: headers to send in request.
+    - `secret_headers`: headers to send in request whose values are `Secret<string>`, see `HttpClient`.
 
     Inputs:
 
@@ -37,10 +39,11 @@ use root/client::trace as fullTrace
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/DELETE).
 */
-treatment delete(url: string, headers: Option<StringMap> = _)
+treatment delete(url: string, headers: Option<StringMap> = _, const secret_headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
-    headers = |map([])
+    headers = |map([]),
+    secret_headers = secret_headers
   )
   input trigger: Block<void>
   output data: Stream<byte>
@@ -74,6 +77,7 @@ treatment delete(url: string, headers: Option<StringMap> = _)
 
     - `url`: the URL to call GET on.
     - `headers`: headers to send in request.
+    - `secret_headers`: headers to send in request whose values are `Secret<string>`, see `HttpClient`.
 
     Inputs:
 
@@ -91,10 +95,11 @@ treatment delete(url: string, headers: Option<StringMap> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/GET).
 */
-treatment get(url: string, headers: Option<StringMap> = _)
+treatment get(url: string, headers: Option<StringMap> = _, const secret_headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
-    headers = |map([])
+    headers = |map([]),
+    secret_headers = secret_headers
   )
   input trigger: Block<void>
   output data: Stream<byte>
@@ -128,6 +133,7 @@ treatment get(url: string, headers: Option<StringMap> = _)
 
     - `url`: the URL to call HEAD on.
     - `headers`: headers to send in request.
+    - `secret_headers`: headers to send in request whose values are `Secret<string>`, see `HttpClient`.
 
     Inputs:
 
@@ -144,10 +150,11 @@ treatment get(url: string, headers: Option<StringMap> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/HEAD).
 */
-treatment head(url: string, headers: Option<StringMap> = _)
+treatment head(url: string, headers: Option<StringMap> = _, const secret_headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
-    headers = |map([])
+    headers = |map([]),
+    secret_headers = secret_headers
   )
   input trigger: Block<void>
   output headers: Block<StringMap>
@@ -179,6 +186,7 @@ treatment head(url: string, headers: Option<StringMap> = _)
 
     - `url`: the URL to call OPTIONS on.
     - `headers`: headers to send in request.
+    - `secret_headers`: headers to send in request whose values are `Secret<string>`, see `HttpClient`.
 
     Inputs:
 
@@ -196,10 +204,11 @@ treatment head(url: string, headers: Option<StringMap> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/OPTIONS).
 */
-treatment options(url: string, headers: Option<StringMap> = _)
+treatment options(url: string, headers: Option<StringMap> = _, const secret_headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
-    headers = |map([])
+    headers = |map([]),
+    secret_headers = secret_headers
   )
   input trigger: Block<void>
   output data: Stream<byte>
@@ -233,6 +242,7 @@ treatment options(url: string, headers: Option<StringMap> = _)
 
     - `url`: the URL to call PATCH on.
     - `headers`: headers to send in request.
+    - `secret_headers`: headers to send in request whose values are `Secret<string>`, see `HttpClient`.
 
     Inputs:
 
@@ -249,10 +259,11 @@ treatment options(url: string, headers: Option<StringMap> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PATCH).
 */
-treatment patch(url: string, headers: Option<StringMap> = _)
+treatment patch(url: string, headers: Option<StringMap> = _, const secret_headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
-    headers = |map([])
+    headers = |map([]),
+    secret_headers = secret_headers
   )
   input data: Stream<byte>
   output headers: Block<StringMap>
@@ -286,6 +297,7 @@ treatment patch(url: string, headers: Option<StringMap> = _)
 
     - `url`: the URL to call POST on.
     - `headers`: headers to send in request.
+    - `secret_headers`: headers to send in request whose values are `Secret<string>`, see `HttpClient`.
 
     Inputs:
 
@@ -303,10 +315,11 @@ treatment patch(url: string, headers: Option<StringMap> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/POST).
 */
-treatment post(url: string, headers: Option<StringMap> = _)
+treatment post(url: string, headers: Option<StringMap> = _, const secret_headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
-    headers = |map([])
+    headers = |map([]),
+    secret_headers = secret_headers
   )
   input data: Stream<byte>
   output headers: Block<StringMap>
@@ -342,6 +355,7 @@ treatment post(url: string, headers: Option<StringMap> = _)
 
     - `url`: the URL to call PUT on.
     - `headers`: headers to send in request.
+    - `secret_headers`: headers to send in request whose values are `Secret<string>`, see `HttpClient`.
 
     Inputs:
 
@@ -359,10 +373,11 @@ treatment post(url: string, headers: Option<StringMap> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PUT).
 */
-treatment put(url: string, headers: Option<StringMap> = _)
+treatment put(url: string, headers: Option<StringMap> = _, const secret_headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
-    headers = |map([])
+    headers = |map([]),
+    secret_headers = secret_headers
   )
   input data: Stream<byte>
   output headers: Block<StringMap>
@@ -396,6 +411,7 @@ treatment put(url: string, headers: Option<StringMap> = _)
 
     - `url`: the URL to call TRACE on.
     - `headers`: headers to send in request.
+    - `secret_headers`: headers to send in request whose values are `Secret<string>`, see `HttpClient`.
 
     Inputs:
 
@@ -412,10 +428,11 @@ treatment put(url: string, headers: Option<StringMap> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/TRACE).
 */
-treatment trace(url: string, headers: Option<StringMap> = _)
+treatment trace(url: string, headers: Option<StringMap> = _, const secret_headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
-    headers = |map([])
+    headers = |map([]),
+    secret_headers = secret_headers
   )
   input trigger: Block<void>
   output headers: Block<StringMap>

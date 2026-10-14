@@ -51,7 +51,7 @@ pub async fn encode_mono_wav(sample_rate: u32) {
 
         // Future B: receive all samples and encode on a blocking thread.
         let encode_fut = async move {
-            let _ = async_std::task::spawn_blocking(move || {
+            let _ = blocking::unblock(move || {
                 let mut all_samples: Vec<f32> = Vec::new();
                 while let Ok(batch) = samples_receiver.recv_blocking() {
                     all_samples.extend_from_slice(&batch);
@@ -79,7 +79,7 @@ pub async fn encode_mono_wav(sample_rate: u32) {
                     Ok(buf.into_inner())
                 })();
 
-                let _ = async_std::task::block_on(result_sender.send(encode_result));
+                let _ = result_sender.send_blocking(encode_result);
             })
             .await;
         };
@@ -158,7 +158,7 @@ pub async fn encode_mono_flac(sample_rate: u32) {
         };
 
         let encode_fut = async move {
-            let _ = async_std::task::spawn_blocking(move || {
+            let _ = blocking::unblock(move || {
                 let mut all_samples: Vec<f32> = Vec::new();
                 while let Ok(batch) = samples_receiver.recv_blocking() {
                     all_samples.extend_from_slice(&batch);
@@ -189,7 +189,7 @@ pub async fn encode_mono_flac(sample_rate: u32) {
                     Ok(sink.as_slice().to_vec())
                 })();
 
-                let _ = async_std::task::block_on(result_sender.send(encode_result));
+                let _ = result_sender.send_blocking(encode_result);
             })
             .await;
         };

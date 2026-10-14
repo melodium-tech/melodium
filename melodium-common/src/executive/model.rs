@@ -1,5 +1,5 @@
 use crate::descriptor::Model as ModelDescriptor;
-use crate::executive::Value;
+use crate::executive::{SecretsAccess, Value};
 use core::fmt::Debug;
 use downcast_rs::{impl_downcast, DowncastSync};
 use std::{collections::HashMap, sync::Arc};
@@ -13,6 +13,11 @@ pub trait Model: Debug + DowncastSync + Send + Sync {
     fn set_id(&self, id: ModelId);
 
     fn set_parameter(&self, param: &str, value: Value);
+
+    /// Gives the model its access to secrets, if its descriptor declares it.
+    fn set_secrets_access(&self, access: SecretsAccess);
+    /// Registers the secret sources of the model, before any model is initialized.
+    fn register_secret_sources(&self);
 
     fn initialize(&self);
     fn shutdown(&self);

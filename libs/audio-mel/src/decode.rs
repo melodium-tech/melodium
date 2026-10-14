@@ -115,9 +115,9 @@ pub async fn decode_mono(hint: Option<string>) {
 
         // Future A: probe → decode → send mono chunks into `mono_sender`.
         // Symphonia's format reader is synchronous, so all blocking work runs on a
-        // dedicated thread via spawn_blocking. Results bridge back through mono_sender.
+        // dedicated thread via `blocking::unblock`. Results bridge back through mono_sender.
         let decode_fut = async move {
-            let _ = async_std::task::spawn_blocking(move || {
+            let _ = blocking::unblock(move || {
                 let _ = &info_sender; // ensure it is moved into the closure
                 let mss = MediaSourceStream::new(
                     Box::new(ChannelReaderMediaSource::new(byte_receiver)),
@@ -134,9 +134,8 @@ pub async fn decode_mono(hint: Option<string>) {
                 ) {
                     Ok(r) => r,
                     Err(e) => {
-                        let _ = async_std::task::block_on(
-                            err_sender.send((true, format!("format detection failed: {e}"))),
-                        );
+                        let _ = err_sender
+                            .send_blocking((true, format!("format detection failed: {e}")));
                         return;
                     }
                 };
@@ -146,24 +145,22 @@ pub async fn decode_mono(hint: Option<string>) {
                 let track = match format_reader.default_track() {
                     Some(t) => t.clone(),
                     None => {
-                        let _ = async_std::task::block_on(
-                            err_sender.send((true, "no audio track found".to_string())),
-                        );
+                        let _ =
+                            err_sender.send_blocking((true, "no audio track found".to_string()));
                         return;
                     }
                 };
 
                 let codec_registry = symphonia::default::get_codecs();
-                let mut decoder =
-                    match codec_registry.make(&track.codec_params, &DecoderOptions::default()) {
-                        Ok(d) => d,
-                        Err(e) => {
-                            let _ = async_std::task::block_on(
-                                err_sender.send((true, format!("unsupported codec: {e}"))),
-                            );
-                            return;
-                        }
-                    };
+                let mut decoder = match codec_registry
+                    .make(&track.codec_params, &DecoderOptions::default())
+                {
+                    Ok(d) => d,
+                    Err(e) => {
+                        let _ = err_sender.send_blocking((true, format!("unsupported codec: {e}")));
+                        return;
+                    }
+                };
 
                 let duration_seconds = track
                     .codec_params
@@ -183,7 +180,7 @@ pub async fn decode_mono(hint: Option<string>) {
                     sample_rate: track.codec_params.sample_rate.unwrap_or(0),
                     duration_seconds,
                 };
-                let _ = async_std::task::block_on(info_sender.send(audio_info));
+                let _ = info_sender.send_blocking(audio_info);
 
                 let mut f32_buf: AudioBuffer<f32> = AudioBuffer::unused();
 
@@ -191,22 +188,17 @@ pub async fn decode_mono(hint: Option<string>) {
                     let packet = match format_reader.next_packet() {
                         Ok(p) => p,
                         Err(Error::IoError(e)) => {
-                            let _ = async_std::task::block_on(
-                                err_sender.send((true, format!("I/O error: {e}"))),
-                            );
+                            let _ = err_sender.send_blocking((true, format!("I/O error: {e}")));
                             break;
                         }
                         Err(Error::ResetRequired) => break,
                         Err(Error::DecodeError(e)) => {
-                            let _ = async_std::task::block_on(
-                                err_sender.send((false, format!("packet skipped: {e}"))),
-                            );
+                            let _ =
+                                err_sender.send_blocking((false, format!("packet skipped: {e}")));
                             continue;
                         }
                         Err(e) => {
-                            let _ = async_std::task::block_on(
-                                err_sender.send((true, format!("demux error: {e}"))),
-                            );
+                            let _ = err_sender.send_blocking((true, format!("demux error: {e}")));
                             break;
                         }
                     };
@@ -214,15 +206,12 @@ pub async fn decode_mono(hint: Option<string>) {
                     let audio_buf = match decoder.decode(&packet) {
                         Ok(buf) => buf,
                         Err(Error::DecodeError(e)) => {
-                            let _ = async_std::task::block_on(
-                                err_sender.send((false, format!("packet skipped: {e}"))),
-                            );
+                            let _ =
+                                err_sender.send_blocking((false, format!("packet skipped: {e}")));
                             continue;
                         }
                         Err(e) => {
-                            let _ = async_std::task::block_on(
-                                err_sender.send((true, format!("decode error: {e}"))),
-                            );
+                            let _ = err_sender.send_blocking((true, format!("decode error: {e}")));
                             break;
                         }
                     };
@@ -250,7 +239,7 @@ pub async fn decode_mono(hint: Option<string>) {
                             .collect()
                     };
 
-                    if async_std::task::block_on(mono_sender.send(mono)).is_err() {
+                    if mono_sender.send_blocking(mono).is_err() {
                         break;
                     }
                 }
@@ -295,7 +284,7 @@ pub async fn decode_mono(hint: Option<string>) {
             }
         };
 
-        // `decode_fut` owns `byte_receiver` (via spawn_blocking), `mono_sender`, `err_sender`,
+        // `decode_fut` owns `byte_receiver` (via `blocking::unblock`), `mono_sender`, `err_sender`,
         // and `info_sender`; `feed_fut` owns `byte_sender`; `forward_fut` owns `mono_receiver`
         // and `signal`; `info_fut` owns `info_receiver` and `info`; `error_fut` owns the rest.
         futures::join!(decode_fut, feed_fut, forward_fut, info_fut, error_fut);

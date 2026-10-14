@@ -30,6 +30,7 @@ pub trait ExecutorEngine: Debug + Send + Sync {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -42,6 +43,7 @@ pub trait ExecutorEngine: Debug + Send + Sync {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -60,6 +62,7 @@ pub trait ExecutorEngine: Debug + Send + Sync {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        secrets: &RevealedSecrets,
         terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
@@ -109,6 +112,7 @@ pub struct Executor {
     output terminated Block<void>
     output error Block<string>
     output exit Block<Option<i32>>
+    secrets_access
 )]
 pub async fn exec_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
@@ -116,12 +120,22 @@ pub async fn exec_one_terminable() {
         command.recv_one_as::<Arc<Command>>().await,
         environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
+        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secrets_access).await {
+            Ok(secrets) => secrets,
+            Err(message) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(message).await;
+                let _ = finished.send_one_as(()).await;
+                return;
+            }
+        };
         let mut send_terminated = false;
         executor
             .executor
             .exec(
                 &command,
                 environment.as_deref(),
+                &secrets,
                 Box::new(|| {
                     Box::pin(async {
                         match terminate.recv_one().await {
@@ -198,12 +212,22 @@ pub async fn exec_one_terminable() {
     output terminated Block<void>
     output error Block<string>
     output exit Stream<Option<i32>>
+    secrets_access
 )]
 pub async fn exec_terminable() {
     if let (Ok(executor), Ok(environment)) = (
         executor.recv_one_as::<Arc<Executor>>().await,
         environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
+        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secrets_access).await {
+            Ok(secrets) => secrets,
+            Err(message) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(message).await;
+                let _ = finished.send_one_as(()).await;
+                return;
+            }
+        };
         let mut first = true;
         let mut success = true;
         let mut send_terminated = false;
@@ -213,6 +237,7 @@ pub async fn exec_terminable() {
                 .exec(
                     &command,
                     environment.as_deref(),
+                    &secrets,
                     Box::new(|| {
                         Box::pin(async {
                             match terminate.recv_one().await {
@@ -299,6 +324,7 @@ pub async fn exec_terminable() {
     output terminated Block<void>
     output error Block<string>
     output exit Block<Option<i32>>
+    secrets_access
 )]
 pub async fn spawn_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
@@ -306,12 +332,22 @@ pub async fn spawn_one_terminable() {
         command.recv_one_as::<Arc<Command>>().await,
         environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
+        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secrets_access).await {
+            Ok(secrets) => secrets,
+            Err(message) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(message).await;
+                let _ = finished.send_one_as(()).await;
+                return;
+            }
+        };
         let mut send_terminated = false;
         executor
             .executor
             .spawn(
                 &command,
                 environment.as_deref(),
+                &secrets,
                 Box::new(|| {
                     Box::pin(async {
                         match terminate.recv_one().await {
@@ -425,12 +461,22 @@ pub async fn spawn_one_terminable() {
     output terminated Block<void>
     output error Block<string>
     output exit Stream<Option<i32>>
+    secrets_access
 )]
 pub async fn spawn_terminable() {
     if let (Ok(executor), Ok(environment)) = (
         executor.recv_one_as::<Arc<Executor>>().await,
         environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
+        let secrets = match RevealedSecrets::reveal(environment.as_deref(), &secrets_access).await {
+            Ok(secrets) => secrets,
+            Err(message) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(message).await;
+                let _ = finished.send_one_as(()).await;
+                return;
+            }
+        };
         let mut first = true;
         let mut success = true;
         let mut send_terminated = false;
@@ -448,6 +494,7 @@ pub async fn spawn_terminable() {
                 .spawn_out(
                     &command,
                     environment.as_deref(),
+                    &secrets,
                     Box::new(|| {
                         Box::pin(async {
                             match terminate.recv_one().await {
