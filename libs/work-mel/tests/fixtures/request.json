@@ -1,0 +1,64 @@
+{
+  "config": null,
+  "id": null,
+  "organization_id": null,
+  "edition": null,
+  "version": "0.11.0",
+  "mode": {
+    "distribution_secret_key": {
+      "key": "6f1c1d3e-5f0e-4a0b-9d38-2b5a0c7e41aa"
+    }
+  },
+  "max_duration": 3600,
+  "memory": 2048,
+  "cpu": 1000,
+  "storage": 4096,
+  "arch": "arm64",
+  "os": {
+    "family": "linux",
+    "distribution": "nixos",
+    "version": "25.05"
+  },
+  "volumes": [
+    {
+      "name": "shared",
+      "storage": 1024
+    }
+  ],
+  "containers": [
+    {
+      "name": "builder",
+      "image": "registry.example.org/builder:1",
+      "pull_secret": "",
+      "memory": 512,
+      "cpu": 500,
+      "storage": 1024,
+      "arch": "arm64",
+      "mounts": [
+        {
+          "name": "shared",
+          "mount_point": "/shared"
+        }
+      ]
+    }
+  ],
+  "service_containers": [
+    {
+      "name": "database",
+      "image": "registry.example.org/database:1",
+      "pull_secret": "",
+      "memory": 256,
+      "cpu": 250,
+      "storage": 512,
+      "mounts": [],
+      "env": {
+        "POSTGRES_DB": "ci"
+      },
+      "command": ["postgres", "-c", "fsync=off"]
+    }
+  ],
+  "tags": ["ci", "nightly"],
+  "group_id": "0b7d0f5c-8f55-4c2e-a2a4-0d9a3d0b1f10",
+  "parent_id": "c2f4a6b8-1d3e-4f50-8a7c-9e0b1c2d3e4f",
+  "local_exec": false
+}

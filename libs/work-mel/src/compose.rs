@@ -123,7 +123,8 @@ fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
     use crate::reporting::REPORTS_ENABLED;
 
-    if request.edition.as_deref().unwrap_or("scratch") == "scratch" {
+    // No edition means any edition suits, and Compose has no `scratch` image to offer.
+    if matches!(request.edition.as_deref(), None | Some("scratch")) {
         request.edition = Some("alpine".to_string())
     }
 

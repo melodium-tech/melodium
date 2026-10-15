@@ -366,7 +366,7 @@ impl DistantEngine {
 /// - `max_duration`: maximum duration for which the worker will be effective, in seconds;
 ///
 /// - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
-/// - `edition`: Mélodium edition the worker must rely on (see on the Mélodium Services documentation to get the full list, can be none if nothing specific is required);
+/// - `edition`: Mélodium edition the worker must rely on, can be none if nothing specific is required (any edition suits). Published editions are `scratch` and `alpine`; `alpine-docker` and `alpine-podman` are variants that Compose picks by itself. Edition only matters on container targets, workers on virtual machines satisfy any edition;
 /// - `system`: what the worker must run on, either an operating system built with `|linux`, `|windows`, `|macos`, `|freebsd` and the other `work/resources/system` functions, or one exact machine image built with `|image` (a name resolved by whatever spawns the worker, never a container image); none if nothing specific is required, like for `arch`;
 ///
 /// - `containers`: list of containers to instanciate alongside Mélodium engine as executors;
@@ -375,6 +375,8 @@ impl DistantEngine {
 ///
 /// Every need except `tags` is a requirement: the worker is spawned satisfying it, or the request fails with a message naming the need.
 /// An operating system and a machine image cannot be requested together, and when both `system` and `arch` are given the image or system must exist for that architecture.
+///
+/// Tags are hints: they are never a requirement and never a reason to refuse a run. Whatever spawns the worker may use them (for example copying them to the resources it creates), and they are still exposed to the worker as `MELODIUM_API_TAGS`.
 ///
 /// It should be noted that the CPU and memory requirements for the Mélodium engine and possible containers are cumulative.
 /// Also, multiple different architecture cannot be requested for the same worker, so containers in the same request all have to use the same architecture.
@@ -434,7 +436,7 @@ pub async fn distant(
 
     let key = Uuid::new_v4();
     let mut start = api::Request {
-        edition: Some(edition.unwrap_or_else(|| "scratch".to_string())),
+        edition,
         max_duration: Some(max_duration),
         memory: Some(memory),
         cpu: Some(cpu),

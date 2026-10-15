@@ -14,6 +14,7 @@
 - Breaking: Compose refuses worker and container architectures different from the host one, instead of ignoring them (#141).
 - Breaking: taking the architecture of `|container` and `|service_container` as optional, none meaning the one of the machine the worker runs on; programs wrap it with `|wrap<Arch>` (#141).
 - Adding `|local_arch`, the architecture of the machine running the engine (#141).
+- Breaking: `distant` sends no edition when the program gives none, meaning any edition suits, instead of `scratch`; Compose still runs `alpine` in that case. Documenting editions and tags in `distant` (#143).
 
 ## [v0.10.4] (2026-09-24)
 
