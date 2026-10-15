@@ -68,24 +68,43 @@ pub enum ModeRequest {
 
 /// CPU architecture, named as in the OCI image specification (`GOARCH` values),
 /// with `wasm32` and `wasm64` for WebAssembly.
+///
+/// The names Rust uses (`x86_64`, `aarch64`, `i686`, `powerpc64le`, `loongarch64`, `mipsel`...) are also read,
+/// but architectures are always written with the OCI names.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Arch {
+    #[serde(alias = "x86_64")]
     Amd64,
+    #[serde(alias = "aarch64")]
     Arm64,
-    #[serde(rename = "386")]
+    #[serde(
+        rename = "386",
+        alias = "x86",
+        alias = "i686",
+        alias = "i586",
+        alias = "i386"
+    )]
     I386,
+    #[serde(alias = "armv7")]
     Arm,
+    #[serde(alias = "riscv64gc")]
     Riscv64,
+    #[serde(alias = "powerpc64le")]
     Ppc64le,
+    #[serde(alias = "powerpc64")]
     Ppc64,
     S390x,
+    #[serde(alias = "loongarch64")]
     Loong64,
     Mips,
+    #[serde(alias = "mipsel")]
     Mipsle,
     Mips64,
+    #[serde(alias = "mips64el")]
     Mips64le,
+    #[serde(alias = "wasm")]
     Wasm32,
     Wasm64,
     #[serde(other)]
@@ -448,6 +467,34 @@ mod tests {
         let os: Os = serde_json::from_str(r#"{"family": "plan9"}"#).unwrap();
         assert_eq!(os.family, OsFamily::Unknown);
         assert_eq!(os.distribution, None);
+    }
+
+    #[test]
+    fn arch_rust_aliases() {
+        for (alias, arch) in [
+            ("x86_64", Arch::Amd64),
+            ("aarch64", Arch::Arm64),
+            ("x86", Arch::I386),
+            ("i686", Arch::I386),
+            ("armv7", Arch::Arm),
+            ("riscv64gc", Arch::Riscv64),
+            ("powerpc64le", Arch::Ppc64le),
+            ("powerpc64", Arch::Ppc64),
+            ("loongarch64", Arch::Loong64),
+            ("mipsel", Arch::Mipsle),
+            ("mips64el", Arch::Mips64le),
+            ("wasm", Arch::Wasm32),
+        ] {
+            assert_eq!(
+                serde_json::from_value::<Arch>(serde_json::json!(alias)).unwrap(),
+                arch
+            );
+        }
+        // Written with the OCI name.
+        assert_eq!(
+            serde_json::to_value(Arch::Amd64).unwrap(),
+            serde_json::json!("amd64")
+        );
     }
 
     #[test]

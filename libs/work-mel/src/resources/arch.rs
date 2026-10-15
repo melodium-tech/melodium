@@ -2,28 +2,38 @@ use crate::api;
 use melodium_core::{executive::*, *};
 use melodium_macro::{mel_data, mel_function};
 
-/// CPU architecture for a work container or worker request.
+/// CPU architecture for a worker request.
 ///
 /// `ToString` and `Display` return the canonical architecture string (e.g. `"amd64"`, `"arm64"`).
 ///
-/// Architectures are named as in the OCI image specification (the `GOARCH` values), with `wasm32` and `wasm64` for WebAssembly,
-/// which differs from the names Rust uses for its targets:
+/// Each architecture is built with a function, and most have two: one named as in the
+/// [OCI image specification](https://github.com/opencontainers/image-spec/blob/main/config.md#properties)
+/// (the names of Go's [`GOARCH`](https://go.dev/doc/install/source#environment) list, like `|amd64()`),
+/// and one named as Rust names its [target architectures](https://doc.rust-lang.org/reference/conditional-compilation.html#target_arch)
+/// (like `|x86_64()`). Both give the same architecture, so use the names you are used to.
 ///
-/// | Function | Architecture | Rust target triples (examples) |
+/// Wherever an architecture is given as text, in a request for example, both names are understood too.
+/// Architectures are always displayed and written with the first name of the table.
+///
+/// | Function | Architecture | Information |
 /// |---|---|---|
-/// | `\|amd64` | `amd64`, x86-64 | `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `x86_64-apple-darwin`, `x86_64-pc-windows-gnu`, `x86_64-pc-windows-msvc` |
-/// | `\|arm64` | `arm64`, 64-bit ARM | `aarch64-unknown-linux-gnu`, `aarch64-unknown-linux-musl`, `aarch64-apple-darwin`, `aarch64-pc-windows-msvc` |
-/// | `\|i386` | `386`, x86 32-bit | `i686-unknown-linux-gnu`, `i686-pc-windows-gnu`, `i686-pc-windows-msvc` |
-/// | `\|arm` | `arm`, ARM 32-bit hard float | `armv7-unknown-linux-gnueabihf`, `arm-unknown-linux-gnueabihf` |
-/// | `\|riscv64` | `riscv64` | `riscv64gc-unknown-linux-gnu` |
-/// | `\|ppc64le` | `ppc64le`, PowerPC 64-bit little endian | `powerpc64le-unknown-linux-gnu` |
-/// | `\|ppc64` | `ppc64`, PowerPC 64-bit big endian | `powerpc64-unknown-linux-gnu` |
-/// | `\|s390x` | `s390x`, IBM Z | `s390x-unknown-linux-gnu` |
-/// | `\|loong64` | `loong64`, LoongArch 64-bit | `loongarch64-unknown-linux-gnu` |
-/// | `\|mips`, `\|mipsle` | `mips`, `mipsle`, 32-bit MIPS big and little endian | `mips-unknown-linux-gnu`, `mipsel-unknown-linux-gnu` |
-/// | `\|mips64`, `\|mips64le` | `mips64`, `mips64le`, 64-bit MIPS big and little endian | `mips64-unknown-linux-gnuabi64`, `mips64el-unknown-linux-gnuabi64` |
-/// | `\|wasm32` | `wasm32`, 32-bit WebAssembly (OCI `wasm`) | `wasm32-unknown-unknown`, `wasm32-wasip1`, `wasm32-wasip2` |
-/// | `\|wasm64` | `wasm64`, 64-bit WebAssembly | `wasm64-unknown-unknown` |
+/// | `\|amd64()`, `\|x86_64()` | `amd64`, `x86_64` | 64-bit x86 (Intel, AMD). Most servers, cloud instances, PCs and Intel Macs. |
+/// | `\|arm64()`, `\|aarch64()` | `arm64`, `aarch64` | 64-bit ARM. Apple Silicon Macs, AWS Graviton and other ARM cloud instances, Raspberry Pi with a 64-bit system. |
+/// | `\|i386()`, `\|x86()`, `\|i686()` | `386`, `x86`, `i686` | 32-bit x86. Old PCs and legacy systems. |
+/// | `\|arm()`, `\|armv7()` | `arm`, `armv7` | 32-bit ARM, hard float. Raspberry Pi with a 32-bit system, embedded boards. |
+/// | `\|riscv64()`, `\|riscv64gc()` | `riscv64`, `riscv64gc` | 64-bit RISC-V. Development boards and emerging servers. |
+/// | `\|ppc64le()`, `\|powerpc64le()` | `ppc64le`, `powerpc64le` | 64-bit PowerPC, little endian. IBM Power servers running Linux. |
+/// | `\|ppc64()`, `\|powerpc64()` | `ppc64`, `powerpc64` | 64-bit PowerPC, big endian. Older IBM Power and legacy PowerPC systems. |
+/// | `\|s390x()` | `s390x` | IBM Z mainframes, including LinuxONE. |
+/// | `\|loong64()`, `\|loongarch64()` | `loong64`, `loongarch64` | 64-bit LoongArch. Recent Loongson processors. |
+/// | `\|mips()` | `mips` | 32-bit MIPS, big endian. Legacy networking equipment. |
+/// | `\|mipsle()`, `\|mipsel()` | `mipsle`, `mipsel` | 32-bit MIPS, little endian. Routers and embedded devices. |
+/// | `\|mips64()` | `mips64` | 64-bit MIPS, big endian. Legacy networking equipment and servers. |
+/// | `\|mips64le()`, `\|mips64el()` | `mips64le`, `mips64el` | 64-bit MIPS, little endian. Older Loongson processors and some network devices. |
+/// | `\|wasm32()` | `wasm32`, `wasm` | 32-bit WebAssembly. Browsers, WASI runtimes and edge platforms. |
+/// | `\|wasm64()` | `wasm64` | 64-bit WebAssembly. Experimental, few runtimes support it. |
+///
+/// `|local_arch` gives the architecture of the machine running the engine.
 ///
 /// An architecture no engine is built for, or that no provider offers, can still be declared: the request is then refused with a message naming the need.
 /// The local `compose` location only runs the architecture of the host.
@@ -165,11 +175,98 @@ pub fn wasm64() -> Arch {
     Arch(api::Arch::Wasm64)
 }
 
+/// Return the `amd64` architecture, under the name Rust uses.
+///
+/// Same as `|amd64`.
+#[mel_function]
+pub fn x86_64() -> Arch {
+    Arch(api::Arch::Amd64)
+}
+
+/// Return the `arm64` architecture, under the name Rust uses.
+///
+/// Same as `|arm64`.
+#[mel_function]
+pub fn aarch64() -> Arch {
+    Arch(api::Arch::Arm64)
+}
+
+/// Return the 32-bit x86 (`386`) architecture, under the name Rust uses.
+///
+/// Same as `|i386`.
+#[mel_function]
+pub fn x86() -> Arch {
+    Arch(api::Arch::I386)
+}
+
+/// Return the 32-bit x86 (`386`) architecture, under the name Rust uses.
+///
+/// Same as `|i386`.
+#[mel_function]
+pub fn i686() -> Arch {
+    Arch(api::Arch::I386)
+}
+
+/// Return the 32-bit ARM, hard float (`arm`) architecture, under the name Rust uses.
+///
+/// Same as `|arm`.
+#[mel_function]
+pub fn armv7() -> Arch {
+    Arch(api::Arch::Arm)
+}
+
+/// Return the 64-bit RISC-V (`riscv64`) architecture, under the name Rust uses.
+///
+/// Same as `|riscv64`.
+#[mel_function]
+pub fn riscv64gc() -> Arch {
+    Arch(api::Arch::Riscv64)
+}
+
+/// Return the 64-bit little-endian PowerPC (`ppc64le`) architecture, under the name Rust uses.
+///
+/// Same as `|ppc64le`.
+#[mel_function]
+pub fn powerpc64le() -> Arch {
+    Arch(api::Arch::Ppc64le)
+}
+
+/// Return the 64-bit big-endian PowerPC (`ppc64`) architecture, under the name Rust uses.
+///
+/// Same as `|ppc64`.
+#[mel_function]
+pub fn powerpc64() -> Arch {
+    Arch(api::Arch::Ppc64)
+}
+
+/// Return the 64-bit LoongArch (`loong64`) architecture, under the name Rust uses.
+///
+/// Same as `|loong64`.
+#[mel_function]
+pub fn loongarch64() -> Arch {
+    Arch(api::Arch::Loong64)
+}
+
+/// Return the 32-bit little-endian MIPS (`mipsle`) architecture, under the name Rust uses.
+///
+/// Same as `|mipsle`.
+#[mel_function]
+pub fn mipsel() -> Arch {
+    Arch(api::Arch::Mipsle)
+}
+
+/// Return the 64-bit little-endian MIPS (`mips64le`) architecture, under the name Rust uses.
+///
+/// Same as `|mips64le`.
+#[mel_function]
+pub fn mips64el() -> Arch {
+    Arch(api::Arch::Mips64le)
+}
+
 /// Return the architecture of the machine running this engine.
 ///
-/// The value is concrete (e.g. `amd64` on an x86-64 machine, `arm64` on an Apple Silicon one), and is the one of the engine running the program,
-/// not necessarily the one of the worker it requests. To get a container running on the same architecture as its worker,
-/// whatever it is, give no architecture (`_`) to the container instead.
+/// The value is concrete (e.g. `amd64` on an x86-64 machine, `arm64` on an Apple Silicon one).
+/// Give it as the `arch` parameter to request a worker of the same architecture as the machine running the program.
 #[mel_function]
 pub fn local_arch() -> Arch {
     Arch(api::Arch::host())

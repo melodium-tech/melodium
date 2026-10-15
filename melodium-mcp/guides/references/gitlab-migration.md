@@ -572,15 +572,27 @@ use work/resources/arch::|arm64
 
 `arch` and `system` are both optional: leave them out (`_`) to get any worker with the requested resources. Every need given is a requirement, the worker is spawned satisfying it or the run is refused with a message naming the need.
 
-`arch` (`Option<Arch>`, available on `simpleStep` and `setupRunner`) is built with the functions of `work/resources/arch`, named as in the OCI image specification:
+`arch` (`Option<Arch>`, available on `simpleStep` and `setupRunner`) is built with the functions of `work/resources/arch`, with the OCI image specification names or the Rust ones:
 
-| Function | Architecture |
-|---|---|
-| `\|amd64()`, `\|arm64()`, `\|i386()`, `\|arm()` | x86-64, ARM64, x86 32-bit, ARM 32-bit |
-| `\|riscv64()`, `\|loong64()` | RISC-V 64-bit, LoongArch 64-bit |
-| `\|ppc64le()`, `\|ppc64()`, `\|s390x()` | PowerPC little and big endian, IBM Z |
-| `\|mips()`, `\|mipsle()`, `\|mips64()`, `\|mips64le()` | MIPS variants |
-| `\|wasm32()`, `\|wasm64()` | WebAssembly |
+| Function | Architecture | Information |
+|---|---|---|
+| `\|amd64()`, `\|x86_64()` | `amd64`, `x86_64` | 64-bit x86 (Intel, AMD). Most servers, cloud instances, PCs and Intel Macs. |
+| `\|arm64()`, `\|aarch64()` | `arm64`, `aarch64` | 64-bit ARM. Apple Silicon Macs, AWS Graviton and other ARM cloud instances, Raspberry Pi with a 64-bit system. |
+| `\|i386()`, `\|x86()`, `\|i686()` | `386`, `x86`, `i686` | 32-bit x86. Old PCs and legacy systems. |
+| `\|arm()`, `\|armv7()` | `arm`, `armv7` | 32-bit ARM, hard float. Raspberry Pi with a 32-bit system, embedded boards. |
+| `\|riscv64()`, `\|riscv64gc()` | `riscv64`, `riscv64gc` | 64-bit RISC-V. Development boards and emerging servers. |
+| `\|ppc64le()`, `\|powerpc64le()` | `ppc64le`, `powerpc64le` | 64-bit PowerPC, little endian. IBM Power servers running Linux. |
+| `\|ppc64()`, `\|powerpc64()` | `ppc64`, `powerpc64` | 64-bit PowerPC, big endian. Older IBM Power and legacy PowerPC systems. |
+| `\|s390x()` | `s390x` | IBM Z mainframes, including LinuxONE. |
+| `\|loong64()`, `\|loongarch64()` | `loong64`, `loongarch64` | 64-bit LoongArch. Recent Loongson processors. |
+| `\|mips()` | `mips` | 32-bit MIPS, big endian. Legacy networking equipment. |
+| `\|mipsle()`, `\|mipsel()` | `mipsle`, `mipsel` | 32-bit MIPS, little endian. Routers and embedded devices. |
+| `\|mips64()` | `mips64` | 64-bit MIPS, big endian. Legacy networking equipment and servers. |
+| `\|mips64le()`, `\|mips64el()` | `mips64le`, `mips64el` | 64-bit MIPS, little endian. Older Loongson processors and some network devices. |
+| `\|wasm32()` | `wasm32`, `wasm` | 32-bit WebAssembly. Browsers, WASI runtimes and edge platforms. |
+| `\|wasm64()` | `wasm64` | 64-bit WebAssembly. Experimental, few runtimes support it. |
+
+Both names of an architecture give the same value: the first is the one of the OCI image specification, the second the one Rust uses for its targets.
 
 All containers of one worker must use the same architecture. A container given no architecture (`_`) runs on the architecture of its worker. `|local_arch()` returns the architecture of the machine running the program, to request a worker of the same architecture. The local `compose` location only runs the architecture of the host and refuses any other.
 
