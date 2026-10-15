@@ -366,7 +366,7 @@ impl DistantEngine {
 /// - `max_duration`: maximum duration for which the worker will be effective, in seconds;
 ///
 /// - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
-/// - `edition`: Mélodium edition the worker must rely on, can be none if nothing specific is required (any edition suits). Published editions are `scratch` and `alpine`; `alpine-docker` and `alpine-podman` are variants that Compose picks by itself. Edition only matters on container targets, workers on virtual machines satisfy any edition;
+/// - `edition`: edition of the Mélodium engine the worker must rely on (`standard`, `desktop`, `container`, ...), can be none if nothing specific is required (any edition suits). It is not the container image, which is defined by the distribution requested in `system`; Compose runs the `standard` and `container` editions on an Alpine image, and edition only matters on container targets, workers on virtual machines satisfy any edition;
 /// - `system`: what the worker must run on, either an operating system built with `|linux`, `|windows`, `|macos`, `|freebsd` and the other `work/resources/system` functions, or one exact machine image built with `|image` (a name resolved by whatever spawns the worker, never a container image); none if nothing specific is required, like for `arch`;
 ///
 /// - `containers`: list of containers to instanciate alongside Mélodium engine as executors;
@@ -377,6 +377,16 @@ impl DistantEngine {
 /// An operating system and a machine image cannot be requested together, and when both `system` and `arch` are given the image or system must exist for that architecture.
 ///
 /// Tags are hints: they are never a requirement and never a reason to refuse a run. Whatever spawns the worker may use them (for example copying them to the resources it creates), and they are still exposed to the worker as `MELODIUM_API_TAGS`.
+///
+/// Some examples of what happens when a worker is requested on the Compose location (the machine running the engine, through podman or docker):
+///
+/// - Nothing is given for `edition`, `system` and `arch`: the worker is started, in an Alpine container of the engine.
+/// - `edition` is `standard` or `container`: the worker is started. Any other edition, `desktop` for example, makes the request fail, saying which editions Compose can offer.
+/// - `system` is `|linux()` or `|linux_distribution("alpine")`: the worker is started. `|linux_distribution("ubuntu")`, `|linux_distribution_version("alpine", "3.20")`, `|windows()` or `|image("nixos-ci")` make the request fail, saying which system cannot be satisfied.
+/// - `arch` (or the one of a container) is the architecture of the machine running the engine: the worker is started. Another architecture makes the request fail.
+/// - `tags` are given: the worker is started, whatever the tags are.
+///
+/// Other locations decide by their own means how to satisfy the same needs. A machine image or a distribution can be satisfied by a virtual machine, while a container location gets its image from the distribution requested in `system`, and `edition` only matters on container locations.
 ///
 /// It should be noted that the CPU and memory requirements for the Mélodium engine and possible containers are cumulative.
 /// Also, multiple different architecture cannot be requested for the same worker, so containers in the same request all have to use the same architecture.
