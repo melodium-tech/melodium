@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Serving and requesting with trillium-smol instead of trillium-async-std (#104).
 - Adding `secret_headers` to `HttpClient` and to the client helpers, revealed for each request, and `requestWithSecretHeaders` and `requestWithBodyAndSecretHeaders` for secret headers received at runtime (#136).

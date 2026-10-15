@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Moving from async-std, which is discontinued, to smol (#104).
 - Sending secrets to distant engines following their transmission policy, values only over TLS (#139).

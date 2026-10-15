@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Adding secrets to `RawValue`, `DataType`, `DescribedType` and debug events. Secrets carry their value only when sent by value to a distant engine (`RawValue::to_wire`, `RawValue::from_wire`, `SecretValue`) (#133, #139).
 

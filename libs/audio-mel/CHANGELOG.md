@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Decoding and encoding on the threads of the blocking crate instead of async-std, which is discontinued (#104).
 

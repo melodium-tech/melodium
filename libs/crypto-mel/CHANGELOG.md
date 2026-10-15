@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - First version: HMAC signing and verification of data (`crypto/signature/hmac::sign`, `crypto/signature/hmac::verify`) with SHA-256, SHA-384, SHA-512 and SHA-1, and constant-time checking of received tokens against secrets (`crypto/token::check`), such as for webhooks (#136).
 - Verifying Ed25519 signatures of data (`crypto/signature/ed25519::verify`), such as Discord interactions (#136).

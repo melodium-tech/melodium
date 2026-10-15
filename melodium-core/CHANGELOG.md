@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Breaking: `descriptor::Treatment::new` and `descriptor::Model::new` take whether the element declares `secrets_access` (#134).
 

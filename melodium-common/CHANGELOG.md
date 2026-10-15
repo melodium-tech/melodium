@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Adding the `Secret<T>` type (`Value::Secret`, `DataType::Secret`): sensitive values holding where they come from (a locator, a derivation or an inline value), revealed only through the `SecretsAccess` the engine gives to elements declaring it, following their policy (transmission, reveal, plain reveal) (#133, #134, #135).
 - Adding the `SecretSource` (that can refuse plain reveal) and `SecretDerivation` traits, and the secret audit (`SecretAudit`) (#134, #135).

@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Downloading packages with trillium-client on smol, instead of http-client on async-std (#104).
 

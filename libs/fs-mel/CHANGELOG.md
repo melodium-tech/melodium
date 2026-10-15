@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Using async-fs and standard paths instead of async-std, which is discontinued; `write` flushes the file before `completed`, an error then giving `failed` (#104).
 

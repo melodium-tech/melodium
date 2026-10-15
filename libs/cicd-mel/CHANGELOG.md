@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - No longer depending on async-std, which is discontinued (#104).
 - Taking the status tokens (`github_token`, `gitlab_token`) as constant secrets, by default `env:MELODIUM_SECRET_GITHUB_TOKEN` and `env:MELODIUM_SECRET_GITLAB_TOKEN`, the `CicdDispatchEngine` API token and pull secrets as secrets, and giving steps `secret_variables` (#136).

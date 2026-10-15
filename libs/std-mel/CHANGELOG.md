@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Using async-channel and async-lock instead of async-std, which is discontinued (#104).
 - Adding `std/secret`: secrets from the environment, files and locators (`|from_environment`, `|from_file`, `|locate`), policy narrowing, derivations (`|format`, `|base64`, `|url_encode`, `|to_bytes`), the `conceal` and `reveal` treatments, and `std/secret/block`, deriving and narrowing secrets received at runtime; secrets from the environment and from files are never plainly revealed (#134, #135).

@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Supporting `Secret<T>` in elements: elements declaring `secrets_access` get it, as `secrets_access` in treatments and `secrets_access()` in models, models register secret sources in their `secret_sources` function, and contexts can have secret fields (#134, #136).
 - Giving treatment bodies the `world` they run in, as a weak reference; `world`, `track_id` and `secrets_access` are reserved names in treatments (#134).

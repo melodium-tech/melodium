@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Moving from async-std, which is discontinued, to smol: tracks and continuous tasks run on threads owned by the engine (`runtime` module), one per core unless the `MELODIUM_THREADS` environment variable gives another number, and Unix signals are received through async-signal (#104).
 - Running each track, and each continuous task of models, on the thread pool, so that tracks run in parallel; `Engine::stop` stops them, at the end of the grace period of interruptions or on a second one. No more tracks is told once every continuous task ended or waits for it too, as a running one can still create tracks (#147).

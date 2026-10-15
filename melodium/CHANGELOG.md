@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.11.0] (unreleased)
+## [v0.11.0] (2026-10-15)
 
 - Moving from async-std, which is discontinued, to smol; the number of threads running tracks is given by `MELODIUM_THREADS`, one per core by default, and `api_report` gives a `smol::Task`, breaking for library users (#104).
 - Running tracks in parallel, on one thread per core by default (#147).
