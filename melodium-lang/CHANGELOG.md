@@ -5,6 +5,7 @@
 
 - Adding the `Secret<T>` type, refusing nested secrets (S0189), and locator string literals for secret parameters (#133, #134).
 - Writing secret parameter defaults back as locators in restitution (#134).
+- Refusing function calls with more parameters (S0191) or generics (S0190) than the function takes, which were silently ignored.
 
 ## [v0.10.4] (2026-09-24)
 

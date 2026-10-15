@@ -507,6 +507,68 @@ model myDispatcher: CicdDispatchEngine(
 
 Used internally by `simpleStep` and `stepOn*` — not normally instantiated directly. It wraps `DistributionEngine` preconfigured to run `cicd/steps::step`.
 
+### Worker needs: architecture and system
+
+`arch` and `system` are both optional: leave them out (`_`) to get any worker with the requested resources. Every need given is a requirement, the worker is spawned satisfying it or the run is refused with a message naming the need.
+
+`arch` (`Option<Arch>`, available on `simpleStep` and `setupRunner`) is built with the functions of `work/resources/arch`, with the OCI image specification names or the Rust ones:
+
+| Function | Architecture | Information |
+|---|---|---|
+| `\|amd64()`, `\|x86_64()` | `amd64`, `x86_64` | 64-bit x86 (Intel, AMD). Most servers, cloud instances, PCs and Intel Macs. |
+| `\|arm64()`, `\|aarch64()` | `arm64`, `aarch64` | 64-bit ARM. Apple Silicon Macs, AWS Graviton and other ARM cloud instances, Raspberry Pi with a 64-bit system. |
+| `\|i386()`, `\|x86()`, `\|i686()` | `386`, `x86`, `i686` | 32-bit x86. Old PCs and legacy systems. |
+| `\|arm()`, `\|armv7()` | `arm`, `armv7` | 32-bit ARM, hard float. Raspberry Pi with a 32-bit system, embedded boards. |
+| `\|riscv64()`, `\|riscv64gc()` | `riscv64`, `riscv64gc` | 64-bit RISC-V. Development boards and emerging servers. |
+| `\|ppc64le()`, `\|powerpc64le()` | `ppc64le`, `powerpc64le` | 64-bit PowerPC, little endian. IBM Power servers running Linux. |
+| `\|ppc64()`, `\|powerpc64()` | `ppc64`, `powerpc64` | 64-bit PowerPC, big endian. Older IBM Power and legacy PowerPC systems. |
+| `\|s390x()` | `s390x` | IBM Z mainframes, including LinuxONE. |
+| `\|loong64()`, `\|loongarch64()` | `loong64`, `loongarch64` | 64-bit LoongArch. Recent Loongson processors. |
+| `\|mips()` | `mips` | 32-bit MIPS, big endian. Legacy networking equipment. |
+| `\|mipsle()`, `\|mipsel()` | `mipsle`, `mipsel` | 32-bit MIPS, little endian. Routers and embedded devices. |
+| `\|mips64()` | `mips64` | 64-bit MIPS, big endian. Legacy networking equipment and servers. |
+| `\|mips64le()`, `\|mips64el()` | `mips64le`, `mips64el` | 64-bit MIPS, little endian. Older Loongson processors and some network devices. |
+| `\|wasm32()` | `wasm32`, `wasm` | 32-bit WebAssembly. Browsers, WASI runtimes and edge platforms. |
+| `\|wasm64()` | `wasm64` | 64-bit WebAssembly. Experimental, few runtimes support it. |
+
+Both names of an architecture give the same value: the first is the one of the OCI image specification, the second the one Rust uses for its targets.
+
+All containers of one worker must use the same architecture. A container given no architecture (`_`) runs on the architecture of its worker. `|local_arch()` returns the architecture of the machine running the program, to request a worker of the same architecture. The local `compose` location only runs the architecture of the host and refuses any other.
+
+`system` (`Option<System>`, available on `setupRunner`, not on `simpleStep`) is what the worker runs on, either an operating system or one exact machine image, never both. It is built with the functions of `work/resources/system`:
+
+```mel
+use std/ops/option::|wrap
+use work/resources/system::System
+use work/resources/system::|linux_distribution_version
+use work/resources/system::|image
+
+// Any Ubuntu 24.04 machine
+setupRunner[dispatcher=dispatcher, runner=runner](
+    name="build", cpu=2000, memory=4000, storage=20000,
+    system=|wrap<System>(|linux_distribution_version("ubuntu", "24.04"))
+)
+
+// This exact machine image, whatever OS and architecture it holds
+setupRunner[dispatcher=dispatcher, runner=runner](
+    name="build", cpu=2000, memory=4000, storage=20000,
+    system=|wrap<System>(|image("nixos-ci"))
+)
+```
+
+| Function | System |
+|---|---|
+| `\|linux()`, `\|linux_distribution(name)`, `\|linux_distribution_version(name, version)` | Linux; the distribution is the `ID` of `/etc/os-release` (`"ubuntu"`, `"debian"`, `"nixos"`, ...) and the version its `VERSION_ID` (`"24.04"`) |
+| `\|windows()`, `\|windows_version(version)` | Windows (`"2022"`) |
+| `\|macos()`, `\|macos_version(version)` | macOS (`"15"`) |
+| `\|freebsd()`, `\|openbsd()`, `\|netbsd()` | BSD systems |
+| `\|solaris()`, `\|illumos()`, `\|aix()`, `\|ibmi()`, `\|zos()` | Other Unix and mainframe systems |
+
+Each of `\|windows`, `\|macos`, `\|freebsd`, `\|openbsd`, `\|netbsd`, `\|solaris`, `\|illumos`, `\|aix`, `\|ibmi` and `\|zos` has a `_version(version)` variant.
+| `\|image(name)` | One machine image, by name (never a container image); with `arch` given, the image must exist for it |
+
+Not every system can be spawned by every provider: a request nobody can satisfy is refused. The local `compose` location only satisfies a bare `\|linux()`.
+
 ### Direct step control with `stepOn`
 
 For custom runner configurations, use `stepOn` directly instead of `simpleStep`:
@@ -519,7 +581,7 @@ setupRunner[dispatcher=dispatcher, runner=runner](
     cpu=1000,
     memory=2000,
     storage=10000,
-    containers=[|container("main", 1000, 2000, 10000, |arm64(), [|mount("data", "/mnt/data")], "rust:latest", _)]
+    containers=[|container("main", 2000, 1000, 10000, |wrap<Arch>(|arm64()), [|mount("data", "/mnt/data")], "rust:latest", _)]
 )
 
 stepOn[runner=runner](

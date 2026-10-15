@@ -19,6 +19,7 @@ use std/engine/util::startup
 use std/data/string_map::|map
 use std/ops/option::|wrap
 use work/resources::|container
+use work/resources/arch::Arch
 use work/resources/arch::|amd64
 use work/resources::|volume
 use work/resources::|mount
@@ -63,7 +64,7 @@ treatment build[cicd: CicdDispatchEngine](repository_clone_url: string, reposito
         memory=500,
         storage=1000,
         volumes=[|volume("build-result", 30)],
-        containers=[|container("ubuntu", 1000, 1000, 8000, |amd64(), [|mount("build-result", "/mounted/result")], "ubuntu:noble", _)]
+        containers=[|container("ubuntu", 1000, 1000, 8000, |wrap<Arch>(|amd64()), [|mount("build-result", "/mounted/result")], "ubuntu:noble", _)]
     )
     gitClone: stepOn[runner=runner](
         name="git",
@@ -111,7 +112,7 @@ treatment test[cicd: CicdDispatchEngine]()
         memory=500,
         storage=1000,
         volumes=[|volume("tested-data", 30)],
-        containers=[|container("alpine", 500, 1000, 1000, |amd64(), [|mount("tested-data", "/mounted/data")], "alpine:3", _)]
+        containers=[|container("alpine", 500, 1000, 1000, |wrap<Arch>(|amd64()), [|mount("tested-data", "/mounted/data")], "alpine:3", _)]
     )
     makeTest: stepOnWithInput[runner=runner](
         name="test",

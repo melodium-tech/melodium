@@ -3,6 +3,7 @@ use crate::api;
 #[cfg(feature = "real")]
 use crate::http;
 use crate::resources::arch::*;
+use crate::resources::system::*;
 use crate::resources::*;
 use core::time::Duration;
 use melodium_core::common::{
@@ -365,11 +366,66 @@ impl DistantEngine {
 /// - `max_duration`: maximum duration for which the worker will be effective, in seconds;
 ///
 /// - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
-/// - `edition`: Mélodium edition the worker must rely on (see on the Mélodium Services documentation to get the full list, can be none if nothing specific is required);
+/// - `edition`: edition of the Mélodium engine the worker must rely on (`standard`, `desktop`, `container`, ...), can be none if nothing specific is required (any edition suits). It is not the container image, which is defined by the distribution requested in `system`; Compose runs the `standard` and `container` editions on an Alpine image, and edition only matters on container targets, workers on virtual machines satisfy any edition;
+/// - `system`: what the worker must run on, either an operating system built with `|linux`, `|windows`, `|macos`, `|freebsd` and the other `work/resources/system` functions, or one exact machine image built with `|image` (a name resolved by whatever spawns the worker, never a container image); none if nothing specific is required, like for `arch`;
 ///
 /// - `containers`: list of containers to instanciate alongside Mélodium engine as executors;
 /// - `service_containers`: list of containers to instanciate alongside Mélodium engine as services;
 /// - `volumes`: list of filesystem volumes that can be shared between the Mélodium engine and containers.
+///
+/// Every need except `tags` is a requirement: the worker is spawned satisfying it, or the request fails with a message naming the need.
+/// An operating system and a machine image cannot be requested together, and when both `system` and `arch` are given the image or system must exist for that architecture.
+///
+/// Tags are hints: they are never a requirement and never a reason to refuse a run. Whatever spawns the worker may use them, for example by copying them to the resources it creates.
+///
+/// ## Where the worker is spawned
+///
+/// The `location` of the dispatching engine tells where the worker is spawned:
+///
+/// | `location` | Where the worker is spawned |
+/// |---|---|
+/// | `"api"` | Mélodium Services spawn the worker somewhere (container, virtual machine...) |
+/// | `"compose"` | Compose: the worker is a container started on the machine running this engine, with podman or docker (tried in this order) |
+///
+/// Compose can only offer what its official image is. Each need is checked before anything is started:
+///
+/// | Need | Compose accepts | Compose refuses |
+/// |---|---|---|
+/// | `edition` (optional) | none, `standard`, `container` | `desktop`, `webassembly`, `mock` |
+/// | `system` (optional) | none, `\|linux()`, `\|linux_distribution("alpine")` | `\|linux_distribution("ubuntu")`, `\|linux_distribution_version("alpine", "3.20")`, `\|windows()`, `\|image("nixos-ci")` |
+/// | `arch` (optional) | none, the architecture of this machine | any other architecture |
+/// | `tags` | anything | never refused |
+///
+/// A request Compose cannot satisfy starts nothing: `failed` is emitted and the errors say which need cannot be satisfied.
+/// The edition is the one of the engine the worker runs, while the container image is defined by the Linux distribution of `system`.
+/// Editions and systems are only requirements on container locations, a virtual machine worker satisfies any edition.
+///
+/// Example, asking Compose for a `standard` engine on Alpine:
+///
+/// ```melodium
+/// use std/engine/util::startup
+/// use std/engine/log::logErrors
+/// use std/ops/option::|wrap
+/// use work/distant::DistantEngine
+/// use work/distant::distant
+/// use work/resources/system::System
+/// use work/resources/system::|linux_distribution
+///
+/// treatment main()
+///   model engine: DistantEngine(location="compose")
+/// {
+///     startup()
+///     request: distant[distant_engine=engine](
+///         max_duration=60, memory=500, cpu=500, storage=500,
+///         edition="standard",
+///         system=|wrap<System>(|linux_distribution("alpine")),
+///         arch=_, volumes=[], containers=[], service_containers=[], tags=["example"]
+///     )
+///     startup.trigger -> request.trigger
+///     logRequestErrors: logErrors(label="distant")
+///     request.errors -> logRequestErrors.messages
+/// }
+/// ```
 ///
 /// It should be noted that the CPU and memory requirements for the Mélodium engine and possible containers are cumulative.
 /// Also, multiple different architecture cannot be requested for the same worker, so containers in the same request all have to use the same architecture.
@@ -383,6 +439,7 @@ impl DistantEngine {
     output failed Block<void>
     output errors Stream<string>
     secrets_access
+    default system none
 )]
 pub async fn distant(
     max_duration: u32,
@@ -391,6 +448,7 @@ pub async fn distant(
     storage: u32,
     edition: Option<string>,
     arch: Option<Arch>,
+    system: Option<System>,
     volumes: Vec<Volume>,
     containers: Vec<Container>,
     service_containers: Vec<ServiceContainer>,
@@ -427,7 +485,7 @@ pub async fn distant(
 
     let key = Uuid::new_v4();
     let mut start = api::Request {
-        edition: Some(edition.unwrap_or_else(|| "scratch".to_string())),
+        edition,
         max_duration: Some(max_duration),
         memory: Some(memory),
         cpu: Some(cpu),
@@ -438,6 +496,7 @@ pub async fn distant(
         version: env!("CARGO_PKG_VERSION").to_string(),
         storage: Some(storage),
         arch: arch.map(|arch| arch.0),
+        system: api::SystemRequest(system.map(|system| system.0.clone())),
         volumes: volumes.into_iter().map(|vol| vol.0.clone()).collect(),
         containers: containers.into_iter().map(|cont| cont.0.clone()).collect(),
         service_containers: service_containers

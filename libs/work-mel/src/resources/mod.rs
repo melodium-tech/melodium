@@ -1,4 +1,5 @@
 pub mod arch;
+pub mod system;
 
 use crate::api;
 use arch::*;
@@ -192,7 +193,7 @@ pub struct Container(
 /// - `memory`: memory allocated in megabytes.
 /// - `cpu`: CPU allocated in millicores.
 /// - `storage`: ephemeral storage in megabytes.
-/// - `arch`: CPU architecture required.
+/// - `arch`: CPU architecture required, none meaning the one of the machine the worker runs on.
 /// - `mounts`: list of volume mounts.
 /// - `image`: container image reference.
 /// - `pull_secret`: optional image pull secret, the registry credentials as a Docker configuration JSON (defaults to `"{}"`).
@@ -202,7 +203,7 @@ pub fn container(
     memory: u32,
     cpu: u32,
     storage: u32,
-    arch: Arch,
+    arch: Option<Arch>,
     mounts: Vec<Mount>,
     image: string,
     pull_secret: Option<Secret<string>>,
@@ -215,7 +216,7 @@ pub fn container(
             memory,
             cpu,
             storage,
-            arch: arch.0,
+            arch: arch.map(|arch| arch.0),
             mounts: mounts.into_iter().map(|mount| mount.0).collect(),
         },
         pull_secret,
@@ -246,7 +247,7 @@ pub fn service_container(
     memory: u32,
     cpu: u32,
     storage: u32,
-    arch: Arch,
+    arch: Option<Arch>,
     mounts: Vec<Mount>,
     image: string,
     pull_secret: Option<Secret<string>>,
@@ -261,7 +262,7 @@ pub fn service_container(
             memory,
             cpu,
             storage,
-            arch: arch.0,
+            arch: arch.map(|arch| arch.0),
             mounts: mounts.into_iter().map(|mount| mount.0).collect(),
             env: env.map(|map| map.map).unwrap_or_default(),
             command: command,
