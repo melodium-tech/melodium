@@ -9,15 +9,18 @@ Combines several `ml` capabilities from across the library: remote LLM chat, loc
 **`chat`**: an HTTP server that streams a remote LLM's response token by token, as it's generated:
 
 ```
-melodium run Compo.toml chat --api_key sk-...
+MELODIUM_SECRET_ANTHROPIC_API_KEY=sk-... melodium run Compo.toml chat
 curl -X POST http://127.0.0.1:8080/chat -d "What is Mélodium?"
 ```
 
 **`voice`**: microphone → local Whisper (speech-to-text) → remote LLM (streamed reply) → remote text-to-speech → `answer.mp3`:
 
 ```
-melodium run Compo.toml voice --llm_api_key sk-... --tts_api_key el-...
+MELODIUM_SECRET_ANTHROPIC_API_KEY=sk-... MELODIUM_SECRET_ELEVENLABS_API_KEY=el-... \
+    melodium run Compo.toml voice
 ```
+
+The API keys are `Secret<string>` parameters, read from `MELODIUM_SECRET_ANTHROPIC_API_KEY` and `MELODIUM_SECRET_ELEVENLABS_API_KEY` by default, and revealed only to the providers: they never appear in parameters, logs or debug events. `--api_key`, `--llm_api_key` and `--tts_api_key` take another locator, such as `file:/run/secrets/llm`.
 
 Speech-to-text runs *locally* (a small Whisper model, fetched once from HuggingFace Hub and cached), so raw audio never leaves the machine: only the transcribed text is sent to the LLM, and only the LLM's reply text is sent to the TTS provider.
 

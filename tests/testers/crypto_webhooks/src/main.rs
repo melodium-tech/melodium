@@ -5,7 +5,7 @@
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
 const SERVER: &str = include_str!("../../../crypto_webhooks.mel");
@@ -15,6 +15,19 @@ const TOKEN: &str = "webhook-token-sentinel";
 const BODY: &str = r#"{"action":"opened"}"#;
 /// HMAC-SHA256 of `BODY` with `KEY`.
 const SIGNATURE: &str = "1cbdd39ecb1c2ec3658bd0ddece3dd1f582ac759795fce4b9ee0337bcaed3e48";
+
+/// A running server, killed if the case fails before stopping it, so that it does not
+/// answer the requests of a later run on the same port.
+struct Server(Option<Child>);
+
+impl Drop for Server {
+    fn drop(&mut self) {
+        if let Some(mut child) = self.0.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
 
 fn file(name: &str, content: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
@@ -45,16 +58,18 @@ fn post(port: u16, path: &str, headers: &[(&str, &str)]) -> String {
 
 fn webhooks_are_verified() {
     let port = 62720;
-    let server = tester::interruptible(&mut Command::new("melodium"))
-        .arg("run")
-        .arg(file("server.mel", SERVER))
-        .args(["--port", &port.to_string()])
-        .env("MELODIUM_SECRET_WEBHOOK_KEY", KEY)
-        .env("MELODIUM_SECRET_WEBHOOK_TOKEN", TOKEN)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+    let mut server = Server(Some(
+        tester::interruptible(&mut Command::new("melodium"))
+            .arg("run")
+            .arg(file("server.mel", SERVER))
+            .args(["--port", &port.to_string()])
+            .env("MELODIUM_SECRET_WEBHOOK_KEY", KEY)
+            .env("MELODIUM_SECRET_WEBHOOK_TOKEN", TOKEN)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    ));
     std::thread::sleep(Duration::from_secs(2));
 
     let signature = format!("sha256={SIGNATURE}");
@@ -77,6 +92,7 @@ fn webhooks_are_verified() {
     }
 
     std::thread::sleep(Duration::from_secs(1));
+    let server = server.0.take().unwrap();
     tester::interrupt(&server).unwrap();
     let server = server.wait_with_output().unwrap();
     let stdout = String::from_utf8_lossy(&server.stdout);

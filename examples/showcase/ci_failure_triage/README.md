@@ -8,7 +8,8 @@ Two CI steps run on provisioned containers, and each step's raw output is determ
 
 ```
 export MELODIUM_API_TOKEN="my-melodium-services-token"
-melodium run --api-report Compo.toml --api_key sk-...
+export MELODIUM_SECRET_ANTHROPIC_API_KEY="sk-..."
+melodium run --api-report Compo.toml
 ```
 
 Runs two steps on the stock `python:3.13-slim` image, nothing to clone or install:

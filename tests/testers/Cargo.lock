@@ -420,6 +420,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "signed_webhooks"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

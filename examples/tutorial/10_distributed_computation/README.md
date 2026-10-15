@@ -71,4 +71,4 @@ generate ──▶ dispatchDouble ──send──▶ ...  ──▶  double (n 
 - **A model that names a treatment, not a resource**: unlike `SqlPool` or `HttpServer`, `DistributionEngine`'s parameters (`treatment`, `version`) identify *what code to run remotely*, not a resource to connect to; the network target itself comes from the `Access` value passed to `start`.
 - **Keys are swapped, not shared**: the listener's `MELODIUM_DIST_RECV_KEY` is the client's `send_key` (`MELODIUM_SECRET_DIST_SEND_KEY`), and vice versa; each side authenticates itself with the key the other side expects to receive. `work/access::|new_access`'s own parameter order is `(ip, port, remote_key, self_key)`: `remote_key` is the identity presented outward (the local `send_key`), `self_key` is what is checked against what comes back (the local `recv_key`).
 
-Back to the [examples index](../../README.md) for the showcase track, which builds on this to distribute AI workloads and CI/CD pipelines.
+Next: [11_signed_webhooks](../11_signed_webhooks/) introduces secrets and the `crypto` package, verifying webhooks received over HTTP.

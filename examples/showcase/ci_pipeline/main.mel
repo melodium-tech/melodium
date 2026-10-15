@@ -247,11 +247,11 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
         storage      = 8192,
         arch         = |wrap<Arch>(|arm64()),
         max_duration = 1800,
-        // `|service_container`'s `arch` has no "unspecified" option (unlike
-        // the main step's own `arch` above), so it must be pinned to
-        // something. It has to match the main step's `arch` exactly, or
-        // dispatch is rejected with "Architecture is not valid or
-        // consistent for run and all containers".
+        // `|service_container`'s `arch` works like the main step's own `arch`
+        // above: none (`_`) means the architecture of the worker. When given,
+        // it has to match the main step's `arch`, or dispatch is rejected
+        // with "Architecture is not valid or consistent for run and all
+        // containers".
         service_containers = [
             |service_container(
                 "postgres",

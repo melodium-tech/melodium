@@ -22,7 +22,8 @@ use llm::{
 /// Holds connection and inference parameters for a remote large language model service.
 ///
 /// - `backend`: provider name (default `"mistral"`); see the table below.
-/// - `api_key`: API key for authentication (omit for Ollama or unauthenticated endpoints).
+/// - `api_key`: API key for authentication, as a secret (e.g. `"env:MELODIUM_SECRET_MISTRAL_API_KEY"`;
+///   omit for Ollama or unauthenticated endpoints).
 /// - `base_url`: override the provider base URL (required for Ollama, Azure OpenAI,
 ///   or custom OpenAI-compatible endpoints; see the table below).
 /// - `model`: model identifier; see the table below for recommended values per backend.
@@ -59,7 +60,7 @@ use llm::{
 /// treatment example()
 ///   model llm: RemoteLlm(
 ///     backend    = "mistral",
-///     api_key    = "...",
+///     api_key    = "env:MELODIUM_SECRET_MISTRAL_API_KEY",
 ///     model      = "mistral-small-latest",
 ///     system     = "You are a helpful assistant.",
 ///     max_tokens = 2048
@@ -73,7 +74,7 @@ use llm::{
 /// ```
 #[mel_model(
     param backend     string       "mistral"
-    param api_key     Option<string> none
+    param api_key     Option<Secret<string>> none
     param base_url    string       ""
     param model       string       ""
     param system      string       ""
@@ -81,7 +82,7 @@ use llm::{
     param temperature Option<f32>  none
     param top_p       Option<f32>  none
     param timeout     Option<u64>  none
-    initialize initialize
+    secrets_access
     shutdown shutdown
 )]
 pub struct RemoteLlm {
@@ -106,63 +107,56 @@ impl RemoteLlm {
         }
     }
 
-    fn initialize(&self) {
-        #[cfg(feature = "real")]
-        {
-            let model_ref = match self.model.upgrade() {
-                Some(m) => m,
-                None => return,
-            };
+    /// Gives the provider, built on first use.
+    #[cfg(feature = "real")]
+    async fn provider(&self) -> Result<Arc<Box<dyn LLMProvider>>, String> {
+        let model_ref = self
+            .model
+            .upgrade()
+            .ok_or_else(|| "model is no longer available".to_string())?;
 
-            let backend_str = model_ref.get_backend();
-            let backend: LLMBackend = match backend_str.parse() {
-                Ok(b) => b,
-                Err(e) => {
-                    eprintln!("[RemoteLlm] invalid backend '{}': {}", backend_str, e);
-                    return;
+        super::provider(
+            &self.provider,
+            || {
+                let backend_str = model_ref.get_backend();
+                let backend: LLMBackend = backend_str
+                    .parse()
+                    .map_err(|e| format!("invalid backend '{backend_str}': {e}"))?;
+
+                let base_url = model_ref.get_base_url();
+                let model_id = model_ref.get_model();
+                let system = model_ref.get_system();
+
+                let mut builder = LLMBuilder::new().backend(backend);
+
+                if !base_url.is_empty() {
+                    builder = builder.base_url(base_url);
                 }
-            };
-
-            let base_url = model_ref.get_base_url();
-            let model_id = model_ref.get_model();
-            let system = model_ref.get_system();
-
-            let mut builder = LLMBuilder::new().backend(backend);
-
-            if let Some(api_key) = model_ref.get_api_key() {
-                builder = builder.api_key(api_key);
-            }
-            if !base_url.is_empty() {
-                builder = builder.base_url(base_url);
-            }
-            if !model_id.is_empty() {
-                builder = builder.model(model_id);
-            }
-            if !system.is_empty() {
-                builder = builder.system(system);
-            }
-            if let Some(max_tokens) = model_ref.get_max_tokens() {
-                builder = builder.max_tokens(max_tokens as u32);
-            }
-            if let Some(temperature) = model_ref.get_temperature() {
-                builder = builder.temperature(temperature);
-            }
-            if let Some(top_p) = model_ref.get_top_p() {
-                builder = builder.top_p(top_p);
-            }
-            if let Some(timeout) = model_ref.get_timeout() {
-                builder = builder.timeout_seconds(timeout);
-            }
-
-            match builder.build() {
-                Ok(p) => {
-                    *self.provider.lock().unwrap() = Some(Arc::new(p));
+                if !model_id.is_empty() {
+                    builder = builder.model(model_id);
                 }
-                Err(e) => {
-                    eprintln!("[RemoteLlm] failed to build provider: {}", e);
+                if !system.is_empty() {
+                    builder = builder.system(system);
                 }
-            }
-        }
+                if let Some(max_tokens) = model_ref.get_max_tokens() {
+                    builder = builder.max_tokens(max_tokens as u32);
+                }
+                if let Some(temperature) = model_ref.get_temperature() {
+                    builder = builder.temperature(temperature);
+                }
+                if let Some(top_p) = model_ref.get_top_p() {
+                    builder = builder.top_p(top_p);
+                }
+                if let Some(timeout) = model_ref.get_timeout() {
+                    builder = builder.timeout_seconds(timeout);
+                }
+
+                Ok(builder)
+            },
+            model_ref.get_api_key(),
+            model_ref.secrets_access(),
+        )
+        .await
     }
 
     fn shutdown(&self) {
@@ -179,7 +173,7 @@ impl RemoteLlm {
 /// configured provider and emits the full response text on `response`.  If the
 /// request fails, `failed` and `error` are emitted instead.
 ///
-/// ℹ️ `load` is not required; the provider is initialised when the program starts.
+/// ℹ️ `load` is not required; the provider is built on first use.
 /// Use `stream` instead if you want token-by-token output.
 ///
 /// ```mermaid
@@ -201,7 +195,7 @@ impl RemoteLlm {
 /// use ml/remote/llm::chat
 ///
 /// treatment example()
-///   model llm: RemoteLlm(backend = "mistral", api_key = "...", model = "mistral-small-latest")
+///   model llm: RemoteLlm(backend = "mistral", api_key = "env:MELODIUM_SECRET_MISTRAL_API_KEY", model = "mistral-small-latest")
 ///   input  prompt:   Stream<string>
 ///   output response: Stream<string>
 /// {
@@ -224,27 +218,26 @@ pub async fn chat() {
 
         #[cfg(feature = "real")]
         {
-            let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
-            if let Some(provider) = maybe_provider {
-                let messages = vec![ChatMessage::user().content(text).build()];
-                match Compat::new(provider.chat(&messages)).await {
-                    Ok(resp) => {
-                        let text = resp.text().unwrap_or_default();
-                        check!(response.send_one_as(text).await);
-                    }
-                    Err(e) => {
-                        let _ = failed.send_one_as(()).await;
-                        let _ = error.send_one_as(e.to_string()).await;
-                        break;
+            match model_arc.inner().provider().await {
+                Ok(provider) => {
+                    let messages = vec![ChatMessage::user().content(text).build()];
+                    match Compat::new(provider.chat(&messages)).await {
+                        Ok(resp) => {
+                            let text = resp.text().unwrap_or_default();
+                            check!(response.send_one_as(text).await);
+                        }
+                        Err(e) => {
+                            let _ = failed.send_one_as(()).await;
+                            let _ = error.send_one_as(e.to_string()).await;
+                            break;
+                        }
                     }
                 }
-            } else {
-                let _ = failed.send_one_as(()).await;
-
-                let _ = error
-                    .send_one_as("provider not initialized".to_string())
-                    .await;
-                break;
+                Err(provider_error) => {
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as(provider_error).await;
+                    break;
+                }
             }
         }
 
@@ -285,7 +278,7 @@ pub async fn chat() {
 /// use ml/remote/llm::stream
 ///
 /// treatment example()
-///   model llm: RemoteLlm(backend = "mistral", api_key = "...", model = "mistral-small-latest")
+///   model llm: RemoteLlm(backend = "mistral", api_key = "env:MELODIUM_SECRET_MISTRAL_API_KEY", model = "mistral-small-latest")
 ///   input  prompt: Stream<string>
 ///   output token:  Stream<string>
 /// {
@@ -308,36 +301,36 @@ pub async fn stream() {
 
         #[cfg(feature = "real")]
         {
-            let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
-            if let Some(provider) = maybe_provider {
-                let messages = vec![ChatMessage::user().content(text).build()];
-                match Compat::new(provider.chat_stream(&messages)).await {
-                    Ok(mut s) => {
-                        while let Some(chunk) = Compat::new(s.next()).await {
-                            match chunk {
-                                Ok(t) => {
-                                    check!(token.send_one_as(t).await);
-                                }
-                                Err(e) => {
-                                    let _ = failed.send_one_as(()).await;
-                                    let _ = error.send_one_as(e.to_string()).await;
-                                    break;
+            match model_arc.inner().provider().await {
+                Ok(provider) => {
+                    let messages = vec![ChatMessage::user().content(text).build()];
+                    match Compat::new(provider.chat_stream(&messages)).await {
+                        Ok(mut s) => {
+                            while let Some(chunk) = Compat::new(s.next()).await {
+                                match chunk {
+                                    Ok(t) => {
+                                        check!(token.send_one_as(t).await);
+                                    }
+                                    Err(e) => {
+                                        let _ = failed.send_one_as(()).await;
+                                        let _ = error.send_one_as(e.to_string()).await;
+                                        break;
+                                    }
                                 }
                             }
                         }
-                    }
-                    Err(e) => {
-                        let _ = failed.send_one_as(()).await;
-                        let _ = error.send_one_as(e.to_string()).await;
-                        break;
+                        Err(e) => {
+                            let _ = failed.send_one_as(()).await;
+                            let _ = error.send_one_as(e.to_string()).await;
+                            break;
+                        }
                     }
                 }
-            } else {
-                let _ = failed.send_one_as(()).await;
-                let _ = error
-                    .send_one_as("provider not initialized".to_string())
-                    .await;
-                break;
+                Err(provider_error) => {
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as(provider_error).await;
+                    break;
+                }
             }
         }
 
@@ -438,9 +431,8 @@ pub async fn vision_chat() {
             ChatMessage::user().content(prompt_text).build(),
         ];
 
-        let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
-        if let Some(provider) = maybe_provider {
-            match Compat::new(provider.chat(&messages)).await {
+        match model_arc.inner().provider().await {
+            Ok(provider) => match Compat::new(provider.chat(&messages)).await {
                 Ok(resp) => {
                     let text = resp.text().unwrap_or_default();
                     let _ = response.send_one_as(text).await;
@@ -449,12 +441,11 @@ pub async fn vision_chat() {
                     let _ = failed.send_one_as(()).await;
                     let _ = error.send_one_as(e.to_string()).await;
                 }
+            },
+            Err(provider_error) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(provider_error).await;
             }
-        } else {
-            let _ = failed.send_one_as(()).await;
-            let _ = error
-                .send_one_as("provider not initialized".to_string())
-                .await;
         }
     }
 

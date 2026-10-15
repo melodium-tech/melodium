@@ -4,6 +4,7 @@
 ## [v0.11.0] (unreleased)
 
 - Calling remote providers in a Tokio context given by async-compat, and loading models on the threads of the blocking crate, instead of async-std, which is discontinued (#104).
+- Breaking: taking the `api_key` of `RemoteLlm`, `RemoteStt` and `RemoteTts`, and the `token` of `HfHub`, as secrets (`Option<Secret<string>>`), revealed only to build the provider or the Hub client. Remote providers are built on first use instead of when the program starts, as secrets are only revealed once every model is initialized, and a failed build is given on `error` instead of "provider not initialized".
 
 ## [v0.10.4] (2026-09-24)
 

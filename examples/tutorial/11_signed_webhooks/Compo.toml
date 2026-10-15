@@ -1,0 +1,12 @@
+name    = "signed_webhooks"
+version = "0.1.0"
+
+[dependencies]
+std      = "0.11.0"
+http     = "0.11.0"
+net      = "0.11.0"
+encoding = "0.11.0"
+crypto   = "0.11.0"
+
+[entrypoints]
+main = "signed_webhooks/main::main"
