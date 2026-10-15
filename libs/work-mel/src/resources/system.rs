@@ -183,8 +183,7 @@ pub fn zos_version(version: string) -> System {
 
 /// Return one exact machine image.
 ///
-/// `name` is the name of the image the worker boots from, resolved by whatever spawns the worker,
-/// and is never a container image. It is the name of an image alias defined for the organization,
+/// `name` is the name of the image the worker boots from. It is the name of an image alias defined for the organization,
 /// or a provider reference prefixed by the provider (`"scaleway:..."`, `"aws:..."`, `"gcp:..."`, `"azure:..."`, `"oci:..."`).
 /// The operating system and architecture are those of the image.
 #[mel_function]
