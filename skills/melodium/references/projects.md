@@ -77,7 +77,7 @@ http = "0.11.0"   # HTTP client/server
 json = "0.11.0"   # JSON
 ```
 
-Add `process`, `sql`, `regex`, `net`, `javascript`, `distrib`, `work`, `cicd` only when needed.
+Add `process`, `sql`, `regex`, `net`, `javascript`, `distrib`, `work`, `cicd`, `crypto`, `vault` only when needed.
 
 ---
 

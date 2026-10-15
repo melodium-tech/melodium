@@ -105,11 +105,7 @@ fn embedded_certificates_do_not_expire_within_180_days() {
         }
     }
 
-    assert!(
-        expiring.is_empty(),
-        "renew them:\n{}",
-        expiring.join("\n")
-    );
+    assert!(expiring.is_empty(), "renew them:\n{}", expiring.join("\n"));
 }
 
 #[test]
