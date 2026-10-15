@@ -15,7 +15,8 @@ use std::sync::Weak;
 /// - `revision`: git revision to pin: branch, tag, or commit hash (default `"main"`).
 /// - `endpoint`: Hub API base URL (default `"https://huggingface.co"`; override for mirrors).
 /// - `cache_dir`: local cache directory (empty string uses the default `~/.cache/huggingface/hub`).
-/// - `token`: HuggingFace access token for private repositories (empty string means no token).
+/// - `token`: HuggingFace access token for private repositories, as a secret
+///   (e.g. `"env:MELODIUM_SECRET_HF_TOKEN"`); none means no token.
 ///
 /// ℹ️ Use `HfHub` together with `fetch`: `HfHub` holds the configuration while `fetch`
 /// performs the actual network and cache operations when triggered.
@@ -46,7 +47,8 @@ use std::sync::Weak;
     param revision  string  "main"
     param endpoint  string  "https://huggingface.co"
     param cache_dir string  ""
-    param token     string  ""
+    param token     Option<Secret<string>> none
+    secrets_access
 )]
 #[derive(Debug)]
 pub struct HfHub {
@@ -198,79 +200,92 @@ pub async fn fetch() {
         let revision = model_arc.get_revision();
         let endpoint = model_arc.get_endpoint();
         let cache_dir = model_arc.get_cache_dir();
-        let token_str = model_arc.get_token();
 
-        // Hub calls are blocking I/O; run off the async executor.
-        let result = blocking::unblock(move || -> Result<(Vec<String>, String), String> {
-            let repo_type = match repo_type.as_str() {
-                "dataset" => RepoType::Dataset,
-                "space" => RepoType::Space,
-                _ => RepoType::Model,
-            };
-
+        let build_api = |token: Option<String>| {
             let mut builder = ApiBuilder::new()
                 .with_progress(false)
-                .with_endpoint(endpoint)
-                .with_token(if token_str.is_empty() {
-                    None
-                } else {
-                    Some(token_str)
-                });
+                .with_endpoint(endpoint.clone())
+                .with_token(token);
 
             if !cache_dir.is_empty() {
-                builder = builder.with_cache_dir(std::path::PathBuf::from(cache_dir));
+                builder = builder.with_cache_dir(std::path::PathBuf::from(&cache_dir));
             }
 
-            let api = builder.build().map_err(|e| e.to_string())?;
-            let repo = api.repo(Repo::with_revision(repo_id, repo_type, revision));
-            let info = repo.info().map_err(|e: ApiError| e.to_string())?;
+            builder.build().map_err(|e| e.to_string())
+        };
 
-            let shard_names: Vec<&str> = info
-                .siblings
-                .iter()
-                .filter(|s| s.rfilename.ends_with(".safetensors"))
-                .map(|s| s.rfilename.as_str())
-                .collect();
-            let shard_total = shard_names.len() + 1; // +1 for tokenizer
+        // The token is only revealed to be given to the API client.
+        let api = match model_arc.get_token() {
+            Some(token) => model_arc
+                .secrets_access()
+                .reveal_str(&token, |token| build_api(Some(token.to_string())))
+                .await
+                .unwrap_or_else(|error| Err(error.to_string())),
+            None => build_api(None),
+        };
 
-            let mut shard_paths: Vec<String> = shard_names
-                .iter()
-                .enumerate()
-                .map(|(i, name)| {
-                    repo.download_with_progress(
-                        name,
-                        ShardProgress {
-                            shard_index: i,
-                            shard_total,
-                            file_downloaded: 0,
-                            file_total: 0,
-                            filename: String::new(),
-                        },
-                    )
-                    .map(|p| p.to_string_lossy().into_owned())
-                    .map_err(|e: ApiError| e.to_string())
+        // Hub calls are blocking I/O; run off the async executor.
+        let result = match api {
+            Ok(api) => {
+                blocking::unblock(move || -> Result<(Vec<String>, String), String> {
+                    let repo_type = match repo_type.as_str() {
+                        "dataset" => RepoType::Dataset,
+                        "space" => RepoType::Space,
+                        _ => RepoType::Model,
+                    };
+
+                    let repo = api.repo(Repo::with_revision(repo_id, repo_type, revision));
+                    let info = repo.info().map_err(|e: ApiError| e.to_string())?;
+
+                    let shard_names: Vec<&str> = info
+                        .siblings
+                        .iter()
+                        .filter(|s| s.rfilename.ends_with(".safetensors"))
+                        .map(|s| s.rfilename.as_str())
+                        .collect();
+                    let shard_total = shard_names.len() + 1; // +1 for tokenizer
+
+                    let mut shard_paths: Vec<String> = shard_names
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| {
+                            repo.download_with_progress(
+                                name,
+                                ShardProgress {
+                                    shard_index: i,
+                                    shard_total,
+                                    file_downloaded: 0,
+                                    file_total: 0,
+                                    filename: String::new(),
+                                },
+                            )
+                            .map(|p| p.to_string_lossy().into_owned())
+                            .map_err(|e: ApiError| e.to_string())
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+
+                    shard_paths.sort();
+
+                    let tokenizer_path = repo
+                        .download_with_progress(
+                            "tokenizer.json",
+                            ShardProgress {
+                                shard_index: shard_total - 1,
+                                shard_total,
+                                file_downloaded: 0,
+                                file_total: 0,
+                                filename: String::new(),
+                            },
+                        )
+                        .map(|p| p.to_string_lossy().into_owned())
+                        .map_err(|e: ApiError| e.to_string())?;
+
+                    Ok((shard_paths, tokenizer_path))
                 })
-                .collect::<Result<Vec<_>, _>>()?;
-
-            shard_paths.sort();
-
-            let tokenizer_path = repo
-                .download_with_progress(
-                    "tokenizer.json",
-                    ShardProgress {
-                        shard_index: shard_total - 1,
-                        shard_total,
-                        file_downloaded: 0,
-                        file_total: 0,
-                        filename: String::new(),
-                    },
-                )
-                .map(|p| p.to_string_lossy().into_owned())
-                .map_err(|e: ApiError| e.to_string())?;
-
-            Ok((shard_paths, tokenizer_path))
-        })
-        .await;
+                .await
+            }
+            Err(error) => Err(error),
+        };
 
         match result {
             Ok((shard_paths, tokenizer_path)) => {

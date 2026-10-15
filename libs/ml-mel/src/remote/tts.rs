@@ -20,7 +20,8 @@ use llm::{
 /// Holds the connection parameters for a remote text-to-speech service.
 ///
 /// - `backend`: provider name (default `"elevenlabs"`); see the table below.
-/// - `api_key`: API key for authentication (omit for unauthenticated endpoints).
+/// - `api_key`: API key for authentication, as a secret (e.g. `"env:MELODIUM_SECRET_ELEVENLABS_API_KEY"`;
+///   omit for unauthenticated endpoints).
 /// - `base_url`: override the provider base URL (optional).
 /// - `model`: model identifier; see the table below for recommended values per backend.
 /// - `voice`: voice identifier (required for ElevenLabs; omit for other backends).
@@ -38,7 +39,7 @@ use llm::{
 /// treatment example()
 ///   model tts: RemoteTts(
 ///     backend  = "elevenlabs",
-///     api_key  = "...",
+///     api_key  = "env:MELODIUM_SECRET_ELEVENLABS_API_KEY",
 ///     model    = "eleven_multilingual_v2",
 ///     voice    = "JBFqnCBsd6RMkjVDRZzb"
 ///   )
@@ -51,11 +52,11 @@ use llm::{
 /// ```
 #[mel_model(
     param backend  string         "elevenlabs"
-    param api_key  Option<string> none
+    param api_key  Option<Secret<string>> none
     param base_url string         ""
     param model    string         ""
     param voice    string         ""
-    initialize initialize
+    secrets_access
     shutdown shutdown
 )]
 pub struct RemoteTts {
@@ -80,51 +81,44 @@ impl RemoteTts {
         }
     }
 
-    fn initialize(&self) {
-        #[cfg(feature = "real")]
-        {
-            let model_ref = match self.model.upgrade() {
-                Some(m) => m,
-                None => return,
-            };
+    /// Gives the provider, built on first use.
+    #[cfg(feature = "real")]
+    async fn provider(&self) -> Result<Arc<Box<dyn LLMProvider>>, String> {
+        let model_ref = self
+            .model
+            .upgrade()
+            .ok_or_else(|| "model is no longer available".to_string())?;
 
-            let backend_str = model_ref.get_backend();
-            let backend: LLMBackend = match backend_str.parse() {
-                Ok(b) => b,
-                Err(e) => {
-                    eprintln!("[RemoteTts] invalid backend '{}': {}", backend_str, e);
-                    return;
+        super::provider(
+            &self.provider,
+            || {
+                let backend_str = model_ref.get_backend();
+                let backend: LLMBackend = backend_str
+                    .parse()
+                    .map_err(|e| format!("invalid backend '{backend_str}': {e}"))?;
+
+                let base_url = model_ref.get_base_url();
+                let model_id = model_ref.get_model();
+                let voice = model_ref.get_voice();
+
+                let mut builder = LLMBuilder::new().backend(backend);
+
+                if !base_url.is_empty() {
+                    builder = builder.base_url(base_url);
                 }
-            };
-
-            let base_url = model_ref.get_base_url();
-            let model_id = model_ref.get_model();
-            let voice = model_ref.get_voice();
-
-            let mut builder = LLMBuilder::new().backend(backend);
-
-            if let Some(api_key) = model_ref.get_api_key() {
-                builder = builder.api_key(api_key);
-            }
-            if !base_url.is_empty() {
-                builder = builder.base_url(base_url);
-            }
-            if !model_id.is_empty() {
-                builder = builder.model(model_id);
-            }
-            if !voice.is_empty() {
-                builder = builder.voice(voice);
-            }
-
-            match builder.build() {
-                Ok(p) => {
-                    *self.provider.lock().unwrap() = Some(Arc::new(p));
+                if !model_id.is_empty() {
+                    builder = builder.model(model_id);
                 }
-                Err(e) => {
-                    eprintln!("[RemoteTts] failed to build provider: {}", e);
+                if !voice.is_empty() {
+                    builder = builder.voice(voice);
                 }
-            }
-        }
+
+                Ok(builder)
+            },
+            model_ref.get_api_key(),
+            model_ref.secrets_access(),
+        )
+        .await
     }
 
     fn shutdown(&self) {
@@ -162,7 +156,7 @@ impl RemoteTts {
 /// treatment example()
 ///   model tts: RemoteTts(
 ///     backend = "elevenlabs",
-///     api_key = "...",
+///     api_key = "env:MELODIUM_SECRET_ELEVENLABS_API_KEY",
 ///     voice   = "JBFqnCBsd6RMkjVDRZzb"
 ///   )
 ///   input  text:  Stream<string>
@@ -187,9 +181,8 @@ pub async fn synthesize() {
 
         #[cfg(feature = "real")]
         {
-            let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
-            if let Some(provider) = maybe_provider {
-                match Compat::new(provider.speech(&text_str)).await {
+            match model_arc.inner().provider().await {
+                Ok(provider) => match Compat::new(provider.speech(&text_str)).await {
                     Ok(bytes) => {
                         let batch = TransmissionValue::Byte(VecDeque::from(bytes));
                         check!(audio.send_many(batch).await);
@@ -199,13 +192,12 @@ pub async fn synthesize() {
                         let _ = error.send_one_as(e.to_string()).await;
                         break;
                     }
+                },
+                Err(provider_error) => {
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as(provider_error).await;
+                    break;
                 }
-            } else {
-                let _ = failed.send_one_as(()).await;
-                let _ = error
-                    .send_one_as("provider not initialized".to_string())
-                    .await;
-                break;
             }
         }
 
