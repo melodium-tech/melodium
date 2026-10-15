@@ -30,11 +30,12 @@ Installing Mélodium is enough for most of the tutorial. The table below lists e
 | [tutorial/08](tutorial/08_javascript_transform/) | nothing (`students.jsonl` is included) |
 | [tutorial/09](tutorial/09_process_pipeline/) | the `sort` command in `PATH` (standard on Linux, macOS, and Windows) |
 | [tutorial/10](tutorial/10_distributed_computation/) | **a second Mélodium engine** started with `melodium dist`, in a second terminal |
-| [showcase/smart_llm_router](showcase/smart_llm_router/) | an LLM provider API key |
-| [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) | an LLM provider API key; the `voice` entrypoint also needs an ElevenLabs key, a working microphone, and downloads a Whisper model from HuggingFace on first run |
+| [tutorial/11](tutorial/11_signed_webhooks/) | a free TCP port (8080 by default), `curl` and `openssl` to send signed requests |
+| [showcase/smart_llm_router](showcase/smart_llm_router/) | an LLM provider API key (`MELODIUM_SECRET_ANTHROPIC_API_KEY`) |
+| [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) | an LLM provider API key (`MELODIUM_SECRET_ANTHROPIC_API_KEY`); the `voice` entrypoint also needs an ElevenLabs key (`MELODIUM_SECRET_ELEVENLABS_API_KEY`), a working microphone, and downloads a Whisper model from HuggingFace on first run |
 | [showcase/ci_pipeline](showcase/ci_pipeline/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) or a local `podman`/`docker compose` setup; `repo_url` defaults to a real public repo, so nothing else is required |
-| [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) and an LLM provider API key |
-| [showcase/ci_failure_triage](showcase/ci_failure_triage/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) and an LLM provider API key; both CI steps are self-contained (`python:3.13-slim`), so nothing else is required |
+| [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`); the worker downloads the Mistral 7B weights from HuggingFace, so no LLM provider API key is needed |
+| [showcase/ci_failure_triage](showcase/ci_failure_triage/) | a Mélodium Services API token (`MELODIUM_API_TOKEN`) and an LLM provider API key (`MELODIUM_SECRET_ANTHROPIC_API_KEY`); both CI steps are self-contained (`python:3.13-slim`), so nothing else is required |
 
 Examples that write output (`hello.txt`, `report.txt`, `summary.json`, `post.txt`, `grades.txt`, `sorted.txt`, ...) create those files in the directory you run them from.
 
@@ -59,6 +60,8 @@ The table below is a map of what Mélodium (and its standard library packages) c
 | External process execution | `process` | [tutorial/09](tutorial/09_process_pipeline/) |
 | Distributed dataflow: running a treatment on another engine | `distrib` | [tutorial/10](tutorial/10_distributed_computation/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) |
 | Connection credentials for a remote engine | `work/access` | [tutorial/10](tutorial/10_distributed_computation/) |
+| Credentials as secrets: `Secret<string>` parameters read from the environment or files, never shown in logs | language, `std/secret` | [tutorial/07](tutorial/07_sql_crud_api/), [tutorial/10](tutorial/10_distributed_computation/), [tutorial/11](tutorial/11_signed_webhooks/), [showcase/smart_llm_router](showcase/smart_llm_router/), [showcase/ai_voice_assistant](showcase/ai_voice_assistant/), [showcase/ci_failure_triage](showcase/ci_failure_triage/) |
+| Webhook signatures and tokens: HMAC verification, constant-time token checks, secret headers | `crypto`, `http/server` | [tutorial/11](tutorial/11_signed_webhooks/) |
 | On-demand cloud workers | `work/distant` | [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) |
 | Container resources: architecture, service containers | `work/resources` | [showcase/ci_pipeline](showcase/ci_pipeline/) |
 | Remote LLM chat (streaming & non-streaming) | `ml/remote/llm` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/), [showcase/smart_llm_router](showcase/smart_llm_router/), [showcase/ci_failure_triage](showcase/ci_failure_triage/) |
@@ -66,7 +69,7 @@ The table below is a map of what Mélodium (and its standard library packages) c
 | HuggingFace Hub model download | `ml/repos/hf` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) |
 | CI/CD pipelines, containerised steps, service containers | `cicd` | [showcase/ci_pipeline](showcase/ci_pipeline/), [showcase/ci_failure_triage](showcase/ci_failure_triage/) |
 
-Packages with no dedicated example: `audio` (decode/encode/resample audio formats, used indirectly wherever `record/audio` is), `net` (IP address handling, used throughout as plumbing for `http`/`distrib`), `encoding` (byte↔string conversion, used throughout).
+Packages with no dedicated example: `audio` (decode/encode/resample audio formats, used indirectly wherever `record/audio` is), `net` (IP address handling, used throughout as plumbing for `http`/`distrib`), `encoding` (byte↔string conversion, used throughout), `vault` (secrets read from HashiCorp Vault or OpenBao, given as `vault:` locators wherever a `Secret<string>` is expected).
 
 ## A note on verification
 

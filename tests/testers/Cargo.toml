@@ -29,6 +29,7 @@ members = [
     "secret_distribution",
     "secret_leaks",
     "secret_masking",
+    "signed_webhooks",
     "sql",
     "stop_before_data_drained",
     "tester",
