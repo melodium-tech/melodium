@@ -40,24 +40,27 @@ use fs/local::writeLocal
 //
 //   chat  : HTTP server, POST /chat streams a remote LLM's response back
 //           token by token as it is generated.
-//           melodium run Compo.toml chat --api_key sk-...
+//           MELODIUM_SECRET_ANTHROPIC_API_KEY=sk-... melodium run Compo.toml chat
 //           curl -X POST http://127.0.0.1:8080/chat -d "What is Mélodium?"
 //
 //   voice : microphone -> local Whisper (speech-to-text) -> remote LLM
 //           (streamed reply) -> remote text-to-speech -> answer.mp3.
 //           Speech-to-text runs locally so raw audio never leaves the
 //           machine; only the transcribed text is sent to the LLM.
-//           melodium run Compo.toml voice --llm_api_key sk-... --tts_api_key el-...
+//           MELODIUM_SECRET_ANTHROPIC_API_KEY=sk-... MELODIUM_SECRET_ELEVENLABS_API_KEY=el-... \
+//               melodium run Compo.toml voice
 //
 // This example requires real API keys (an LLM provider, and ElevenLabs for
-// `voice`) and, for `voice`, a working microphone.
+// `voice`) and, for `voice`, a working microphone. The keys are secrets, read
+// from the environment by default; `--api_key`, `--llm_api_key` and
+// `--tts_api_key` take another locator, such as `file:/run/secrets/llm`.
 //
 
 // --- entrypoint: chat ---
 
-model ChatLlm(const api_key: string, const model: string) : RemoteLlm {
+model ChatLlm(const api_key: Secret<string>, const model: string) : RemoteLlm {
     backend     = "anthropic"
-    api_key     = |wrap<string>(api_key)
+    api_key     = |wrap<Secret<string>>(api_key)
     base_url    = ""
     model       = model
     system      = "You are a helpful, concise assistant."
@@ -68,9 +71,9 @@ model ChatLlm(const api_key: string, const model: string) : RemoteLlm {
 }
 
 treatment chat(
-    const api_key: string,
-    const model:   string = "claude-sonnet-4-6",
-    const port:    u16    = 8080
+    const api_key: Secret<string> = "env:MELODIUM_SECRET_ANTHROPIC_API_KEY",
+    const model:   string         = "claude-sonnet-4-6",
+    const port:    u16            = 8080
 )
   model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
   model llm:    ChatLlm(api_key=api_key, model=model)
@@ -110,9 +113,9 @@ treatment respond[llm: RemoteLlm]()
 model WhisperHub() : HfHub   { repo_id = "openai/whisper-tiny" }
 model Asr()        : Whisper {}
 
-model VoiceLlm(const api_key: string, const model: string) : RemoteLlm {
+model VoiceLlm(const api_key: Secret<string>, const model: string) : RemoteLlm {
     backend     = "anthropic"
-    api_key     = |wrap<string>(api_key)
+    api_key     = |wrap<Secret<string>>(api_key)
     base_url    = ""
     model       = model
     system      = "You are a concise voice assistant. Answer in one short paragraph."
@@ -122,19 +125,19 @@ model VoiceLlm(const api_key: string, const model: string) : RemoteLlm {
     timeout     = _
 }
 
-model Voice(const tts_api_key: string, const voice_id: string) : RemoteTts {
+model Voice(const tts_api_key: Secret<string>, const voice_id: string) : RemoteTts {
     backend = "elevenlabs"
-    api_key = |wrap<string>(tts_api_key)
+    api_key = |wrap<Secret<string>>(tts_api_key)
     model   = "eleven_multilingual_v2"
     voice   = voice_id
 }
 
 treatment voice(
-    const llm_api_key: string,
-    const tts_api_key: string,
-    const model:        string = "claude-sonnet-4-6",
-    const voice_id:      string = "JBFqnCBsd6RMkjVDRZzb",
-    const output:        string = "answer.mp3"
+    const llm_api_key: Secret<string> = "env:MELODIUM_SECRET_ANTHROPIC_API_KEY",
+    const tts_api_key: Secret<string> = "env:MELODIUM_SECRET_ELEVENLABS_API_KEY",
+    const model:       string         = "claude-sonnet-4-6",
+    const voice_id:    string         = "JBFqnCBsd6RMkjVDRZzb",
+    const output:      string         = "answer.mp3"
 )
   model whisperHub: WhisperHub()
   model asr:        Asr()

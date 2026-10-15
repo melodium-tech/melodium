@@ -54,7 +54,8 @@ use fs/local::writeTextLocal
 //
 // Usage:
 //   export MELODIUM_API_TOKEN="my-melodium-services-token"
-//   melodium run --api-report Compo.toml --api_key sk-...
+//   export MELODIUM_SECRET_ANTHROPIC_API_KEY="sk-..."
+//   melodium run --api-report Compo.toml
 //
 
 // The deterministic classifier: reads a step's raw stdout/stderr and, with
@@ -98,9 +99,9 @@ model Classifier() : JavaScriptEngine {
 // already flagged as failed; there is only one tier here (unlike
 // showcase/smart_llm_router), since this example's cost-saving lever is not
 // "which model" but "whether to call a model at all".
-model Analyst(const api_key: string, const model: string) : RemoteLlm {
+model Analyst(const api_key: Secret<string>, const model: string) : RemoteLlm {
     backend     = "anthropic"
-    api_key     = |wrap<string>(api_key)
+    api_key     = |wrap<Secret<string>>(api_key)
     base_url    = ""
     model       = model
     system      = "You are a CI failure triage assistant. You are given the name of a failed CI step, a deterministic classification of the failure, and the step's raw output. In two short paragraphs: explain the likely root cause in plain language, then suggest a concrete, minimal fix. Do not repeat the raw log back verbatim."
@@ -111,9 +112,9 @@ model Analyst(const api_key: string, const model: string) : RemoteLlm {
 }
 
 treatment main(
-    const api_key: string,
-    const model:   string = "claude-sonnet-4-6",
-    const output:  string = "ci_failure_report.md"
+    const api_key: Secret<string> = "env:MELODIUM_SECRET_ANTHROPIC_API_KEY",
+    const model:   string         = "claude-sonnet-4-6",
+    const output:  string         = "ci_failure_report.md"
 )
   model dispatcher: CicdDispatchEngine()
   model classifier: Classifier()
