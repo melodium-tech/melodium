@@ -3,7 +3,8 @@
 
 ## [v0.11.0] (unreleased)
 
-- Breaking: `ROOT_CERTIFICATE` is a `&[u8]`, so that the file can hold the new root next to the current one during a renewal, both being trusted (#128).
+- Breaking: renewing the root certificate, "Mélodium Distribution Root G2", valid until 2036; the previous root, expiring on 2026-12-23, is no longer trusted, so certificates issued under it are refused (#128).
+- Breaking: `ROOT_CERTIFICATE` is a `&[u8]`, so that the file can hold several roots, such as the new one next to the current one during a renewal (#128).
 
 ## [v0.10.4] (2026-09-24)
 
