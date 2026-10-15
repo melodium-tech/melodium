@@ -68,10 +68,18 @@ impl Display for Executor {
     }
 }
 
+/// Base of the official images run by the Compose location, also the Linux distribution they satisfy.
+/// The tag of the image goes on with the executor (`alpine-podman`, `alpine-docker`), which Compose detects by itself.
+const COMPOSE_IMAGE_BASE: &str = "alpine";
+
+/// Editions of the engine in the official images run by the Compose location.
+const COMPOSE_EDITIONS: [&str; 2] = ["standard", "container"];
+
 /// Refuse the needs the Compose location cannot satisfy.
 ///
-/// The engine runs in an Alpine-based container, so a bare `linux` family is satisfied,
-/// while any machine image, distribution, version or other family is not.
+/// The engine runs in an Alpine-based container of the standard and container editions, so `linux` and `linux alpine`
+/// (without version) and these editions (or none) are satisfied,
+/// while any machine image, distribution, version, other family or other edition is not.
 /// Only the architecture of the host is satisfied, for the worker and for each container giving one.
 fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
@@ -80,14 +88,24 @@ fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
         None => {}
         Some(System::Os(os))
             if os.family == OsFamily::Linux
-                && os.distribution.is_none()
+                && os.distribution.as_deref().is_none_or(|distribution| distribution == COMPOSE_IMAGE_BASE)
                 && os.version.is_none() => {}
         Some(System::Os(os)) => errors.push(format!(
-            "Compose location cannot satisfy the operating system '{os}', only a bare 'linux'"
+            "Compose location cannot satisfy the operating system '{os}', only 'linux' or 'linux alpine'"
         )),
         Some(System::Image(image)) => errors.push(format!(
             "Compose location cannot satisfy the machine image '{image}'"
         )),
+    }
+
+    match request.edition.as_deref() {
+        Some(edition) if !COMPOSE_EDITIONS.contains(&edition) => errors.push(format!(
+            "Compose location cannot satisfy the edition '{edition}', only {}",
+            COMPOSE_EDITIONS
+                .map(|edition| format!("'{edition}'"))
+                .join(" or ")
+        )),
+        _ => {}
     }
 
     let archs = request
@@ -122,10 +140,6 @@ fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
 #[cfg(feature = "real")]
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
     use crate::reporting::REPORTS_ENABLED;
-
-    if request.edition.as_deref().unwrap_or("scratch") == "scratch" {
-        request.edition = Some("alpine".to_string())
-    }
 
     check_needs(&request, Arch::host())?;
 
@@ -505,7 +519,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .unwrap_or("quay.io/melodium".to_string())
                 }),
                 request.version,
-                request.edition.unwrap_or_else(|| "scratch".to_string()),
+                COMPOSE_IMAGE_BASE,
                 executor
             ))
             .map_err(|err| vec![err.to_string()])?,
@@ -822,11 +836,30 @@ mod needs_tests {
     fn satisfied() {
         assert!(check_needs(&request(None), Arch::Amd64).is_ok());
         assert!(check_needs(&request(os(OsFamily::Linux, None, None)), Arch::Amd64).is_ok());
+        assert!(check_needs(
+            &request(os(OsFamily::Linux, Some("alpine"), None)),
+            Arch::Amd64
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn edition() {
+        let mut request = request(None);
+        assert!(check_needs(&request, Arch::Amd64).is_ok());
+        for edition in ["standard", "container"] {
+            request.edition = Some(edition.to_string());
+            assert!(check_needs(&request, Arch::Amd64).is_ok());
+        }
+        request.edition = Some("desktop".to_string());
+        let errors = check_needs(&request, Arch::Amd64).unwrap_err();
+        assert!(errors[0].contains("desktop"));
     }
 
     #[test]
     fn refused() {
         for system in [
+            os(OsFamily::Linux, Some("alpine"), Some("3.20")),
             os(OsFamily::Linux, Some("ubuntu"), None),
             os(OsFamily::Linux, Some("ubuntu"), Some("24.04")),
             os(OsFamily::Windows, None, None),

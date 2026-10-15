@@ -9,11 +9,12 @@
 - Adding `|new_plain_access` for workers listening without TLS on loopback addresses (#139).
 - Breaking: taking the keys of `|new_access` and `|new_plain_access` as secrets, revealed by `distrib::start` only to authenticate the connection. Malformed keys make the start fail instead of becoming the nil UUID. The keys of distant workers are secrets too, so `Access` values never show keys in logs nor debug events, and Compose debug output leaves them out. In Rust, `Access` holds its fields directly and `api::CommonAccess` is removed (#136).
 - Giving Compose distribution engines their keys through the environment instead of their arguments, and allowing plain TCP to them over the network local to the host (#130).
-- Adding the `system` parameter to `distant`, an operating system built with `|linux`, `|linux_distribution`, `|linux_distribution_version`, `|windows`, `|windows_version`, `|macos`, `|macos_version`, `|freebsd`, `|openbsd`, `|netbsd`, `|solaris`, `|illumos`, `|aix`, `|ibmi`, `|zos` (each with a `_version` variant), or one exact machine image built with `|image`; both cannot be requested together, and Compose only satisfies a bare `linux` (#141).
+- Adding the `system` parameter to `distant`, an operating system built with `|linux`, `|linux_distribution`, `|linux_distribution_version`, `|windows`, `|windows_version`, `|macos`, `|macos_version`, `|freebsd`, `|openbsd`, `|netbsd`, `|solaris`, `|illumos`, `|aix`, `|ibmi`, `|zos` (each with a `_version` variant), or one exact machine image built with `|image`; both cannot be requested together, and Compose only satisfies `linux` and `linux` with the `alpine` distribution (#141, #143).
 - Adding every architecture of the OCI image specification, and `wasm32` and `wasm64`, to `work/resources/arch`; unknown architectures are now read as unknown instead of failing (#141).
 - Breaking: Compose refuses worker and container architectures different from the host one, instead of ignoring them (#141).
 - Breaking: taking the architecture of `|container` and `|service_container` as optional, none meaning the one of the machine the worker runs on; programs wrap it with `|wrap<Arch>` (#141).
 - Adding `|local_arch`, the architecture of the machine running the engine (#141).
+- Breaking: `distant` sends no edition when the program gives none, meaning any edition suits, instead of `scratch`. The edition is the one of the engine (`standard`, `desktop`, `container`, ...), the image being defined by the distribution of `system`; Compose runs the `standard` and `container` editions on an Alpine image and refuses another edition. Documenting editions and tags in `distant` (#143).
 
 ## [v0.10.4] (2026-09-24)
 
