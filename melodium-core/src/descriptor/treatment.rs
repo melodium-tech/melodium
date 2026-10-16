@@ -22,6 +22,7 @@ pub struct Treatment {
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
     source_from: HashMap<String, Vec<String>>,
+    secrets_access: bool,
     build_fn: fn() -> Arc<dyn ExecutiveTreatment>,
     auto_reference: Weak<Self>,
 }
@@ -37,6 +38,7 @@ impl Treatment {
         parameters: Vec<Parameter>,
         inputs: Vec<Input>,
         outputs: Vec<Output>,
+        secrets_access: bool,
         build_fn: fn() -> Arc<dyn ExecutiveTreatment>,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
@@ -54,6 +56,7 @@ impl Treatment {
             inputs: HashMap::from_iter(inputs.into_iter().map(|i| (i.name().to_string(), i))),
             outputs: HashMap::from_iter(outputs.into_iter().map(|o| (o.name().to_string(), o))),
             source_from: HashMap::from_iter(source_from.into_iter()),
+            secrets_access,
             build_fn,
             auto_reference: me.clone(),
         })
@@ -208,6 +211,10 @@ impl TreatmentDescriptor for Treatment {
 
     fn source_from(&self) -> &HashMap<String, Vec<String>> {
         &self.source_from
+    }
+
+    fn secrets_access(&self) -> bool {
+        self.secrets_access
     }
 
     fn as_identified(&self) -> Arc<dyn Identified> {

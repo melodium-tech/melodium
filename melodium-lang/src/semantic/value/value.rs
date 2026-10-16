@@ -397,6 +397,26 @@ impl Value {
                             ));
                         }
                     }
+                    if borrowed_func.generics.len() > func_descriptor.generics().len() {
+                        result = result.and_degrade_failure(ScriptResult::new_failure(
+                            ScriptError::extra_function_generic(
+                                190,
+                                positioned_string.clone(),
+                                func_descriptor.generics().len(),
+                                borrowed_func.generics.len(),
+                            ),
+                        ));
+                    }
+                    if borrowed_func.parameters.len() > func_descriptor.parameters().len() {
+                        result = result.and_degrade_failure(ScriptResult::new_failure(
+                            ScriptError::extra_function_parameter(
+                                191,
+                                positioned_string.clone(),
+                                func_descriptor.parameters().len(),
+                                borrowed_func.parameters.len(),
+                            ),
+                        ));
+                    }
                     for i in 0..func_descriptor.parameters().len() {
                         let desc_param = &func_descriptor.parameters()[i];
 

@@ -1,6 +1,6 @@
-use async_std::path::PathBuf;
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
+use std::path::PathBuf;
 
 /// Gives compition of paths.
 ///
@@ -66,7 +66,7 @@ pub async fn exists() {
     while let Ok(paths) = path.recv_many_as::<string>().await {
         let mut results = Vec::with_capacity(paths.len());
         for path in paths {
-            results.push(PathBuf::from(path).exists().await);
+            results.push(async_fs::metadata(path).await.is_ok());
         }
         check!(exists.send_many_as(results).await);
     }
@@ -89,7 +89,7 @@ pub async fn meta() {
         let mut are_files = Vec::with_capacity(paths.len());
         let mut lengths = Vec::with_capacity(paths.len());
         for path in paths {
-            if let Ok(metadata) = async_std::fs::metadata(path).await {
+            if let Ok(metadata) = async_fs::metadata(path).await {
                 are_dirs.push(metadata.is_dir());
                 are_files.push(metadata.is_file());
                 lengths.push(metadata.len());

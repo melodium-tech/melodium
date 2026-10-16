@@ -2932,6 +2932,9 @@ impl serde::Serialize for Value {
                 }
                 ser.end()
             }
+            // Secrets are refused on every serialized output, except data values crossing
+            // to a distant engine, see `Secret` serialization.
+            Value::Secret(secret) => serde::Serialize::serialize(secret, serializer),
             Value::Data(data) => serde::Serialize::serialize(&data, serializer),
         }
     }
@@ -3039,6 +3042,8 @@ impl core::fmt::Display for Value {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+
+            Value::Secret(secret) => write!(f, "{secret}"),
 
             Value::Data(obj) => write!(f, "/* {} */", obj.descriptor().identifier().name()),
         }

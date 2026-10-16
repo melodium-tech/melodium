@@ -41,6 +41,7 @@ pub enum DataType {
 
     Vec(Box<DataType>),
     Option(Box<DataType>),
+    Secret(Box<DataType>),
 
     Data(Data),
 }
@@ -77,6 +78,9 @@ impl DataType {
                 dt.as_ref().to_datatype(collection)?,
             ))),
             DataType::Option(dt) => Some(CommonDataType::Option(Box::new(
+                dt.as_ref().to_datatype(collection)?,
+            ))),
+            DataType::Secret(dt) => Some(CommonDataType::Secret(Box::new(
                 dt.as_ref().to_datatype(collection)?,
             ))),
             DataType::Data(data) => collection
@@ -127,6 +131,7 @@ impl From<&CommonDataType> for DataType {
 
             CommonDataType::Vec(dt) => DataType::Vec(Box::new(dt.as_ref().into())),
             CommonDataType::Option(dt) => DataType::Option(Box::new(dt.as_ref().into())),
+            CommonDataType::Secret(dt) => DataType::Secret(Box::new(dt.as_ref().into())),
             CommonDataType::Data(data) => DataType::Data(data.as_ref().into()),
         }
     }
@@ -170,6 +175,7 @@ impl TryInto<CommonDataType> for &DataType {
 
             DataType::Vec(dt) => Ok(CommonDataType::Vec(Box::new(dt.as_ref().try_into()?))),
             DataType::Option(dt) => Ok(CommonDataType::Option(Box::new(dt.as_ref().try_into()?))),
+            DataType::Secret(dt) => Ok(CommonDataType::Secret(Box::new(dt.as_ref().try_into()?))),
             DataType::Data(_) => Err(()),
         }
     }

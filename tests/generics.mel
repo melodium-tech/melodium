@@ -1,8 +1,8 @@
 #!/usr/bin/env melodium
 #! name = generics
-#! version = 0.10.4
-#! require = std:0.10.4
-#! require = fs:0.10.4
+#! version = 0.11.0
+#! require = std:0.11.0
+#! require = fs:0.11.0
 
 use std/flow::emit
 use std/flow::trigger

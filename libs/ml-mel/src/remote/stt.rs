@@ -1,12 +1,13 @@
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
-use std::collections::HashMap;
 #[cfg(feature = "real")]
 use std::sync::Arc;
 #[cfg(feature = "real")]
 use std::sync::Mutex;
 use std::sync::Weak;
 
+#[cfg(feature = "real")]
+use async_compat::Compat;
 #[cfg(feature = "real")]
 use llm::{
     builder::{LLMBackend, LLMBuilder},
@@ -18,7 +19,8 @@ use llm::{
 /// Holds the connection parameters for a remote speech-to-text service.
 ///
 /// - `backend`: provider name (default `"openai"`); see the table below.
-/// - `api_key`: API key for authentication (omit for unauthenticated endpoints).
+/// - `api_key`: API key for authentication, as a secret (e.g. `"env:MELODIUM_SECRET_OPENAI_API_KEY"`;
+///   omit for unauthenticated endpoints).
 /// - `base_url`: override the provider base URL (optional).
 /// - `model`: model identifier; see the table below for recommended values per backend.
 ///
@@ -34,7 +36,7 @@ use llm::{
 /// use ml/remote/stt::transcribe
 ///
 /// treatment example()
-///   model stt: RemoteStt(backend = "openai", api_key = "sk-...", model = "whisper-1")
+///   model stt: RemoteStt(backend = "openai", api_key = "env:MELODIUM_SECRET_OPENAI_API_KEY", model = "whisper-1")
 ///   input  audio:      Stream<byte>
 ///   output transcript: Block<string>
 /// {
@@ -44,10 +46,10 @@ use llm::{
 /// ```
 #[mel_model(
     param backend  string         "openai"
-    param api_key  Option<string> none
+    param api_key  Option<Secret<string>> none
     param base_url string         ""
     param model    string         ""
-    initialize initialize
+    secrets_access
     shutdown shutdown
 )]
 pub struct RemoteStt {
@@ -72,47 +74,40 @@ impl RemoteStt {
         }
     }
 
-    fn initialize(&self) {
-        #[cfg(feature = "real")]
-        {
-            let model_ref = match self.model.upgrade() {
-                Some(m) => m,
-                None => return,
-            };
+    /// Gives the provider, built on first use.
+    #[cfg(feature = "real")]
+    async fn provider(&self) -> Result<Arc<Box<dyn LLMProvider>>, String> {
+        let model_ref = self
+            .model
+            .upgrade()
+            .ok_or_else(|| "model is no longer available".to_string())?;
 
-            let backend_str = model_ref.get_backend();
-            let backend: LLMBackend = match backend_str.parse() {
-                Ok(b) => b,
-                Err(e) => {
-                    eprintln!("[RemoteStt] invalid backend '{}': {}", backend_str, e);
-                    return;
+        super::provider(
+            &self.provider,
+            || {
+                let backend_str = model_ref.get_backend();
+                let backend: LLMBackend = backend_str
+                    .parse()
+                    .map_err(|e| format!("invalid backend '{backend_str}': {e}"))?;
+
+                let base_url = model_ref.get_base_url();
+                let model_id = model_ref.get_model();
+
+                let mut builder = LLMBuilder::new().backend(backend);
+
+                if !base_url.is_empty() {
+                    builder = builder.base_url(base_url);
                 }
-            };
-
-            let base_url = model_ref.get_base_url();
-            let model_id = model_ref.get_model();
-
-            let mut builder = LLMBuilder::new().backend(backend);
-
-            if let Some(api_key) = model_ref.get_api_key() {
-                builder = builder.api_key(api_key);
-            }
-            if !base_url.is_empty() {
-                builder = builder.base_url(base_url);
-            }
-            if !model_id.is_empty() {
-                builder = builder.model(model_id);
-            }
-
-            match builder.build() {
-                Ok(p) => {
-                    *self.provider.lock().unwrap() = Some(Arc::new(p));
+                if !model_id.is_empty() {
+                    builder = builder.model(model_id);
                 }
-                Err(e) => {
-                    eprintln!("[RemoteStt] failed to build provider: {}", e);
-                }
-            }
-        }
+
+                Ok(builder)
+            },
+            model_ref.get_api_key(),
+            model_ref.secrets_access(),
+        )
+        .await
     }
 
     fn shutdown(&self) {
@@ -121,8 +116,6 @@ impl RemoteStt {
             *self.provider.lock().unwrap() = None;
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Transcribe audio bytes to text using a remote speech-to-text service.
@@ -154,7 +147,7 @@ impl RemoteStt {
 /// use ml/remote/stt::transcribe
 ///
 /// treatment example()
-///   model stt: RemoteStt(backend = "openai", api_key = "sk-...", model = "whisper-1")
+///   model stt: RemoteStt(backend = "openai", api_key = "env:MELODIUM_SECRET_OPENAI_API_KEY", model = "whisper-1")
 ///   input  audio:      Stream<byte>
 ///   output transcript: Block<string>
 /// {
@@ -185,9 +178,8 @@ pub async fn transcribe() {
 
     #[cfg(feature = "real")]
     {
-        let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
-        if let Some(provider) = maybe_provider {
-            match provider.transcribe(audio_bytes).await {
+        match model_arc.inner().provider().await {
+            Ok(provider) => match Compat::new(provider.transcribe(audio_bytes)).await {
                 Ok(text) => {
                     let _ = transcript.send_one_as(text).await;
                 }
@@ -195,12 +187,11 @@ pub async fn transcribe() {
                     let _ = failed.send_one_as(()).await;
                     let _ = error.send_one_as(e.to_string()).await;
                 }
+            },
+            Err(provider_error) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(provider_error).await;
             }
-        } else {
-            let _ = failed.send_one_as(()).await;
-            let _ = error
-                .send_one_as("provider not initialized".to_string())
-                .await;
         }
     }
 
@@ -247,7 +238,7 @@ pub async fn transcribe() {
 /// use ml/remote/stt::transcribeContinuous
 ///
 /// treatment example()
-///   model stt: RemoteStt(backend = "openai", api_key = "sk-...", model = "whisper-1")
+///   model stt: RemoteStt(backend = "openai", api_key = "env:MELODIUM_SECRET_OPENAI_API_KEY", model = "whisper-1")
 ///   input  segments:   Stream<Vec<byte>>
 ///   output transcript: Stream<string>
 /// {
@@ -272,9 +263,8 @@ pub async fn transcribe_continuous() {
 
         #[cfg(feature = "real")]
         {
-            let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
-            if let Some(provider) = maybe_provider {
-                match provider.transcribe(segment_bytes).await {
+            match model_arc.inner().provider().await {
+                Ok(provider) => match Compat::new(provider.transcribe(segment_bytes)).await {
                     Ok(text) => {
                         check!(transcript.send_one_as(text).await);
                     }
@@ -283,13 +273,12 @@ pub async fn transcribe_continuous() {
                         let _ = error.send_one_as(e.to_string()).await;
                         break;
                     }
+                },
+                Err(provider_error) => {
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as(provider_error).await;
+                    break;
                 }
-            } else {
-                let _ = failed.send_one_as(()).await;
-                let _ = error
-                    .send_one_as("provider not initialized".to_string())
-                    .await;
-                break;
             }
         }
 

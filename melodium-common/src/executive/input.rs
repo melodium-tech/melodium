@@ -82,7 +82,7 @@ mod input_ext_tests {
 
     #[test]
     fn recv_one_as_returns_correctly_typed_value() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let input = fake_input(TransmissionValue::new(Value::String("hello".to_string())));
             let value: String = input.recv_one_as::<String>().await.unwrap();
             assert_eq!(value, "hello");
@@ -91,7 +91,7 @@ mod input_ext_tests {
 
     #[test]
     fn recv_one_as_reports_type_mismatch_instead_of_panicking() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let input = fake_input(TransmissionValue::new(Value::String("hello".to_string())));
             let result = input.recv_one_as::<u64>().await;
             assert!(matches!(result, Err(TransmissionError::TypeMismatch)));
@@ -100,7 +100,7 @@ mod input_ext_tests {
 
     #[test]
     fn recv_many_as_returns_correctly_typed_batch() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let input = fake_input(TransmissionValue::Byte(std::collections::VecDeque::from(
                 vec![1u8, 2u8],
             )));
@@ -111,7 +111,7 @@ mod input_ext_tests {
 
     #[test]
     fn recv_many_as_reports_type_mismatch_instead_of_panicking() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let input = fake_input(TransmissionValue::Byte(std::collections::VecDeque::from(
                 vec![1u8, 2u8],
             )));
@@ -125,7 +125,7 @@ mod input_ext_tests {
     // one batch flows through, then the loop exits cleanly once the source closes.
     #[test]
     fn recv_many_as_works_directly_in_a_while_let_loop() {
-        async_std::task::block_on(async {
+        futures_lite::future::block_on(async {
             let input = fake_input(TransmissionValue::String(std::collections::VecDeque::from(
                 vec!["hello".to_string(), "world".to_string()],
             )));

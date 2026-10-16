@@ -23,7 +23,8 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | `jobs.<job>.environment` | Deployment protection rules are outside Mélodium scope |
 | `jobs.<job>.permissions` | Handled by the caller passing the appropriate token |
 | `on: push` / triggers | Entry-point treatment inputs |
-| `secrets` / `env` | Parameters passed to treatments |
+| `secrets` | `Secret<string>` parameters, see [Secrets](#secrets) |
+| `env` | Parameters passed to treatments |
 | `step.continue-on-error` | `continue_on_error` parameter of `runAction`, chain `continue` output |
 | `step.timeout-minutes` | No direct equivalent per step; apply `max_duration` at runner level |
 | Status reporting | `postGithubState` / `postGithubStateContext` |
@@ -175,13 +176,50 @@ step1.failed -> Self.failed
 
 ---
 
+## Secrets
+
+`secrets.*` values become `Secret<string>` parameters. A secret holds where its value comes from, such as `env:MELODIUM_SECRET_GITHUB_TOKEN`, and only the elements using it reveal it: its value never appears in parameters, logs, reports or command arguments.
+
+The workflow gives secrets to the job environment, and passes locators, never values. Programs only get the environment variables whose name starts with `MELODIUM_SECRET_`, so each secret is given under that prefix:
+
+```yaml
+- name: Mélodium CI
+  run: melodium run .melodium/Compo.toml main --github_token env:MELODIUM_SECRET_GITHUB_TOKEN --sha "${{ github.sha }}"
+  env:
+    MELODIUM_SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Secret parameters given to models (and through them, as the status tokens of steps) are `const`. The status token of steps and `setServiceState`, `github_token`, defaults to `env:MELODIUM_SECRET_GITHUB_TOKEN`.
+
+Commands get secrets as environment variables with `secret_variables`, never through their arguments. Steps running on workers need secrets allowed to be sent to them by value, which `std/secret::|locate` sets explicitly. Secrets with the default policy stay on the engine holding them, and sending them to a worker fails with an explicit error.
+
+```mel
+use std/data/map::Map
+use std/data/map::|map as |secret_map
+use std/data/map::|entry as |secret_entry
+use std/secret::|locate
+
+simpleStep[dispatcher=dispatcher](
+    name="publish",
+    image="node:20",
+    commands=[|command("npm", ["publish"])],
+    secret_variables=|wrap<Map>(|secret_map([
+        |secret_entry<Option<Secret<string>>>("NPM_TOKEN", |locate<string>("env:MELODIUM_SECRET_NPM_TOKEN", "npm_token", "value", false))
+    ]))
+)
+```
+
+⚠️ `${{ secrets.X }}` expressions evaluated by the contexts engine (`runAction`, `postGithubStateContext`, `githubStringEval`) give plain strings, and the `secrets` context given to `prepareContexts` is plain JSON. Leave secrets out of the contexts JSON, and give them as `Secret<string>` parameters instead.
+
+---
+
 ## Job dispatch — `simpleStep`
 
 For container-based jobs (equivalent to `runs-on: ubuntu-latest` with a docker image), use `simpleStep`. It manages the full lifecycle: spawning a runner, executing commands, reporting status, and stopping the runner.
 
 ```mel
 treatment myJob[dispatcher: CicdDispatchEngine](
-    github_token: string,
+    const github_token: Secret<string>,
     github_project: string,
     github_sha: string
 )
@@ -224,11 +262,13 @@ treatment myJob[dispatcher: CicdDispatchEngine](
 | `arch` | `_` | Target architecture (`Option<Arch>`) |
 | `service_containers` | `[]` | Side-car containers |
 | `variables` | `_` | Environment variables (`Option<StringMap>`) |
+| `secret_variables` | `_` | Environment variables whose values are secrets (`Option<Map>` of `Secret<string>`), see [Secrets](#secrets) |
+| `pull_secret` | `_` | Registry credentials as a Docker configuration JSON (`Option<Secret<string>>`) |
 | `commands` | required | List of `Command` to run sequentially |
 | `out_file` | `_` | File to stream back through `data` output after success |
 | `report` | `true` | Enable service state reporting |
 | `github` | `false` | Report to GitHub commit status API |
-| `github_token` | `""` | GitHub token |
+| `github_token` | `"env:MELODIUM_SECRET_GITHUB_TOKEN"` | GitHub token allowed to set commit statuses (`const Secret<string>`) |
 | `github_project` | `""` | `owner/repo` |
 | `github_sha` | `""` | Commit SHA |
 
@@ -269,6 +309,8 @@ postGithubState(
 )
 ```
 
+`token` is a `const Secret<string>`, sent as the `Authorization` header when the request is made.
+
 `state` is a `StepState` value, constructed with functions `|pending()`, `|success()`, `|failure()`, `|error()`.
 
 The treatment automatically includes a `target_url` pointing to the Mélodium execution dashboard.
@@ -285,7 +327,7 @@ postGithubStateContext[contexts=contexts](
 )
 ```
 
-The API URL and `Authorization` header are resolved by evaluating `${{ github.api_url }}` and `${{ secrets.GITHUB_TOKEN }}` through the engine.
+The API URL and `Authorization` header are resolved by evaluating `${{ github.api_url }}` and `${{ secrets.GITHUB_TOKEN }}` through the engine. The token is then a plain string: prefer `postGithubState` with a `Secret<string>` token (see [Secrets](#secrets)).
 
 ---
 
@@ -371,15 +413,15 @@ action_contexts: JavaScriptEngine()
 
 replicateContextsWithInputs[main_contexts=contexts, action_contexts=action_contexts](
     inputs=|map([
-        |entry("token", github_token),
-        |entry("ref", branch)
+        |entry("ref", branch),
+        |entry("fetch-depth", "1")
     ])
 )
 
 // then use action_contexts for runAction inside the action
 ```
 
-This gives the action its own `inputs` variable while inheriting `github` and `runner` from the parent context. Input values in the `inputs` map are evaluated through `main_contexts` before injection (so they may contain `${{ }}` expressions).
+This gives the action its own `inputs` variable while inheriting `github` and `runner` from the parent context. Input values in the `inputs` map are evaluated through `main_contexts` before injection (so they may contain `${{ }}` expressions). Inputs are plain strings: give credentials to the action steps as `secret_variables` instead.
 
 ---
 
@@ -396,7 +438,7 @@ use cicd/runners::CicdDispatchEngine
 
 treatment buildJob[dispatcher: CicdDispatchEngine](
     github_contexts: string,
-    github_token: string,
+    const github_token: Secret<string>,
     github_project: string,
     github_sha: string
 )
@@ -456,7 +498,7 @@ The dispatcher spawns remote workers.
 ```mel
 model myDispatcher: CicdDispatchEngine(
     location="api",           // "api" (default) or "compose" for local testing
-    api_token=_,              // uses engine default if none
+    api_token=_,              // Option<Secret<string>>: the MELODIUM_API_TOKEN environment variable if none
     api_url=_                 // uses engine default if none
 )
 ```
@@ -464,6 +506,68 @@ model myDispatcher: CicdDispatchEngine(
 ### `CicdRunnerEngine`
 
 Used internally by `simpleStep` and `stepOn*` — not normally instantiated directly. It wraps `DistributionEngine` preconfigured to run `cicd/steps::step`.
+
+### Worker needs: architecture and system
+
+`arch` and `system` are both optional: leave them out (`_`) to get any worker with the requested resources. Every need given is a requirement, the worker is spawned satisfying it or the run is refused with a message naming the need.
+
+`arch` (`Option<Arch>`, available on `simpleStep` and `setupRunner`) is built with the functions of `work/resources/arch`, with the OCI image specification names or the Rust ones:
+
+| Function | Architecture | Information |
+|---|---|---|
+| `\|amd64()`, `\|x86_64()` | `amd64`, `x86_64` | 64-bit x86 (Intel, AMD). Most servers, cloud instances, PCs and Intel Macs. |
+| `\|arm64()`, `\|aarch64()` | `arm64`, `aarch64` | 64-bit ARM. Apple Silicon Macs, AWS Graviton and other ARM cloud instances, Raspberry Pi with a 64-bit system. |
+| `\|i386()`, `\|x86()`, `\|i686()` | `386`, `x86`, `i686` | 32-bit x86. Old PCs and legacy systems. |
+| `\|arm()`, `\|armv7()` | `arm`, `armv7` | 32-bit ARM, hard float. Raspberry Pi with a 32-bit system, embedded boards. |
+| `\|riscv64()`, `\|riscv64gc()` | `riscv64`, `riscv64gc` | 64-bit RISC-V. Development boards and emerging servers. |
+| `\|ppc64le()`, `\|powerpc64le()` | `ppc64le`, `powerpc64le` | 64-bit PowerPC, little endian. IBM Power servers running Linux. |
+| `\|ppc64()`, `\|powerpc64()` | `ppc64`, `powerpc64` | 64-bit PowerPC, big endian. Older IBM Power and legacy PowerPC systems. |
+| `\|s390x()` | `s390x` | IBM Z mainframes, including LinuxONE. |
+| `\|loong64()`, `\|loongarch64()` | `loong64`, `loongarch64` | 64-bit LoongArch. Recent Loongson processors. |
+| `\|mips()` | `mips` | 32-bit MIPS, big endian. Legacy networking equipment. |
+| `\|mipsle()`, `\|mipsel()` | `mipsle`, `mipsel` | 32-bit MIPS, little endian. Routers and embedded devices. |
+| `\|mips64()` | `mips64` | 64-bit MIPS, big endian. Legacy networking equipment and servers. |
+| `\|mips64le()`, `\|mips64el()` | `mips64le`, `mips64el` | 64-bit MIPS, little endian. Older Loongson processors and some network devices. |
+| `\|wasm32()` | `wasm32`, `wasm` | 32-bit WebAssembly. Browsers, WASI runtimes and edge platforms. |
+| `\|wasm64()` | `wasm64` | 64-bit WebAssembly. Experimental, few runtimes support it. |
+
+Both names of an architecture give the same value: the first is the one of the OCI image specification, the second the one Rust uses for its targets.
+
+All containers of one worker must use the same architecture. A container given no architecture (`_`) runs on the architecture of its worker. `|local_arch()` returns the architecture of the machine running the program, to request a worker of the same architecture. The local `compose` location only runs the architecture of the host and refuses any other.
+
+`system` (`Option<System>`, available on `setupRunner`, not on `simpleStep`) is what the worker runs on, either an operating system or one exact machine image, never both. It is built with the functions of `work/resources/system`:
+
+```mel
+use std/ops/option::|wrap
+use work/resources/system::System
+use work/resources/system::|linux_distribution_version
+use work/resources/system::|image
+
+// Any Ubuntu 24.04 machine
+setupRunner[dispatcher=dispatcher, runner=runner](
+    name="build", cpu=2000, memory=4000, storage=20000,
+    system=|wrap<System>(|linux_distribution_version("ubuntu", "24.04"))
+)
+
+// This exact machine image, whatever OS and architecture it holds
+setupRunner[dispatcher=dispatcher, runner=runner](
+    name="build", cpu=2000, memory=4000, storage=20000,
+    system=|wrap<System>(|image("nixos-ci"))
+)
+```
+
+| Function | System |
+|---|---|
+| `\|linux()`, `\|linux_distribution(name)`, `\|linux_distribution_version(name, version)` | Linux; the distribution is the `ID` of `/etc/os-release` (`"ubuntu"`, `"debian"`, `"nixos"`, ...) and the version its `VERSION_ID` (`"24.04"`) |
+| `\|windows()`, `\|windows_version(version)` | Windows (`"2022"`) |
+| `\|macos()`, `\|macos_version(version)` | macOS (`"15"`) |
+| `\|freebsd()`, `\|openbsd()`, `\|netbsd()` | BSD systems |
+| `\|solaris()`, `\|illumos()`, `\|aix()`, `\|ibmi()`, `\|zos()` | Other Unix and mainframe systems |
+
+Each of `\|windows`, `\|macos`, `\|freebsd`, `\|openbsd`, `\|netbsd`, `\|solaris`, `\|illumos`, `\|aix`, `\|ibmi` and `\|zos` has a `_version(version)` variant.
+| `\|image(name)` | One machine image, by name (never a container image); with `arch` given, the image must exist for it |
+
+Not every system can be spawned by every provider: a request nobody can satisfy is refused. The local `compose` location only satisfies a bare `\|linux()`.
 
 ### Direct step control with `stepOn`
 
@@ -477,7 +581,7 @@ setupRunner[dispatcher=dispatcher, runner=runner](
     cpu=1000,
     memory=2000,
     storage=10000,
-    containers=[|container("main", 1000, 2000, 10000, |arm64(), [|mount("data", "/mnt/data")], "rust:latest", _)]
+    containers=[|container("main", 2000, 1000, 10000, |wrap<Arch>(|arm64()), [|mount("data", "/mnt/data")], "rust:latest", _)]
 )
 
 stepOn[runner=runner](
@@ -617,7 +721,7 @@ For `runAction` specifically: `completed` means exit code `0`, `failed` means no
 
 **Streaming artifacts without upload/download.** The `data: Stream<byte>` output of one step can be piped directly into `simpleStepWithInput.data` of the next. No artifact storage, no size limits imposed by the CI platform, no separate upload/download steps.
 
-**Type-safe parameters.** Secrets and configuration values are typed treatment parameters (`string`, `u32`, `bool`, `Option<T>`), not stringly-typed YAML variables that silently coerce. A missing required parameter is a compile error, not a runtime blank string.
+**Type-safe parameters.** Secrets and configuration values are typed treatment parameters (`Secret<string>`, `string`, `u32`, `bool`, `Option<T>`), not stringly-typed YAML variables that silently coerce. A missing required parameter is a compile error, not a runtime blank string. Secrets are only revealed by the elements using them, never in command arguments, and masked in logs.
 
 **Conditional logic without expression hacks.** GitHub Actions `if:` expressions are string-evaluated JavaScript. In Mélodium, conditions are `filterBlock<void>()` and `passBlock<void>()` wired at the data-flow level — no quoting rules, no `fromJSON()` workarounds, no `${{ }}` injection risk.
 

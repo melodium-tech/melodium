@@ -81,6 +81,9 @@ struct Run {
     #[clap(long, default_value_t = false)]
     /// Parse the arguments according to the Mélodium syntax, applying types.
     parse_arguments: bool,
+    #[clap(long, default_value_t = false)]
+    /// Resolve the secrets given as parameters before running, to fail early if one cannot be resolved.
+    check_secrets: bool,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
@@ -164,17 +167,33 @@ struct Dist {
     /// Key to use for TLS encryption (PKCS8 PEM format).
     key: Option<String>,
     #[clap(short, long)]
-    /// Key expected to authenticate remote engine.
-    recv_key: uuid::Uuid,
+    /// Key expected to authenticate remote engine. Deprecated, as other local users can
+    /// read arguments: use `--recv-key-file` or `MELODIUM_DIST_RECV_KEY` instead.
+    recv_key: Option<uuid::Uuid>,
+    #[clap(long)]
+    /// File containing the key expected to authenticate remote engine. If neither the
+    /// key nor its file are given, the key is read from `MELODIUM_DIST_RECV_KEY`.
+    recv_key_file: Option<PathBuf>,
     #[clap(short, long)]
-    /// Key to authenticate with remote engine.
-    send_key: uuid::Uuid,
+    /// Key to authenticate with remote engine. Deprecated, as other local users can
+    /// read arguments: use `--send-key-file` or `MELODIUM_DIST_SEND_KEY` instead.
+    send_key: Option<uuid::Uuid>,
+    #[clap(long)]
+    /// File containing the key to authenticate with remote engine. If neither the key
+    /// nor its file are given, the key is read from `MELODIUM_DIST_SEND_KEY`.
+    send_key_file: Option<PathBuf>,
     #[clap(long, action)]
     /// Listen localhost (if ip is not set), using embedded certificate.
+    /// This certificate and its key are the same in every Mélodium binary, so any local
+    /// process can present it: it only protects connections from other machines.
     localhost: bool,
     #[clap(long, action)]
-    /// Disable TLS encryption.
+    /// Disable TLS encryption: everything is sent readable, authentication keys included.
+    /// Refused on addresses other than loopback ones, unless `--allow-plain-tcp` is given.
     disable_tls: bool,
+    #[clap(long, action)]
+    /// Allow `--disable-tls` on addresses other than loopback ones.
+    allow_plain_tcp: bool,
     #[clap(long, default_value = None)]
     /// Time (in seconds) to wait for a distant engine to connect.
     wait: Option<u64>,
@@ -291,6 +310,12 @@ enum Commands {
     Doc(Doc),
 }
 
+/// Exits the process, wiping plaintext held from secrets before.
+fn exit(code: i32) -> ! {
+    melodium_common::executive::wipe_all();
+    std::process::exit(code)
+}
+
 pub fn main() {
     #[cfg(windows)]
     let _ = colored::control::set_virtual_terminal(true);
@@ -313,6 +338,7 @@ pub fn main() {
             api_report_disable_logs: false,
             api_report_disable_status: false,
             parse_arguments: false,
+            check_secrets: false,
         };
 
         run(args);
@@ -348,8 +374,10 @@ pub fn main() {
             "{}: run `melodium --help` get commands",
             "info".bold().blue()
         );
-        std::process::exit(1);
+        exit(1);
     }
+
+    exit(0);
 }
 
 fn run(args: Run) {
@@ -384,7 +412,7 @@ fn run(args: Run) {
             tr
         } else {
             eprintln!("{}: entrypoint must be a treatment", "failure".bold().red());
-            std::process::exit(1);
+            exit(1);
         };
 
         let params = parse_args(
@@ -394,7 +422,7 @@ fn run(args: Run) {
             args.parse_arguments,
         );
 
-        let launch = async_std::task::block_on(launch(
+        let launch = smol::block_on(launch(
             collection,
             &identifier,
             params,
@@ -404,6 +432,7 @@ fn run(args: Run) {
             args.api_report && !args.api_report_disable_logs,
             args.api_report && !args.api_report_disable_status,
             entry_name.map(|name| vec![format!("entrypoint={name}")]),
+            args.check_secrets,
         ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
@@ -412,16 +441,22 @@ fn run(args: Run) {
             .errors()
             .iter()
             .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+        if launch.is_failure() {
+            exit(1);
+        }
+        if let Some(Some(interruption)) = launch.success() {
+            exit(interruption.exit_code());
+        }
     } else {
-        std::process::exit(1);
+        exit(1);
     }
 }
 
 fn check(args: Check) {
     if let Ok(_) = check_load(args) {
-        std::process::exit(0);
+        exit(0);
     } else {
-        std::process::exit(1);
+        exit(1);
     }
 }
 
@@ -548,7 +583,7 @@ fn info(args: Info) {
         }
         let _ = cmd.print_long_help();
     } else {
-        std::process::exit(1);
+        exit(1);
     }
 }
 
@@ -562,7 +597,7 @@ fn new(args: New) {
         Ok(version) => version,
         Err(err) => {
             eprintln!("{}: {err}", "error".bold().red());
-            std::process::exit(1);
+            exit(1);
         }
     };
 
@@ -570,7 +605,7 @@ fn new(args: New) {
         Ok(path) => path,
         Err(err) => {
             eprintln!("{}: {err}", "error".bold().red());
-            std::process::exit(1);
+            exit(1);
         }
     };
 
@@ -591,7 +626,7 @@ fn new(args: New) {
 
         if let Err(err) = std::fs::write(&path, contents) {
             eprintln!("{}: {err}", "error".bold().red());
-            std::process::exit(1);
+            exit(1);
         }
 
         println!(
@@ -610,7 +645,7 @@ fn new(args: New) {
                     full_path.push(filename);
                     if let Err(err) = std::fs::write(full_path, content) {
                         eprintln!("{}: {err}", "error".bold().red());
-                        std::process::exit(1);
+                        exit(1);
                     }
                 }
 
@@ -622,25 +657,98 @@ fn new(args: New) {
             }
             Err(err) => {
                 eprintln!("{}: {err}", "error".bold().red());
-                std::process::exit(1);
+                exit(1);
             }
         }
     }
 }
 
+/// Gives a distribution key, from its argument, its file, or the `variable` environment variable.
+#[cfg(feature = "distribution")]
+fn dist_key(
+    argument: Option<uuid::Uuid>,
+    file: Option<PathBuf>,
+    option: &str,
+    variable: &str,
+) -> Result<uuid::Uuid, String> {
+    // Key contents are never quoted in errors.
+    let parse = |text: &str, origin: &str| {
+        uuid::Uuid::parse_str(text.trim()).map_err(|_| format!("{origin} is not a valid key"))
+    };
+    match (argument, file) {
+        (Some(_), Some(_)) => Err(format!(
+            "--{option} and --{option}-file cannot be given together"
+        )),
+        (Some(key), None) => {
+            eprintln!(
+                "{}: keys given as arguments can be read by other local users, prefer --{option}-file or {variable}",
+                "warning".bold().yellow()
+            );
+            Ok(key)
+        }
+        (None, Some(file)) => match std::fs::read_to_string(&file) {
+            Ok(content) => parse(&content, &format!("'{}'", file.display())),
+            Err(err) => Err(format!("'{}': {err}", file.display())),
+        },
+        (None, None) => match std::env::var(variable) {
+            Ok(content) => parse(&content, variable),
+            Err(_) => Err(format!("no key given, use --{option}-file or {variable}")),
+        },
+    }
+}
+
 #[cfg(feature = "distribution")]
 fn dist(args: Dist) {
-    use async_std::channel::unbounded;
+    use async_channel::unbounded;
     use core::time::Duration;
     use melodium_common::descriptor::Version;
     use std::net::{Ipv4Addr, SocketAddr};
+
+    let (recv_key, send_key) = match (
+        dist_key(
+            args.recv_key,
+            args.recv_key_file.clone(),
+            "recv-key",
+            "MELODIUM_DIST_RECV_KEY",
+        ),
+        dist_key(
+            args.send_key,
+            args.send_key_file.clone(),
+            "send-key",
+            "MELODIUM_DIST_SEND_KEY",
+        ),
+    ) {
+        (Ok(recv_key), Ok(send_key)) => (recv_key, send_key),
+        (recv_key, send_key) => {
+            for err in [recv_key.err(), send_key.err()].iter().flatten() {
+                eprintln!("{}: {err}", "error".bold().red());
+            }
+            std::process::exit(1);
+        }
+    };
+
+    // Plain TCP sends everything readable, authentication keys included.
+    if args.disable_tls {
+        let ip = args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
+        if !ip.is_loopback() && !args.allow_plain_tcp {
+            eprintln!(
+                "{}: TLS cannot be disabled on {ip}, as it is not a loopback address, unless --allow-plain-tcp is given",
+                "error".bold().red()
+            );
+            std::process::exit(1);
+        }
+        eprintln!(
+            "{}: TLS is disabled, everything is sent readable, authentication keys included",
+            "warning".bold().yellow()
+        );
+    }
 
     let loader = melodium_loader::Loader::new(core_config());
 
     let mut monitoring = futures::stream::FuturesUnordered::new();
 
     let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
-    monitoring.push(async_std::task::spawn(async move {
+    monitoring.push(smol::spawn(async move {
         crate::display_logs(logs_stdout_receiver).await
     }));
     let mut logs_senders = vec![logs_stdout_sender];
@@ -648,14 +756,14 @@ fn dist(args: Dist) {
     args.logs.map(|path| {
         let (logs_write_sender, logs_write_receiver) = unbounded();
         logs_senders.push(logs_write_sender);
-        monitoring.push(async_std::task::spawn(async move {
+        monitoring.push(smol::spawn(async move {
             crate::write_logs(path, logs_write_receiver).await
         }));
     });
 
     let mut debug_senders = if let Some(path) = args.debug {
         let (debug_write_sender, debug_write_receiver) = unbounded();
-        monitoring.push(async_std::task::spawn(async move {
+        monitoring.push(smol::spawn(async move {
             crate::write_debug(path, debug_write_receiver).await
         }));
         vec![debug_write_sender]
@@ -673,7 +781,7 @@ fn dist(args: Dist) {
             debug_report_sender,
             full_join,
             status_reporting,
-        ) = async_std::task::block_on(crate::api_report(
+        ) = smol::block_on(crate::api_report(
             !args.api_report_disable_logs,
             !args.api_report_disable_status,
             work_mel::api::ModeRequest::Distribution,
@@ -694,14 +802,14 @@ fn dist(args: Dist) {
     if args.localhost {
         match (args.disable_tls, args.certificate, args.key) {
             (false, None, None) => {
-                async_std::task::block_on(melodium_distribution::launch_listen_localcert(
+                smol::block_on(melodium_distribution::launch_listen_localcert(
                     SocketAddr::new(
                         args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
                         args.port,
                     ),
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -728,7 +836,7 @@ fn dist(args: Dist) {
                         return;
                     }
                 };
-                async_std::task::block_on(melodium_distribution::launch_listen(
+                smol::block_on(melodium_distribution::launch_listen(
                     SocketAddr::new(
                         args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
                         args.port,
@@ -736,8 +844,8 @@ fn dist(args: Dist) {
                     &cert_content,
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -757,14 +865,14 @@ fn dist(args: Dist) {
                 return;
             }
             (true, None, None) => {
-                async_std::task::block_on(melodium_distribution::launch_listen_unsecure(
+                smol::block_on(melodium_distribution::launch_listen_unsecure(
                     SocketAddr::new(
                         args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
                         args.port,
                     ),
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -801,13 +909,13 @@ fn dist(args: Dist) {
                         return;
                     }
                 };
-                async_std::task::block_on(melodium_distribution::launch_listen(
+                smol::block_on(melodium_distribution::launch_listen(
                     SocketAddr::new(ip, args.port),
                     &cert_content,
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -827,11 +935,11 @@ fn dist(args: Dist) {
                 return;
             }
             (true, Some(ip), None, None) => {
-                async_std::task::block_on(melodium_distribution::launch_listen_unsecure(
+                smol::block_on(melodium_distribution::launch_listen_unsecure(
                     SocketAddr::new(ip, args.port),
                     &Version::parse(melodium::VERSION).unwrap(),
-                    args.recv_key,
-                    args.send_key,
+                    recv_key,
+                    send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -860,7 +968,10 @@ fn dist(args: Dist) {
         }
     }
 
-    async_std::task::block_on(async move {
+    // An interrupted node exits with the code of the signal, once its work is written out.
+    let interruption = melodium_engine::interruption::last_interruption();
+
+    smol::block_on(async move {
         use futures::StreamExt;
         // `monitoring` only drains once every logs/debug forwarding task (including
         // the API/S3 reporting join, when enabled) observes its channel close; that's
@@ -874,19 +985,29 @@ fn dist(args: Dist) {
             .and_then(|value| value.parse().ok())
             .map(Duration::from_secs)
             .unwrap_or(Duration::from_secs(60));
-        if async_std::future::timeout(monitoring_timeout, async {
-            while let Some(_) = monitoring.next().await {}
-        })
-        .await
-        .is_err()
-        {
+        let completed = smol::future::or(
+            async {
+                while let Some(_) = monitoring.next().await {}
+                true
+            },
+            async {
+                smol::Timer::after(monitoring_timeout).await;
+                false
+            },
+        )
+        .await;
+        if !completed {
             eprintln!(
                 "{}: monitoring tasks did not complete in time, forcing exit",
                 "warning".bold().yellow()
             );
-            std::process::exit(0);
+            exit(interruption.map(|i| i.exit_code()).unwrap_or(0));
         }
     });
+
+    if let Some(interruption) = interruption {
+        exit(interruption.exit_code());
+    }
 }
 
 #[cfg(feature = "doc")]
@@ -954,7 +1075,7 @@ fn doc(args: Doc) {
         melodium_doc::Documentation::new(PathBuf::from(&args.output), collection, subject);
     if let Err(err) = documentation.make_documentation() {
         eprintln!("{}: {err}", "error".bold().red());
-        std::process::exit(1);
+        exit(1);
     } else {
         println!(
             "{}: documentation generated, run `mdbook build` in '{path}' to build publishable book",
@@ -976,7 +1097,14 @@ fn build_cmd(displayed_name: Option<String>, treatment: &Arc<dyn Treatment>) -> 
             .action(ArgAction::Set)
             .help(param.described_type().to_string());
         if let Some(default) = param.default() {
-            arg = arg.default_value(default.to_string());
+            // A secret default is shown as its locator, which is what would be given instead.
+            arg = arg.default_value(match default {
+                Value::Secret(secret) => secret
+                    .locator()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| secret.to_string()),
+                default => default.to_string(),
+            });
         }
         cmd = cmd.arg(arg);
     }
@@ -1007,7 +1135,7 @@ fn parse_args(
                                 "{}: argument '{name}' cannot be parsed",
                                 "failure".bold().red()
                             );
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
                     words.push(melodium_lang::text::Word::default());
@@ -1022,7 +1150,7 @@ fn parse_args(
                                 "{}: argument '{name}' cannot be parsed: {err}",
                                 "failure".bold().red()
                             );
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
 
@@ -1033,7 +1161,7 @@ fn parse_args(
                                 errors
                                     .iter()
                                     .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                                std::process::exit(1);
+                                exit(1);
                             }
                             success
                         }
@@ -1042,7 +1170,7 @@ fn parse_args(
                             errors
                                 .iter()
                                 .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
 
@@ -1054,7 +1182,7 @@ fn parse_args(
                         "{}: provided treatment have generics, it cannot be used as entrypoint",
                         "failure".bold().red()
                     );
-                            std::process::exit(1);
+                            exit(1);
                         };
 
                     let value = match value.read().unwrap().make_executive_value(&datatype) {
@@ -1063,7 +1191,7 @@ fn parse_args(
                                 errors
                                     .iter()
                                     .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                                std::process::exit(1);
+                                exit(1);
                             }
                             success
                         }
@@ -1072,7 +1200,7 @@ fn parse_args(
                             errors
                                 .iter()
                                 .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
 
@@ -1086,7 +1214,7 @@ fn parse_args(
                         "{}: provided treatment have generics, it cannot be used as entrypoint",
                         "failure".bold().red()
                     );
-                            std::process::exit(1);
+                            exit(1);
                         };
 
                     fn naive_parse(name: &str, dt: &DataType, value: &str) -> Value {
@@ -1099,7 +1227,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1111,7 +1239,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1123,7 +1251,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1135,7 +1263,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1147,7 +1275,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1159,7 +1287,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1171,7 +1299,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1183,7 +1311,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1195,7 +1323,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1207,7 +1335,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1219,7 +1347,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1231,7 +1359,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1243,7 +1371,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1255,7 +1383,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1267,7 +1395,7 @@ fn parse_args(
                                             "{}: parameter '{name}' is type '{dt}': {err} ",
                                             "failure".bold().red()
                                         );
-                                        std::process::exit(1);
+                                        exit(1);
                                     }
                                 })
                             }
@@ -1281,9 +1409,24 @@ fn parse_args(
                                     Value::Option(Some(Box::new(naive_parse(name, dt, value))))
                                 }
                             }
+                            melodium_common::descriptor::DataType::Secret(inner) => {
+                                match melodium_common::executive::Secret::from_locator(
+                                    value,
+                                    inner.as_ref().clone(),
+                                ) {
+                                    Ok(secret) => Value::Secret(secret),
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        exit(1);
+                                    }
+                                }
+                            }
                             _ => {
                                 eprintln!("{}: parameter '{name}' is type '{dt}', that cannot be set up without parsing, see --parse-arguments option", "failure".bold().red());
-                                std::process::exit(1);
+                                exit(1);
                             }
                         }
                     }
@@ -1309,7 +1452,7 @@ fn build_jeu(args: JeuBuild) {
     print_result(&result);
 
     if result.is_failure() {
-        std::process::exit(1);
+        exit(1);
     }
 }
 
@@ -1320,7 +1463,7 @@ fn extract_jeu(args: JeuExtract) {
 
     if let Err(err) = melodium_loader::extract_jeu(&input, &output) {
         eprintln!("{}: {err}", "error".bold().red());
-        std::process::exit(1);
+        exit(1);
     }
 }
 

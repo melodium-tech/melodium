@@ -1,0 +1,162 @@
+// Tutorial 11: Signed webhooks
+//
+// An HTTP server receiving webhooks from GitHub and GitLab, accepting only
+// the requests that prove they come from them: GitHub signs the body with
+// a shared secret (HMAC-SHA256 in `X-Hub-Signature-256`), GitLab sends a
+// shared token (`X-Gitlab-Token`). Both shared values are secrets.
+//
+// Usage:
+//   MELODIUM_SECRET_GITHUB_WEBHOOK_SECRET=... MELODIUM_SECRET_GITLAB_WEBHOOK_TOKEN=... \
+//       melodium run Compo.toml
+//
+//   curl -X POST http://127.0.0.1:8080/github -H "X-GitHub-Event: push" \
+//        -H "X-Hub-Signature-256: sha256=<hex HMAC of the body>" -d '{"ref":"main"}'
+//   curl -X POST http://127.0.0.1:8080/gitlab -H "X-Gitlab-Event: Push Hook" \
+//        -H "X-Gitlab-Token: <token>" -d '{"ref":"main"}'
+
+use std/engine/util::startup
+use std/engine/log::logInfo
+use std/engine/log::logWarning
+use std/engine/log::logError
+use std/flow::emit
+use std/flow::one
+use std/flow::check
+use std/flow::stream
+use std/flow::releaseBlock
+use std/data/map::|get
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/string_map/block::get as getHeader
+use std/ops/option/block::unwrapOr
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/server::@HttpRequest
+use http/method::|post
+use http/status::HttpStatus
+use http/status::|ok
+use http/status::|forbidden
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::encode
+use crypto/signature/hmac::verify
+use crypto/token::check as checkToken
+
+treatment main(
+    const github_secret: Secret<string> = "env:MELODIUM_SECRET_GITHUB_WEBHOOK_SECRET",
+    const gitlab_token:  Secret<string> = "env:MELODIUM_SECRET_GITLAB_WEBHOOK_TOKEN",
+    const port:          u16            = 8080
+)
+  model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port, secret_headers="X-Gitlab-Token")
+{
+    startup()
+    start[http_server=server]()
+    startup.trigger -> start.trigger
+
+    github[http_server=server](secret=github_secret)
+    gitlab[http_server=server](token=gitlab_token)
+}
+
+// POST /github: verifies the HMAC signature of the body, then logs the event.
+treatment github[http_server: HttpServer](const secret: Secret<string>)
+{
+    connection[http_server=http_server](method=|post(), route="/github")
+
+    signature: getHeader(key="X-Hub-Signature-256")
+    verify(key=secret, prefix="sha256=")
+    connection.headers -> signature.map,value -> verify.signature
+    connection.data ----------------------------> verify.data
+
+    respond()
+    rejected: one<void>()
+    verify.valid ------------------> respond.accepted
+    verify.invalid -> rejected.a
+    verify.failed --> rejected.b,value -> respond.rejected
+    respond.status --> connection.status
+    respond.headers -> connection.headers
+    respond.data ----> connection.data
+
+    event: getHeader(key="X-GitHub-Event")
+    eventName: unwrapOr<string>(default="unknown")
+    onceValid: releaseBlock<string>()
+    logEvent: logInfo(label="github")
+    connection.headers -> event.map,value -> eventName.option,value -> onceValid.data,released -> logEvent.message
+    verify.valid -------------------------------------------------> onceValid.leverage
+
+    logInvalid: logWarning(label="github")
+    invalidMessage: emit<string>(value="invalid signature, request rejected")
+    verify.invalid -> invalidMessage.trigger,emit -> logInvalid.message
+
+    logFailure: logError(label="github")
+    verify.error -> logFailure.message
+}
+
+// POST /gitlab: checks the token header, received as a secret, then logs the event.
+treatment gitlab[http_server: HttpServer](const token: Secret<string>)
+{
+    connection[http_server=http_server](method=|post(), route="/gitlab")
+
+    receivedToken()
+    checkToken(token=token)
+    connection.started -> receivedToken.trigger,token -> checkToken.received
+
+    respond()
+    rejected: one<void>()
+    checkToken.valid ------------------> respond.accepted
+    checkToken.invalid -> rejected.a
+    checkToken.failed --> rejected.b,value -> respond.rejected
+    respond.status --> connection.status
+    respond.headers -> connection.headers
+    respond.data ----> connection.data
+
+    event: getHeader(key="X-Gitlab-Event")
+    eventName: unwrapOr<string>(default="unknown")
+    onceValid: releaseBlock<string>()
+    logEvent: logInfo(label="gitlab")
+    connection.headers -> event.map,value -> eventName.option,value -> onceValid.data,released -> logEvent.message
+    checkToken.valid ---------------------------------------------> onceValid.leverage
+
+    logInvalid: logWarning(label="gitlab")
+    invalidMessage: emit<string>(value="invalid token, request rejected")
+    checkToken.invalid -> invalidMessage.trigger,emit -> logInvalid.message
+
+    logFailure: logError(label="gitlab")
+    checkToken.error -> logFailure.message
+}
+
+// The token header, which `HttpServer` gives only in `secret_headers`.
+treatment receivedToken()
+  require @HttpRequest
+  input  trigger: Block<void>
+  output token:   Block<Option<Secret<string>>>
+{
+    emitToken: emit<Option<Secret<string>>>(value=|get<Secret<string>>(@HttpRequest[secret_headers], "X-Gitlab-Token"))
+    Self.trigger -> emitToken.trigger,emit -> Self.token
+}
+
+// Answers 200 with "accepted" or 403 with "rejected".
+treatment respond()
+  input  accepted: Block<void>
+  input  rejected: Block<void>
+  output status:   Block<HttpStatus>
+  output headers:  Block<StringMap>
+  output data:     Stream<byte>
+{
+    okStatus:        emit<HttpStatus>(value=|ok())
+    forbiddenStatus: emit<HttpStatus>(value=|forbidden())
+    status: one<HttpStatus>()
+    Self.accepted -> okStatus.trigger,emit -----> status.a
+    Self.rejected -> forbiddenStatus.trigger,emit -> status.b,value -> Self.status
+
+    answered: check<HttpStatus>()
+    emitHeaders: emit<StringMap>(value=|map([]))
+    status.value -> answered.value,check -> emitHeaders.trigger,emit -> Self.headers
+
+    acceptedText: emit<string>(value="accepted\n")
+    rejectedText: emit<string>(value="rejected\n")
+    text: one<string>()
+    asStream: stream<string>()
+    encode()
+    Self.accepted -> acceptedText.trigger,emit -> text.a
+    Self.rejected -> rejectedText.trigger,emit -> text.b,value -> asStream.block,stream -> encode.text,data -> Self.data
+}

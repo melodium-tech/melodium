@@ -16,6 +16,7 @@ fn describe_type(described_type: &DescribedType, names: &BTreeMap<Identifier, St
     match described_type {
         DescribedType::Vec(dt) => format!("Vec<{}>", describe_type(dt, names)),
         DescribedType::Option(dt) => format!("Option<{}>", describe_type(dt, names)),
+        DescribedType::Secret(dt) => format!("Secret<{}>", describe_type(dt, names)),
         DescribedType::Data(data) => names
             .get(data.identifier())
             .cloned()

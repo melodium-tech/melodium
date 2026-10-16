@@ -7,12 +7,14 @@ A JavaScript decision function reads each incoming prompt, estimates how complex
 ## What it does
 
 ```
-melodium run Compo.toml --api_key sk-...
+MELODIUM_SECRET_ANTHROPIC_API_KEY=sk-... melodium run Compo.toml
 
 curl -X POST http://127.0.0.1:8080/chat -d "What year is it?"
 curl -X POST http://127.0.0.1:8080/chat -d "Can you summarize the main differences between REST and GraphQL APIs?"
 curl -X POST http://127.0.0.1:8080/chat -d "Explain, step by step, how a hash map resizes, and compare it to a B-tree's rebalancing cost."
 ```
+
+The API key is a `Secret<string>` parameter, read from `MELODIUM_SECRET_ANTHROPIC_API_KEY` by default and revealed only to the providers; `--api_key` takes another locator, such as `file:/run/secrets/llm`.
 
 The first request (short, factual) is routed to the `economy` tier; the second (moderate length, one complexity signal) to `standard`; the third (three distinct complexity signals: "explain", "step by step", "compare") to `premium`. The server log prints the router's decision and its reasoning for every request:
 

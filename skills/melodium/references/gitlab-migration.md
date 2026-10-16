@@ -15,6 +15,7 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | Stage ordering | Sequential wiring between treatments |
 | `needs:` / `dependencies:` | Sequential wiring; artifact data flows via `data` stream |
 | `variables:` | Parameters passed to treatments |
+| Masked or protected variables, `CI_JOB_TOKEN` | `Secret<string>` parameters, see [Secrets](#secrets) |
 | `image:` | `image` parameter of `simpleStep` |
 | `services:` | `service_containers` parameter of `simpleStep` |
 | `artifacts:` | `out_file` + `data` stream output; `simpleStepWithInput` to consume |
@@ -69,13 +70,81 @@ use work/resources::|mount
 
 ---
 
+## Secrets
+
+CI/CD variables holding credentials (masked or protected variables, `CI_JOB_TOKEN`) become `Secret<string>` parameters. A secret holds where its value comes from, such as `env:MELODIUM_SECRET_GITLAB_TOKEN`, and only the elements using it reveal it: its value never appears in parameters, logs, reports or command arguments.
+
+`.gitlab-ci.yml` passes locators, never values. GitLab gives CI/CD variables to the job as environment variables, and programs only get those whose name starts with `MELODIUM_SECRET_`, so the job gives each one under that prefix:
+
+```yaml
+variables:
+  MELODIUM_SECRET_GITLAB_TOKEN: $GITLAB_TOKEN
+script:
+  - melodium run .melodium/Compo.toml main --gitlab_token env:MELODIUM_SECRET_GITLAB_TOKEN --project "$CI_PROJECT_ID"
+```
+
+Secret parameters given to models (and through them, as the status tokens of steps) are `const`. The status token of steps and `setServiceState`, `gitlab_token`, defaults to `env:MELODIUM_SECRET_GITLAB_TOKEN`.
+
+Commands get secrets as environment variables with `secret_variables`, never through their arguments. Steps running on workers need secrets allowed to be sent to them by value, which `std/secret::|locate` sets explicitly. Secrets with the default policy stay on the engine holding them, and sending them to a worker fails with an explicit error.
+
+```mel
+use std/data/map::Map
+use std/data/map::|map as |secret_map
+use std/data/map::|entry as |secret_entry
+use std/secret::|locate
+
+simpleStep[dispatcher=dispatcher](
+    name="publish",
+    image="node:20",
+    commands=[|command("npm", ["publish"])],
+    secret_variables=|wrap<Map>(|secret_map([
+        |secret_entry<Option<Secret<string>>>("NPM_TOKEN", |locate<string>("env:MELODIUM_SECRET_NPM_TOKEN", "npm_token", "value", false))
+    ]))
+)
+```
+
+### `CI_JOB_TOKEN` in repository URLs
+
+`CI_REPOSITORY_URL` holds the job token, which `git clone` would then show in its arguments. Clone from `$CI_PROJECT_URL.git`, without credentials, and give git the token through secret variables (`GIT_CONFIG_*` needs git 2.31 or later), the job giving it as `MELODIUM_SECRET_CI_JOB_TOKEN: $CI_JOB_TOKEN` in its `variables`:
+
+```mel
+use std/secret::|format as |secret_format
+use std/secret::|base64
+
+simpleStep[dispatcher=dispatcher](
+    name="build",
+    image="rust:latest",
+    variables=|wrap<StringMap>(|map([
+        |entry("GIT_CONFIG_COUNT", "1"),
+        |entry("GIT_CONFIG_KEY_0", "http.extraHeader")
+    ])),
+    secret_variables=|wrap<Map>(|secret_map([
+        |secret_entry<Secret<string>>("GIT_CONFIG_VALUE_0", |secret_format(
+            "Authorization: Basic {credentials}",
+            |secret_map([|secret_entry<Secret<string>>("credentials", |base64(
+                |secret_format(
+                    "gitlab-ci-token:{token}",
+                    |secret_map([|secret_entry<Option<Secret<string>>>("token", |locate<string>("env:MELODIUM_SECRET_CI_JOB_TOKEN", "job_token", "value", false))]),
+                    "job_credentials"
+                ),
+                "job_credentials_base64"
+            ))]),
+            "git_authorization"
+        ))
+    ])),
+    commands=[|command("git", ["clone", "--depth", "1", repository_url, "project"])]
+)
+```
+
+---
+
 ## Running a job — `simpleStep`
 
 `simpleStep` is the primary treatment for container-based jobs (`image:` in GitLab CI). It manages the full lifecycle: spawning a runner, executing commands, reporting status to GitLab, and stopping the runner.
 
 ```mel
 treatment buildJob[dispatcher: CicdDispatchEngine](
-    gitlab_token: string,
+    const gitlab_token: Secret<string>,
     gitlab_project_id: string,
     gitlab_sha: string,
     gitlab_ref: string,
@@ -123,13 +192,15 @@ treatment buildJob[dispatcher: CicdDispatchEngine](
 | `arch` | `_` | Target architecture (`Option<Arch>`) |
 | `service_containers` | `[]` | Side-car containers (equivalent to `services:`) |
 | `variables` | `_` | Environment variables (`Option<StringMap>`) |
+| `secret_variables` | `_` | Environment variables whose values are secrets (`Option<Map>` of `Secret<string>`), see [Secrets](#secrets) |
+| `pull_secret` | `_` | Registry credentials as a Docker configuration JSON (`Option<Secret<string>>`) |
 | `commands` | required | List of `Command` to run sequentially |
 | `out_file` | `_` | File to stream back as `data` after success (equivalent to `artifacts:`) |
 | `out_storage` | `_` | Override data volume size in MB |
 | `report` | `true` | Enable service state reporting |
 | `gitlab` | `false` | Report to GitLab commit status API |
 | `gitlab_root_url` | `"https://gitlab.com/api/v4"` | GitLab API root URL |
-| `gitlab_token` | `""` | GitLab personal or CI job token |
+| `gitlab_token` | `"env:MELODIUM_SECRET_GITLAB_TOKEN"` | GitLab token allowed to set commit statuses (`const Secret<string>`) |
 | `gitlab_project_id` | `""` | GitLab project ID |
 | `gitlab_sha` | `""` | Commit SHA |
 | `gitlab_ref` | `""` | Branch or tag ref |
@@ -169,7 +240,7 @@ localStep(
 )
 ```
 
-`localStep` does not require a `CicdDispatchEngine` model. It runs commands directly on the host with an optional `variables` `StringMap` as environment.
+`localStep` does not require a `CicdDispatchEngine` model. It runs commands directly on the host with an optional `variables` `StringMap` and `secret_variables` as environment.
 
 ---
 
@@ -190,6 +261,8 @@ postGitlabState(
     description="Pipeline started"
 )
 ```
+
+`token` is a `const Secret<string>`, sent as the `PRIVATE-TOKEN` header when the request is made.
 
 `state` is a `StepState` value built with functions from `cicd/services/gitlab`:
 
@@ -240,7 +313,7 @@ GitLab CI stages become sequential wiring between treatments. Each job treatment
 
 ```mel
 treatment pipeline[dispatcher: CicdDispatchEngine](
-    gitlab_token: string,
+    const gitlab_token: Secret<string>,
     gitlab_project_id: string,
     gitlab_sha: string,
     gitlab_ref: string,
@@ -374,8 +447,8 @@ setupRunner[dispatcher=dispatcher, runner=runner](
     containers=[
         |container(
             "main",
-            2000, 4000, 10000,
-            |arm64(),
+            4000, 2000, 10000,  // memory, cpu, storage
+            |wrap<Arch>(|arm64()),
             [|mount("workspace", "/workspace")],
             "rust:latest",
             _
@@ -455,7 +528,7 @@ The dispatcher spawns remote worker processes.
 ```mel
 model myDispatcher: CicdDispatchEngine(
     location="api",   // "api" (production) or "compose" (local testing with podman/docker compose)
-    api_token=_,      // uses the engine's own token if none
+    api_token=_,      // Option<Secret<string>>: the MELODIUM_API_TOKEN environment variable if none
     api_url=_         // uses the engine's own API URL if none
 )
 ```
@@ -472,13 +545,13 @@ use work/resources/arch::|arm64
 // Container definition
 |container(
     name,           // string: executor name
-    cpu,            // u32: millicores
     memory,         // u32: MB
+    cpu,            // u32: millicores
     storage,        // u32: MB
-    |arm64(),       // Arch
+    |wrap<Arch>(|arm64()),  // Option<Arch>: none (_) means the architecture of the worker
     [|mount("vol-name", "/path/in/container")],
     "image:tag",    // string: container image
-    _               // Option<string>: pull secret
+    _               // Option<Secret<string>>: pull secret, registry credentials as a Docker configuration JSON
 )
 
 // Service container (equivalent to GitLab services:)
@@ -494,6 +567,68 @@ use work/resources/arch::|arm64
 // Mount a volume at a path inside a container
 |mount("vol-name", "/mnt/data")
 ```
+
+### Worker needs: architecture and system
+
+`arch` and `system` are both optional: leave them out (`_`) to get any worker with the requested resources. Every need given is a requirement, the worker is spawned satisfying it or the run is refused with a message naming the need.
+
+`arch` (`Option<Arch>`, available on `simpleStep` and `setupRunner`) is built with the functions of `work/resources/arch`, with the OCI image specification names or the Rust ones:
+
+| Function | Architecture | Information |
+|---|---|---|
+| `\|amd64()`, `\|x86_64()` | `amd64`, `x86_64` | 64-bit x86 (Intel, AMD). Most servers, cloud instances, PCs and Intel Macs. |
+| `\|arm64()`, `\|aarch64()` | `arm64`, `aarch64` | 64-bit ARM. Apple Silicon Macs, AWS Graviton and other ARM cloud instances, Raspberry Pi with a 64-bit system. |
+| `\|i386()`, `\|x86()`, `\|i686()` | `386`, `x86`, `i686` | 32-bit x86. Old PCs and legacy systems. |
+| `\|arm()`, `\|armv7()` | `arm`, `armv7` | 32-bit ARM, hard float. Raspberry Pi with a 32-bit system, embedded boards. |
+| `\|riscv64()`, `\|riscv64gc()` | `riscv64`, `riscv64gc` | 64-bit RISC-V. Development boards and emerging servers. |
+| `\|ppc64le()`, `\|powerpc64le()` | `ppc64le`, `powerpc64le` | 64-bit PowerPC, little endian. IBM Power servers running Linux. |
+| `\|ppc64()`, `\|powerpc64()` | `ppc64`, `powerpc64` | 64-bit PowerPC, big endian. Older IBM Power and legacy PowerPC systems. |
+| `\|s390x()` | `s390x` | IBM Z mainframes, including LinuxONE. |
+| `\|loong64()`, `\|loongarch64()` | `loong64`, `loongarch64` | 64-bit LoongArch. Recent Loongson processors. |
+| `\|mips()` | `mips` | 32-bit MIPS, big endian. Legacy networking equipment. |
+| `\|mipsle()`, `\|mipsel()` | `mipsle`, `mipsel` | 32-bit MIPS, little endian. Routers and embedded devices. |
+| `\|mips64()` | `mips64` | 64-bit MIPS, big endian. Legacy networking equipment and servers. |
+| `\|mips64le()`, `\|mips64el()` | `mips64le`, `mips64el` | 64-bit MIPS, little endian. Older Loongson processors and some network devices. |
+| `\|wasm32()` | `wasm32`, `wasm` | 32-bit WebAssembly. Browsers, WASI runtimes and edge platforms. |
+| `\|wasm64()` | `wasm64` | 64-bit WebAssembly. Experimental, few runtimes support it. |
+
+Both names of an architecture give the same value: the first is the one of the OCI image specification, the second the one Rust uses for its targets.
+
+All containers of one worker must use the same architecture. A container given no architecture (`_`) runs on the architecture of its worker. `|local_arch()` returns the architecture of the machine running the program, to request a worker of the same architecture. The local `compose` location only runs the architecture of the host and refuses any other.
+
+`system` (`Option<System>`, available on `setupRunner`, not on `simpleStep`) is what the worker runs on, either an operating system or one exact machine image, never both. It is built with the functions of `work/resources/system`:
+
+```mel
+use std/ops/option::|wrap
+use work/resources/system::System
+use work/resources/system::|linux_distribution_version
+use work/resources/system::|image
+
+// Any Ubuntu 24.04 machine
+setupRunner[dispatcher=dispatcher, runner=runner](
+    name="build", cpu=2000, memory=4000, storage=20000,
+    system=|wrap<System>(|linux_distribution_version("ubuntu", "24.04"))
+)
+
+// This exact machine image, whatever OS and architecture it holds
+setupRunner[dispatcher=dispatcher, runner=runner](
+    name="build", cpu=2000, memory=4000, storage=20000,
+    system=|wrap<System>(|image("nixos-ci"))
+)
+```
+
+| Function | System |
+|---|---|
+| `\|linux()`, `\|linux_distribution(name)`, `\|linux_distribution_version(name, version)` | Linux; the distribution is the `ID` of `/etc/os-release` (`"ubuntu"`, `"debian"`, `"nixos"`, ...) and the version its `VERSION_ID` (`"24.04"`) |
+| `\|windows()`, `\|windows_version(version)` | Windows (`"2022"`) |
+| `\|macos()`, `\|macos_version(version)` | macOS (`"15"`) |
+| `\|freebsd()`, `\|openbsd()`, `\|netbsd()` | BSD systems |
+| `\|solaris()`, `\|illumos()`, `\|aix()`, `\|ibmi()`, `\|zos()` | Other Unix and mainframe systems |
+
+Each of `\|windows`, `\|macos`, `\|freebsd`, `\|openbsd`, `\|netbsd`, `\|solaris`, `\|illumos`, `\|aix`, `\|ibmi` and `\|zos` has a `_version(version)` variant.
+| `\|image(name)` | One machine image, by name (never a container image); with `arch` given, the image must exist for it |
+
+Not every system can be spawned by every provider: a request nobody can satisfy is refused. The local `compose` location only satisfies a bare `\|linux()`.
 
 ---
 
@@ -615,7 +750,7 @@ Since treatments are composable, `strategy: depend` is the default behaviour —
 
 **True parallelism without `parallel:` limits.** Any number of steps can share the same `trigger`. No need to declare a fixed `parallel: N` integer — fan out as many instances as needed, each with distinct names, images, and resource allocations.
 
-**Type-safe variables.** GitLab CI `variables:` are always strings, leading to coercion bugs (`"true"` vs `true`, numeric overflow). Mélodium treatment parameters are typed (`bool`, `u32`, `Option<string>`) and checked at load time.
+**Type-safe variables.** GitLab CI `variables:` are always strings, leading to coercion bugs (`"true"` vs `true`, numeric overflow). Mélodium treatment parameters are typed (`bool`, `u32`, `Option<string>`) and checked at load time. Credentials are `Secret<string>`, revealed only by the elements using them and masked in logs, instead of masked strings anyone can echo.
 
 **`before_script` / `after_script` without isolation surprises.** GitLab runs `after_script` in a fresh shell, which means `export`ed variables from `script:` are invisible. In Mélodium, all commands in a `commands` list share the same environment — there is no hidden shell boundary.
 
@@ -638,7 +773,7 @@ use std/flow::one
 use process/command::|command
 
 treatment ciPipeline[dispatcher: CicdDispatchEngine](
-    gitlab_token: string,
+    const gitlab_token: Secret<string>,
     gitlab_project_id: string,
     gitlab_sha: string,
     gitlab_ref: string,

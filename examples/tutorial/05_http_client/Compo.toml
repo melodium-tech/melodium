@@ -2,11 +2,11 @@ name    = "http_client"
 version = "0.1.0"
 
 [dependencies]
-std      = "0.10.4"
-http     = "0.10.4"
-json     = "0.10.4"
-encoding = "0.10.4"
-fs       = "0.10.4"
+std      = "0.11.0"
+http     = "0.11.0"
+json     = "0.11.0"
+encoding = "0.11.0"
+fs       = "0.11.0"
 
 [entrypoints]
 main = "http_client/main::main"

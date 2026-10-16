@@ -1,10 +1,6 @@
-use crate::api::{Access, /*Arch,*/ ModeRequest, Request};
+use crate::api::{Access, Arch, ModeRequest, OsFamily, Request, System};
 #[cfg(feature = "real")]
-use async_std::{
-    net::ToSocketAddrs,
-    process::{Child, Command},
-    task::sleep,
-};
+use async_process::{Child, Command};
 use compose_spec::{
     service::{
         ports::{Protocol, Range, ShortPort, ShortRanges},
@@ -26,6 +22,16 @@ use std::{fmt::Display, process::Stdio, sync::OnceLock};
 use uuid::Uuid;
 
 static IMAGES_PULL_SOURCE: OnceLock<String> = OnceLock::new();
+
+/// Gives the output of `future`, or none if it takes longer than `duration`.
+#[cfg(feature = "real")]
+async fn within<T>(duration: Duration, future: impl std::future::Future<Output = T>) -> Option<T> {
+    smol::future::or(async { Some(future.await) }, async {
+        smol::Timer::after(duration).await;
+        None
+    })
+    .await
+}
 
 /// Grace period for the initial `podman`/`docker` detection and socket-lookup calls.
 /// Without this, an unresponsive container engine daemon (stuck service, hung
@@ -62,13 +68,80 @@ impl Display for Executor {
     }
 }
 
+/// Base of the official images run by the Compose location, also the Linux distribution they satisfy.
+/// The tag of the image goes on with the executor (`alpine-podman`, `alpine-docker`), which Compose detects by itself.
+const COMPOSE_IMAGE_BASE: &str = "alpine";
+
+/// Editions of the engine in the official images run by the Compose location.
+const COMPOSE_EDITIONS: [&str; 2] = ["standard", "container"];
+
+/// Refuse the needs the Compose location cannot satisfy.
+///
+/// The engine runs in an Alpine-based container of the standard and container editions, so `linux` and `linux alpine`
+/// (without version) and these editions (or none) are satisfied,
+/// while any machine image, distribution, version, other family or other edition is not.
+/// Only the architecture of the host is satisfied, for the worker and for each container giving one.
+fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+
+    match &request.system.0 {
+        None => {}
+        Some(System::Os(os))
+            if os.family == OsFamily::Linux
+                && os.distribution.as_deref().is_none_or(|distribution| distribution == COMPOSE_IMAGE_BASE)
+                && os.version.is_none() => {}
+        Some(System::Os(os)) => errors.push(format!(
+            "Compose location cannot satisfy the operating system '{os}', only 'linux' or 'linux alpine'"
+        )),
+        Some(System::Image(image)) => errors.push(format!(
+            "Compose location cannot satisfy the machine image '{image}'"
+        )),
+    }
+
+    match request.edition.as_deref() {
+        Some(edition) if !COMPOSE_EDITIONS.contains(&edition) => errors.push(format!(
+            "Compose location cannot satisfy the edition '{edition}', only {}",
+            COMPOSE_EDITIONS
+                .map(|edition| format!("'{edition}'"))
+                .join(" or ")
+        )),
+        _ => {}
+    }
+
+    let archs = request
+        .arch
+        .map(|arch| ("the worker".to_string(), arch))
+        .into_iter()
+        .chain(request.containers.iter().filter_map(|container| {
+            container
+                .arch
+                .map(|arch| (format!("container '{}'", container.name), arch))
+        }))
+        .chain(request.service_containers.iter().filter_map(|container| {
+            container
+                .arch
+                .map(|arch| (format!("service container '{}'", container.name), arch))
+        }));
+    for (who, arch) in archs {
+        if arch != host {
+            errors.push(format!(
+                "Compose location cannot satisfy the architecture '{arch}' requested for {who}, only the host one '{host}'"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 #[cfg(feature = "real")]
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
     use crate::reporting::REPORTS_ENABLED;
 
-    if request.edition.as_deref().unwrap_or("scratch") == "scratch" {
-        request.edition = Some("alpine".to_string())
-    }
+    check_needs(&request, Arch::host())?;
 
     let enable_reports = REPORTS_ENABLED.load(core::sync::atomic::Ordering::Relaxed);
 
@@ -76,28 +149,14 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         .map(|val| val == "true")
         .unwrap_or(false);
 
-    /*if !request
-        .arch
-        .map(|arch| match env!("ARCH") {
-            "x86_64" => arch == Arch::Amd64,
-            "aarch64" => arch == Arch::Arm64,
-            _ => false,
-        })
-        .unwrap_or(false)
-    {
-        return Err(vec![
-            "Host architecture does not match requirements".to_string()
-        ]);
-    }*/
-
-    let executor = if let Ok(Ok(_output)) = async_std::future::timeout(
+    let executor = if let Some(Ok(_output)) = within(
         detection_timeout(),
         Command::new("podman").args(&["version"]).output(),
     )
     .await
     {
         Executor::Podman
-    } else if let Ok(Ok(_output)) = async_std::future::timeout(
+    } else if let Some(Ok(_output)) = within(
         detection_timeout(),
         Command::new("docker").args(&["version"]).output(),
     )
@@ -108,7 +167,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         return Err(vec!["No executor available".to_string()]);
     };
 
-    let socket = if let Ok(Ok(output)) = async_std::future::timeout(
+    let socket = if let Some(Ok(output)) = within(
         detection_timeout(),
         Command::new(executor.to_string())
             .args(&["info", "--format", "{{ .Host.RemoteSocket.Path }}"])
@@ -318,8 +377,8 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         );
     }
     let bind_ip = if executor == Executor::Docker {
-        if let Ok(mut socket_iter) = ("docker", 0).to_socket_addrs().await {
-            if let Some(socket) = socket_iter.next() {
+        if let Ok(sockets) = smol::net::resolve(("docker", 0)).await {
+            if let Some(socket) = sockets.into_iter().next() {
                 if enable_debug {
                     eprintln!("Docker socket: {socket:?}");
                 }
@@ -371,6 +430,18 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         environment.insert(
             MapKey::new("MELODIUM_API_TOKEN").map_err(|err| vec![err.to_string()])?,
             API_TOKEN.as_ref().map(|t| t.as_str().into()),
+        );
+    }
+
+    // Keys are given through the environment, as arguments are visible to every process.
+    if let ModeRequest::DistributionSecretKey { key } = &request.mode {
+        environment.insert(
+            MapKey::new("MELODIUM_DIST_RECV_KEY").map_err(|err| vec![err.to_string()])?,
+            Some(access_key.to_string().into()),
+        );
+        environment.insert(
+            MapKey::new("MELODIUM_DIST_SEND_KEY").map_err(|err| vec![err.to_string()])?,
+            Some(key.to_string().into()),
         );
     }
 
@@ -448,7 +519,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .unwrap_or("quay.io/melodium".to_string())
                 }),
                 request.version,
-                request.edition.unwrap_or_else(|| "scratch".to_string()),
+                COMPOSE_IMAGE_BASE,
                 executor
             ))
             .map_err(|err| vec![err.to_string()])?,
@@ -476,7 +547,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     vec!["run".to_string(), entrypoint.clone()]
                 }
             }
-            ModeRequest::DistributionSecretKey { key } => {
+            ModeRequest::DistributionSecretKey { key: _ } => {
                 let mut args = vec![
                     "dist".to_string(),
                     "--ip".to_string(),
@@ -487,16 +558,14 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     "30".to_string(),
                     "--duration".to_string(),
                     request.max_duration.unwrap_or(0).to_string(),
-                    "--recv-key".to_string(),
-                    access_key.to_string(),
-                    "--send-key".to_string(),
-                    key.to_string(),
-                    if bind_ip == Ipv4Addr::LOCALHOST {
-                        "--localhost".to_string()
-                    } else {
-                        "--disable-tls".to_string()
-                    },
                 ];
+                if bind_ip == Ipv4Addr::LOCALHOST {
+                    args.push("--localhost".to_string());
+                } else {
+                    // Containers are reached through a network local to this host.
+                    args.push("--disable-tls".to_string());
+                    args.push("--allow-plain-tcp".to_string());
+                }
                 if enable_reports {
                     args.push("--api-report".to_string());
                     args.push("--api-report-disable-status".to_string());
@@ -582,10 +651,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 }
 
                 if enable_debug {
-                    use async_std::io::{BufReadExt, BufReader};
+                    use futures::io::{AsyncBufReadExt, BufReader};
 
                     if let Some(stdout) = child.stdout.take() {
-                        let _ = async_std::task::spawn(async move {
+                        smol::spawn(async move {
                             let mut stdout = BufReader::new(stdout);
                             let mut line = String::new();
                             while let Ok(_) = stdout.read_line(&mut line).await {
@@ -594,10 +663,11 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                                 }
                                 line.clear();
                             }
-                        });
+                        })
+                        .detach();
                     }
                     if let Some(stderr) = child.stderr.take() {
-                        let _ = async_std::task::spawn(async move {
+                        smol::spawn(async move {
                             let mut stderr = BufReader::new(stderr);
                             let mut line = String::new();
                             while let Ok(_) = stderr.read_line(&mut line).await {
@@ -606,7 +676,8 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                                 }
                                 line.clear();
                             }
-                        });
+                        })
+                        .detach();
                     }
                 }
 
@@ -641,7 +712,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                             break;
                         }
                     }
-                    sleep(Duration::from_secs(1)).await;
+                    smol::Timer::after(Duration::from_secs(1)).await;
                     timeout += 1;
 
                     // Do not wait more than 10 minutes to launch
@@ -700,11 +771,23 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         addresses: vec![bind_ip],
                         port: binding,
                         key: access_key,
+                        // Containers are reached through a network local to this host.
                         disable_tls: bind_ip != Ipv4Addr::LOCALHOST,
+                        allow_plain_tcp: bind_ip != Ipv4Addr::LOCALHOST,
                     };
 
                     if enable_debug {
-                        eprintln!("Access: {access:#?}");
+                        // Without its key, an authentication secret.
+                        eprintln!(
+                            "Access: {:?} port {}, TLS {}",
+                            access.addresses,
+                            access.port,
+                            if access.disable_tls {
+                                "disabled"
+                            } else {
+                                "enabled"
+                            }
+                        );
                     }
 
                     Ok((access, child))
@@ -724,5 +807,111 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             }
         }
         Err(err) => Err(vec![err.to_string()]),
+    }
+}
+
+#[cfg(test)]
+mod needs_tests {
+    use super::*;
+
+    fn request(system: Option<System>) -> Request {
+        let mut request: Request = serde_json::from_value(serde_json::json!({
+            "version": "0.11.0", "mode": "direct", "volumes": [], "containers": [],
+            "service_containers": [], "tags": []
+        }))
+        .unwrap();
+        request.system = crate::api::SystemRequest(system);
+        request
+    }
+
+    fn os(family: OsFamily, distribution: Option<&str>, version: Option<&str>) -> Option<System> {
+        Some(System::Os(crate::api::Os {
+            family,
+            distribution: distribution.map(str::to_string),
+            version: version.map(str::to_string),
+        }))
+    }
+
+    #[test]
+    fn satisfied() {
+        assert!(check_needs(&request(None), Arch::Amd64).is_ok());
+        assert!(check_needs(&request(os(OsFamily::Linux, None, None)), Arch::Amd64).is_ok());
+        assert!(check_needs(
+            &request(os(OsFamily::Linux, Some("alpine"), None)),
+            Arch::Amd64
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn edition() {
+        let mut request = request(None);
+        assert!(check_needs(&request, Arch::Amd64).is_ok());
+        for edition in ["standard", "container"] {
+            request.edition = Some(edition.to_string());
+            assert!(check_needs(&request, Arch::Amd64).is_ok());
+        }
+        request.edition = Some("desktop".to_string());
+        let errors = check_needs(&request, Arch::Amd64).unwrap_err();
+        assert!(errors[0].contains("desktop"));
+    }
+
+    #[test]
+    fn refused() {
+        for system in [
+            os(OsFamily::Linux, Some("alpine"), Some("3.20")),
+            os(OsFamily::Linux, Some("ubuntu"), None),
+            os(OsFamily::Linux, Some("ubuntu"), Some("24.04")),
+            os(OsFamily::Windows, None, None),
+            os(OsFamily::Macos, None, None),
+            os(OsFamily::Unknown, None, None),
+            Some(System::Image("nixos-ci".to_string())),
+        ] {
+            let errors = check_needs(&request(system), Arch::Amd64).unwrap_err();
+            assert_eq!(errors.len(), 1);
+        }
+    }
+
+    fn container(name: &str, arch: Option<Arch>) -> crate::api::Container {
+        crate::api::Container {
+            name: name.to_string(),
+            image: "alpine".to_string(),
+            pull_secret: "{}".to_string(),
+            memory: 100,
+            cpu: 100,
+            storage: 100,
+            arch,
+            mounts: vec![],
+        }
+    }
+
+    #[test]
+    fn architecture() {
+        let mut request = request(None);
+        assert!(check_needs(&request, Arch::Arm64).is_ok());
+
+        request.arch = Some(Arch::Arm64);
+        request.containers = vec![container("main", Some(Arch::Arm64))];
+        assert!(check_needs(&request, Arch::Arm64).is_ok());
+
+        let errors = check_needs(&request, Arch::Amd64).unwrap_err();
+        assert_eq!(errors.len(), 2);
+        assert!(errors[0].contains("the worker"));
+        assert!(errors[1].contains("container 'main'"));
+
+        request.arch = None;
+        request.containers = vec![
+            container("a", Some(Arch::Amd64)),
+            container("b", Some(Arch::Wasm32)),
+            container("c", None),
+        ];
+        let errors = check_needs(&request, Arch::Amd64).unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("'wasm32'"));
+    }
+
+    #[test]
+    fn host_is_known() {
+        assert_ne!(Arch::host(), Arch::Unknown);
     }
 }

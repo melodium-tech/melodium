@@ -3,7 +3,7 @@ use super::super::declared_parameter::DeclaredParameter;
 use super::super::function_call::FunctionCall;
 use super::super::requirement::Requirement;
 use melodium_common::descriptor::DataType;
-use melodium_common::executive::Value as ExecutiveValue;
+use melodium_common::executive::{Secret, Value as ExecutiveValue};
 use std::convert::TryFrom;
 use std::sync::{Arc, RwLock};
 
@@ -302,6 +302,16 @@ impl ValueContent {
                     me.make_executive_value(&inner_type)?,
                 )))),
             },
+            DataType::Secret(inner_type) => match self {
+                ValueContent::String(locator) => {
+                    Secret::from_locator(locator, inner_type.as_ref().clone())
+                        .map(ExecutiveValue::Secret)
+                        .map_err(|err| err.to_string())
+                }
+                _ => Err(
+                    "Secret locator expected, such as \"env:MELODIUM_SECRET_NAME\".".to_string(),
+                ),
+            },
             DataType::Data(_) => Err("Object cannot be build from script".to_string()),
         }
     }
@@ -341,5 +351,45 @@ mod tests {
                 .unwrap(),
             ExecutiveValue::I8(123)
         );
+    }
+
+    #[test]
+    fn test_secret_locators() {
+        let secret = DataType::Secret(Box::new(DataType::String));
+
+        match ValueContent::String("env:DB_PASSWORD".to_string()).make_executive_value(&secret) {
+            Ok(ExecutiveValue::Secret(value)) => {
+                assert_eq!(value.locator(), Some("env:DB_PASSWORD"));
+                assert_eq!(value.name(), "env:DB_PASSWORD");
+                assert_eq!(value.datatype(), &DataType::String);
+            }
+            other => panic!("secret expected, got {:?}", other),
+        }
+
+        assert!(matches!(
+            ValueContent::String("file:/run/secrets/db".to_string())
+                .make_executive_value(&DataType::Option(Box::new(secret.clone()))),
+            Ok(ExecutiveValue::Option(Some(_)))
+        ));
+        assert!(matches!(
+            ValueContent::Array(vec![
+                ValueContent::String("env:A".to_string()),
+                ValueContent::String("vault:db/password".to_string()),
+            ])
+            .make_executive_value(&DataType::Vec(Box::new(secret.clone()))),
+            Ok(ExecutiveValue::Vec(values)) if values.len() == 2
+        ));
+
+        for content in [
+            ValueContent::String("hunter2".to_string()),
+            ValueContent::String(":nothing".to_string()),
+            ValueContent::String("1env:A".to_string()),
+            ValueContent::Unsigned(42),
+        ] {
+            assert!(content.make_executive_value(&secret).is_err());
+        }
+        assert!(ValueContent::String("env:A".to_string())
+            .make_executive_value(&DataType::Secret(Box::new(secret)))
+            .is_err());
     }
 }

@@ -7,7 +7,7 @@ use crate::debug::Event;
 use crate::error::LogicResult;
 use crate::world::World;
 use core::fmt::Debug;
-use melodium_common::executive::{Model, World as ExecutiveWorld};
+use melodium_common::executive::{Model, SecretsAccess, World as ExecutiveWorld};
 use std::sync::{Arc, Weak};
 
 #[derive(Debug)]
@@ -38,6 +38,17 @@ impl BuilderTrait for Builder {
 
         for (name, value) in environment.variables() {
             model.set_parameter(name, value.clone());
+        }
+        world.add_launch_secrets(environment.variables().values());
+
+        let descriptor = model.descriptor();
+        if descriptor.secrets_access() {
+            model.set_secrets_access(SecretsAccess::new(
+                &world.secrets_host(),
+                descriptor.identifier().clone(),
+                Some(label.clone()),
+                None,
+            ));
         }
 
         world.send_debug(Event::new(crate::debug::EventKind::ModelBuilt {

@@ -2,16 +2,14 @@ use crate::error::DistributionResult;
 use crate::framing::max_batch_chunk_bytes;
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
-use async_std::channel::{bounded, Sender};
-use async_std::sync::Barrier;
-use async_std::{
-    future::timeout,
-    io::{Read, Write},
-    net::{SocketAddr, TcpListener},
-    sync::RwLock as AsyncRwLock,
-};
+
+/// Time given to running tracks to finish once the process is interrupted.
+const INTERRUPTION_GRACE: Duration = Duration::from_secs(10);
+use async_channel::{bounded, Sender};
+use async_lock::{Barrier, RwLock as AsyncRwLock};
 use core::sync::atomic::AtomicBool;
 use core::time::Duration;
+use futures::io::{AsyncRead as Read, AsyncWrite as Write};
 use futures::stream::{unfold, FuturesUnordered};
 use futures::{pin_mut, select, FutureExt, StreamExt};
 use futures_rustls::TlsAcceptor;
@@ -23,18 +21,21 @@ use melodium_common::{
 use melodium_engine::debug::{DebugLevel, Event};
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_engine::execution_group_id;
+use melodium_engine::interruption::live_until_interrupted;
 use melodium_loader::Loader;
 use melodium_share::{
     ProgramDump, SharingError, SharingResult, TransmissionValue as WireTransmissionValue,
 };
+use smol::net::{SocketAddr, TcpListener};
 use std::{
     collections::HashMap,
+    future::Future,
     sync::{Arc, OnceLock},
 };
 use uuid::Uuid;
 
-const CERTIFICATE_CHAIN: &[u8; 4715] = include_bytes!("../melodium-chain.pem");
-const LOCALHOST_KEY: &[u8; 3272] = include_bytes!("../melodium-localhost.key.pem");
+const CERTIFICATE_CHAIN: &[u8] = include_bytes!("../melodium-chain.pem");
+const LOCALHOST_KEY: &[u8] = include_bytes!("../melodium-localhost.key.pem");
 const DEFAULT_TEARDOWN_TIMEOUT_SECS: u64 = 60;
 /// Number of attempts made to send a keepalive `Probe` before treating the connection as
 /// genuinely dead. See the comment at the probe retry loop for why a single failure isn't
@@ -42,6 +43,15 @@ const DEFAULT_TEARDOWN_TIMEOUT_SECS: u64 = 60;
 const PROBE_RETRY_ATTEMPTS: u32 = 3;
 /// Delay between probe retry attempts.
 const PROBE_RETRY_DELAY: Duration = Duration::from_secs(2);
+
+/// Gives the output of `future`, or an error if it takes longer than `duration`.
+async fn timeout<T>(duration: Duration, future: impl Future<Output = T>) -> Result<T, ()> {
+    smol::future::or(async { Ok(future.await) }, async {
+        smol::Timer::after(duration).await;
+        Err(())
+    })
+    .await
+}
 
 /// Grace period, after the distributed engine and connection are expected to
 /// be done, before forcing teardown of the connection and log/debug channels.
@@ -174,6 +184,7 @@ pub async fn launch_listen(
 
     launch_listen_stream(
         stream,
+        true,
         version,
         expect_key,
         emit_key,
@@ -218,8 +229,8 @@ pub async fn launch_listen_localcert(
 ) -> bool {
     launch_listen(
         bind,
-        CERTIFICATE_CHAIN.as_slice(),
-        LOCALHOST_KEY.as_slice(),
+        CERTIFICATE_CHAIN,
+        LOCALHOST_KEY,
         version,
         expect_key,
         emit_key,
@@ -287,6 +298,7 @@ pub async fn launch_listen_unsecure(
 
     launch_listen_stream(
         stream,
+        false,
         version,
         expect_key,
         emit_key,
@@ -307,6 +319,7 @@ pub async fn launch_listen_unsecure(
 /// (protocol/engine teardown complete), before this function returns.
 async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     stream: S,
+    encrypted: bool,
     version: &Version,
     expect_key: Uuid,
     emit_key: Uuid,
@@ -373,7 +386,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         parameters: lal
                             .parameters
                             .iter()
-                            .map(|(name, value)| (name.clone(), value.clone()))
+                            .map(|(name, value)| (name.clone(), value.without_secret_values()))
                             .collect(),
                     })
                     .await;
@@ -465,11 +478,28 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     }
 
-    // Give it to engine
-    let parameters = parameters
-        .into_iter()
-        .map(|(name, val)| (name, val.to_value(&collection).unwrap()))
-        .collect();
+    // Give it to engine, secrets keeping the policy they were sent with
+    let mut values = HashMap::with_capacity(parameters.len());
+    for (name, value) in parameters {
+        match value.from_wire(&collection) {
+            Some(value) => {
+                values.insert(name, value);
+            }
+            None => {
+                let message = format!("Parameter '{name}' could not be received");
+                let _ = protocol
+                    .send_message(Message::LaunchStatus(messages::LaunchStatus::Failure(
+                        message.clone(),
+                    )))
+                    .await;
+                if let Some(launched) = launched {
+                    launched(Err(message)).await;
+                }
+                return false;
+            }
+        }
+    }
+    let entrypoint: Identifier = entrypoint.try_into().unwrap();
     // See the matching comment in melodium/src/lib.rs::launch: `DebugLevel::Detailed`
     // clones every transmitted payload into debug events, which is unsafe for
     // byte-heavy streams. This side already bounds its debug channel
@@ -500,10 +530,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     }
     let watchdog_debug_receiver = debug_receiver.clone();
 
-    if let Err(fail) = engine
-        .genesis(&entrypoint.try_into().unwrap(), parameters)
-        .as_result()
-    {
+    if let Err(fail) = engine.genesis(&entrypoint, values).as_result() {
         protocol
             .send_message(Message::LaunchStatus(messages::LaunchStatus::Failure(
                 fail.to_string(),
@@ -539,7 +566,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     }
                     .boxed(),
                     async {
-                        async_std::task::sleep(max_duration).await;
+                        smol::Timer::after(max_duration).await;
                         expired.store(true, core::sync::atomic::Ordering::Relaxed);
                     }
                     .boxed(),
@@ -555,7 +582,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
         async move {
-            engine.live().await;
+            live_until_interrupted(&engine, INTERRUPTION_GRACE).await;
             let _ = protocol.send_message(Message::Ended).await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 barrier.wait().await;
@@ -570,13 +597,18 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let tracks_entry_outputs = Arc::new(AsyncRwLock::new(HashMap::new()));
         let tracks_entry_inputs = Arc::new(AsyncRwLock::new(HashMap::new()));
 
+        // Secrets sent back follow their transmission policy, on behalf of the entrypoint.
+        let secrets_access = engine.secrets_access(entrypoint.clone(), None, None);
+
         let manage_message = {
             let protocol = Arc::clone(&protocol);
+            let secrets_access = secrets_access.clone();
             let engine = Arc::clone(&engine);
             let collection = Arc::clone(&collection);
             let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
             move |message| {
                 let protocol = Arc::clone(&protocol);
+                let secrets_access = secrets_access.clone();
                 let engine = Arc::clone(&engine);
                 let collection = Arc::clone(&collection);
                 let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
@@ -589,6 +621,8 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                             let tracks_entry_inputs = Arc::clone(&tracks_entry_inputs);
                             let track_id = instanciate.id;
 
+                            // Weak, as the engine keeps the futures made by this callback.
+                            let weak_engine = Arc::downgrade(&engine);
                             if let Err(failure) = engine
                                 .instanciate(Some(Box::new({
                                     let protocol = Arc::clone(&protocol);
@@ -597,6 +631,8 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                         let mut inputs_storage = HashMap::new();
                                         for (name, input) in entry_inputs {
                                             let protocol = Arc::clone(&protocol);
+                                            let secrets_access = secrets_access.clone();
+                                            let weak_engine = weak_engine.clone();
                                             let input = Arc::new(input);
                                             inputs_storage.insert(name.clone(), Arc::clone(&input));
                                             let listener = async move {
@@ -607,7 +643,30 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                                     // type, instead of exploding it into
                                                     // one `RawValue` per tick first — see
                                                     // `melodium_share::TransmissionValue`.
-                                                    let data: WireTransmissionValue = data.into();
+                                                    let data = match WireTransmissionValue::to_wire(
+                                                        data,
+                                                        &secrets_access,
+                                                        encrypted,
+                                                    )
+                                                    .await
+                                                    {
+                                                        Ok(data) => data,
+                                                        Err(error) => {
+                                                            if let Some(engine) =
+                                                                weak_engine.upgrade()
+                                                            {
+                                                                engine
+                                                                    .log(
+                                                                        Level::Error,
+                                                                        "distribution".to_string(),
+                                                                        format!("Cannot send '{name}' back to the engine that asked for the distribution, {error}"),
+                                                                    )
+                                                                    .await;
+                                                            }
+                                                            input.close();
+                                                            break 'recv;
+                                                        }
+                                                    };
 
                                                     // Split before constructing the
                                                     // message, same reasoning as
@@ -884,7 +943,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let protocol = Arc::clone(&protocol);
         async move {
             loop {
-                async_std::task::sleep(Duration::from_secs(10)).await;
+                smol::Timer::after(Duration::from_secs(10)).await;
                 // A single failed probe send doesn't prove the connection is dead: it can
                 // just as well be a transient hiccup over a real network (TLS
                 // renegotiation, a brief stall, ordinary internet jitter) on an otherwise
@@ -900,7 +959,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     }
                     attempts += 1;
                     if attempts < PROBE_RETRY_ATTEMPTS {
-                        async_std::task::sleep(PROBE_RETRY_DELAY).await;
+                        smol::Timer::after(PROBE_RETRY_DELAY).await;
                     }
                 }
                 if !succeeded {
@@ -912,15 +971,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     };
 
-    let probe = async_std::task::spawn(probe);
+    let probe = smol::spawn(probe);
 
     // `logs`/`debug` are spawned as independent tasks, not joined alongside
     // `limit`/`live`/`run` below: they must be actively polled and forwarding to the
     // peer for the whole duration of the run, not just after the real work is done -
     // otherwise log/debug events only get sent once the job already finished, instead
     // of arriving live while it's in progress.
-    let logs = async_std::task::spawn(logs);
-    let debug = async_std::task::spawn(debug);
+    let logs = smol::spawn(logs);
+    let debug = smol::spawn(debug);
 
     // `limit`/`live`/`run` complete once real work is genuinely done: `max_duration`
     // elapsing, the engine reporting itself ended, or the peer confirming `Ended` /

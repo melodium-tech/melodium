@@ -16,6 +16,48 @@ use syn::{
     PathArguments, ReturnType, Type,
 };
 
+/// Rust type of any `Secret<T>`, the inner type being only known at runtime.
+const SECRET_RUST_TYPE: &str = "melodium_core::common::executive::Secret";
+
+/// Whether `locator` is `<scheme>:<path>`, as `Secret::from_locator` expects.
+fn is_secret_locator(locator: &str) -> bool {
+    if let Some((scheme, _)) = locator.split_once(':') {
+        let mut chars = scheme.chars();
+        chars
+            .next()
+            .map(|c| c.is_ascii_alphabetic())
+            .unwrap_or(false)
+            && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    } else {
+        false
+    }
+}
+
+/// Replaces `Secret<T>` types by the Rust secret type, which has no type parameter.
+fn into_rust_secret_types(ty: &mut Type) {
+    if let Type::Path(path) = ty {
+        if path
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident == "Secret")
+            .unwrap_or(false)
+        {
+            *ty = syn::parse_str(SECRET_RUST_TYPE).unwrap();
+        } else {
+            for segment in path.path.segments.iter_mut() {
+                if let PathArguments::AngleBracketed(arguments) = &mut segment.arguments {
+                    for argument in arguments.args.iter_mut() {
+                        if let GenericArgument::Type(ty) = argument {
+                            into_rust_secret_types(ty);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn into_mel_type(ty: &Type) -> Vec<String> {
     match ty {
         Type::Path(path) => {
@@ -25,7 +67,7 @@ fn into_mel_type(ty: &Type) -> Vec<String> {
             let mut desc = Vec::new();
             desc.push(text_ty.clone());
             match text_ty.as_str() {
-                "Vec" | "Option" => {
+                "Vec" | "Option" | "Secret" => {
                     if let PathArguments::AngleBracketed(ab) = &ty.arguments {
                         if let GenericArgument::Type(ty) = ab.args.first().expect("Type expected") {
                             desc.append(&mut into_mel_type(ty));
@@ -57,7 +99,7 @@ fn into_mel_datatype(ty: &Vec<String>) -> String {
                     desc.push_str("melodium_core::common::descriptor::DataType::");
                     desc.push_str(&ty.to_case(Case::UpperCamel));
                 }
-                "Vec" | "Option" => {
+                "Vec" | "Option" | "Secret" => {
                     desc.push_str("melodium_core::common::descriptor::DataType::");
                     desc.push_str(ty.as_str());
                     desc.push_str("(Box::new(");
@@ -89,7 +131,7 @@ fn into_mel_described_type(ty: &Vec<String>, generics: &Vec<String>) -> String {
                     desc.push_str("melodium_core::common::descriptor::DescribedType::");
                     desc.push_str(&ty.to_case(Case::UpperCamel));
                 }
-                "Vec" | "Option" => {
+                "Vec" | "Option" | "Secret" => {
                     desc.push_str("melodium_core::common::descriptor::DescribedType::");
                     desc.push_str(ty.as_str());
                     desc.push_str("(Box::new(");
@@ -122,6 +164,7 @@ fn into_rust_type(ty: &Vec<String>, as_dyn_if_data: bool) -> String {
         let mut desc = String::new();
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+                "Secret" => return SECRET_RUST_TYPE.to_string(),
                 "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
                 | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "Vec"
                 | "Option" => {
@@ -157,6 +200,19 @@ fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
         let mut desc = String::new();
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+                "Secret" => {
+                    let locator = litrs::StringLit::parse(lit)
+                        .map(|lit| lit.value().to_string())
+                        .unwrap_or_default();
+                    if !is_secret_locator(&locator) {
+                        panic!(
+                            "Secret default must be a locator such as \"env:MELODIUM_SECRET_NAME\", got {}",
+                            lit
+                        );
+                    }
+                    let datatype = into_mel_datatype(&iter.cloned().collect());
+                    desc.push_str(&format!("melodium_core::common::executive::Value::Secret(melodium_core::common::executive::Secret::from_locator({lit}, {datatype}).unwrap())"));
+                }
                 "Vec" => {
                     desc.push_str("melodium_core::common::executive::Value::Vec(vec![");
                     let next = add_value(iter, lit);
@@ -165,19 +221,15 @@ fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
                     }
                     desc.push_str("])");
                 }
+                // `none` is the only literal of an absent option.
+                "Option" if lit == "none" => {
+                    desc.push_str("melodium_core::common::executive::Value::Option(None)");
+                }
                 "Option" => {
                     let next = add_value(iter, lit);
-                    if !next.is_empty() {
-                        desc.push_str(
-                            "melodium_core::common::executive::Value::Option(Some(Box::new(",
-                        );
-                        desc.push_str(&next);
-                        desc.push_str(")))");
-                    } else {
-                        desc.push_str(
-                            "melodium_core::common::executive::Value::Option(Box::new(None))",
-                        );
-                    }
+                    desc.push_str("melodium_core::common::executive::Value::Option(Some(Box::new(");
+                    desc.push_str(&next);
+                    desc.push_str(")))");
                 }
                 mel_ty => {
                     desc.push_str("melodium_core::common::executive::Value::");
@@ -223,6 +275,7 @@ fn into_mel_value_call(ty: &Vec<String>, inner_param: String) -> String {
                     apply_ops(&mut iter)
                 ),
                 "Option" => format!(".map(|v| v{})", apply_ops(&mut iter)),
+                "Secret" => "".to_string(),
                 _ => ".downcast_arc().unwrap()".to_string(),
             }
         } else {
@@ -298,6 +351,7 @@ fn into_rust_type_resolving_generics(ty: &[String], generics: &Vec<&str>) -> Str
         let mut desc = String::new();
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+                "Secret" => return SECRET_RUST_TYPE.to_string(),
                 "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
                 | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "Vec"
                 | "Option" => {
@@ -331,6 +385,7 @@ fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) ->
         let conv;
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+                "Secret" => conv = "melodium_core::Value::Secret(value)".to_string(),
                 "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
                 | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
                     conv = format!(
@@ -381,6 +436,9 @@ fn convert_to_rust_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) -
         let conv;
         if let Some(ty) = iter.next() {
             match ty.as_str() {
+            "Secret" => {
+                conv = format!("melodium_core::common::executive::GetData::<{SECRET_RUST_TYPE}>::try_data(value).unwrap()")
+            },
             "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
                 | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
                     conv = format!(
@@ -464,12 +522,17 @@ fn config_param(
     }
 
     if let Some(TokenTree::Ident(name)) = next {
-        (
-            name.to_string(),
-            config_ty(ts),
-            config_optional_value(ts),
-            attributes,
-        )
+        let ty = config_ty(ts);
+        let default = config_optional_value(ts);
+        // For an `Option<T>`, `none` gives a default of none rather than no default,
+        // since there is no other value it could stand for.
+        let default = match default {
+            None if ty.first().map(|ty| ty == "Option").unwrap_or(false) => {
+                Some("none".to_string())
+            }
+            default => default,
+        };
+        (name.to_string(), ty, default, attributes)
     } else {
         panic!(
             "Name identity expected, found: {}",
@@ -682,7 +745,7 @@ fn config_ty(mut ts: &mut IntoIterTokenStream) -> Vec<String> {
         let ty = ty.to_string();
         list.push(ty.clone());
         match ty.as_str() {
-            "Vec" | "Option" => {
+            "Vec" | "Option" | "Secret" => {
                 ts.next(); // <
                 list.append(&mut config_ty(&mut ts));
                 ts.next(); // >
@@ -1122,6 +1185,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut outputs = HashMap::new();
     let mut attributes = HashMap::new();
     let mut generics = Vec::new();
+    let mut secrets_access = false;
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
     while let Some(tt) = iter_attr.next() {
@@ -1158,6 +1222,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     let name = config_generic(&mut iter_attr);
                     generics.push(name);
                 }
+                "secrets_access" => secrets_access = true,
                 _ => panic!("Unrecognized configuration"),
             }
         }
@@ -1223,6 +1288,21 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                 params.insert(name, (ty, attributes));
             }
             _ => eprintln!("Only Mélodium types are admissible arguments"),
+        }
+    }
+
+    // Names the treatment body gets from the engine.
+    for reserved in ["world", "track_id", "secrets_access"] {
+        if params.contains_key(reserved)
+            || inputs.contains_key(reserved)
+            || outputs.contains_key(reserved)
+            || models.contains_key(reserved)
+            || generics.iter().any(|(name, _)| name == reserved)
+        {
+            panic!(
+                "'{}' is reserved in treatments, as the engine gives it to their body",
+                reserved
+            );
         }
     }
 
@@ -1315,6 +1395,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                         vec![#parameters],
                         vec![#inputs],
                         vec![#outputs],
+                        #secrets_access,
                         AdHocTreatment::new
                     );
 
@@ -1578,9 +1659,17 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         let body = treatment.block;
 
-        prepare_implementation = quote! {
-            fn prepare(&self, track_id: usize, debug_start: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>, debug_finish: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>) -> Vec<melodium_core::common::executive::TrackFuture> {
+        // Only treatments declaring `secrets_access` get it in their body.
+        let secrets_access: proc_macro2::TokenStream = if secrets_access {
+            quote! { let secrets_access = __secrets_access.expect("the engine gives secrets access to treatments declaring it"); }
+        } else {
+            quote! { let _ = __secrets_access; }
+        };
 
+        prepare_implementation = quote! {
+            fn prepare(&self, track_id: usize, world: std::sync::Weak<dyn melodium_core::common::executive::World>, __secrets_access: Option<melodium_core::common::executive::SecretsAccess>, debug_start: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>, debug_finish: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>) -> Vec<melodium_core::common::executive::TrackFuture> {
+
+                #secrets_access
                 #generics;
                 #parameters;
                 #models;
@@ -1637,6 +1726,9 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut initialization = None;
     let mut continuous = Vec::new();
     let mut shutdown = None;
+    let mut invoke_source = None;
+    let mut secrets_access = false;
+    let mut secret_sources = None;
     let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
@@ -1680,6 +1772,21 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         panic!("Shutdown function name expected")
                     }
                 }
+                "invoke_source" => {
+                    if let Some(TokenTree::Ident(name)) = iter_attr.next() {
+                        invoke_source = Some(name.to_string());
+                    } else {
+                        panic!("Invoke source function name expected")
+                    }
+                }
+                "secrets_access" => secrets_access = true,
+                "secret_sources" => {
+                    if let Some(TokenTree::Ident(name)) = iter_attr.next() {
+                        secret_sources = Some(name.to_string());
+                    } else {
+                        panic!("Secret sources function name expected")
+                    }
+                }
                 "attribute" => {
                     let (name, value) = config_attribute(&mut iter_attr);
                     attributes.insert(name, value);
@@ -1687,6 +1794,10 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 _ => panic!("Unrecognized configuration"),
             }
         }
+    }
+
+    if secret_sources.is_some() && !secrets_access {
+        panic!("Registering secret sources needs `secrets_access` to be declared");
     }
 
     let model: ItemStruct = parse(item).unwrap();
@@ -1751,6 +1862,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     },
                     vec![#parameters],
                     vec![#sources],
+                    #secrets_access,
                     AdHocModel::new,
                 );
         };
@@ -1850,7 +1962,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         params: &std::collections::HashMap<String, melodium_core::common::executive::Value>,
                         callback: Option<Box<dyn FnOnce(Box<melodium_core::common::executive::Outputs>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>>
                     ) {
-                    self.world.create_track(
+                    self.world().create_track(
                         self.id().unwrap(),
                         #source_name,
                         params,
@@ -1889,11 +2001,40 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap_or_else(|| String::from("()"))
         .parse()
         .unwrap();
-    let continuous: proc_macro2::TokenStream = continuous.iter().map(|c| format!("let auto_self = self.auto_reference.upgrade().unwrap(); self.world.add_continuous_task(Box::new(Box::pin(async move {{ auto_self.inner().{c}().await }})));")).collect::<Vec<_>>().join("").parse()
+    let continuous: proc_macro2::TokenStream = continuous.iter().map(|c| format!("let auto_self = self.auto_reference.upgrade().unwrap(); self.world().add_continuous_task(Box::new(Box::pin(async move {{ auto_self.inner().{c}().await }})));")).collect::<Vec<_>>().join("").parse()
     .unwrap();
     let shutdown: proc_macro2::TokenStream = shutdown
         .map(|s| format!("self.model.{s}()"))
         .unwrap_or_else(|| String::from("()"))
+        .parse()
+        .unwrap();
+    // Only models declaring `secrets_access` can get it.
+    let secrets_access_implementation = if secrets_access {
+        quote! {
+            /// Access to secrets of this model, given by the engine when it builds the model.
+            pub fn secrets_access(&self) -> melodium_core::common::executive::SecretsAccess {
+                self.secrets_access
+                    .get()
+                    .cloned()
+                    .expect("the engine gives secrets access to models declaring it")
+            }
+        }
+    } else {
+        proc_macro2::TokenStream::new()
+    };
+    let set_secrets_access: proc_macro2::TokenStream = if secrets_access {
+        quote! { let _ = self.secrets_access.set(access); }
+    } else {
+        quote! { let _ = access; }
+    };
+    let register_secret_sources: proc_macro2::TokenStream = secret_sources
+        .map(|s| format!("self.model.{s}(&self.secrets_access())"))
+        .unwrap_or_else(|| String::from("()"))
+        .parse()
+        .unwrap();
+    let invoke_source: proc_macro2::TokenStream = invoke_source
+        .map(|s| format!("self.model.{s}(source, params)"))
+        .unwrap_or_else(|| String::from("let _ = (source, params)"))
         .parse()
         .unwrap();
 
@@ -1943,7 +2084,10 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 id: std::sync::Mutex<Option<melodium_core::common::executive::ModelId>>,
                 params: std::sync::Mutex<std::collections::HashMap<String, melodium_core::common::executive::Value>>,
                 model: #model_name,
-                world: std::sync::Arc<dyn melodium_core::common::executive::World>,
+                // Weak: `World` keeps every model it builds alive, so a strong reference
+                // here would form a cycle and neither would ever be dropped.
+                world: std::sync::Weak<dyn melodium_core::common::executive::World>,
+                secrets_access: std::sync::OnceLock<melodium_core::common::executive::SecretsAccess>,
                 auto_reference: std::sync::Weak<Self>,
             }
 
@@ -1954,7 +2098,8 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         id: std::sync::Mutex::new(None),
                         params: std::sync::Mutex::new(vec![#parameters_initialization].into_iter().collect()),
                         model: #model_name::new(me.clone()),
-                        world,
+                        world: std::sync::Arc::downgrade(&world),
+                        secrets_access: std::sync::OnceLock::new(),
                         auto_reference: me.clone(),
                     })
                 }
@@ -1967,9 +2112,16 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     &self.model
                 }
 
-                pub fn world(&self) -> &std::sync::Arc<dyn melodium_core::common::executive::World> {
-                    &self.world
+                /// The world this model belongs to.
+                ///
+                /// A model only runs while its world exists, the world owning it.
+                pub fn world(&self) -> std::sync::Arc<dyn melodium_core::common::executive::World> {
+                    self.world
+                        .upgrade()
+                        .expect("model used after its world was dropped")
                 }
+
+                #secrets_access_implementation
 
                 pub fn id(&self) -> Option<melodium_core::common::executive::ModelId> {
                     *self.id.lock().unwrap()
@@ -2007,6 +2159,14 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     Self::set_parameter(self, param, value)
                 }
 
+                fn set_secrets_access(&self, access: melodium_core::common::executive::SecretsAccess) {
+                    #set_secrets_access
+                }
+
+                fn register_secret_sources(&self) {
+                    #register_secret_sources;
+                }
+
                 fn initialize(&self) {
                     #initialize;
                     #continuous
@@ -2017,7 +2177,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 fn invoke_source(&self, source: &str, params: std::collections::HashMap<String, melodium_core::common::executive::Value>) {
-                    self.model.invoke_source(source, params);
+                    #invoke_source;
                 }
             }
         }
@@ -2031,7 +2191,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let context: ItemStruct = parse(item).unwrap();
+    let mut context: ItemStruct = parse(item).unwrap();
     let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
@@ -2075,6 +2235,11 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     } else {
         panic!("Named field expected")
+    }
+    if let Fields::Named(fields_named) = &mut context.fields {
+        for field in fields_named.named.iter_mut() {
+            into_rust_secret_types(&mut field.ty);
+        }
     }
 
     let description;
@@ -2544,8 +2709,16 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let closure = {
-        let params = function.sig.inputs.clone();
-        let return_type = function.sig.output.clone();
+        let mut params = function.sig.inputs.clone();
+        for param in params.iter_mut() {
+            if let FnArg::Typed(param) = param {
+                into_rust_secret_types(&mut param.ty);
+            }
+        }
+        let mut return_type = function.sig.output.clone();
+        if let ReturnType::Type(_, ty) = &mut return_type {
+            into_rust_secret_types(ty);
+        }
         let content = function.block.clone();
         let name = function.sig.ident.clone();
 

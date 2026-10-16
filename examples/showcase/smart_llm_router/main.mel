@@ -50,10 +50,12 @@ use ml/remote/llm::stream as llmStream
 // "pick the right one of a few pre-defined (model, budget) tiers". That is
 // exactly what the JavaScript function below decides.
 //
-// This example requires a real LLM provider API key.
+// This example requires a real LLM provider API key. It is a secret, read
+// from the environment by default; `--api_key` takes another locator, such as
+// `file:/run/secrets/llm`.
 //
 // Usage:
-//   melodium run Compo.toml --api_key sk-...
+//   MELODIUM_SECRET_ANTHROPIC_API_KEY=sk-... melodium run Compo.toml
 //
 //   curl -X POST http://127.0.0.1:8080/chat -d "What year is it?"
 //   curl -X POST http://127.0.0.1:8080/chat -d "Can you summarize the main differences between REST and GraphQL APIs?"
@@ -121,9 +123,9 @@ model Router() : JavaScriptEngine {
 }
 
 // Fast, cheap tier: short factual answers, small token budget.
-model EconomyLlm(const api_key: string, const model: string) : RemoteLlm {
+model EconomyLlm(const api_key: Secret<string>, const model: string) : RemoteLlm {
     backend     = "anthropic"
-    api_key     = |wrap<string>(api_key)
+    api_key     = |wrap<Secret<string>>(api_key)
     base_url    = ""
     model       = model
     system      = "You are a fast, concise assistant. Answer as briefly and directly as accuracy allows."
@@ -134,9 +136,9 @@ model EconomyLlm(const api_key: string, const model: string) : RemoteLlm {
 }
 
 // Balanced default tier.
-model StandardLlm(const api_key: string, const model: string) : RemoteLlm {
+model StandardLlm(const api_key: Secret<string>, const model: string) : RemoteLlm {
     backend     = "anthropic"
-    api_key     = |wrap<string>(api_key)
+    api_key     = |wrap<Secret<string>>(api_key)
     base_url    = ""
     model       = model
     system      = "You are a helpful, clear assistant."
@@ -147,9 +149,9 @@ model StandardLlm(const api_key: string, const model: string) : RemoteLlm {
 }
 
 // Most capable tier: thorough, detailed answers, larger token budget.
-model PremiumLlm(const api_key: string, const model: string) : RemoteLlm {
+model PremiumLlm(const api_key: Secret<string>, const model: string) : RemoteLlm {
     backend     = "anthropic"
-    api_key     = |wrap<string>(api_key)
+    api_key     = |wrap<Secret<string>>(api_key)
     base_url    = ""
     model       = model
     system      = "You are a thorough, expert assistant. Explain your reasoning fully and precisely."
@@ -160,11 +162,11 @@ model PremiumLlm(const api_key: string, const model: string) : RemoteLlm {
 }
 
 treatment chat(
-    const api_key:        string,
-    const economy_model:  string = "claude-haiku-4-5",
-    const standard_model: string = "claude-sonnet-5",
-    const premium_model:  string = "claude-opus-4-5",
-    const port:           u16    = 8080
+    const api_key:        Secret<string> = "env:MELODIUM_SECRET_ANTHROPIC_API_KEY",
+    const economy_model:  string         = "claude-haiku-4-5",
+    const standard_model: string         = "claude-sonnet-5",
+    const premium_model:  string         = "claude-opus-4-5",
+    const port:           u16            = 8080
 )
   model server:      HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
   model router:       Router()

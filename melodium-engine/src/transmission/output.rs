@@ -1,7 +1,7 @@
 use crate::debug::{DataContent, Event, EventKind, TransmissionDebug, TransmissionDetails};
 use crate::transmission::{own, Input};
-use async_std::channel::{Sender, TrySendError};
-use async_std::sync::Mutex as AsyncMutex;
+use async_channel::{Sender, TrySendError};
+use async_lock::Mutex as AsyncMutex;
 use async_trait::async_trait;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use futures::stream::{FuturesUnordered, StreamExt};
@@ -453,7 +453,7 @@ mod fan_out_tests {
 
     #[test]
     fn single_receiver_gets_sent_value() {
-        async_std::task::block_on(async {
+        smol::block_on(async {
             let input = Input::new(Flow::Stream, 0, TransmissionDebug::None);
             let output = Output::new(Flow::Stream, 0, TransmissionDebug::None);
             output.add_transmission(&vec![input.clone()]);
@@ -469,7 +469,7 @@ mod fan_out_tests {
     // deep-cloned once per receiver — this is the correctness guard for that change.
     #[test]
     fn every_fan_out_receiver_gets_the_full_correct_batch() {
-        async_std::task::block_on(async {
+        smol::block_on(async {
             let input_a = Input::new(Flow::Stream, 0, TransmissionDebug::None);
             let input_b = Input::new(Flow::Stream, 0, TransmissionDebug::None);
             let output = Output::new(Flow::Stream, 0, TransmissionDebug::None);
@@ -493,10 +493,19 @@ mod fan_out_tests {
 #[cfg(test)]
 mod backpressure_tests {
     use super::*;
-    use async_std::future::timeout;
     use melodium_common::executive::{Input as ExecutiveInput, Output as ExecutiveOutput};
     use std::collections::VecDeque;
+    use std::future::Future;
     use std::time::Duration;
+
+    /// Gives the output of `future`, or an error if it takes longer than `duration`.
+    async fn timeout<T>(duration: Duration, future: impl Future<Output = T>) -> Result<T, ()> {
+        smol::future::or(async { Ok(future.await) }, async {
+            smol::Timer::after(duration).await;
+            Err(())
+        })
+        .await
+    }
 
     fn wire_pair() -> (Output, Input) {
         let input = Input::new(Flow::Stream, 0, TransmissionDebug::None);
@@ -509,7 +518,7 @@ mod backpressure_tests {
     // batch stays in Output's local buffer and is retried opportunistically instead.
     #[test]
     fn small_batch_does_not_block_once_receiver_slot_is_full() {
-        async_std::task::block_on(async {
+        smol::block_on(async {
             let (output, _input) = wire_pair();
 
             // Occupy the receiver's single buffered slot.
@@ -529,7 +538,7 @@ mod backpressure_tests {
     // guarantee that bounds memory regardless of how large individual values are.
     #[test]
     fn crossing_byte_watermark_blocks_until_receiver_drains() {
-        async_std::task::block_on(async {
+        smol::block_on(async {
             let (output, input) = wire_pair();
 
             // Occupy the receiver's single buffered slot.

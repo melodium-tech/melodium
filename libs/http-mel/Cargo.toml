@@ -1,8 +1,8 @@
 [package]
 name = "http-mel"
-version = "0.10.4"
+version = "0.11.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
-rust-version = "1.83"
+rust-version = "1.94"
 edition = "2021"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"
@@ -17,16 +17,18 @@ crate-type = ["lib", "cdylib"]
 name = "http_mel"
 
 [dependencies]
-async-std = {version="1.13", features=["unstable"]}
+async-lock = "3.4"
 futures = "0.3"
-melodium-core = { path = "../../melodium-core", version = "0.10.4" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.4" }
-std-mel = { path = "../std-mel", version = "0.10.4" }
-net-mel = { path = "../net-mel", version = "0.10.4" }
+futures-lite = "2.6"
+melodium-core = { path = "../../melodium-core", version = "0.11.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
+std-mel = { path = "../std-mel", version = "0.11.0" }
+net-mel = { path = "../net-mel", version = "0.11.0" }
 serde = "1.0.185"
 trillium = { version = "0.2", features = ["serde"]}
 trillium-router = { version = "0.4"}
-trillium-async-std = {version = "0.4", optional = true}
+trillium-smol = {version = "0.4.2", optional = true}
+smol = {version = "2.0", optional = true}
 trillium-client = {version = "0.6"}
 trillium-rustls = { version = "0.8", default-features = false, features = ["client", "ring"], optional = true }
 ringbuf = "0.3"
@@ -37,7 +39,7 @@ uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 [features]
 mock = []
 plugin = []
-real = ["trillium-async-std", "trillium-rustls"]
+real = ["smol", "trillium-smol", "trillium-rustls"]
 "docs.rs" = ["mock", "std-mel/docs.rs", "net-mel/docs.rs"]
 
 [package.metadata.docs.rs]

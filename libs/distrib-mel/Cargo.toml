@@ -1,8 +1,8 @@
 [package]
 name = "distrib-mel"
-version = "0.10.4"
+version = "0.11.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
-rust-version = "1.83"
+rust-version = "1.94"
 edition = "2021"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"
@@ -18,24 +18,26 @@ name = "distrib_mel"
 
 [dependencies]
 futures = "0.3.28"
-melodium-certs = { path = "../../melodium-certs", version = "0.10.4" }
-melodium-core = { path = "../../melodium-core", version = "0.10.4" }
-melodium-engine = { path = "../../melodium-engine", version = "0.10.4" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.4" }
-melodium-share = { path = "../../melodium-share", version = "0.10.4" }
-melodium-distribution = { path = "../../melodium-distribution", version = "0.10.4", optional = true }
-std-mel = { path = "../std-mel", version = "0.10.4" }
-work-mel = { path = "../work-mel", version = "0.10.4" }
-async-std = {version="1.13", features=["unstable"]}
+melodium-certs = { path = "../../melodium-certs", version = "0.11.0" }
+melodium-core = { path = "../../melodium-core", version = "0.11.0" }
+melodium-engine = { path = "../../melodium-engine", version = "0.11.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
+melodium-share = { path = "../../melodium-share", version = "0.11.0" }
+melodium-distribution = { path = "../../melodium-distribution", version = "0.11.0", optional = true }
+std-mel = { path = "../std-mel", version = "0.11.0" }
+work-mel = { path = "../work-mel", version = "0.11.0" }
+async-channel = "2.5"
+async-lock = "3.4"
 event-listener = "5"
 futures-rustls = { version = "0.26", default-features = false, features = ["ring"], optional = true}
 rustls-pemfile = "^2"
+smol = { version = "2.0", optional = true }
 uuid = { version = "1" }
 
 [features]
 mock = []
 plugin = []
-real = ["futures-rustls", "melodium-distribution"]
+real = ["futures-rustls", "melodium-distribution", "smol"]
 "docs.rs" = ["mock", "std-mel/docs.rs", "work-mel/docs.rs"]
 
 [package.metadata.docs.rs]

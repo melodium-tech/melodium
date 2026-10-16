@@ -1,7 +1,5 @@
-use async_std::{
-    channel::{bounded, Receiver, Sender, WeakSender},
-    sync::Mutex,
-};
+use async_channel::{bounded, Receiver, Sender, WeakSender};
+use async_lock::Mutex;
 use melodium_core::{
     common::{descriptor::DataType, executive::TrackId},
     *,
@@ -41,8 +39,6 @@ impl Concentrator {
             tracks: Mutex::new(HashMap::new()),
         }
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     pub async fn track_sender(
         &self,

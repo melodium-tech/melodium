@@ -15,8 +15,12 @@ use std::time::Duration;
 use work_mel::api::{ModeRequest, Request};
 use work_mel::compose::compose;
 
-#[async_std::test]
-async fn detection_does_not_hang_when_executor_is_unresponsive() {
+#[test]
+fn detection_does_not_hang_when_executor_is_unresponsive() {
+    smol::block_on(detection_does_not_hang());
+}
+
+async fn detection_does_not_hang() {
     std::env::set_var("MELODIUM_COMPOSE_DETECTION_TIMEOUT_SECS", "2");
 
     let fake_bin_dir =
@@ -43,13 +47,14 @@ async fn detection_does_not_hang_when_executor_is_unresponsive() {
         id: None,
         organization_id: None,
         edition: None,
-        version: "0.10.4".to_string(),
+        version: "0.11.0".to_string(),
         mode: ModeRequest::Direct,
         max_duration: Some(60),
         memory: Some(100),
         cpu: Some(100),
         storage: Some(100),
         arch: None,
+        system: Default::default(),
         volumes: vec![],
         containers: vec![],
         service_containers: vec![],
@@ -59,7 +64,11 @@ async fn detection_does_not_hang_when_executor_is_unresponsive() {
         local_exec: false,
     };
 
-    let result = async_std::future::timeout(Duration::from_secs(10), compose(request)).await;
+    let result = smol::future::or(async { Ok(compose(request).await) }, async {
+        smol::Timer::after(Duration::from_secs(10)).await;
+        Err(())
+    })
+    .await;
 
     std::env::set_var("PATH", original_path);
     let _ = fs::remove_dir_all(&fake_bin_dir);

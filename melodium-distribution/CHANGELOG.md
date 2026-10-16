@@ -1,6 +1,15 @@
 
 # Changelog
 
+## [v0.11.0] (2026-10-15)
+
+- Moving from async-std, which is discontinued, to smol (#104).
+- Sending secrets to distant engines following their transmission policy, values only over TLS (#139).
+- Failing the launch, instead of panicking, when a parameter cannot be received (#139).
+- Ending distributed runs gracefully on interruption (#131).
+- Renewing the embedded certificate chain, issued by the "Mélodium Distribution CA G2" intermediate under the G2 root, valid until 2031 (#128).
+- Testing that the embedded certificates do not expire within 180 days (#128).
+
 ## [v0.10.4] (2026-09-24)
 
 - Adding a `debug_level: Option<DebugLevel>` parameter to `launch_listen`, `launch_listen_localcert`, and `launch_listen_unsecure`, so callers can pick the debug event detail level instead of always running at `Detailed`, which cloned every transmitted payload into debug events. Defaults to `Basic` when debug senders are given and `None` otherwise.

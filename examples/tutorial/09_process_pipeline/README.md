@@ -46,4 +46,4 @@ proc.exit   ──▶ unwrapOr ──▶ logDataInfo
 - **Block vs. stream variants of the same helper**: `std/ops/option::unwrapOr` (stream) and `std/ops/option/block::unwrapOr` (block) do the same job on different port kinds; picking the wrong one is a type error `melodium check` catches immediately.
 - **`|command(name, arguments)`**: builds a `Command` value from a plain executable name and an argument vector (empty here); function argument order was confirmed by testing rather than assumed, since it does not always match a function's documented parameter order.
 
-Next: [10_distributed_computation](../10_distributed_computation/) closes out the tutorial track with Mélodium's distributed dataflow model.
+Next: [10_distributed_computation](../10_distributed_computation/) introduces Mélodium's distributed dataflow model.

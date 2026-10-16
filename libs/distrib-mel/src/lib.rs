@@ -8,17 +8,16 @@
 ))]
 compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
-use async_std::channel::{bounded, Receiver, Sender};
-use async_std::io::{Read, Write};
-#[cfg(feature = "real")]
-use async_std::net::{SocketAddr, TcpStream};
-use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
+use async_channel::{bounded, Receiver, Sender};
+use async_lock::{Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
+use common::executive::{Level, Secret as ExecutiveSecret, SecretError, SecretsAccess, TrackId};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use event_listener::{Event, IntoNotification};
+use futures::io::{AsyncRead as Read, AsyncWrite as Write};
 #[cfg(feature = "real")]
 use futures::stream::{unfold, FuturesUnordered};
 #[cfg(feature = "real")]
@@ -33,7 +32,10 @@ use melodium_distribution::{
     InputData, Instanciate, InstanciateStatus, LoadAndLaunch, Message, Protocol,
 };
 use melodium_macro::{mel_model, mel_package, mel_treatment};
-use melodium_share::{Collection, TransmissionValue as WireTransmissionValue};
+use melodium_share::{Collection, RawValue, TransmissionValue as WireTransmissionValue};
+#[cfg(feature = "real")]
+use smol::net::{SocketAddr, TcpStream};
+use std::sync::Arc as AsyncArc;
 use std::{
     collections::HashMap,
     sync::{Arc, Weak},
@@ -156,6 +158,7 @@ pub struct DistributionEngine {
     protocol_ready_fired: AtomicBool,
     stop_requested: AtomicBool,
     distant_run_id: AsyncRwLock<Option<Uuid>>,
+    encrypted: AtomicBool,
 }
 
 impl DistributionEngine {
@@ -171,6 +174,7 @@ impl DistributionEngine {
             protocol_ready_fired: AtomicBool::new(false),
             stop_requested: AtomicBool::new(false),
             distant_run_id: AsyncRwLock::new(None),
+            encrypted: AtomicBool::new(false),
         }
     }
 }
@@ -196,27 +200,87 @@ impl DistributionEngine {
         }
     }
 
+    /// Tells if the connection to the distant engine is encrypted, which secrets sent
+    /// by value require.
+    pub fn encrypted(&self) -> bool {
+        self.encrypted.load(Ordering::SeqCst)
+    }
+
+    /// Reveals the key `name` of an access, giving it as a UUID.
+    async fn reveal_key(
+        &self,
+        secret: &ExecutiveSecret,
+        name: &str,
+        secrets_access: &SecretsAccess,
+    ) -> Result<Uuid, String> {
+        let message = match secrets_access
+            .reveal_str(secret, |value| Uuid::from_str(value).ok())
+            .await
+        {
+            Ok(Some(key)) => return Ok(key),
+            Ok(None) => format!("Cannot distribute, the access {name} is not a UUID"),
+            Err(error) => format!("Cannot distribute, the access {name}: {error}"),
+        };
+        let model = self.model.upgrade().unwrap();
+        model
+            .world()
+            .log(Level::Error, "distrib".to_string(), message.clone(), None)
+            .await;
+        Err(message)
+    }
+
     pub async fn start(
         &self,
-        access: &work_mel::api::CommonAccess,
+        access: &Access,
         params: HashMap<String, Value>,
+        secrets_access: &SecretsAccess,
     ) -> Result<(), String> {
         if self.start_attempted.swap(true, Ordering::SeqCst) {
             self.wait_protocol_ready().await;
             return Ok(());
         }
 
-        let result = self.do_start(access, params).await;
+        let result = self.do_start(access, params, secrets_access).await;
         self.fire_protocol_ready();
         result
     }
 
     async fn do_start(
         &self,
-        access: &work_mel::api::CommonAccess,
+        access: &Access,
         params: HashMap<String, Value>,
+        secrets_access: &SecretsAccess,
     ) -> Result<(), String> {
         let model = self.model.upgrade().unwrap();
+
+        // Secrets follow their transmission policy, values only cross over TLS.
+        let encrypted = !access.disable_tls;
+        let mut parameters = HashMap::with_capacity(params.len());
+        for (name, value) in &params {
+            match RawValue::to_wire(value, secrets_access, encrypted).await {
+                Ok(value) => {
+                    parameters.insert(name.clone(), value);
+                }
+                Err(error) => {
+                    let message = format!(
+                        "Cannot distribute, parameter '{name}' cannot be sent to the distant engine, {error}"
+                    );
+                    model
+                        .world()
+                        .log(Level::Error, "distrib".to_string(), message.clone(), None)
+                        .await;
+                    return Err(message);
+                }
+            }
+        }
+
+        // The keys are only revealed to authenticate the connection.
+        let remote_key = self
+            .reveal_key(&access.remote_key, "remote_key", secrets_access)
+            .await?;
+        let self_key = self
+            .reveal_key(&access.self_key, "self_key", secrets_access)
+            .await?;
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
             Ok(id) => match Version::from_str(&model.get_version()) {
@@ -238,6 +302,25 @@ impl DistributionEngine {
 
             for ipaddr in access.addresses.iter() {
                 let addrs = SocketAddr::new(*ipaddr, access.port);
+
+                // Plain TCP sends everything readable, authentication keys included.
+                if access.disable_tls {
+                    if !ipaddr.is_loopback() && !access.allow_plain_tcp {
+                        error_message = Some(format!(
+                            "plain TCP is refused for {ipaddr}, TLS is required for addresses other than loopback ones"
+                        ));
+                        continue;
+                    }
+                    model
+                        .world()
+                        .log(
+                            common::executive::Level::Warning,
+                            "distrib".to_string(),
+                            format!("connecting to {addrs} without TLS"),
+                            None,
+                        )
+                        .await;
+                }
 
                 match TcpStream::connect(&addrs).await {
                     Ok(stream) => {
@@ -265,11 +348,12 @@ impl DistributionEngine {
             }
 
             if let Some(protocol) = protocol {
+                self.encrypted.store(encrypted, Ordering::SeqCst);
                 match protocol
                     .send_message(Message::AskDistribution(AskDistribution {
                         melodium_version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap(),
                         distribution_version: melodium_distribution::VERSION.clone(),
-                        key: access.remote_key,
+                        key: remote_key,
                         asking_run_id: *melodium_engine::execution_run_id(),
                         group_id: *melodium_engine::execution_group_id(),
                     }))
@@ -281,7 +365,7 @@ impl DistributionEngine {
                                 if !confirm.accept {
                                     return Err(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distribution::VERSION));
                                 }
-                                if confirm.key != access.self_key {
+                                if confirm.key != self_key {
                                     return Err("Cannot distribute, remote engine did not provided valid key.".to_string());
                                 }
                                 self.distant_run_id
@@ -318,10 +402,7 @@ impl DistributionEngine {
                     .send_message(Message::LoadAndLaunch(LoadAndLaunch {
                         collection: shared_collection,
                         entrypoint: (&entrypoint).into(),
-                        parameters: params
-                            .into_iter()
-                            .map(|(name, value)| (name, value.into()))
-                            .collect(),
+                        parameters,
                     }))
                     .await
                 {
@@ -531,7 +612,7 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        let world = self.model.upgrade().map(|model| model.world().clone());
+        let world = self.model.upgrade().map(|model| model.world());
 
         // `start()` may never be called at all - e.g. the treatment
         // instance responsible for it never receives its `access` input, so
@@ -704,9 +785,9 @@ impl DistributionEngine {
                 // Unlike the server's equivalent unfold (which stops polling once it sees
                 // `Message::Ended`, since that's genuinely the last thing a server connection
                 // ever needs), this side keeps reading after `Ended` - it still needs to see
-                // `LogEnded` before the exit condition below is satisfied, matching the
-                // original sequential loop's `if ended && log_ended { break }`. Only a real
-                // read error stops further polling.
+                // `LogEnded` and `DebugEnded` before the exit condition below is satisfied,
+                // as the distant engine sends these three from independent tasks, in any
+                // order. Only a real read error stops further polling.
                 let unfold_protocol = unfold(true, |still_valid| {
                     let protocol = AsyncArc::clone(&protocol);
                     async move {
@@ -730,7 +811,11 @@ impl DistributionEngine {
                             message = unfold_protocol.select_next_some() => {
                                 match message {
                                     Err(_err) => {
+                                        // Closing the ports ends the handlers still waiting
+                                        // on them; the others give what they carry, such as
+                                        // the last logs and debug events, before leaving.
                                         self.close_all().await;
+                                        while messages_futures.next().await.is_some() {}
                                         break;
                                     }
                                     Ok(msg) => {
@@ -775,7 +860,7 @@ impl DistributionEngine {
                         }
                     }
 
-                    // `messages_futures.is_empty()` matters here, not just the two flags:
+                    // `messages_futures.is_empty()` matters here, not just the flags:
                     // `LogEnded`'s handler is a single atomic store with no `.await` point, so
                     // it can complete before an earlier-arrived `Log`/`OutputData`/etc. handler
                     // that's still doing real async work. Breaking on the flags alone would
@@ -786,6 +871,7 @@ impl DistributionEngine {
                     // that nothing still in flight gets abandoned.
                     if ended.load(Ordering::SeqCst)
                         && log_ended.load(Ordering::SeqCst)
+                        && debug_ended.load(Ordering::SeqCst)
                         && messages_futures.is_empty()
                     {
                         break;
@@ -800,7 +886,7 @@ impl DistributionEngine {
         let probe = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
-                    async_std::task::sleep(Duration::from_secs(10)).await;
+                    smol::Timer::after(Duration::from_secs(10)).await;
                     // A single failed probe send doesn't prove the connection is dead: it
                     // can just as well be a transient hiccup over a real network (TLS
                     // renegotiation, a brief stall, ordinary internet jitter) on an otherwise
@@ -818,7 +904,7 @@ impl DistributionEngine {
                         }
                         attempts += 1;
                         if attempts < PROBE_RETRY_ATTEMPTS {
-                            async_std::task::sleep(PROBE_RETRY_DELAY).await;
+                            smol::Timer::after(PROBE_RETRY_DELAY).await;
                         }
                     }
                     if !succeeded {
@@ -865,7 +951,7 @@ impl DistributionEngine {
     }
 
     fn shutdown(&self) {
-        async_std::task::block_on(async move {
+        smol::block_on(async move {
             self.close_all().await;
             if let Some(protocol) = (*self.protocol.read().await).as_ref().cloned() {
                 let _ = protocol.send_message(Message::Ended).await;
@@ -873,8 +959,6 @@ impl DistributionEngine {
             self.fire_protocol_ready();
         });
     }
-
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 #[cfg(feature = "mock")]
@@ -882,7 +966,6 @@ impl DistributionEngine {
     pub async fn continuous(&self) {}
 
     fn shutdown(&self) {}
-    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Treatment `start` for the `DistributionEngine` model.
@@ -892,6 +975,10 @@ impl DistributionEngine {
 /// `Access` value describing the remote addresses, port, keys and other
 /// connection parameters. The treatment also takes arbitrary `params` that are
 /// forwarded as launch parameters to the remote side.
+///
+/// Secrets in `params` follow their transmission policy: `local` ones make the start
+/// fail, `reference` ones send only their locator, resolved by the remote engine with
+/// its own sources, and `value` ones send their value, over TLS only.
 ///
 /// On a successful start the treatment sends a unit token on `ready`.
 /// If the engine cannot be started it emits a signal on `failed` followed by
@@ -903,6 +990,7 @@ impl DistributionEngine {
     output ready Block<void>
     output failed Block<void>
     output error Block<string>
+    secrets_access
 )]
 pub async fn start(params: Map) {
     let model = DistributionEngineModel::into(distributor);
@@ -912,7 +1000,7 @@ pub async fn start(params: Map) {
 
     #[cfg(feature = "real")]
     if let Ok(access) = access.recv_one_as::<Arc<Access>>().await {
-        match distributor.start(&access.0, params).await {
+        match distributor.start(&access, params, &secrets_access).await {
             Ok(_) => {
                 let _ = ready.send_one_as(()).await;
             }
@@ -1094,11 +1182,15 @@ pub async fn recv_block(name: string) {
 /// Values received on `data` are serialized and forwarded to the remote
 /// treatment. The treatment handles automatic closing of the remote input when
 /// the stream ends or an error occurs.
+///
+/// Secrets follow their transmission policy, as for `start` parameters: sending
+/// stops at the first secret refused, with an error logged.
 #[mel_treatment(
     model distributor DistributionEngine
     generic S (Serialize)
     input distribution_id Block<u64>
     input data Stream<S>
+    secrets_access
 )]
 pub async fn send_stream(name: string) {
     #[cfg(feature = "real")]
@@ -1106,13 +1198,23 @@ pub async fn send_stream(name: string) {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
+        let encrypted = distributor.encrypted();
+
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             // Converts the already-packed local batch directly into the wire batch
             // type, preserving whatever shape `recv_many` produced instead of exploding
-            // it into one `Value`/`RawValue` per tick first.
+            // it into one `Value`/`RawValue` per tick first. Secrets, including those
+            // held inside data values, follow their transmission policy.
             while let Ok(data) = data.recv_many().await {
-                let data: WireTransmissionValue = data.into();
+                let data =
+                    match WireTransmissionValue::to_wire(data, &secrets_access, encrypted).await {
+                        Ok(data) => data,
+                        Err(error) => {
+                            log_secret_refusal(&model, &name, error, track_id).await;
+                            break;
+                        }
+                    };
                 if sender.send(data).await.is_err() {
                     voluntary_close = false;
                     break;
@@ -1139,11 +1241,15 @@ pub async fn send_stream(name: string) {
 ///
 /// The provided `data` block is consumed once, serialized and sent to the
 /// remote side. The remote input is closed after transmission.
+///
+/// Secrets follow their transmission policy, as for `start` parameters: a refused
+/// secret is not sent, and an error is logged.
 #[mel_treatment(
     model distributor DistributionEngine
     generic S (Serialize)
     input distribution_id Block<u64>
     input data Block<S>
+    secrets_access
 )]
 pub async fn send_block(name: string) {
     #[cfg(feature = "real")]
@@ -1151,20 +1257,30 @@ pub async fn send_block(name: string) {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
+        let encrypted = distributor.encrypted();
+
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             if let Ok(data) = data.recv_one().await {
-                let data: WireTransmissionValue = TransmissionValue::new(data).into();
-                if sender.send(data).await.is_err() {
-                    voluntary_close = false;
-                } else {
-                    if distributor
-                        .send_data(&distribution_id, &name)
-                        .await
-                        .is_err()
-                    {
-                        voluntary_close = false;
+                match WireTransmissionValue::to_wire(
+                    TransmissionValue::new(data),
+                    &secrets_access,
+                    encrypted,
+                )
+                .await
+                {
+                    Ok(data) => {
+                        if sender.send(data).await.is_err() {
+                            voluntary_close = false;
+                        } else if distributor
+                            .send_data(&distribution_id, &name)
+                            .await
+                            .is_err()
+                        {
+                            voluntary_close = false;
+                        }
                     }
+                    Err(error) => log_secret_refusal(&model, &name, error, track_id).await,
                 }
             }
             if voluntary_close {
@@ -1172,6 +1288,25 @@ pub async fn send_block(name: string) {
             }
         }
     }
+}
+
+/// Logs that `name` could not be sent to the distant engine because of a secret.
+#[cfg(feature = "real")]
+async fn log_secret_refusal(
+    model: &DistributionEngineModel,
+    name: &str,
+    error: SecretError,
+    track_id: TrackId,
+) {
+    model
+        .world()
+        .log(
+            Level::Error,
+            "distrib".to_string(),
+            format!("Cannot send '{name}' to the distant engine, {error}"),
+            Some(track_id),
+        )
+        .await;
 }
 
 #[cfg(feature = "real")]
@@ -1184,10 +1319,10 @@ async fn tls_stream(
     };
     use futures_rustls::TlsConnector;
 
+    let mut root_certificates = melodium_certs::ROOT_CERTIFICATE;
     let mut root_store = RootCertStore::empty();
     root_store.add_parsable_certificates(
-        rustls_pemfile::certs(&mut melodium_certs::ROOT_CERTIFICATE.as_slice())
-            .filter_map(|cert| cert.ok()),
+        rustls_pemfile::certs(&mut root_certificates).filter_map(|cert| cert.ok()),
     );
     let config = ClientConfig::builder_with_protocol_versions(&[&TLS13])
         .with_root_certificates(root_store)
@@ -1203,16 +1338,25 @@ async fn tls_stream(
 
 #[cfg(all(test, feature = "real"))]
 mod graceful_shutdown_drain_tests {
-    use async_std::channel::bounded as async_bounded;
-    use async_std::sync::Arc as AsyncArc;
+    use async_channel::bounded as async_bounded;
     use core::future::Future;
     use core::pin::Pin;
     use core::sync::atomic::{AtomicBool, Ordering};
     use core::time::Duration;
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
+    use std::sync::Arc as AsyncArc;
 
     type BoxFut = Pin<Box<dyn Future<Output = ()>>>;
+
+    /// Gives the output of `future`, or an error if it takes longer than `duration`.
+    async fn timeout<T>(duration: Duration, future: impl Future<Output = T>) -> Result<T, ()> {
+        smol::future::or(async { Ok(future.await) }, async {
+            smol::Timer::after(duration).await;
+            Err(())
+        })
+        .await
+    }
 
     // Mirrors the exact drain-before-exit guard used in `continuous()`'s message loop:
     // the loop must not consider itself done just because a terminal flag flipped, it
@@ -1232,7 +1376,7 @@ mod graceful_shutdown_drain_tests {
     // `messages_futures.is_empty()` as well must keep the loop alive until it finishes.
     #[test]
     fn drain_waits_for_slow_handler_still_pending_when_flag_flips() {
-        async_std::task::block_on(async {
+        smol::block_on(async {
             let (unblock_tx, unblock_rx) = async_bounded::<()>(1);
             let processed = AsyncArc::new(AtomicBool::new(false));
             let log_ended = AsyncArc::new(AtomicBool::new(false));
@@ -1258,7 +1402,7 @@ mod graceful_shutdown_drain_tests {
 
             // The drain must not be able to finish while the slow handler is still
             // blocked, even though `log_ended` will already be true almost immediately.
-            let still_pending = async_std::future::timeout(
+            let still_pending = timeout(
                 Duration::from_millis(200),
                 drain_until_done(&mut messages_futures, &log_ended),
             )
@@ -1277,7 +1421,7 @@ mod graceful_shutdown_drain_tests {
             // Once the slow handler is allowed to finish, the drain must complete and the
             // handler must have actually run - nothing was silently dropped.
             unblock_tx.send(()).await.unwrap();
-            async_std::future::timeout(
+            timeout(
                 Duration::from_secs(1),
                 drain_until_done(&mut messages_futures, &log_ended),
             )

@@ -8,7 +8,7 @@ use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{Status, Treatment as TreatmentDescriptor};
-use melodium_common::executive::{TrackId, Treatment};
+use melodium_common::executive::{SecretsAccess, TrackId, Treatment, World as ExecutiveWorld};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -80,6 +80,7 @@ impl BuilderTrait for Builder {
         let world = self.world.upgrade().unwrap();
         // Make a BuildSample with matching informations
         let build_sample = BuildSample::new(&host_treatment, &host_build, &label, environment);
+        world.add_launch_secrets(environment.variables().values());
 
         let mut builds_writer = self.builds.write().unwrap();
         let idx = builds_writer.len() as BuildId;
@@ -205,6 +206,16 @@ impl BuilderTrait for Builder {
             }
         });
 
+        let executive_world = Arc::downgrade(&(Arc::clone(&world) as Arc<dyn ExecutiveWorld>));
+        let secrets_access = descriptor.secrets_access().then(|| {
+            SecretsAccess::new(
+                &world.secrets_host(),
+                descriptor.identifier().clone(),
+                Some(build_sample.label.clone()),
+                Some(environment.track_id()),
+            )
+        });
+
         match &build_sample.host_treatment {
             HostTreatment::Treatment(host_descriptor) => {
                 let host_build = world
@@ -260,7 +271,13 @@ impl BuilderTrait for Builder {
                     .map(|(name, input)| (name.to_string(), vec![input.clone()]))
                     .collect();
 
-                let prepared_futures = treatment.prepare(environment.track_id(), start, finish);
+                let prepared_futures = treatment.prepare(
+                    environment.track_id(),
+                    executive_world,
+                    secrets_access,
+                    start,
+                    finish,
+                );
                 result.prepared_futures.extend(prepared_futures);
                 result.prepared_futures.extend(host_build.prepared_futures);
             }
@@ -310,6 +327,8 @@ impl BuilderTrait for Builder {
 
                 result.prepared_futures.extend(treatment.prepare(
                     environment.track_id(),
+                    executive_world,
+                    secrets_access,
                     start,
                     finish,
                 ));

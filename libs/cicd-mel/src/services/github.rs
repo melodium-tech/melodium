@@ -694,7 +694,7 @@ fn eval_js(
 }}
     "#,
     );
-    async_std::task::block_on(
+    futures::executor::block_on(
         js_engine
             .inner()
             .process(local_context.clone(), eval.to_string()),

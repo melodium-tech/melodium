@@ -1,0 +1,8 @@
+# Written by the testers, which run from this directory, and kept after a run to inspect it
+/interruption.logs
+/logs_live_flush.debug
+/logs_live_flush.logs
+/ok.log
+/orchestrator.logs
+/received.bin
+/reply.log

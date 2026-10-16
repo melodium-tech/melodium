@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "libs/audio-mel",
     "libs/cicd-mel",
+    "libs/crypto-mel",
     "libs/distrib-mel",
     "libs/encoding-mel",
     "libs/fs-mel",
@@ -16,6 +17,7 @@ members = [
     "libs/regex-mel",
     "libs/sql-mel",
     "libs/std-mel",
+    "libs/vault-mel",
     "libs/work-mel",
     "melodium",
     "melodium-certs",
@@ -35,6 +37,7 @@ members = [
 default-members = [
     "libs/audio-mel",
     "libs/cicd-mel",
+    "libs/crypto-mel",
     "libs/distrib-mel",
     "libs/encoding-mel",
     "libs/fs-mel",
@@ -48,6 +51,7 @@ default-members = [
     "libs/regex-mel",
     "libs/sql-mel",
     "libs/std-mel",
+    "libs/vault-mel",
     "libs/work-mel",
     "melodium",
     "melodium-certs",

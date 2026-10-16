@@ -1,0 +1,115 @@
+#!/usr/bin/env melodium
+#! name = crypto_signatures
+#! version = 0.1.0
+#! require = std:0.11.0 crypto:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfo
+use std/engine/log::logInfoMessage
+use std/flow::emit
+use std/flow::stream
+use std/ops/option::|wrap
+use std/ops/option/block::wrap
+use std/secret::reveal
+use std/text/convert/string::toUtf8
+use crypto/signature/ed25519::verify as verifyEd25519
+use crypto/token/jwt::sign as signJwt
+use crypto/token/jwt::verify as verifyJwt
+use crypto/random::token
+
+// Ed25519 signatures, JSON Web Tokens and random tokens.
+treatment main(
+    const message: string,
+    const public_key: string,
+    const signature: string,
+    const jwt_key: Secret<string>,
+    const jwt_public_key: string,
+    const es_key: Secret<string>,
+    const es_public_key: string,
+    const hmac_key: Secret<string>
+)
+{
+    startup()
+
+    // A signature made by OpenSSL, and a wrong one.
+    emitMessage: emit<string>(value=message)
+    asStream: stream<string>()
+    toUtf8()
+    startup.trigger -> emitMessage.trigger,emit -> asStream.block,stream -> toUtf8.text
+
+    goodEd25519: verifyEd25519(public_key=public_key)
+    emitSignature: emit<Option<string>>(value=|wrap<string>(signature))
+    logGoodValid: logInfoMessage(label="ed25519-good", message="valid")
+    logGoodInvalid: logInfoMessage(label="ed25519-good", message="invalid")
+    toUtf8.encoded -> goodEd25519.data
+    startup.trigger -> emitSignature.trigger,emit -> goodEd25519.signature
+    goodEd25519.valid -> logGoodValid.trigger
+    goodEd25519.invalid -> logGoodInvalid.trigger
+
+    wrongEd25519: verifyEd25519(public_key=public_key)
+    emitWrong: emit<Option<string>>(value=|wrap<string>("00"))
+    logWrongValid: logInfoMessage(label="ed25519-wrong", message="valid")
+    logWrongInvalid: logInfoMessage(label="ed25519-wrong", message="invalid")
+    toUtf8.encoded -> wrongEd25519.data
+    startup.trigger -> emitWrong.trigger,emit -> wrongEd25519.signature
+    wrongEd25519.valid -> logWrongValid.trigger
+    wrongEd25519.invalid -> logWrongInvalid.trigger
+
+    // A token signed with Ed25519, then verified.
+    emitClaims: emit<string>(value="{\"iss\":\"ci\",\"aud\":\"melodium\"}")
+    signEd25519: signJwt(key=jwt_key, algorithm="EdDSA", lifetime=600, name="jwt")
+    wrapJwt: wrap<Secret<string>>()
+    verifyJwt(public_key=jwt_public_key, algorithm="EdDSA", issuer="ci", audience="melodium")
+    logClaims: logInfo(label="jwt-claims")
+    logReason: logInfo(label="jwt-reason")
+    logJwtError: logInfo(label="jwt-error")
+    startup.trigger -> emitClaims.trigger,emit -> signEd25519.claims,token -> wrapJwt.value,option -> verifyJwt.token
+    logJwtSignError: logInfo(label="jwt-sign-error")
+    signEd25519.error -> logJwtSignError.message
+    verifyJwt.claims -> logClaims.message
+    verifyJwt.reason -> logReason.message
+    verifyJwt.error -> logJwtError.message
+
+    // A token signed with ECDSA, then verified.
+    emitIssuer: emit<string>(value="{\"iss\":\"ci\"}")
+    signP256: signJwt(key=es_key, algorithm="ES256", lifetime=600, name="es_jwt")
+    wrapEsJwt: wrap<Secret<string>>()
+    verifyEsJwt: verifyJwt(algorithm="ES256", public_key=es_public_key, issuer="ci")
+    logEsClaims: logInfo(label="es-jwt-claims")
+    logEsReason: logInfo(label="es-jwt-reason")
+    logEsError: logInfo(label="es-jwt-error")
+    startup.trigger -> emitIssuer.trigger,emit -> signP256.claims,token -> wrapEsJwt.value,option -> verifyEsJwt.token
+    logEsSignError: logInfo(label="es-jwt-sign-error")
+    signP256.error -> logEsSignError.message
+    verifyEsJwt.claims -> logEsClaims.message
+    verifyEsJwt.reason -> logEsReason.message
+    verifyEsJwt.error -> logEsError.message
+
+    // A token signed with HMAC, plainly revealed as its policy allows it, and verified
+    // with the shared secret.
+    signHmac: signJwt(key=hmac_key, algorithm="HS256", name="hmac_jwt", plain_reveal=true)
+    revealHmacJwt: reveal<string>()
+    wrapHmacJwt: wrap<Secret<string>>()
+    verifyHmacJwt: verifyJwt(algorithm="HS256", secret=|wrap<Secret<string>>(hmac_key), issuer="ci")
+    logHmacClaims: logInfo(label="hmac-jwt-claims")
+    logHmacReason: logInfo(label="hmac-jwt-reason")
+    logHmacError: logInfo(label="hmac-jwt-error")
+    emitIssuer.emit -> signHmac.claims,token -> revealHmacJwt.secret
+    signHmac.token -> wrapHmacJwt.value,option -> verifyHmacJwt.token
+    logHmacSignError: logInfo(label="hmac-jwt-sign-error")
+    signHmac.error -> logHmacSignError.message
+    verifyHmacJwt.claims -> logHmacClaims.message
+    verifyHmacJwt.reason -> logHmacReason.message
+    verifyHmacJwt.error -> logHmacError.message
+
+    // An algorithm that is not supported.
+    signNone: signJwt(key=hmac_key, algorithm="none", name="none_jwt")
+    logNoneError: logInfo(label="none-jwt-error")
+    emitIssuer.emit -> signNone.claims
+    signNone.error -> logNoneError.message
+
+    // A random token, plainly revealed as its policy allows it.
+    token(name="csrf", bytes=16, encoding="hex", plain_reveal=true)
+    revealToken: reveal<string>()
+    startup.trigger -> token.trigger,token -> revealToken.secret
+}
