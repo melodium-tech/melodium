@@ -5529,7 +5529,7 @@ if (typeof exports === 'object' && typeof module !== 'undefined') { module.expor
     const KEYWORDS = {
       keyword: 'Self treatment model use require input output var const',
       literal: 'true false',
-      type: 'void byte bool char string u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 Vec Option',
+      type: 'void byte bool char string u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 Vec Option Secret',
     };
     const BLOCK_COMMENT = hljs.COMMENT('/\\*', '\\*/');
     const DOC_COMMENT = hljs.COMMENT('///', '$');
