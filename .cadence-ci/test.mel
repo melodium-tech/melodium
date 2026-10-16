@@ -28,7 +28,6 @@ use work/resources/arch::|amd64
 treatment unitTests[cicd: CicdDispatchEngine](
     var repository_url: string,
     var ref: string,
-    var gitlab_token: string,
     var gitlab_project_id: string,
     var gitlab_sha: string,
     var gitlab_pipeline_id: string
@@ -50,7 +49,6 @@ treatment unitTests[cicd: CicdDispatchEngine](
         ],
         report=true,
         gitlab=true,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_ref=ref,
@@ -75,7 +73,6 @@ treatment buildTesters[cicd: CicdDispatchEngine](
     var environment_variables: StringMap,
     var repository_url: string,
     var ref: string,
-    var gitlab_token: string,
     var gitlab_project_id: string,
     var gitlab_sha: string,
     var gitlab_pipeline_id: string
@@ -106,7 +103,6 @@ treatment buildTesters[cicd: CicdDispatchEngine](
         out_file=|wrap<string>("testers.tar.gz"),
         report=true,
         gitlab=true,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_ref=ref,
@@ -129,7 +125,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
     var test_image: string,
     var arch: Arch,
     var extra_install_script: string = "",
-    var gitlab_token: string,
+    var ref: string,
     var gitlab_project_id: string,
     var gitlab_sha: string,
     var gitlab_pipeline_id: string
@@ -145,10 +141,9 @@ treatment testTarget[cicd: CicdDispatchEngine](
         name=|format("test-{target}", |entry("target", target)),
         report=true,
         gitlab=true,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
-        gitlab_ref=target,
+        gitlab_ref=ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
         log_response=true,
         description=|format("Run tests on {target}", |entry("target", target))
@@ -162,10 +157,10 @@ treatment testTarget[cicd: CicdDispatchEngine](
         arch=|wrap<Arch>(arch),
         volumes=[|volume("binaries", 700)],
         containers=[
-            |container("test", 1000, 1000, 2000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _)
+            |container("test", 1000, 1000, 2000, |wrap<Arch>(arch), [|mount("binaries", "/mounted/binaries")], test_image, _)
         ],
         service_containers=[
-            |service_container("postgres", 4000, 1000, 10000, arch, [], "postgres:16", _, |wrap<StringMap>(|map([
+            |service_container("postgres", 4000, 1000, 10000, |wrap<Arch>(arch), [], "postgres:16", _, |wrap<StringMap>(|map([
                 |entry("POSTGRES_DB", "test_db"),
                 |entry("POSTGRES_USER", "test_user"),
                 |entry("POSTGRES_PASSWORD", "test_pAs$w0rD"),

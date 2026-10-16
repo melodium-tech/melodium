@@ -23,7 +23,6 @@ treatment buildTarget[cicd: CicdDispatchEngine](
     var container_storage: u32 = 20000,
     var repository_url: string,
     var ref: string,
-    var gitlab_token: string,
     var gitlab_project_id: string,
     var gitlab_sha: string,
     var gitlab_pipeline_id: string
@@ -61,7 +60,6 @@ treatment buildTarget[cicd: CicdDispatchEngine](
         out_file=|wrap<string>("melodium"),
         report=true,
         gitlab=true,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_ref=ref,

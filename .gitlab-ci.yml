@@ -12,10 +12,12 @@ include:
     inputs:
       job_name: cadence:trigger
       stage: build
-      command: run --api-report .cadence-ci/Compo.toml main --gitlab_token "$API_TOKEN" --gitlab_project_id "$CI_PROJECT_ID" --gitlab_sha "$CI_COMMIT_SHA" --gitlab_ref "$CI_COMMIT_REF_NAME" --gitlab_pipeline_id "$CI_PIPELINE_ID" --repository_url "$CI_REPOSITORY_URL"
+      version: 0.11.0
+      command: run --api-report .cadence-ci/Compo.toml main --gitlab_project_id "$CI_PROJECT_ID" --gitlab_sha "$CI_COMMIT_SHA" --gitlab_ref "$CI_COMMIT_REF_NAME" --gitlab_pipeline_id "$CI_PIPELINE_ID" --repository_url "$CI_REPOSITORY_URL"
       melodium_api_token: $CADENCE_API_TOKEN
 
 variables:
+  MELODIUM_SECRET_GITLAB_TOKEN: $API_TOKEN
   PACKAGES: audio cicd crypto distrib encoding fs http javascript json ml net process record regex sql std vault work
 
 workflow:

@@ -15,7 +15,6 @@ use std/flow::waitBlock
 use work/resources/arch::|amd64
 
 treatment localSmokeTest(
-    const gitlab_token: string,
     const gitlab_project_id: string,
     const gitlab_sha: string,
     const gitlab_ref: string,
@@ -30,7 +29,6 @@ treatment localSmokeTest(
     unit: unitTests[cicd=dispatcher](
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -46,7 +44,6 @@ treatment localSmokeTest(
         pre_commands="apt-get update && apt-get install -y libasound2-dev && ",
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -60,7 +57,6 @@ treatment localSmokeTest(
         pre_commands="apt-get update && apt-get install -y libasound2-dev && ",
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -70,7 +66,7 @@ treatment localSmokeTest(
         target="x86_64-unknown-linux-gnu",
         test_image="debian:trixie",
         arch=|amd64(),
-        gitlab_token=gitlab_token,
+        ref=gitlab_ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id

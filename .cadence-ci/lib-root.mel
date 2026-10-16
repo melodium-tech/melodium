@@ -12,7 +12,6 @@ use work/resources/arch::|amd64
 use work/resources/arch::|arm64
 
 treatment main(
-    const gitlab_token: string,
     const gitlab_project_id: string,
     const gitlab_sha: string,
     const gitlab_ref: string,
@@ -27,7 +26,6 @@ treatment main(
     unit: unitTests[cicd=dispatcher](
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -45,7 +43,6 @@ treatment main(
         pre_commands="apt-get update && apt-get install -y libasound2-dev && ",
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -59,7 +56,6 @@ treatment main(
         pre_commands="apt-get update && apt-get install -y libasound2-dev && ",
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -69,7 +65,7 @@ treatment main(
         target="x86_64-unknown-linux-gnu",
         test_image="debian:trixie",
         arch=|amd64(),
-        gitlab_token=gitlab_token,
+        ref=gitlab_ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -98,7 +94,6 @@ treatment main(
         pre_commands="dpkg --add-architecture i386 && apt-get update && apt-get install -y gcc-multilib && rustup target add i686-unknown-linux-gnu && ",
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -112,7 +107,6 @@ treatment main(
         pre_commands="dpkg --add-architecture i386 && apt-get update && apt-get install -y gcc-multilib && rustup target add i686-unknown-linux-gnu && ",
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -123,7 +117,7 @@ treatment main(
         test_image="debian:trixie",
         arch=|amd64(),
         extra_install_script="dpkg --add-architecture i386 && apt-get update && apt-get install -y libc6:i386 libstdc++6:i386 && ",
-        gitlab_token=gitlab_token,
+        ref=gitlab_ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -152,7 +146,6 @@ treatment main(
         pre_commands="apt-get update && apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev libasound2-dev && ",
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -166,7 +159,6 @@ treatment main(
         pre_commands="apt-get update && apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev libasound2-dev && ",
         repository_url=repository_url,
         ref=gitlab_ref,
-        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
@@ -176,7 +168,7 @@ treatment main(
         target="aarch64-unknown-linux-gnu",
         test_image="debian:trixie",
         arch=|arm64(),
-        gitlab_token=gitlab_token,
+        ref=gitlab_ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
