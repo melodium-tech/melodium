@@ -1,188 +1,155 @@
 use cicd/runners::CicdDispatchEngine
 use fs/local::writeLocal
-use root/build::buildTarget
-use root/test::buildTesters
-use root/test::testTarget
-use root/test::unitTests
-use std/data/string_map::|entry
-use std/data/string_map::|map
+use root/pipeline::everyPipeline
+use root/pipeline::fullPipeline
+use root/release::publishRelease
 use std/engine/util::startup
-use std/flow::waitBlock
-use work/resources/arch::|amd64
-use work/resources/arch::|arm64
 
+/**
+  Pipeline of every branch, see `everyPipeline`.
+
+  `release_version` is not used, every entrypoint taking the same arguments.
+*/
 treatment main(
+    const gitlab_token: Secret<string> = "env:MELODIUM_SECRET_GITLAB_TOKEN",
     const gitlab_project_id: string,
     const gitlab_sha: string,
     const gitlab_ref: string,
     const gitlab_pipeline_id: string,
     const repository_url: string,
+    const release_version: string = "",
     const dispatch_location: string = "api"
 )
   model dispatcher: CicdDispatchEngine(location=dispatch_location)
 {
     startup()
-
-    unit: unitTests[cicd=dispatcher](
+    everyPipeline[cicd=dispatcher](
+        gitlab_token=gitlab_token,
         repository_url=repository_url,
         ref=gitlab_ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
     )
-    startup.trigger -> unit.trigger
+    startup.trigger -> everyPipeline.trigger
+}
 
-    // -- x86_64-unknown-linux-gnu --
+/**
+  Pipeline of master, see `fullPipeline`.
 
-    buildX86_64Gnu: buildTarget[cicd=dispatcher](
-        target="x86_64-unknown-linux-gnu",
-        image="rust:1.98-trixie",
-        arch=|amd64(),
-        cargo_args="--no-default-features --features desktop-edition",
-        environment_variables=|map([]),
-        pre_commands="apt-get update && apt-get install -y libasound2-dev && ",
+  The executables and testers of the targets tested on GitLab are written in `cadence/`, kept as job artifacts.
+*/
+treatment full(
+    const gitlab_token: Secret<string> = "env:MELODIUM_SECRET_GITLAB_TOKEN",
+    const gitlab_project_id: string,
+    const gitlab_sha: string,
+    const gitlab_ref: string,
+    const gitlab_pipeline_id: string,
+    const repository_url: string,
+    const release_version: string,
+    const dispatch_location: string = "api"
+)
+  model dispatcher: CicdDispatchEngine(location=dispatch_location)
+{
+    startup()
+    fullPipeline[cicd=dispatcher](
+        gitlab_token=gitlab_token,
+        release_version=release_version,
         repository_url=repository_url,
         ref=gitlab_ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
     )
-    writeX86_64Gnu: writeLocal(path="melodium-x86_64-unknown-linux-gnu", create=true)
+    startup.trigger -> fullPipeline.trigger
 
-    testersX86_64Gnu: buildTesters[cicd=dispatcher](
-        target="x86_64-unknown-linux-gnu",
-        arch=|amd64(),
-        environment_variables=|map([]),
-        pre_commands="apt-get update && apt-get install -y libasound2-dev && ",
+    writeGitlabArtifacts()
+    fullPipeline.aarch64_apple_darwin ----------> writeGitlabArtifacts.aarch64_apple_darwin
+    fullPipeline.aarch64_apple_darwin_testers --> writeGitlabArtifacts.aarch64_apple_darwin_testers
+    fullPipeline.x86_64_pc_windows_gnu ---------> writeGitlabArtifacts.x86_64_pc_windows_gnu
+    fullPipeline.x86_64_pc_windows_gnu_testers -> writeGitlabArtifacts.x86_64_pc_windows_gnu_testers
+    fullPipeline.i686_pc_windows_gnu -----------> writeGitlabArtifacts.i686_pc_windows_gnu
+    fullPipeline.i686_pc_windows_gnu_testers ---> writeGitlabArtifacts.i686_pc_windows_gnu_testers
+}
+
+/**
+  Pipeline of release tags: `full`, then publication of the archives, installers, Debian packages,
+  standard reference and package repository, see `publishRelease` for the variables they need.
+*/
+treatment release(
+    const gitlab_token: Secret<string> = "env:MELODIUM_SECRET_GITLAB_TOKEN",
+    const gitlab_project_id: string,
+    const gitlab_sha: string,
+    const gitlab_ref: string,
+    const gitlab_pipeline_id: string,
+    const repository_url: string,
+    const release_version: string,
+    const dispatch_location: string = "api"
+)
+  model dispatcher: CicdDispatchEngine(location=dispatch_location)
+{
+    startup()
+    fullPipeline[cicd=dispatcher](
+        gitlab_token=gitlab_token,
+        release_version=release_version,
         repository_url=repository_url,
         ref=gitlab_ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
     )
+    startup.trigger -> fullPipeline.trigger
 
-    testX86_64Gnu: testTarget[cicd=dispatcher](
-        target="x86_64-unknown-linux-gnu",
-        test_image="debian:trixie",
-        arch=|amd64(),
-        ref=gitlab_ref,
-        gitlab_project_id=gitlab_project_id,
-        gitlab_sha=gitlab_sha,
-        gitlab_pipeline_id=gitlab_pipeline_id
-    )
-    awaitTestX86_64Gnu: waitBlock<void>()
+    writeGitlabArtifacts()
+    fullPipeline.aarch64_apple_darwin ----------> writeGitlabArtifacts.aarch64_apple_darwin
+    fullPipeline.aarch64_apple_darwin_testers --> writeGitlabArtifacts.aarch64_apple_darwin_testers
+    fullPipeline.x86_64_pc_windows_gnu ---------> writeGitlabArtifacts.x86_64_pc_windows_gnu
+    fullPipeline.x86_64_pc_windows_gnu_testers -> writeGitlabArtifacts.x86_64_pc_windows_gnu_testers
+    fullPipeline.i686_pc_windows_gnu -----------> writeGitlabArtifacts.i686_pc_windows_gnu
+    fullPipeline.i686_pc_windows_gnu_testers ---> writeGitlabArtifacts.i686_pc_windows_gnu_testers
 
-    startup.trigger -> buildX86_64Gnu.trigger
-    startup.trigger -> testersX86_64Gnu.trigger
+    publishZips: publishRelease[cicd=dispatcher](gitlab_token=gitlab_token, destination="ZIP", directory="zips", release_version=release_version, ref=gitlab_ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    publishInstallers: publishRelease[cicd=dispatcher](gitlab_token=gitlab_token, destination="INSTALLERS", directory="installers", release_version=release_version, ref=gitlab_ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    publishDeb: publishRelease[cicd=dispatcher](gitlab_token=gitlab_token, destination="DEB", directory="deb", release_version=release_version, ref=gitlab_ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    publishDoc: publishRelease[cicd=dispatcher](gitlab_token=gitlab_token, destination="DOC", directory="reference", release_version=release_version, ref=gitlab_ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    publishPackages: publishRelease[cicd=dispatcher](gitlab_token=gitlab_token, destination="PACKAGES_REPO", directory="repo", release_version=release_version, ref=gitlab_ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
 
-    buildX86_64Gnu.binary -> writeX86_64Gnu.data
-    buildX86_64Gnu.binary -> testX86_64Gnu.binary
-    testersX86_64Gnu.data -> testX86_64Gnu.testers
+    fullPipeline.packages -> publishZips.archive
+    fullPipeline.packages -> publishInstallers.archive
+    fullPipeline.packages -> publishDeb.archive
+    fullPipeline.packages_completed -> publishZips.trigger
+    fullPipeline.packages_completed -> publishInstallers.trigger
+    fullPipeline.packages_completed -> publishDeb.trigger
 
-    buildX86_64Gnu.completed   -> awaitTestX86_64Gnu.a
-    testersX86_64Gnu.completed -> awaitTestX86_64Gnu.b
-    awaitTestX86_64Gnu.awaited -> testX86_64Gnu.trigger
+    fullPipeline.reference -----------> publishDoc.archive
+    fullPipeline.reference_completed -> publishDoc.trigger
 
-    // -- i686-unknown-linux-gnu --
+    fullPipeline.repository -----------> publishPackages.archive
+    fullPipeline.repository_completed -> publishPackages.trigger
+}
 
-    buildI686Gnu: buildTarget[cicd=dispatcher](
-        target="i686-unknown-linux-gnu",
-        image="rust:1.98-trixie",
-        arch=|amd64(),
-        cargo_args="",
-        environment_variables=|map([|entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")]),
-        pre_commands="dpkg --add-architecture i386 && apt-get update && apt-get install -y gcc-multilib && rustup target add i686-unknown-linux-gnu && ",
-        repository_url=repository_url,
-        ref=gitlab_ref,
-        gitlab_project_id=gitlab_project_id,
-        gitlab_sha=gitlab_sha,
-        gitlab_pipeline_id=gitlab_pipeline_id
-    )
-    writeI686Gnu: writeLocal(path="melodium-i686-unknown-linux-gnu", create=true)
+/**
+  Writes in `cadence/` the executables and testers of the targets tested on GitLab.
+*/
+treatment writeGitlabArtifacts()
+  input aarch64_apple_darwin: Stream<byte>
+  input aarch64_apple_darwin_testers: Stream<byte>
+  input x86_64_pc_windows_gnu: Stream<byte>
+  input x86_64_pc_windows_gnu_testers: Stream<byte>
+  input i686_pc_windows_gnu: Stream<byte>
+  input i686_pc_windows_gnu_testers: Stream<byte>
+{
+    writeAarch64AppleDarwin: writeLocal(path="cadence/melodium-aarch64-apple-darwin", create=true)
+    writeAarch64AppleDarwinTesters: writeLocal(path="cadence/testers-aarch64-apple-darwin.tar.gz", create=true)
+    writeX86_64PcWindowsGnu: writeLocal(path="cadence/melodium-x86_64-pc-windows-gnu.exe", create=true)
+    writeX86_64PcWindowsGnuTesters: writeLocal(path="cadence/testers-x86_64-pc-windows-gnu.tar.gz", create=true)
+    writeI686PcWindowsGnu: writeLocal(path="cadence/melodium-i686-pc-windows-gnu.exe", create=true)
+    writeI686PcWindowsGnuTesters: writeLocal(path="cadence/testers-i686-pc-windows-gnu.tar.gz", create=true)
 
-    testersI686Gnu: buildTesters[cicd=dispatcher](
-        target="i686-unknown-linux-gnu",
-        arch=|amd64(),
-        environment_variables=|map([|entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")]),
-        pre_commands="dpkg --add-architecture i386 && apt-get update && apt-get install -y gcc-multilib && rustup target add i686-unknown-linux-gnu && ",
-        repository_url=repository_url,
-        ref=gitlab_ref,
-        gitlab_project_id=gitlab_project_id,
-        gitlab_sha=gitlab_sha,
-        gitlab_pipeline_id=gitlab_pipeline_id
-    )
-
-    testI686Gnu: testTarget[cicd=dispatcher](
-        target="i686-unknown-linux-gnu",
-        test_image="debian:trixie",
-        arch=|amd64(),
-        extra_install_script="dpkg --add-architecture i386 && apt-get update && apt-get install -y libc6:i386 libstdc++6:i386 && ",
-        ref=gitlab_ref,
-        gitlab_project_id=gitlab_project_id,
-        gitlab_sha=gitlab_sha,
-        gitlab_pipeline_id=gitlab_pipeline_id
-    )
-    awaitTestI686Gnu: waitBlock<void>()
-
-    startup.trigger -> buildI686Gnu.trigger
-    startup.trigger -> testersI686Gnu.trigger
-
-    buildI686Gnu.binary -> writeI686Gnu.data
-    buildI686Gnu.binary -> testI686Gnu.binary
-    testersI686Gnu.data -> testI686Gnu.testers
-
-    buildI686Gnu.completed   -> awaitTestI686Gnu.a
-    testersI686Gnu.completed -> awaitTestI686Gnu.b
-    awaitTestI686Gnu.awaited -> testI686Gnu.trigger
-
-    // -- aarch64-unknown-linux-gnu --
-
-    buildAarch64Gnu: buildTarget[cicd=dispatcher](
-        target="aarch64-unknown-linux-gnu",
-        image="rust:1.98-trixie",
-        arch=|arm64(),
-        cargo_args="--no-default-features --features desktop-edition",
-        environment_variables=|map([]),
-        pre_commands="apt-get update && apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev libasound2-dev && ",
-        repository_url=repository_url,
-        ref=gitlab_ref,
-        gitlab_project_id=gitlab_project_id,
-        gitlab_sha=gitlab_sha,
-        gitlab_pipeline_id=gitlab_pipeline_id
-    )
-    writeAarch64Gnu: writeLocal(path="melodium-aarch64-unknown-linux-gnu", create=true)
-
-    testersAarch64Gnu: buildTesters[cicd=dispatcher](
-        target="aarch64-unknown-linux-gnu",
-        arch=|arm64(),
-        environment_variables=|map([]),
-        pre_commands="apt-get update && apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev libasound2-dev && ",
-        repository_url=repository_url,
-        ref=gitlab_ref,
-        gitlab_project_id=gitlab_project_id,
-        gitlab_sha=gitlab_sha,
-        gitlab_pipeline_id=gitlab_pipeline_id
-    )
-
-    testAarch64Gnu: testTarget[cicd=dispatcher](
-        target="aarch64-unknown-linux-gnu",
-        test_image="debian:trixie",
-        arch=|arm64(),
-        ref=gitlab_ref,
-        gitlab_project_id=gitlab_project_id,
-        gitlab_sha=gitlab_sha,
-        gitlab_pipeline_id=gitlab_pipeline_id
-    )
-    awaitTestAarch64Gnu: waitBlock<void>()
-
-    startup.trigger -> buildAarch64Gnu.trigger
-    startup.trigger -> testersAarch64Gnu.trigger
-
-    buildAarch64Gnu.binary -> writeAarch64Gnu.data
-    buildAarch64Gnu.binary -> testAarch64Gnu.binary
-    testersAarch64Gnu.data -> testAarch64Gnu.testers
-
-    buildAarch64Gnu.completed   -> awaitTestAarch64Gnu.a
-    testersAarch64Gnu.completed -> awaitTestAarch64Gnu.b
-    awaitTestAarch64Gnu.awaited -> testAarch64Gnu.trigger
+    Self.aarch64_apple_darwin ----------> writeAarch64AppleDarwin.data
+    Self.aarch64_apple_darwin_testers --> writeAarch64AppleDarwinTesters.data
+    Self.x86_64_pc_windows_gnu ---------> writeX86_64PcWindowsGnu.data
+    Self.x86_64_pc_windows_gnu_testers -> writeX86_64PcWindowsGnuTesters.data
+    Self.i686_pc_windows_gnu -----------> writeI686PcWindowsGnu.data
+    Self.i686_pc_windows_gnu_testers ---> writeI686PcWindowsGnuTesters.data
 }

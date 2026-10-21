@@ -6,18 +6,71 @@ include:
   - local: /.gitlab/ci/docs.yml
   - local: /.gitlab/ci/packaging.yml
   - local: /.gitlab/ci/releases.yml
-  - component: gitlab.com/melodium/gitlab-ci/melodium@v0.10.4
-    rules:
-      - if: '$CADENCE == "true"'
+  - local: /.gitlab/ci/cadence.yml
+  - component: gitlab.com/melodium/gitlab-ci/melodium@v0.11.0
     inputs:
       job_name: cadence:trigger
       stage: build
-      version: 0.11.0
-      command: run --api-report .cadence-ci/Compo.toml main --gitlab_project_id "$CI_PROJECT_ID" --gitlab_sha "$CI_COMMIT_SHA" --gitlab_ref "$CI_COMMIT_REF_NAME" --gitlab_pipeline_id "$CI_PIPELINE_ID" --repository_url "$CI_REPOSITORY_URL"
+      command: run --api-report --check-secrets --logs logs/melodium.log .cadence-ci/Compo.toml $CADENCE_ENTRYPOINT --release_version "$VERSION" --gitlab_project_id "$CI_PROJECT_ID" --gitlab_sha "$CI_COMMIT_SHA" --gitlab_ref "$CI_COMMIT_REF_NAME" --gitlab_pipeline_id "$CI_PIPELINE_ID" --repository_url "$CI_PROJECT_URL.git"
       melodium_api_token: $CADENCE_API_TOKEN
 
+# Rules here replace the ones of the component. The entrypoint is `main` on branches, `full` on
+# master, tags and when TEST is set, and `release` on tags when CADENCE_RELEASE is also set
+# (the GitLab jobs still publish releases).
+# Programs only get the environment variables prefixed by `MELODIUM_SECRET_`, so the status
+# token and the publishing credentials are given under such names.
+cadence:trigger:
+  # Builds and testers go through this job, small runners got it killed (exit code 137).
+  tags:
+    - saas-linux-medium-amd64
+  rules:
+    - if: $CADENCE != "true"
+      when: never
+    - if: $CI_COMMIT_TAG && $CADENCE_RELEASE == "true"
+      variables:
+        CADENCE_ENTRYPOINT: release
+    - if: $CI_COMMIT_TAG || $CI_COMMIT_REF_NAME == "master" || $TEST == "true"
+      variables:
+        CADENCE_ENTRYPOINT: full
+    - when: on_success
+      variables:
+        CADENCE_ENTRYPOINT: main
+  variables:
+    MELODIUM_SECRET_GITLAB_TOKEN: $API_TOKEN
+    MELODIUM_SECRET_ZIP_RELEASE_PUBLISH_SERVER: $ZIP_RELEASE_PUBLISH_SERVER
+    MELODIUM_SECRET_ZIP_RELEASE_PUBLISH_USER: $ZIP_RELEASE_PUBLISH_USER
+    MELODIUM_SECRET_ZIP_RELEASE_PUBLISH_PASSWORD: $ZIP_RELEASE_PUBLISH_PASSWORD
+    MELODIUM_SECRET_ZIP_RELEASE_PUBLISH_DIRECTORY: $ZIP_RELEASE_PUBLISH_DIRECTORY
+    MELODIUM_SECRET_INSTALLERS_RELEASE_PUBLISH_SERVER: $INSTALLERS_RELEASE_PUBLISH_SERVER
+    MELODIUM_SECRET_INSTALLERS_RELEASE_PUBLISH_USER: $INSTALLERS_RELEASE_PUBLISH_USER
+    MELODIUM_SECRET_INSTALLERS_RELEASE_PUBLISH_PASSWORD: $INSTALLERS_RELEASE_PUBLISH_PASSWORD
+    MELODIUM_SECRET_INSTALLERS_RELEASE_PUBLISH_DIRECTORY: $INSTALLERS_RELEASE_PUBLISH_DIRECTORY
+    MELODIUM_SECRET_DEB_RELEASE_PUBLISH_SERVER: $DEB_RELEASE_PUBLISH_SERVER
+    MELODIUM_SECRET_DEB_RELEASE_PUBLISH_USER: $DEB_RELEASE_PUBLISH_USER
+    MELODIUM_SECRET_DEB_RELEASE_PUBLISH_PASSWORD: $DEB_RELEASE_PUBLISH_PASSWORD
+    MELODIUM_SECRET_DEB_RELEASE_PUBLISH_DIRECTORY: $DEB_RELEASE_PUBLISH_DIRECTORY
+    MELODIUM_SECRET_DOC_RELEASE_PUBLISH_SERVER: $DOC_RELEASE_PUBLISH_SERVER
+    MELODIUM_SECRET_DOC_RELEASE_PUBLISH_USER: $DOC_RELEASE_PUBLISH_USER
+    MELODIUM_SECRET_DOC_RELEASE_PUBLISH_PASSWORD: $DOC_RELEASE_PUBLISH_PASSWORD
+    MELODIUM_SECRET_DOC_RELEASE_PUBLISH_DIRECTORY: $DOC_RELEASE_PUBLISH_DIRECTORY
+    MELODIUM_SECRET_PACKAGES_REPO_RELEASE_PUBLISH_SERVER: $PACKAGES_REPO_RELEASE_PUBLISH_SERVER
+    MELODIUM_SECRET_PACKAGES_REPO_RELEASE_PUBLISH_USER: $PACKAGES_REPO_RELEASE_PUBLISH_USER
+    MELODIUM_SECRET_PACKAGES_REPO_RELEASE_PUBLISH_PASSWORD: $PACKAGES_REPO_RELEASE_PUBLISH_PASSWORD
+    MELODIUM_SECRET_PACKAGES_REPO_RELEASE_PUBLISH_DIRECTORY: $PACKAGES_REPO_RELEASE_PUBLISH_DIRECTORY
+  before_script:
+    - VERSION=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
+    - export VERSION=${VERSION#v}
+    - echo "VERSION=$VERSION" > variables.env
+  artifacts:
+    when: always
+    paths:
+      - logs
+      - cadence
+    expire_in: 7 days
+    reports:
+      dotenv: variables.env
+
 variables:
-  MELODIUM_SECRET_GITLAB_TOKEN: $API_TOKEN
   PACKAGES: audio cicd crypto distrib encoding fs http javascript json ml net process record regex sql std vault work
 
 workflow:

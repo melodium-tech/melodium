@@ -1,0 +1,123 @@
+use cicd/runners::CicdDispatchEngine
+use root/source::sourceStep
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/ops::|condition
+use std/ops/option::|wrap
+use std/text/compose::|format
+use work/resources/arch::Arch
+
+/**
+  Checks every crate and feature combination for `target`, the desktop edition and `melodium-mcp` too when `desktop` is true.
+
+  `setup` installs the toolchain of `target` and exports `CARGO_BUILD_TARGET`.
+*/
+treatment checkTarget[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var target: string,
+    var image: string = "rust:1.98-trixie",
+    var arch: Arch,
+    var setup: string,
+    var desktop: bool = false,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    check: sourceStep[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name=|format("check-{target}", |entry("target", target)),
+        description=|format("Check crates for {target}", |entry("target", target)),
+        image=image,
+        arch=|wrap<Arch>(arch),
+        storage=40000,
+        max_duration=10800,
+        variables=|wrap<StringMap>(|map([|entry("TEST_DESKTOP_EDITION", |condition<string>(desktop, "true", "false"))])),
+        setup=setup,
+        script=${{cargo check --package melodium-certs --locked
+cargo check --package melodium-common --locked
+cargo check --package melodium-macro --locked
+cargo check --package melodium-core --locked
+cargo check --package melodium-core --locked --features doc
+cargo check --package melodium-lang --locked
+cargo check --package melodium-lang --locked --features restitution
+cargo check --package melodium-share --locked
+cargo check --package melodium-distribution --locked
+cargo check --package melodium-doc --locked
+cargo check --package melodium-engine --locked
+cargo check --package melodium-engine --locked --features doc
+cargo check --package melodium-repository --locked
+cargo check --package melodium-repository --locked --features network
+cargo check --package melodium-repository --locked --features cargo
+cargo check --package melodium-loader --locked --no-default-features
+cargo check --package melodium-loader --locked --no-default-features --features filesystem
+cargo check --package melodium-loader --locked --no-default-features --features network
+cargo check --package melodium-loader --locked --no-default-features --features jeu
+cargo check --package melodium-loader --locked --no-default-features --features script
+cargo check --package melodium-loader --locked --no-default-features --features jeu,script
+cargo check --package melodium-loader --locked --no-default-features --features filesystem,jeu,script
+cargo check --package melodium-loader --locked --no-default-features --features network,jeu,script
+cargo check --package melodium-loader --locked --no-default-features --features filesystem,network,jeu,script
+cargo check --package melodium --locked --no-default-features --features cli,distribution,std-mel/real,net-mel/real,fs-mel/real,process-mel/real
+cargo check --package melodium --locked --no-default-features --features cli,jeu,std-mel/real
+cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,distribution,std-mel/real,net-mel/real,fs-mel/real,process-mel/real
+cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,distribution,std-mel/real
+cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript,distribution,std-mel/real
+cargo check --package melodium --locked --no-default-features --features std-mel/real
+if [ "$TEST_DESKTOP_EDITION" = "true" ]
+then
+  cargo check --package melodium --locked --no-default-features --features desktop-edition
+  cargo check --package melodium-mcp --locked
+fi
+cargo check --package melodium --locked}},
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+
+    Self.trigger -> check.trigger
+    check.completed -> Self.completed
+    check.failed ----> Self.failed
+}
+
+/**
+  Checks the WebAssembly edition.
+*/
+treatment checkWasm[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    check: sourceStep[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name="check-wasm32-unknown-unknown",
+        description="Check WebAssembly edition",
+        setup=${{rustup target add wasm32-unknown-unknown
+export CARGO_BUILD_TARGET=wasm32-unknown-unknown}},
+        script="cargo check --package melodium --locked --no-default-features --features webassembly-edition",
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+
+    Self.trigger -> check.trigger
+    check.completed -> Self.completed
+    check.failed ----> Self.failed
+}

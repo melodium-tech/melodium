@@ -1,0 +1,427 @@
+use cicd/runners::CicdDispatchEngine
+use root/build::buildPackagesRepository
+use root/build::buildTarget
+use root/build::buildWasmPackages
+use root/check::checkTarget
+use root/check::checkWasm
+use root/doc::buildReference
+use root/package::packageAll
+use root/test::buildTesters
+use root/test::testTarget
+use root/test::unitTests
+use std/flow::waitBlock
+use work/resources/arch::|amd64
+use work/resources/arch::|arm64
+
+/**
+  Jobs of every pipeline: unit tests, build and tests of `x86_64-unknown-linux-gnu`, and the standard reference.
+*/
+treatment everyPipeline[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string,
+    // Same default as in `fullPipeline`, which gives its own.
+    var setup_x86_64_unknown_linux_gnu: string = ${{apt-get update
+apt-get install -y libasound2-dev
+export CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu}}
+)
+  input trigger: Block<void>
+  output x86_64_unknown_linux_gnu: Stream<byte>
+  output reference: Stream<byte>
+  output reference_completed: Block<void>
+{
+    unit: unitTests[cicd=cicd](
+        gitlab_token=gitlab_token,
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    Self.trigger -> unit.trigger
+
+    build: buildTarget[cicd=cicd](
+        gitlab_token=gitlab_token,
+        target="x86_64-unknown-linux-gnu",
+        arch=|amd64(),
+        setup=setup_x86_64_unknown_linux_gnu,
+        cargo_args="--no-default-features --features desktop-edition",
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    testers: buildTesters[cicd=cicd](
+        gitlab_token=gitlab_token,
+        target="x86_64-unknown-linux-gnu",
+        arch=|amd64(),
+        setup=setup_x86_64_unknown_linux_gnu,
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    test: testTarget[cicd=cicd](
+        gitlab_token=gitlab_token,
+        target="x86_64-unknown-linux-gnu",
+        arch=|amd64(),
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    awaitTest: waitBlock<void>()
+
+    Self.trigger -> build.trigger
+    Self.trigger -> testers.trigger
+    build.binary -> test.binary
+    testers.data -> test.testers
+    build.completed ---> awaitTest.a
+    testers.completed -> awaitTest.b
+    awaitTest.awaited -> test.trigger
+    build.binary -> Self.x86_64_unknown_linux_gnu
+
+    reference: buildReference[cicd=cicd](
+        gitlab_token=gitlab_token,
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    build.completed -> reference.trigger
+    build.binary ----> reference.binary,reference -> Self.reference
+    reference.completed -> Self.reference_completed
+}
+
+/**
+  Jobs of master and release pipelines: `everyPipeline`, checks, builds and testers of every target,
+  tests of the Linux targets, `melodium-mcp`, WebAssembly packages and their repository, and packaging.
+
+  The executables and testers of `aarch64-apple-darwin` and the Windows targets are given for the tests run on GitLab.
+  `setup_<target>` install the toolchain of each target and export `CARGO_BUILD_TARGET`.
+*/
+treatment fullPipeline[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var release_version: string,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string,
+    var packages: string = "audio cicd crypto distrib encoding fs http javascript json ml net process record regex sql std vault work",
+    var setup_x86_64_unknown_linux_gnu: string = ${{apt-get update
+apt-get install -y libasound2-dev
+export CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu}},
+    var setup_x86_64_unknown_linux_musl: string = ${{apt-get update
+apt-get install -y musl-tools
+rustup target add x86_64-unknown-linux-musl
+export CARGO_BUILD_TARGET=x86_64-unknown-linux-musl}},
+    var setup_i686_unknown_linux_gnu: string = ${{dpkg --add-architecture i386
+apt-get update
+apt-get install -y gcc-multilib
+rustup target add i686-unknown-linux-gnu
+export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
+export CARGO_BUILD_TARGET=i686-unknown-linux-gnu}},
+    var setup_i686_unknown_linux_musl: string = ${{dpkg --add-architecture i386
+apt-get update
+apt-get install -y gcc-multilib
+wget --no-verbose https://repo.melodium.tech/tooling/musl/i686-linux-musl-cross.tar.gz
+tar --extract --gzip --file i686-linux-musl-cross.tar.gz --directory /usr/local
+ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so
+rustup target add i686-unknown-linux-musl
+export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
+export CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_LINKER=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ld
+export CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_AR=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ar
+export TARGET_CC=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc
+export TARGET_AR=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc-ar
+export CARGO_BUILD_TARGET=i686-unknown-linux-musl}},
+    var setup_aarch64_unknown_linux_gnu: string = ${{apt-get update
+apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev libasound2-dev
+export CARGO_BUILD_TARGET=aarch64-unknown-linux-gnu}},
+    var setup_aarch64_unknown_linux_musl: string = ${{dpkg --add-architecture arm64
+apt-get update
+apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64
+wget --no-verbose https://repo.melodium.tech/tooling/musl/aarch64-linux-musl-cross.tar.gz
+tar --extract --gzip --file aarch64-linux-musl-cross.tar.gz --directory /usr/local
+ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so
+rustup target add aarch64-unknown-linux-musl
+export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ld
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ar
+export LD_LIBRARY_PATH="/usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/:$LD_LIBRARY_PATH"
+export TARGET_CC=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc
+export TARGET_AR=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc-ar
+export CARGO_BUILD_TARGET=aarch64-unknown-linux-musl}},
+    var setup_x86_64_apple_darwin: string = ${{apt-get update
+apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+rustup target add x86_64-apple-darwin
+cd /opt
+wget --no-verbose https://repo.melodium.tech/tooling/osxcross/osxcross-e6ab3fa.tar.gz
+tar --extract --gzip --file osxcross-e6ab3fa.tar.gz
+mv osxcross-master osxcross
+cd osxcross
+wget --no-verbose https://repo.melodium.tech/tooling/osxcross/MacOSX10.12.sdk.tar.xz
+mv MacOSX10.12.sdk.tar.xz tarballs/
+UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
+ln -s /opt/osxcross/target/bin/x86_64-apple-darwin16-strip /opt/osxcross/target/bin/strip
+export PATH="/opt/osxcross/target/bin:$PATH"
+export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin16-clang
+export CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin16-ar
+export TARGET_CC=x86_64-apple-darwin16-cc
+export TARGET_AR=x86_64-apple-darwin16-ar
+export CFLAGS_x86_64_apple_darwin=-fuse-ld=x86_64-apple-darwin16-ld
+export CARGO_BUILD_TARGET=x86_64-apple-darwin}},
+    var setup_aarch64_apple_darwin: string = ${{apt-get update
+apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+rustup target add aarch64-apple-darwin
+cd /opt
+wget --no-verbose https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
+tar --extract --gzip --file osxcross-611675b.tar.gz
+mv osxcross-master osxcross
+cd osxcross
+wget --no-verbose https://repo.melodium.tech/tooling/osxcross/MacOSX14.2.sdk.tar.xz
+mv MacOSX14.2.sdk.tar.xz tarballs/
+UNATTENDED=yes OSX_VERSION_MIN=14.2 ./build.sh
+ln -s /opt/osxcross/target/bin/aarch64-apple-darwin23.2-strip /opt/osxcross/target/bin/strip
+export PATH="/opt/osxcross/target/bin:$PATH"
+export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/opt/osxcross/target/bin/aarch64-apple-darwin23.2-clang
+export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=/opt/osxcross/target/bin/aarch64-apple-darwin23.2-ar
+export CC_aarch64_apple_darwin=/opt/osxcross/target/bin/aarch64-apple-darwin23.2-cc
+export AR_aarch64_apple_darwin=/opt/osxcross/target/bin/aarch64-apple-darwin23.2-ar
+export CFLAGS_aarch64_apple_darwin=-fuse-ld=/opt/osxcross/target/bin/aarch64-apple-darwin23.2-ld
+export SDKROOT=/opt/osxcross/target/SDK/MacOSX14.2.sdk
+export MACOSX_DEPLOYMENT_TARGET=14.2
+export CARGO_BUILD_TARGET=aarch64-apple-darwin}},
+    var setup_x86_64_pc_windows_gnu: string = ${{apt-get update
+apt-get install -y mingw-w64
+rustup target add x86_64-pc-windows-gnu
+export CARGO_BUILD_TARGET=x86_64-pc-windows-gnu}},
+    var setup_i686_pc_windows_gnu: string = ${{apt-get update
+apt-get install -y mingw-w64 nasm
+rustup target add i686-pc-windows-gnu
+export CARGO_BUILD_TARGET=i686-pc-windows-gnu}}
+)
+  input trigger: Block<void>
+  output packages: Stream<byte>
+  output packages_completed: Block<void>
+  output reference: Stream<byte>
+  output reference_completed: Block<void>
+  output repository: Stream<byte>
+  output repository_completed: Block<void>
+  output aarch64_apple_darwin: Stream<byte>
+  output aarch64_apple_darwin_testers: Stream<byte>
+  output x86_64_pc_windows_gnu: Stream<byte>
+  output x86_64_pc_windows_gnu_testers: Stream<byte>
+  output i686_pc_windows_gnu: Stream<byte>
+  output i686_pc_windows_gnu_testers: Stream<byte>
+{
+    every: everyPipeline[cicd=cicd](
+        gitlab_token=gitlab_token,
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        setup_x86_64_unknown_linux_gnu=setup_x86_64_unknown_linux_gnu
+    )
+    Self.trigger -> every.trigger
+    every.reference -----------> Self.reference
+    every.reference_completed -> Self.reference_completed
+
+    package: packageAll[cicd=cicd](
+        gitlab_token=gitlab_token,
+        release_version=release_version,
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    Self.trigger -> package.trigger,packages -> Self.packages
+    package.completed -> Self.packages_completed
+    every.x86_64_unknown_linux_gnu -> package.x86_64_unknown_linux_gnu
+
+    // -- x86_64-unknown-linux-gnu, built and tested in `everyPipeline` --
+
+    checkX86_64UnknownLinuxGnu: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-unknown-linux-gnu", arch=|amd64(), setup=setup_x86_64_unknown_linux_gnu, desktop=true, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    mcpX86_64UnknownLinuxGnu: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-unknown-linux-gnu", arch=|amd64(), setup=setup_x86_64_unknown_linux_gnu, package="melodium-mcp", executable="melodium-mcp", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    Self.trigger -> checkX86_64UnknownLinuxGnu.trigger
+    Self.trigger -> mcpX86_64UnknownLinuxGnu.trigger
+
+    // -- x86_64-unknown-linux-musl --
+
+    checkX86_64UnknownLinuxMusl: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-unknown-linux-musl", arch=|amd64(), setup=setup_x86_64_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildX86_64UnknownLinuxMusl: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-unknown-linux-musl", arch=|amd64(), setup=setup_x86_64_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersX86_64UnknownLinuxMusl: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-unknown-linux-musl", arch=|amd64(), setup=setup_x86_64_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testX86_64UnknownLinuxMusl: testTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-unknown-linux-musl", test_image="alpine:3.18", arch=|amd64(), install_script="", ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    awaitTestX86_64UnknownLinuxMusl: waitBlock<void>()
+
+    Self.trigger -> checkX86_64UnknownLinuxMusl.trigger
+    Self.trigger -> buildX86_64UnknownLinuxMusl.trigger
+    Self.trigger -> testersX86_64UnknownLinuxMusl.trigger
+    buildX86_64UnknownLinuxMusl.binary ---> testX86_64UnknownLinuxMusl.binary
+    buildX86_64UnknownLinuxMusl.binary ---> package.x86_64_unknown_linux_musl
+    testersX86_64UnknownLinuxMusl.data ---> testX86_64UnknownLinuxMusl.testers
+    buildX86_64UnknownLinuxMusl.completed --> awaitTestX86_64UnknownLinuxMusl.a
+    testersX86_64UnknownLinuxMusl.completed -> awaitTestX86_64UnknownLinuxMusl.b
+    awaitTestX86_64UnknownLinuxMusl.awaited -> testX86_64UnknownLinuxMusl.trigger
+
+    // -- i686-unknown-linux-gnu --
+
+    checkI686UnknownLinuxGnu: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="i686-unknown-linux-gnu", arch=|amd64(), setup=setup_i686_unknown_linux_gnu, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildI686UnknownLinuxGnu: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="i686-unknown-linux-gnu", arch=|amd64(), setup=setup_i686_unknown_linux_gnu, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersI686UnknownLinuxGnu: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="i686-unknown-linux-gnu", arch=|amd64(), setup=setup_i686_unknown_linux_gnu, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testI686UnknownLinuxGnu: testTarget[cicd=cicd](
+        gitlab_token=gitlab_token,
+        target="i686-unknown-linux-gnu",
+        arch=|amd64(),
+        install_script=${{dpkg --add-architecture i386
+apt-get update
+apt-get install -y ca-certificates libasound2 libc6:i386 libstdc++6:i386}},
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    awaitTestI686UnknownLinuxGnu: waitBlock<void>()
+
+    Self.trigger -> checkI686UnknownLinuxGnu.trigger
+    Self.trigger -> buildI686UnknownLinuxGnu.trigger
+    Self.trigger -> testersI686UnknownLinuxGnu.trigger
+    buildI686UnknownLinuxGnu.binary ---> testI686UnknownLinuxGnu.binary
+    buildI686UnknownLinuxGnu.binary ---> package.i686_unknown_linux_gnu
+    testersI686UnknownLinuxGnu.data ---> testI686UnknownLinuxGnu.testers
+    buildI686UnknownLinuxGnu.completed --> awaitTestI686UnknownLinuxGnu.a
+    testersI686UnknownLinuxGnu.completed -> awaitTestI686UnknownLinuxGnu.b
+    awaitTestI686UnknownLinuxGnu.awaited -> testI686UnknownLinuxGnu.trigger
+
+    // -- i686-unknown-linux-musl --
+
+    checkI686UnknownLinuxMusl: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="i686-unknown-linux-musl", arch=|amd64(), setup=setup_i686_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildI686UnknownLinuxMusl: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="i686-unknown-linux-musl", arch=|amd64(), setup=setup_i686_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersI686UnknownLinuxMusl: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="i686-unknown-linux-musl", arch=|amd64(), setup=setup_i686_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testI686UnknownLinuxMusl: testTarget[cicd=cicd](gitlab_token=gitlab_token, target="i686-unknown-linux-musl", test_image="alpine:3.18", arch=|amd64(), install_script="", ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    awaitTestI686UnknownLinuxMusl: waitBlock<void>()
+
+    Self.trigger -> checkI686UnknownLinuxMusl.trigger
+    Self.trigger -> buildI686UnknownLinuxMusl.trigger
+    Self.trigger -> testersI686UnknownLinuxMusl.trigger
+    buildI686UnknownLinuxMusl.binary ---> testI686UnknownLinuxMusl.binary
+    buildI686UnknownLinuxMusl.binary ---> package.i686_unknown_linux_musl
+    testersI686UnknownLinuxMusl.data ---> testI686UnknownLinuxMusl.testers
+    buildI686UnknownLinuxMusl.completed --> awaitTestI686UnknownLinuxMusl.a
+    testersI686UnknownLinuxMusl.completed -> awaitTestI686UnknownLinuxMusl.b
+    awaitTestI686UnknownLinuxMusl.awaited -> testI686UnknownLinuxMusl.trigger
+
+    // -- aarch64-unknown-linux-gnu --
+
+    checkAarch64UnknownLinuxGnu: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-gnu", arch=|arm64(), setup=setup_aarch64_unknown_linux_gnu, desktop=true, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildAarch64UnknownLinuxGnu: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-gnu", arch=|arm64(), setup=setup_aarch64_unknown_linux_gnu, cargo_args="--no-default-features --features desktop-edition", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    mcpAarch64UnknownLinuxGnu: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-gnu", arch=|arm64(), setup=setup_aarch64_unknown_linux_gnu, package="melodium-mcp", executable="melodium-mcp", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersAarch64UnknownLinuxGnu: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-gnu", arch=|arm64(), setup=setup_aarch64_unknown_linux_gnu, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testAarch64UnknownLinuxGnu: testTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-gnu", arch=|arm64(), ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    awaitTestAarch64UnknownLinuxGnu: waitBlock<void>()
+
+    Self.trigger -> checkAarch64UnknownLinuxGnu.trigger
+    Self.trigger -> buildAarch64UnknownLinuxGnu.trigger
+    Self.trigger -> mcpAarch64UnknownLinuxGnu.trigger
+    Self.trigger -> testersAarch64UnknownLinuxGnu.trigger
+    buildAarch64UnknownLinuxGnu.binary ---> testAarch64UnknownLinuxGnu.binary
+    buildAarch64UnknownLinuxGnu.binary ---> package.aarch64_unknown_linux_gnu
+    testersAarch64UnknownLinuxGnu.data ---> testAarch64UnknownLinuxGnu.testers
+    buildAarch64UnknownLinuxGnu.completed --> awaitTestAarch64UnknownLinuxGnu.a
+    testersAarch64UnknownLinuxGnu.completed -> awaitTestAarch64UnknownLinuxGnu.b
+    awaitTestAarch64UnknownLinuxGnu.awaited -> testAarch64UnknownLinuxGnu.trigger
+
+    // -- aarch64-unknown-linux-musl, cross-compiled and tested on arm64 --
+
+    checkAarch64UnknownLinuxMusl: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-musl", arch=|amd64(), setup=setup_aarch64_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildAarch64UnknownLinuxMusl: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-musl", arch=|amd64(), setup=setup_aarch64_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersAarch64UnknownLinuxMusl: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-musl", arch=|amd64(), setup=setup_aarch64_unknown_linux_musl, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testAarch64UnknownLinuxMusl: testTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-unknown-linux-musl", test_image="alpine:3.18", arch=|arm64(), install_script="", ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    awaitTestAarch64UnknownLinuxMusl: waitBlock<void>()
+
+    Self.trigger -> checkAarch64UnknownLinuxMusl.trigger
+    Self.trigger -> buildAarch64UnknownLinuxMusl.trigger
+    Self.trigger -> testersAarch64UnknownLinuxMusl.trigger
+    buildAarch64UnknownLinuxMusl.binary ---> testAarch64UnknownLinuxMusl.binary
+    buildAarch64UnknownLinuxMusl.binary ---> package.aarch64_unknown_linux_musl
+    testersAarch64UnknownLinuxMusl.data ---> testAarch64UnknownLinuxMusl.testers
+    buildAarch64UnknownLinuxMusl.completed --> awaitTestAarch64UnknownLinuxMusl.a
+    testersAarch64UnknownLinuxMusl.completed -> awaitTestAarch64UnknownLinuxMusl.b
+    awaitTestAarch64UnknownLinuxMusl.awaited -> testAarch64UnknownLinuxMusl.trigger
+
+    // -- x86_64-apple-darwin, testers built but not run, as on GitLab --
+
+    checkX86_64AppleDarwin: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-apple-darwin", arch=|amd64(), setup=setup_x86_64_apple_darwin, desktop=true, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildX86_64AppleDarwin: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-apple-darwin", arch=|amd64(), setup=setup_x86_64_apple_darwin, storage=30000, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    mcpX86_64AppleDarwin: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-apple-darwin", arch=|amd64(), setup=setup_x86_64_apple_darwin, package="melodium-mcp", executable="melodium-mcp", storage=30000, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersX86_64AppleDarwin: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-apple-darwin", arch=|amd64(), setup=setup_x86_64_apple_darwin, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+
+    Self.trigger -> checkX86_64AppleDarwin.trigger
+    Self.trigger -> buildX86_64AppleDarwin.trigger
+    Self.trigger -> mcpX86_64AppleDarwin.trigger
+    Self.trigger -> testersX86_64AppleDarwin.trigger
+    buildX86_64AppleDarwin.binary -> package.x86_64_apple_darwin
+
+    // -- aarch64-apple-darwin, tested on GitLab --
+
+    checkAarch64AppleDarwin: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-apple-darwin", arch=|amd64(), setup=setup_aarch64_apple_darwin, desktop=true, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildAarch64AppleDarwin: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-apple-darwin", arch=|amd64(), setup=setup_aarch64_apple_darwin, cargo_args="--no-default-features --features desktop-edition", storage=30000, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    mcpAarch64AppleDarwin: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-apple-darwin", arch=|amd64(), setup=setup_aarch64_apple_darwin, package="melodium-mcp", executable="melodium-mcp", storage=30000, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersAarch64AppleDarwin: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="aarch64-apple-darwin", arch=|amd64(), setup=setup_aarch64_apple_darwin, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+
+    Self.trigger -> checkAarch64AppleDarwin.trigger
+    Self.trigger -> buildAarch64AppleDarwin.trigger
+    Self.trigger -> mcpAarch64AppleDarwin.trigger
+    Self.trigger -> testersAarch64AppleDarwin.trigger
+    buildAarch64AppleDarwin.binary -> package.aarch64_apple_darwin
+    buildAarch64AppleDarwin.binary -> Self.aarch64_apple_darwin
+    testersAarch64AppleDarwin.data -> Self.aarch64_apple_darwin_testers
+
+    // -- x86_64-pc-windows-gnu, tested on GitLab --
+
+    checkX86_64PcWindowsGnu: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-pc-windows-gnu", arch=|amd64(), setup=setup_x86_64_pc_windows_gnu, desktop=true, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildX86_64PcWindowsGnu: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-pc-windows-gnu", arch=|amd64(), setup=setup_x86_64_pc_windows_gnu, cargo_args="--no-default-features --features desktop-edition", profile="pc-windows-gnu", executable="melodium.exe", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    mcpX86_64PcWindowsGnu: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-pc-windows-gnu", arch=|amd64(), setup=setup_x86_64_pc_windows_gnu, package="melodium-mcp", profile="pc-windows-gnu", executable="melodium-mcp.exe", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersX86_64PcWindowsGnu: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="x86_64-pc-windows-gnu", arch=|amd64(), setup=setup_x86_64_pc_windows_gnu, cargo_args="--release", profile_directory="release", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+
+    Self.trigger -> checkX86_64PcWindowsGnu.trigger
+    Self.trigger -> buildX86_64PcWindowsGnu.trigger
+    Self.trigger -> mcpX86_64PcWindowsGnu.trigger
+    Self.trigger -> testersX86_64PcWindowsGnu.trigger
+    buildX86_64PcWindowsGnu.binary -> package.x86_64_pc_windows_gnu
+    buildX86_64PcWindowsGnu.binary -> Self.x86_64_pc_windows_gnu
+    testersX86_64PcWindowsGnu.data -> Self.x86_64_pc_windows_gnu_testers
+
+    // -- i686-pc-windows-gnu, tested on GitLab --
+
+    checkI686PcWindowsGnu: checkTarget[cicd=cicd](gitlab_token=gitlab_token, target="i686-pc-windows-gnu", arch=|amd64(), setup=setup_i686_pc_windows_gnu, desktop=true, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildI686PcWindowsGnu: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="i686-pc-windows-gnu", arch=|amd64(), setup=setup_i686_pc_windows_gnu, cargo_args="--no-default-features --features desktop-edition", profile="pc-windows-gnu", executable="melodium.exe", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    mcpI686PcWindowsGnu: buildTarget[cicd=cicd](gitlab_token=gitlab_token, target="i686-pc-windows-gnu", arch=|amd64(), setup=setup_i686_pc_windows_gnu, package="melodium-mcp", profile="pc-windows-gnu", executable="melodium-mcp.exe", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    testersI686PcWindowsGnu: buildTesters[cicd=cicd](gitlab_token=gitlab_token, target="i686-pc-windows-gnu", arch=|amd64(), setup=setup_i686_pc_windows_gnu, cargo_args="--release", profile_directory="release", repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+
+    Self.trigger -> checkI686PcWindowsGnu.trigger
+    Self.trigger -> buildI686PcWindowsGnu.trigger
+    Self.trigger -> mcpI686PcWindowsGnu.trigger
+    Self.trigger -> testersI686PcWindowsGnu.trigger
+    buildI686PcWindowsGnu.binary -> package.i686_pc_windows_gnu
+    buildI686PcWindowsGnu.binary -> Self.i686_pc_windows_gnu
+    testersI686PcWindowsGnu.data -> Self.i686_pc_windows_gnu_testers
+
+    // -- wasm32-unknown-unknown --
+
+    checkWasm[cicd=cicd](gitlab_token=gitlab_token, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildWasmPackages[cicd=cicd](gitlab_token=gitlab_token, packages=packages, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+    buildPackagesRepository[cicd=cicd](gitlab_token=gitlab_token, packages=packages, repository_url=repository_url, ref=ref, gitlab_project_id=gitlab_project_id, gitlab_sha=gitlab_sha, gitlab_pipeline_id=gitlab_pipeline_id)
+
+    Self.trigger -> checkWasm.trigger
+    Self.trigger -> buildWasmPackages.trigger,archive -> buildPackagesRepository.wasm,archive -> Self.repository
+    buildWasmPackages.completed -> buildPackagesRepository.trigger,completed -> Self.repository_completed
+}

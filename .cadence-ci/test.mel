@@ -1,4 +1,3 @@
-use cicd/naive::simpleStep
 use cicd/runners::CicdDispatchEngine
 use cicd/runners::CicdRunnerEngine
 use cicd/runners::setupRunner
@@ -10,6 +9,7 @@ use process/command::|command
 use process/environment::Environment
 use process/environment::|environment
 use regex::|replace
+use root/source::sourceStep
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
@@ -25,7 +25,11 @@ use work/resources::|volume
 use work/resources/arch::Arch
 use work/resources/arch::|amd64
 
+/**
+  Runs the Rust tests of the workspace.
+*/
 treatment unitTests[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
     var repository_url: string,
     var ref: string,
     var gitlab_project_id: string,
@@ -36,41 +40,43 @@ treatment unitTests[cicd: CicdDispatchEngine](
   output completed: Block<void>
   output failed: Block<void>
 {
-    unitTest: simpleStep[dispatcher=cicd](
+    unitTest: sourceStep[cicd=cicd](
+        gitlab_token=gitlab_token,
         name="unit-tests",
-        image="rust:1.98-trixie",
+        description="Rust unit tests",
         arch=|wrap<Arch>(|amd64()),
-        cpu=6000, memory=10000, storage=50000,
-        commands=[
-            |command("sh", ["-c", |format(
-                ${{set -x; git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && apt-get update && apt-get install -y libasound2-dev && cargo test --locked --verbose}},
-                |map([|entry("ref", ref), |entry("repository_url", repository_url)])
-            )])
-        ],
-        report=true,
-        gitlab=true,
+        storage=50000,
+        // Full debug information makes each test binary hundreds of megabytes, filling the
+        // disk (the linker then fails with a bus error). Line numbers are kept.
+        variables=|wrap<StringMap>(|map([|entry("CARGO_PROFILE_DEV_DEBUG", "line-tables-only")])),
+        setup=${{apt-get update
+apt-get install -y libasound2-dev}},
+        script="cargo test --locked --verbose",
+        repository_url=repository_url,
+        ref=ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
-        gitlab_ref=ref,
-        gitlab_pipeline_id=gitlab_pipeline_id,
-        log_service_response=true,
-        description="Rust unit tests"
+        gitlab_pipeline_id=gitlab_pipeline_id
     )
 
     Self.trigger -> unitTest.trigger
-    unitTest.success -> Self.completed
-
-    unitTestFailure: one<void>()
-    unitTest.error  -> unitTestFailure.a
-    unitTest.failed -> unitTestFailure.b
-    unitTestFailure.value -> Self.failed
+    unitTest.completed -> Self.completed
+    unitTest.failed ----> Self.failed
 }
 
+/**
+  Builds the testers for `target` and gives them, with the `.mel` files of `tests`, flattened in `testers.tar.gz`.
+
+  `cargo_args` and `profile_directory` select the profile, `--release` and `release` for the Windows targets.
+  Debug information is reduced to line numbers, as the testers go through the engine running the pipeline.
+*/
 treatment buildTesters[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
     var target: string,
     var arch: Arch,
-    var pre_commands: string = "",
-    var environment_variables: StringMap,
+    var setup: string,
+    var cargo_args: string = "",
+    var profile_directory: string = "debug",
     var repository_url: string,
     var ref: string,
     var gitlab_project_id: string,
@@ -82,49 +88,60 @@ treatment buildTesters[cicd: CicdDispatchEngine](
   output completed: Block<void>
   output failed: Block<void>
 {
-    testers: simpleStep[dispatcher=cicd](
-        // Container/hostname-safe name; see buildTarget's `compile` for why.
-        name=|format("testers-{target}", |entry("target", |unwrap_or<string>(|replace(target, "_", "-"), target))),
-        image="rust:1.98-trixie",
+    testers: sourceStep[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name=|format("testers-{target}", |entry("target", target)),
+        description=|format("Build testers for {target}", |entry("target", target)),
         arch=|wrap<Arch>(arch),
-        cpu=6000, memory=10000, storage=20000,
-        variables=|wrap<StringMap>(environment_variables),
-        commands=[
-            |command("sh", ["-c", |format(
-                ${{set -x; {pre_commands}git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source/tests/testers && cargo build --locked --target {target} && for f in ../*.mel; do tar --append --transform 's,.*/,,' --file testers.tar "$f"; done && for f in target/{target}/debug/*; do if [ -f "$f" ] && [ -x "$f" ]; then tar --append --transform 's,.*/,,' --file testers.tar "$f"; fi; done && gzip testers.tar && mv testers.tar.gz /mnt/data/testers.tar.gz}},
-                |map([
-                    |entry("pre_commands", pre_commands),
-                    |entry("ref", ref),
-                    |entry("repository_url", repository_url),
-                    |entry("target", target)
-                ])
-            )])
-        ],
+        variables=|wrap<StringMap>(|map([|entry("CARGO_PROFILE_DEV_DEBUG", "line-tables-only")])),
+        setup=setup,
+        script=|format(
+            ${{cd tests/testers
+cargo build --locked --target {target} {cargo_args}
+for f in ../*.mel
+do
+  tar --append --transform 's,.*/,,' --file testers.tar "$f"
+done
+for f in target/{target}/{profile_directory}/*
+do
+  case "$f" in
+    *.exe) tar --append --transform 's,.*/,,' --file testers.tar "$f" ;;
+    *) if [ -f "$f" ] && [ -x "$f" ]; then tar --append --transform 's,.*/,,' --file testers.tar "$f"; fi ;;
+  esac
+done
+gzip testers.tar
+mv testers.tar.gz /mnt/data/testers.tar.gz}},
+            |map([
+                |entry("target", target),
+                |entry("cargo_args", cargo_args),
+                |entry("profile_directory", profile_directory)
+            ])
+        ),
         out_file=|wrap<string>("testers.tar.gz"),
-        report=true,
-        gitlab=true,
+        repository_url=repository_url,
+        ref=ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
-        gitlab_ref=ref,
-        gitlab_pipeline_id=gitlab_pipeline_id,
-        log_service_response=true,
-        description=|format("Build testers for {target}", |entry("target", target))
+        gitlab_pipeline_id=gitlab_pipeline_id
     )
 
     Self.trigger -> testers.trigger,data -> Self.data
-    testers.success -> Self.completed
-
-    testersFailure: one<void>()
-    testers.error  -> testersFailure.a
-    testers.failed -> testersFailure.b
-    testersFailure.value -> Self.failed
+    testers.completed -> Self.completed
+    testers.failed ----> Self.failed
 }
 
+/**
+  Runs the testers received through `testers` against the `melodium` executable received through `binary`, on `test_image` with a PostgreSQL service.
+
+  `install_script` prepares `test_image` (shell lines run with `set -ex`), the default one is for Debian.
+*/
 treatment testTarget[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
     var target: string,
-    var test_image: string,
+    var test_image: string = "debian:trixie",
     var arch: Arch,
-    var extra_install_script: string = "",
+    var install_script: string = ${{apt-get update
+apt-get install -y ca-certificates libasound2}},
     var ref: string,
     var gitlab_project_id: string,
     var gitlab_sha: string,
@@ -141,6 +158,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
         name=|format("test-{target}", |entry("target", target)),
         report=true,
         gitlab=true,
+        gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
         gitlab_ref=ref,
@@ -151,13 +169,13 @@ treatment testTarget[cicd: CicdDispatchEngine](
     noCancel: closeBlock<void>()
 
     setupRunner[dispatcher=cicd, runner=runner](
-        // Container/hostname-safe name; see buildTarget's `compile` for why.
+        // Hostname-safe name, see `sourceStep`.
         name=|format("test-{target}", |entry("target", |unwrap_or<string>(|replace(target, "_", "-"), target))),
         cpu=200, memory=200, storage=1500,
         arch=|wrap<Arch>(arch),
-        volumes=[|volume("binaries", 700)],
+        volumes=[|volume("binaries", 3000)],
         containers=[
-            |container("test", 1000, 1000, 2000, |wrap<Arch>(arch), [|mount("binaries", "/mounted/binaries")], test_image, _)
+            |container("test", 1000, 1000, 4000, |wrap<Arch>(arch), [|mount("binaries", "/mounted/binaries")], test_image, _)
         ],
         service_containers=[
             |service_container("postgres", 4000, 1000, 10000, |wrap<Arch>(arch), [], "postgres:16", _, |wrap<StringMap>(|map([
@@ -174,11 +192,13 @@ treatment testTarget[cicd: CicdDispatchEngine](
         executor_name=|wrap<string>("test"),
         in_filesystem=|wrap<string>("binaries"),
         in_file=|wrap<string>("melodium"),
-        // `extra_install_script` is a shell fragment ending in "&& " (or empty).
         commands=[
             |command("sh", ["-c", |format(
-                ${{set -x; apt-get update && apt-get install -y ca-certificates libasound2 && {extra_install_script}mv /mounted/binaries/melodium /usr/local/bin/melodium && chmod +x /usr/local/bin/melodium}},
-                |map([|entry("extra_install_script", extra_install_script)])
+                ${{set -ex
+{install_script}
+mv /mounted/binaries/melodium /usr/local/bin/melodium
+chmod +x /usr/local/bin/melodium}},
+                |map([|entry("install_script", install_script)])
             )])
         ]
     )
@@ -190,7 +210,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
         in_file=|wrap<string>("testers.tar.gz"),
         environment=|wrap<Environment>(|environment(|map([]), |wrap<string>("/mounted/binaries"), false, false)),
         commands=[
-            |command("sh", ["-c", "set -x; tar --extract --gzip --file /mounted/binaries/testers.tar.gz"])
+            |command("sh", ["-c", "set -x; tar -x -z -f /mounted/binaries/testers.tar.gz"])
         ]
     )
 
@@ -209,7 +229,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
         commands=[
             |command("sh", ["-c", ${{set -x
 OK=0
-for t in complex_call fs generics http_client http_javascript process regex sql http_distributed process_distributed process_distributed_hang process_distributed_slow process_distributed_logs_live distribution_engine_never_started distribution_engine_stop_without_start logs_live_flush stop_before_data_drained protocol_timeout_survives_jitter; do
+for t in check_rejections complex_call fs generics http_client http_javascript interruption process regex sql http_distributed process_distributed process_distributed_hang process_distributed_slow process_distributed_logs_live distribution_engine_never_started distribution_engine_stop_without_start logs_live_flush stop_before_data_drained protocol_timeout_survives_jitter crypto_webhooks dist_keys http_secrets interruption_signals new_templates process_secrets secret_access_cli secret_distribution secret_leaks secret_masking signed_webhooks wipe work_secrets; do
   ./$t || OK=1
 done
 exit $OK}}])

@@ -1,0 +1,78 @@
+include:
+  - local: /.gitlab/ci/runners.yml
+
+# Tests of the targets Cadence.CI cannot run yet, on the executables and testers built by `cadence:trigger`.
+# The jobs of tests.yml still run on the GitLab builds.
+
+.cadence-tests:
+  stage: test
+  rules:
+    - if: $CADENCE == "true" && ($CI_COMMIT_TAG || $CI_COMMIT_REF_NAME == "master" || $TEST == "true")
+  needs:
+    - job: cadence:trigger
+      artifacts: true
+
+test:melodium:aarch64-apple-darwin:cadence:
+  extends:
+    - .cadence-tests
+    - .runner:mac:aarch64
+  script:
+    - mkdir -p target/aarch64-apple-darwin/release
+    - cp cadence/melodium-aarch64-apple-darwin target/aarch64-apple-darwin/release/melodium
+    - chmod +x target/aarch64-apple-darwin/release/melodium
+    - export PATH="$CI_PROJECT_DIR/target/aarch64-apple-darwin/release:$PATH"
+    - cd tests/
+    - tar -xzf ../cadence/testers-aarch64-apple-darwin.tar.gz
+    - |
+      OK=0
+      for TEST in $TESTS
+      do
+        echo Running $TEST
+        if ./$TEST
+        then
+          echo $TEST OK
+        else
+          OK=1
+          echo $TEST failed
+        fi
+      done
+      exit $OK
+
+.cadence-tests:windows:
+  extends:
+    - .cadence-tests
+    - .runner:windows:x86_64
+    - .service:postgresql
+  script:
+    - New-Item -ItemType Directory -Force -Path "target/$TARGET/release" | Out-Null
+    - Copy-Item "cadence/melodium-$TARGET.exe" "target/$TARGET/release/melodium.exe"
+    - $Env:Path="$Env:CI_PROJECT_DIR/target/$TARGET/release;$Env:Path"
+    - cd tests/
+    - tar -xzf "../cadence/testers-$TARGET.tar.gz"
+    - $TESTS = $TESTS.Split(" ")
+    - |
+      $OK = 0
+      Foreach ($TEST in $TESTS) {
+        echo Running $TEST
+        & ./$TEST.exe
+        If ( $? ) {
+          echo $TEST OK
+        }
+        Else {
+          $OK=1
+          echo $TEST failed
+        }
+      }
+      exit $OK
+
+test:melodium:x86_64-pc-windows-gnu:cadence:
+  extends:
+    - .cadence-tests:windows
+  variables:
+    TARGET: x86_64-pc-windows-gnu
+
+test:melodium:i686-pc-windows-gnu:cadence:
+  extends:
+    - .cadence-tests:windows
+  variables:
+    TARGET: i686-pc-windows-gnu

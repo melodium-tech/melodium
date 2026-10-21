@@ -1,0 +1,171 @@
+use cicd/naive::simpleStep
+use cicd/naive::simpleStepWithInput
+use cicd/runners::CicdDispatchEngine
+use process/command::|command
+use regex::|replace
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/flow::one
+use std/ops/option::|unwrap_or
+use std/text/compose::|format
+use work/resources/arch::Arch
+
+/**
+  Step cloning the repository at `ref` in `/source` and running `script` from there, after `setup`.
+
+  `setup` and `script` are shell lines run with `set -ex`: each command is echoed as it runs, and the
+  first failing one stops the step. Files to give back are written in `/mnt/data`, `out_file` naming
+  the one sent through `data`.
+  `name` is also the hostname of the container with the "compose" location, so its underscores are replaced.
+*/
+treatment sourceStep[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var name: string,
+    var description: string,
+    var image: string = "rust:1.98-trixie",
+    var arch: Option<Arch> = _,
+    var cpu: u32 = 6000,
+    var memory: u32 = 10000,
+    var storage: u32 = 20000,
+    var max_duration: u32 = 7200,
+    var variables: Option<StringMap> = _,
+    var setup: string = "",
+    var script: string,
+    var out_file: Option<string> = _,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  output data: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    step: simpleStep[dispatcher=cicd](
+        name=|unwrap_or<string>(|replace(name, "_", "-"), name),
+        image=image,
+        arch=arch,
+        cpu=cpu,
+        memory=memory,
+        storage=storage,
+        max_duration=max_duration,
+        variables=variables,
+        commands=[
+            |command("sh", ["-c", |format(
+                ${{set -ex
+{setup}
+git config --global url."https://".insteadOf git://
+git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" /source
+cd /source
+{script}
+}},
+                |map([
+                    |entry("setup", setup),
+                    |entry("ref", ref),
+                    |entry("repository_url", repository_url),
+                    |entry("script", script)
+                ])
+            )])
+        ],
+        out_file=out_file,
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_service_response=true,
+        description=description
+    )
+
+    Self.trigger -> step.trigger,data -> Self.data
+    step.success -> Self.completed
+
+    stepFailure: one<void>()
+    step.error  -> stepFailure.a
+    step.failed -> stepFailure.b
+    stepFailure.value -> Self.failed
+}
+
+/**
+  Same as `sourceStep`, with the data received through `data` written in `/mnt/data/{in_file}` before the step runs.
+*/
+treatment sourceStepWithInput[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var name: string,
+    var description: string,
+    var image: string = "rust:1.98-trixie",
+    var arch: Option<Arch> = _,
+    var cpu: u32 = 6000,
+    var memory: u32 = 10000,
+    var storage: u32 = 20000,
+    var max_duration: u32 = 7200,
+    var variables: Option<StringMap> = _,
+    var setup: string = "",
+    var script: string,
+    var in_file: string,
+    var out_file: Option<string> = _,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  input data: Stream<byte>
+  output result: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    step: simpleStepWithInput[dispatcher=cicd](
+        name=|unwrap_or<string>(|replace(name, "_", "-"), name),
+        image=image,
+        arch=arch,
+        cpu=cpu,
+        memory=memory,
+        storage=storage,
+        max_duration=max_duration,
+        variables=variables,
+        commands=[
+            |command("sh", ["-c", |format(
+                ${{set -ex
+{setup}
+git config --global url."https://".insteadOf git://
+git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" /source
+cd /source
+{script}
+}},
+                |map([
+                    |entry("setup", setup),
+                    |entry("ref", ref),
+                    |entry("repository_url", repository_url),
+                    |entry("script", script)
+                ])
+            )])
+        ],
+        in_file=in_file,
+        out_file=out_file,
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_service_response=true,
+        description=description
+    )
+
+    Self.trigger -> step.trigger
+    Self.data ----> step.data,data -> Self.result
+    step.success -> Self.completed
+
+    stepFailure: one<void>()
+    step.error  -> stepFailure.a
+    step.failed -> stepFailure.b
+    stepFailure.value -> Self.failed
+}

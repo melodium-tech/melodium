@@ -1,0 +1,231 @@
+use cicd/runners::CicdRunnerEngine
+use cicd/runners::CicdDispatchEngine
+use cicd/runners::setupRunner
+use cicd/runners::stopRunner
+use cicd/services::setServiceState
+use cicd/steps::stepOn
+use cicd/steps::stepOnWithInput
+use process/command::|command
+use process/environment::Environment
+use process/environment::|environment
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/flow::closeBlock
+use std/flow::one
+use std/flow::waitBlock
+use std/ops/option::|wrap
+use std/text/compose::|format
+use work/resources::|container
+use work/resources::|mount
+use work/resources::|volume
+use work/resources/arch::Arch
+use work/resources/arch::|amd64
+
+/**
+  Gathers the `melodium` executables of every target and packages them as `packages.tar`, holding:
+  - `zips/`: archives of every target (`.tar.gz`, `.zip` for Windows);
+  - `installers/`: shell installers of the Linux and macOS targets;
+  - `deb/gnu/` and `deb/musl/`: Debian packages of the Linux targets;
+  each directory with its `SHA256SUMS`.
+
+  The runner starts with the pipeline and receives each executable as soon as it is built,
+  so they do not wait in the engine running the pipeline. Packaging starts once every
+  executable is received, and fails if one of them is missing.
+*/
+treatment packageAll[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var release_version: string,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input x86_64_unknown_linux_gnu: Stream<byte>
+  input x86_64_unknown_linux_musl: Stream<byte>
+  input i686_unknown_linux_gnu: Stream<byte>
+  input i686_unknown_linux_musl: Stream<byte>
+  input aarch64_unknown_linux_gnu: Stream<byte>
+  input aarch64_unknown_linux_musl: Stream<byte>
+  input x86_64_apple_darwin: Stream<byte>
+  input aarch64_apple_darwin: Stream<byte>
+  input x86_64_pc_windows_gnu: Stream<byte>
+  input i686_pc_windows_gnu: Stream<byte>
+  output packages: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    report: setServiceState(
+        name="packaging",
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_response=true,
+        description="Package executables"
+    )
+    noCancel: closeBlock<void>()
+
+    setupRunner[dispatcher=cicd, runner=runner](
+        name="packaging",
+        cpu=200, memory=200, storage=1500,
+        arch=|wrap<Arch>(|amd64()),
+        max_duration=14400,
+        volumes=[|volume("binaries", 3000)],
+        containers=[
+            |container("package", 2000, 2000, 10000, |wrap<Arch>(|amd64()), [|mount("binaries", "/mounted/binaries")], "rust:1.98-trixie", _)
+        ]
+    )
+
+    // Each executable is written in the volume under the name of its target.
+    receiveX86_64UnknownLinuxGnu: stepOnWithInput[runner=runner](name="receive-x86_64-unknown-linux-gnu", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("x86_64-unknown-linux-gnu"), commands=[|command("true", [])])
+    receiveX86_64UnknownLinuxMusl: stepOnWithInput[runner=runner](name="receive-x86_64-unknown-linux-musl", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("x86_64-unknown-linux-musl"), commands=[|command("true", [])])
+    receiveI686UnknownLinuxGnu: stepOnWithInput[runner=runner](name="receive-i686-unknown-linux-gnu", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("i686-unknown-linux-gnu"), commands=[|command("true", [])])
+    receiveI686UnknownLinuxMusl: stepOnWithInput[runner=runner](name="receive-i686-unknown-linux-musl", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("i686-unknown-linux-musl"), commands=[|command("true", [])])
+    receiveAarch64UnknownLinuxGnu: stepOnWithInput[runner=runner](name="receive-aarch64-unknown-linux-gnu", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("aarch64-unknown-linux-gnu"), commands=[|command("true", [])])
+    receiveAarch64UnknownLinuxMusl: stepOnWithInput[runner=runner](name="receive-aarch64-unknown-linux-musl", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("aarch64-unknown-linux-musl"), commands=[|command("true", [])])
+    receiveX86_64AppleDarwin: stepOnWithInput[runner=runner](name="receive-x86_64-apple-darwin", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("x86_64-apple-darwin"), commands=[|command("true", [])])
+    receiveAarch64AppleDarwin: stepOnWithInput[runner=runner](name="receive-aarch64-apple-darwin", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("aarch64-apple-darwin"), commands=[|command("true", [])])
+    receiveX86_64PcWindowsGnu: stepOnWithInput[runner=runner](name="receive-x86_64-pc-windows-gnu", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("x86_64-pc-windows-gnu"), commands=[|command("true", [])])
+    receiveI686PcWindowsGnu: stepOnWithInput[runner=runner](name="receive-i686-pc-windows-gnu", executor_name=|wrap<string>("package"), in_filesystem=|wrap<string>("binaries"), in_file=|wrap<string>("i686-pc-windows-gnu"), commands=[|command("true", [])])
+
+    Self.x86_64_unknown_linux_gnu ---> receiveX86_64UnknownLinuxGnu.data
+    Self.x86_64_unknown_linux_musl --> receiveX86_64UnknownLinuxMusl.data
+    Self.i686_unknown_linux_gnu -----> receiveI686UnknownLinuxGnu.data
+    Self.i686_unknown_linux_musl ----> receiveI686UnknownLinuxMusl.data
+    Self.aarch64_unknown_linux_gnu --> receiveAarch64UnknownLinuxGnu.data
+    Self.aarch64_unknown_linux_musl -> receiveAarch64UnknownLinuxMusl.data
+    Self.x86_64_apple_darwin --------> receiveX86_64AppleDarwin.data
+    Self.aarch64_apple_darwin -------> receiveAarch64AppleDarwin.data
+    Self.x86_64_pc_windows_gnu ------> receiveX86_64PcWindowsGnu.data
+    Self.i686_pc_windows_gnu --------> receiveI686PcWindowsGnu.data
+
+    setupRunner.ready -> receiveX86_64UnknownLinuxGnu.trigger
+    setupRunner.ready -> receiveX86_64UnknownLinuxMusl.trigger
+    setupRunner.ready -> receiveI686UnknownLinuxGnu.trigger
+    setupRunner.ready -> receiveI686UnknownLinuxMusl.trigger
+    setupRunner.ready -> receiveAarch64UnknownLinuxGnu.trigger
+    setupRunner.ready -> receiveAarch64UnknownLinuxMusl.trigger
+    setupRunner.ready -> receiveX86_64AppleDarwin.trigger
+    setupRunner.ready -> receiveAarch64AppleDarwin.trigger
+    setupRunner.ready -> receiveX86_64PcWindowsGnu.trigger
+    setupRunner.ready -> receiveI686PcWindowsGnu.trigger
+
+    // Packaging waits for every reception to be finished, successful or not.
+    receivedLinuxGnu: waitBlock<void>()
+    receivedLinuxMusl: waitBlock<void>()
+    receivedLinuxAarch64: waitBlock<void>()
+    receivedDarwin: waitBlock<void>()
+    receivedWindows: waitBlock<void>()
+    receivedLinuxIntel: waitBlock<void>()
+    receivedLinux: waitBlock<void>()
+    receivedOthers: waitBlock<void>()
+    receivedAll: waitBlock<void>()
+
+    receiveX86_64UnknownLinuxGnu.finished ---> receivedLinuxGnu.a
+    receiveI686UnknownLinuxGnu.finished -----> receivedLinuxGnu.b
+    receiveX86_64UnknownLinuxMusl.finished --> receivedLinuxMusl.a
+    receiveI686UnknownLinuxMusl.finished ----> receivedLinuxMusl.b
+    receiveAarch64UnknownLinuxGnu.finished --> receivedLinuxAarch64.a
+    receiveAarch64UnknownLinuxMusl.finished -> receivedLinuxAarch64.b
+    receiveX86_64AppleDarwin.finished -------> receivedDarwin.a
+    receiveAarch64AppleDarwin.finished ------> receivedDarwin.b
+    receiveX86_64PcWindowsGnu.finished ------> receivedWindows.a
+    receiveI686PcWindowsGnu.finished --------> receivedWindows.b
+    receivedLinuxGnu.awaited ----------------> receivedLinuxIntel.a
+    receivedLinuxMusl.awaited ---------------> receivedLinuxIntel.b
+    receivedLinuxIntel.awaited --------------> receivedLinux.a
+    receivedLinuxAarch64.awaited ------------> receivedLinux.b
+    receivedDarwin.awaited ------------------> receivedOthers.a
+    receivedWindows.awaited -----------------> receivedOthers.b
+    receivedLinux.awaited -------------------> receivedAll.a
+    receivedOthers.awaited ------------------> receivedAll.b
+
+    package: stepOn[runner=runner](
+        name="package",
+        executor_name=|wrap<string>("package"),
+        environment=|wrap<Environment>(|environment(|map([]), |wrap<string>("/"), false, false)),
+        commands=[
+            |command("sh", ["-c", |format(
+                ${{set -ex
+apt-get update
+apt-get install -y zip
+git config --global url."https://".insteadOf git://
+git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" /source
+cd /source
+for TARGET in x86_64-unknown-linux-gnu x86_64-unknown-linux-musl i686-unknown-linux-gnu i686-unknown-linux-musl aarch64-unknown-linux-gnu aarch64-unknown-linux-musl x86_64-apple-darwin aarch64-apple-darwin
+do
+  test -s /mounted/binaries/$TARGET
+  mkdir --parents target/$TARGET/release
+  cp /mounted/binaries/$TARGET target/$TARGET/release/melodium
+  chmod +x target/$TARGET/release/melodium
+done
+for TARGET in x86_64-pc-windows-gnu i686-pc-windows-gnu
+do
+  test -s /mounted/binaries/$TARGET
+  mkdir --parents target/$TARGET/release
+  cp /mounted/binaries/$TARGET target/$TARGET/release/melodium.exe
+done
+mkdir --parents /packages/zips /packages/installers /packages/deb/gnu /packages/deb/musl
+cargo install cargo-deb --locked
+for TARGET in aarch64-unknown-linux-gnu aarch64-unknown-linux-musl i686-unknown-linux-gnu i686-unknown-linux-musl x86_64-unknown-linux-gnu x86_64-unknown-linux-musl
+do
+  cargo deb --package melodium --no-build --no-strip --target $TARGET
+done
+mv target/*-gnu/debian/*.deb /packages/deb/gnu/
+mv target/*-musl/debian/*.deb /packages/deb/musl/
+for TARGET in aarch64-apple-darwin aarch64-unknown-linux-gnu aarch64-unknown-linux-musl i686-unknown-linux-gnu i686-unknown-linux-musl x86_64-apple-darwin x86_64-unknown-linux-gnu x86_64-unknown-linux-musl
+do
+  .gitlab/ci/package.sh -t $TARGET -v "{release_version}" -e melodium -z sh
+  .gitlab/ci/package.sh -t $TARGET -v "{release_version}" -e melodium -z tgz
+done
+for TARGET in i686-pc-windows-gnu x86_64-pc-windows-gnu
+do
+  .gitlab/ci/package.sh -t $TARGET -v "{release_version}" -e melodium.exe -z zip
+done
+mv melodium-*.sh /packages/installers/
+mv melodium-*.tar.gz melodium-*.zip /packages/zips/
+cd /packages/deb/gnu && sha256sum *.deb > SHA256SUMS
+cd /packages/deb/musl && sha256sum *.deb > SHA256SUMS
+cd /packages/installers && sha256sum *.sh > SHA256SUMS
+cd /packages/zips && sha256sum *.tar.gz *.zip > SHA256SUMS
+tar --create --file /mounted/binaries/packages.tar --directory /packages .}},
+                |map([
+                    |entry("ref", ref),
+                    |entry("repository_url", repository_url),
+                    |entry("release_version", release_version)
+                ])
+            )])
+        ],
+        out_filesystem=|wrap<string>("binaries"),
+        out_file=|wrap<string>("packages.tar")
+    )
+
+    stopRunner[runner=runner]()
+
+    Self.trigger -> setupRunner.trigger
+    receivedAll.awaited -> package.trigger,finished -> stopRunner.trigger
+    package.data -> Self.packages
+    package.success -> Self.completed
+
+    packageFailure: one<void>()
+    package.error  -> packageFailure.a
+    package.failed -> packageFailure.b
+
+    failure: one<void>()
+    setupRunner.failed   -> failure.a
+    packageFailure.value -> failure.b
+    failure.value -> Self.failed
+
+    Self.trigger       -> report.pending
+    package.started    -> report.running
+    package.success    -> report.success
+    package.error      -> report.error
+    failure.value      -> report.failed
+    Self.trigger       -> noCancel.trigger,closed -> report.canceled
+}

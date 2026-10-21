@@ -1,26 +1,29 @@
-use cicd/naive::simpleStep
 use cicd/runners::CicdDispatchEngine
-use process/command::|command
-use regex::|replace
-use std/data/string_map::StringMap
+use root/source::sourceStep
+use root/source::sourceStepWithInput
 use std/data/string_map::|entry
 use std/data/string_map::|map
-use std/flow::one
-use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
 use std/text/compose::|format
 use work/resources/arch::Arch
 
+/**
+  Builds `package` for `target` and gives its `executable` through `binary`.
+
+  `setup` installs the toolchain of `target` and exports `CARGO_BUILD_TARGET`.
+  The profile directory is named after `profile`, which therefore cannot be `dev`.
+*/
 treatment buildTarget[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
     var target: string,
-    var image: string,
+    var image: string = "rust:1.98-trixie",
     var arch: Arch,
-    var pre_commands: string = "",
+    var setup: string,
+    var package: string = "melodium",
     var cargo_args: string = "",
-    var environment_variables: StringMap,
-    var container_cpu: u32 = 6000,
-    var container_memory: u32 = 10000,
-    var container_storage: u32 = 20000,
+    var profile: string = "release",
+    var executable: string = "melodium",
+    var storage: u32 = 20000,
     var repository_url: string,
     var ref: string,
     var gitlab_project_id: string,
@@ -32,47 +35,138 @@ treatment buildTarget[cicd: CicdDispatchEngine](
   output completed: Block<void>
   output failed: Block<void>
 {
-    compile: simpleStep[dispatcher=cicd](
-        // Container/hostname-safe display name: the "compose" dispatch backend reuses this
-        // as a hostname (RFC 1123: no underscores), unlike the actual `--target` triple below.
-        name=|unwrap_or<string>(|replace(target, "_", "-"), target),
+    compile: sourceStep[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name=|format("build-{package}-{target}", |map([|entry("package", package), |entry("target", target)])),
+        description=|format("Build {package} for {target}", |map([|entry("package", package), |entry("target", target)])),
         image=image,
         arch=|wrap<Arch>(arch),
-        cpu=container_cpu,
-        memory=container_memory,
-        storage=container_storage,
-        variables=|wrap<StringMap>(environment_variables),
-        // `pre_commands` is a shell fragment ending in "&& " (or empty), spliced in before
-        // the clone/build sequence below; `set -x` makes every command in the script (in
-        // `pre_commands` too) echo to stderr as it runs.
-        commands=[
-            |command("sh", ["-c", |format(
-                ${{set -x; {pre_commands}git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && cargo build --package melodium --target {target} {cargo_args} --locked --release && mv target/{target}/release/melodium /mnt/data/melodium}},
-                |map([
-                    |entry("pre_commands", pre_commands),
-                    |entry("ref", ref),
-                    |entry("repository_url", repository_url),
-                    |entry("target", target),
-                    |entry("cargo_args", cargo_args)
-                ])
-            )])
-        ],
-        out_file=|wrap<string>("melodium"),
-        report=true,
-        gitlab=true,
+        storage=storage,
+        setup=setup,
+        script=|format(
+            ${{cargo build --package {package} --target {target} {cargo_args} --locked --profile {profile}
+mv target/{target}/{profile}/{executable} /mnt/data/{executable}
+}},
+            |map([
+                |entry("package", package),
+                |entry("target", target),
+                |entry("cargo_args", cargo_args),
+                |entry("profile", profile),
+                |entry("executable", executable)
+            ])
+        ),
+        out_file=|wrap<string>(executable),
+        repository_url=repository_url,
+        ref=ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
-        gitlab_ref=ref,
-        gitlab_pipeline_id=gitlab_pipeline_id,
-        log_service_response=true,
-        description=|format("Build target {target}", |entry("target", target))
+        gitlab_pipeline_id=gitlab_pipeline_id
     )
 
     Self.trigger -> compile.trigger,data -> Self.binary
-    compile.success -> Self.completed
+    compile.completed -> Self.completed
+    compile.failed ----> Self.failed
+}
 
-    compileFailure: one<void>()
-    compile.error  -> compileFailure.a
-    compile.failed -> compileFailure.b
-    compileFailure.value -> Self.failed
+/**
+  Builds the WebAssembly plugins of `packages` (space-separated names, without `-mel`) and gives them as `wasm.tar.gz`.
+
+  A package failing to build gets an empty file, as in the GitLab job.
+*/
+treatment buildWasmPackages[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var packages: string,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  output archive: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    compile: sourceStep[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name="build-wasm-packages",
+        description="Build packages for wasm32-unknown-unknown",
+        setup=${{rustup target add wasm32-unknown-unknown
+export CARGO_BUILD_TARGET=wasm32-unknown-unknown}},
+        script=|format(
+            ${{for PACKAGE in {packages}
+do
+  if cargo build --package "$PACKAGE"-mel --features plugin,mock --locked --release
+  then
+    echo "$PACKAGE" compiled
+  else
+    echo "$PACKAGE" failed
+    mkdir --parents target/wasm32-unknown-unknown/release
+    touch target/wasm32-unknown-unknown/release/"$PACKAGE"_mel.wasm
+  fi
+done
+tar --create --gzip --file /mnt/data/wasm.tar.gz target/wasm32-unknown-unknown/release/*_mel.wasm}},
+            |map([|entry("packages", packages)])
+        ),
+        out_file=|wrap<string>("wasm.tar.gz"),
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+
+    Self.trigger -> compile.trigger,data -> Self.archive
+    compile.completed -> Self.completed
+    compile.failed ----> Self.failed
+}
+
+/**
+  Builds the package repository from the WebAssembly plugins of `packages` received through `wasm` (as given by `buildWasmPackages`), and gives it as `repo.tar.gz`.
+*/
+treatment buildPackagesRepository[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var packages: string,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  input wasm: Stream<byte>
+  output archive: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    repository: sourceStepWithInput[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name="packages-repository",
+        description="Build packages repository",
+        cpu=2000,
+        memory=4000,
+        script=|format(
+            ${{tar --extract --gzip --file /mnt/data/wasm.tar.gz
+cargo build --package melodium-repository --features cargo --bin melodium-repository
+for PACKAGE in {packages}
+do
+  WASM=target/wasm32-unknown-unknown/release/"$PACKAGE"_mel.wasm
+  target/debug/melodium-repository /source/repo "$PACKAGE" /source/libs/"$PACKAGE"-mel/Cargo.toml "wasm32-unknown-unknown:real:$WASM:$(sha256sum "$WASM" | cut -d ' ' -f 1)"
+done
+tar --create --gzip --file /mnt/data/repo.tar.gz repo}},
+            |map([|entry("packages", packages)])
+        ),
+        in_file="wasm.tar.gz",
+        out_file=|wrap<string>("repo.tar.gz"),
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+
+    Self.trigger -> repository.trigger
+    Self.wasm ----> repository.data,result -> Self.archive
+    repository.completed -> Self.completed
+    repository.failed ----> Self.failed
 }

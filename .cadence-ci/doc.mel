@@ -1,0 +1,68 @@
+use cicd/runners::CicdDispatchEngine
+use root/source::sourceStepWithInput
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/ops/option::|wrap
+use work/resources/arch::Arch
+use work/resources/arch::|amd64
+
+/**
+  Builds the standard reference with the `x86_64-unknown-linux-gnu` executable received through `binary`, and gives it as `reference.tar.gz` (holding `reference/en`).
+*/
+treatment buildReference[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  input binary: Stream<byte>
+  output reference: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    reference: sourceStepWithInput[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name="doc-reference",
+        description="Build standard reference",
+        arch=|wrap<Arch>(|amd64()),
+        cpu=2000,
+        memory=4000,
+        storage=10000,
+        variables=|wrap<StringMap>(|map([
+            |entry("MELODIUM_DOC_TITLE", "Mélodium Standard Reference"),
+            |entry("MELODIUM_DOC_AUTHOR", "Quentin VIGNAUD")
+        ])),
+        setup=${{apt-get update
+apt-get install -y --no-install-recommends libasound2
+mkdir --parents /opt/bin
+curl -sSL https://repo.melodium.tech/tooling/mdbook/mdbook-v0.5.2-x86_64-unknown-linux-gnu.tar.bz2 | tar -xj --directory=/opt/bin
+curl -sSL https://repo.melodium.tech/tooling/mdbook-mermaid/mdbook-mermaid-v0.17.0-x86_64-unknown-linux-gnu.tar.bz2 | tar -xj --directory=/opt/bin
+mv /mnt/data/melodium /usr/local/bin/melodium
+chmod +x /usr/local/bin/melodium}},
+        script=${{melodium doc doc/
+mkdir doc/theme
+cp .gitlab/ci/head.hbs doc/theme/head.hbs
+cp .gitlab/ci/highlight.js doc/theme/highlight.js
+/opt/bin/mdbook-mermaid install doc/
+/opt/bin/mdbook build doc/
+mkdir reference
+mv doc/book reference/en
+tar --create --gzip --file /mnt/data/reference.tar.gz reference}},
+        in_file="melodium",
+        out_file=|wrap<string>("reference.tar.gz"),
+        repository_url=repository_url,
+        ref=ref,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+
+    Self.trigger -> reference.trigger
+    Self.binary --> reference.data,result -> Self.reference
+    reference.completed -> Self.completed
+    reference.failed ----> Self.failed
+}

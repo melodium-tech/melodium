@@ -1,0 +1,89 @@
+use cicd/naive::simpleStepWithInput
+use cicd/runners::CicdDispatchEngine
+use process/command::|command
+use std/data/map::Map
+use std/data/map::|entry as |secret_entry
+use std/data/map::|map as |secret_map
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/flow::one
+use std/ops/option::|wrap
+use std/secret::|locate
+use std/text/compose::|format
+use work/resources/arch::Arch
+use work/resources/arch::|amd64
+
+/**
+  Publishes the `directory` of the archive received through `archive` as `release_version` with rsync.
+
+  The destination is given by the environment variables `MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_SERVER`,
+  `_USER`, `_PASSWORD` and `_DIRECTORY` of the engine running the pipeline. They are sent by value to the
+  step, the password being given to `sshpass` as `SSHPASS` so it never appears in a command.
+*/
+treatment publishRelease[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var destination: string,
+    var directory: string,
+    var release_version: string,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  input archive: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    publish: simpleStepWithInput[dispatcher=cicd](
+        name=|format("publish-{directory}", |entry("directory", directory)),
+        image="debian:trixie",
+        arch=|wrap<Arch>(|amd64()),
+        cpu=500,
+        memory=500,
+        storage=5000,
+        secret_variables=|wrap<Map>(|secret_map([
+            |secret_entry<Option<Secret<string>>>("PUBLISH_SERVER", |locate<string>(|format("env:MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_SERVER", |entry("destination", destination)), "publish_server", "value", false)),
+            |secret_entry<Option<Secret<string>>>("PUBLISH_USER", |locate<string>(|format("env:MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_USER", |entry("destination", destination)), "publish_user", "value", false)),
+            |secret_entry<Option<Secret<string>>>("PUBLISH_DIRECTORY", |locate<string>(|format("env:MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_DIRECTORY", |entry("destination", destination)), "publish_directory", "value", false)),
+            |secret_entry<Option<Secret<string>>>("SSHPASS", |locate<string>(|format("env:MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_PASSWORD", |entry("destination", destination)), "publish_password", "value", false))
+        ])),
+        commands=[
+            |command("sh", ["-c", |format(
+                ${{set -ex
+apt-get update
+apt-get install -y rsync sshpass openssh-client
+mkdir /publish
+cd /publish
+tar --extract --file /mnt/data/archive
+mv "{directory}" "{release_version}"
+mkdir --parents ~/.ssh
+ssh-keyscan "$PUBLISH_SERVER" >> ~/.ssh/known_hosts
+sshpass -e rsync -a "{release_version}" "$PUBLISH_USER@$PUBLISH_SERVER:$PUBLISH_DIRECTORY"}},
+                |map([
+                    |entry("directory", directory),
+                    |entry("release_version", release_version)
+                ])
+            )])
+        ],
+        in_file="archive",
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_service_response=true,
+        description=|format("Publish {directory} of release {release_version}", |map([|entry("directory", directory), |entry("release_version", release_version)]))
+    )
+
+    Self.trigger -> publish.trigger
+    Self.archive -> publish.data
+    publish.success -> Self.completed
+
+    publishFailure: one<void>()
+    publish.error  -> publishFailure.a
+    publish.failed -> publishFailure.b
+    publishFailure.value -> Self.failed
+}
