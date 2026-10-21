@@ -1,6 +1,12 @@
 
 # Changelog
 
+## Unreleased
+
+- Giving `max_duration` of `simpleStep` and `simpleStepWithInput` (and their terminable variants) to their worker, which kept the default of one hour.
+- Adding `tags` to `simpleStep` and `simpleStepWithInput` (and their terminable variants), hints given with the worker request, such as `name=build`.
+- Raising the storage of the container of `simpleStep` and `simpleStepWithInput` (and their terminable variants) to the size of its `/mnt/data` volume when `out_storage` is larger, instead of having the request refused.
+
 ## [v0.11.0] (2026-10-15)
 
 - No longer depending on async-std, which is discontinued (#104).

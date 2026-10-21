@@ -137,6 +137,24 @@ fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
     }
 }
 
+/// Hostname of a container named `name`: the characters a hostname cannot hold
+/// (RFC 1123), such as `_`, become `-`, and leading or trailing `-` are removed.
+/// Names that already are valid hostnames are kept as they are.
+#[cfg(any(feature = "real", test))]
+fn hostname(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '.' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
+}
+
 #[cfg(feature = "real")]
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
     use crate::reporting::REPORTS_ENABLED;
@@ -240,7 +258,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     .map_err(|err| vec![err.to_string()])?,
             ),
             hostname: Some(
-                Hostname::new(container.name.clone()).map_err(|err| vec![err.to_string()])?,
+                Hostname::new(hostname(&container.name)).map_err(|err| vec![err.to_string()])?,
             ),
             image: Some(
                 Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
@@ -296,7 +314,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     .map_err(|err| vec![err.to_string()])?,
             ),
             hostname: Some(
-                Hostname::new(container.name.clone()).map_err(|err| vec![err.to_string()])?,
+                Hostname::new(hostname(&container.name)).map_err(|err| vec![err.to_string()])?,
             ),
             image: Some(
                 Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
@@ -913,5 +931,26 @@ mod needs_tests {
     #[test]
     fn host_is_known() {
         assert_ne!(Arch::host(), Arch::Unknown);
+    }
+}
+
+#[cfg(test)]
+mod hostname_tests {
+    use super::*;
+
+    #[test]
+    fn valid_names_are_kept() {
+        assert_eq!(hostname("postgres"), "postgres");
+        assert_eq!(hostname("build-x86-64.local"), "build-x86-64.local");
+    }
+
+    #[test]
+    fn invalid_characters_are_replaced() {
+        assert_eq!(
+            hostname("build_x86_64-unknown-linux-gnu"),
+            "build-x86-64-unknown-linux-gnu"
+        );
+        assert_eq!(hostname("_step_"), "step");
+        assert!(Hostname::new(hostname("test x86_64")).is_ok());
     }
 }
