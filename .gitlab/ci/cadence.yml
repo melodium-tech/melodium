@@ -7,6 +7,7 @@ include:
 .cadence-tests:
   stage: test
   rules:
+    - if: $CADENCE_FULL == "true"
     - if: $CADENCE == "true" && ($CI_COMMIT_TAG || $CI_COMMIT_REF_NAME == "master" || $TEST == "true")
   needs:
     - job: cadence:trigger

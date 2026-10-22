@@ -1,6 +1,8 @@
 
 .build-release:
   rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
     - if: $BUILD_RELEASE == "true"
       allow_failure: true
     - if: $TEST == "true"
@@ -11,12 +13,16 @@
 .build-testers:
   needs: []
   rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
     - if: $CI_COMMIT_REF_NAME == "master"
     - if: $TEST == "true"
     - if: ( $CI_COMMIT_TAG )
 
 .run-tests:
   rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
     - if: $CI_COMMIT_REF_NAME == "master"
     - if: $TEST == "true"
       allow_failure: true
@@ -24,11 +30,15 @@
 
 .check-builds:
   rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
     - if: $CI_COMMIT_REF_NAME == "master"
     - if: $CHECK == "true"
 
 .build-packages:
   rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
     - if: $CI_COMMIT_REF_NAME == "master"
     - if: $BUILD_PACKAGES == "true"
       allow_failure: true

@@ -15,8 +15,10 @@ include:
       melodium_api_token: $CADENCE_API_TOKEN
 
 # Rules here replace the ones of the component. The entrypoint is `main` on branches, `full` on
-# master, tags and when TEST is set, and `release` on tags when CADENCE_RELEASE is also set
-# (the GitLab jobs still publish releases).
+# master, tags and when TEST or CADENCE_FULL is set, and `release` on tags when CADENCE_RELEASE
+# is also set (the GitLab jobs still publish releases).
+# CADENCE_FULL runs `full` without the GitLab jobs it covers: only the release publishing jobs
+# and the tests run on the Cadence builds stay (`.gitlab/ci/cadence.yml`).
 # Programs only get the environment variables prefixed by `MELODIUM_SECRET_`, so the status
 # token and the publishing credentials are given under such names.
 cadence:trigger:
@@ -24,12 +26,12 @@ cadence:trigger:
   tags:
     - saas-linux-medium-amd64
   rules:
-    - if: $CADENCE != "true"
+    - if: $CADENCE != "true" && $CADENCE_FULL != "true"
       when: never
     - if: $CI_COMMIT_TAG && $CADENCE_RELEASE == "true"
       variables:
         CADENCE_ENTRYPOINT: release
-    - if: $CI_COMMIT_TAG || $CI_COMMIT_REF_NAME == "master" || $TEST == "true"
+    - if: $CI_COMMIT_TAG || $CI_COMMIT_REF_NAME == "master" || $TEST == "true" || $CADENCE_FULL == "true"
       variables:
         CADENCE_ENTRYPOINT: full
     - when: on_success

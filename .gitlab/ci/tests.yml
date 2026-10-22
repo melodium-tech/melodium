@@ -6,6 +6,10 @@ include:
 
 test:rust:unit_tests:
   stage: test
+  rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
+    - when: on_success
   extends:
     - .builder:linux:x86_64-unknown-linux-gnu
   needs: []
@@ -27,6 +31,8 @@ testers:rust:x86_64-unknown-linux-gnu:
     - .builder:linux:x86_64-unknown-linux-gnu
   # On every pipeline, the other platforms on master and tags.
   rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
     - when: on_success
   script:
     - cd tests/testers
@@ -271,6 +277,8 @@ test:melodium:x86_64-unknown-linux-gnu:
     - .service:postgresql
   # On every pipeline, the other platforms on master and tags.
   rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
     - when: on_success
   needs:
     - build:release:x86_64-unknown-linux-gnu

@@ -6,6 +6,8 @@ doc:melodium:reference:
   stage: doc
   image: rust:trixie
   rules:
+    - if: $CADENCE_FULL == "true"
+      when: never
     - allow_failure: true
   variables:
     MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
