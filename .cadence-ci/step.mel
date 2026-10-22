@@ -1,0 +1,217 @@
+use cicd/runners::CicdDispatchEngine
+use cicd/runners::CicdRunnerEngine
+use cicd/runners::setupRunner
+use cicd/runners::stopRunner
+use cicd/services::setServiceState
+use cicd/steps::stepOn
+use cicd/steps::stepOnWithInput
+use process/command::Command
+use process/environment::Environment
+use process/environment::|environment
+use process/environment::|with_secret_variables
+use regex::|replace
+use std/data/map::Map
+use std/data/map::|map as |secret_map
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/flow::close
+use std/flow::closeBlock
+use std/flow::merge
+use std/flow::one
+use std/ops/num::|div
+use std/ops/num::|saturating_add
+use std/ops/option::|unwrap_or
+use std/ops/option::|wrap
+use std/text/compose::|format
+use work/resources::|container
+use work/resources::|mount
+use work/resources::|volume
+use work/resources/arch::Arch
+
+/**
+  Runs `commands` in a container of `image`, on a worker tagged `name={name}`, and reports its state as `name` to GitLab.
+
+  Same as `cicd/naive::simpleStep`, which gives no tags and keeps the default `max_duration` of its worker.
+  `/mnt/data` is a volume of a tenth of `storage`, `out_file` naming the file of it sent through `data`.
+  `name` is also the hostname of the container with the "compose" location, so its underscores are replaced there.
+*/
+treatment containerStep[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var name: string,
+    var description: string,
+    var image: string,
+    var arch: Option<Arch> = _,
+    var cpu: u32 = 500,
+    var memory: u32 = 500,
+    var storage: u32 = 5000,
+    var max_duration: u32 = 3600,
+    var variables: Option<StringMap> = _,
+    var secret_variables: Option<Map> = _,
+    var commands: Vec<Command>,
+    var out_file: Option<string> = _,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  output data: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    setupRunner[dispatcher=cicd, runner=runner](
+        name=|unwrap_or<string>(|replace(name, "_", "-"), name),
+        cpu=100,
+        memory=500,
+        storage=|saturating_add<u32>(|div<u32>(storage, 10), 80),
+        arch=arch,
+        max_duration=max_duration,
+        volumes=[|volume("data", |div<u32>(storage, 10))],
+        containers=[
+            |container(|unwrap_or<string>(|replace(name, "_", "-"), name), memory, cpu, storage, arch, [|mount("data", "/mnt/data")], image, _)
+        ],
+        tags=[|format("name={name}", |entry("name", name))]
+    )
+    step: stepOn[runner=runner](
+        name=name,
+        executor_name=|wrap<string>(|unwrap_or<string>(|replace(name, "_", "-"), name)),
+        environment=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))),
+        commands=commands,
+        out_filesystem=|wrap<string>("data"),
+        out_file=out_file
+    )
+    stopRunner[runner=runner]()
+    report: setServiceState(
+        name=name,
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_response=true,
+        description=description
+    )
+    noCancel: closeBlock<void>()
+
+    Self.trigger -> setupRunner.trigger,ready -> step.trigger,finished -> stopRunner.trigger
+    step.success -> Self.completed
+
+    setupOrStepFailure: one<void>()
+    setupRunner.failed -> setupOrStepFailure.a
+    step.failed -------> setupOrStepFailure.b
+    failure: one<void>()
+    setupOrStepFailure.value -> failure.a
+    step.error --------------> failure.b
+    failure.value -> Self.failed
+
+    // Data is closed at once when the worker cannot be set up.
+    closeDataOnSetupFailure: close<byte>()
+    mergeData: merge<byte>()
+    setupRunner.failed -> closeDataOnSetupFailure.trigger,closed -> mergeData.a
+    step.data ----------------------------------------------------> mergeData.b,value -> Self.data
+
+    Self.trigger -> report.pending
+    step.started -> report.running
+    step.success -> report.success
+    step.error ---> report.error
+    setupOrStepFailure.value -> report.failed
+    Self.trigger -> noCancel.trigger,closed -> report.canceled
+}
+
+/**
+  Same as `containerStep`, with the data received through `data` written in `/mnt/data/{in_file}` before `commands` run.
+*/
+treatment containerStepWithInput[cicd: CicdDispatchEngine](
+    const gitlab_token: Secret<string>,
+    var name: string,
+    var description: string,
+    var image: string,
+    var arch: Option<Arch> = _,
+    var cpu: u32 = 500,
+    var memory: u32 = 500,
+    var storage: u32 = 5000,
+    var max_duration: u32 = 3600,
+    var variables: Option<StringMap> = _,
+    var secret_variables: Option<Map> = _,
+    var commands: Vec<Command>,
+    var in_file: string,
+    var out_file: Option<string> = _,
+    var ref: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input data: Stream<byte>
+  output result: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    setupRunner[dispatcher=cicd, runner=runner](
+        name=|unwrap_or<string>(|replace(name, "_", "-"), name),
+        cpu=100,
+        memory=500,
+        storage=|saturating_add<u32>(|div<u32>(storage, 10), 80),
+        arch=arch,
+        max_duration=max_duration,
+        volumes=[|volume("data", |div<u32>(storage, 10))],
+        containers=[
+            |container(|unwrap_or<string>(|replace(name, "_", "-"), name), memory, cpu, storage, arch, [|mount("data", "/mnt/data")], image, _)
+        ],
+        tags=[|format("name={name}", |entry("name", name))]
+    )
+    step: stepOnWithInput[runner=runner](
+        name=name,
+        executor_name=|wrap<string>(|unwrap_or<string>(|replace(name, "_", "-"), name)),
+        environment=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))),
+        commands=commands,
+        in_filesystem=|wrap<string>("data"),
+        in_file=|wrap<string>(in_file),
+        out_filesystem=|wrap<string>("data"),
+        out_file=out_file
+    )
+    stopRunner[runner=runner]()
+    report: setServiceState(
+        name=name,
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_response=true,
+        description=description
+    )
+    noCancel: closeBlock<void>()
+
+    Self.trigger -> setupRunner.trigger,ready -> step.trigger,finished -> stopRunner.trigger
+    Self.data -> step.data
+    step.success -> Self.completed
+
+    setupOrStepFailure: one<void>()
+    setupRunner.failed -> setupOrStepFailure.a
+    step.failed -------> setupOrStepFailure.b
+    failure: one<void>()
+    setupOrStepFailure.value -> failure.a
+    step.error --------------> failure.b
+    failure.value -> Self.failed
+
+    // Data is closed at once when the worker cannot be set up.
+    closeDataOnSetupFailure: close<byte>()
+    mergeData: merge<byte>()
+    setupRunner.failed -> closeDataOnSetupFailure.trigger,closed -> mergeData.a
+    step.data ----------------------------------------------------> mergeData.b,value -> Self.result
+
+    Self.trigger -> report.pending
+    step.started -> report.running
+    step.success -> report.success
+    step.error ---> report.error
+    setupOrStepFailure.value -> report.failed
+    Self.trigger -> noCancel.trigger,closed -> report.canceled
+}

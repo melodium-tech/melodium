@@ -171,8 +171,10 @@ apt-get install -y ca-certificates libasound2}},
     setupRunner[dispatcher=cicd, runner=runner](
         // Hostname-safe name, see `sourceStep`.
         name=|format("test-{target}", |entry("target", |unwrap_or<string>(|replace(target, "_", "-"), target))),
-        cpu=200, memory=200, storage=1500,
+        // Storage of the worker must exceed its volumes.
+        cpu=200, memory=200, storage=3500,
         arch=|wrap<Arch>(arch),
+        tags=[|format("name=test-{target}", |entry("target", target))],
         volumes=[|volume("binaries", 3000)],
         containers=[
             |container("test", 1000, 1000, 4000, |wrap<Arch>(arch), [|mount("binaries", "/mounted/binaries")], test_image, _)

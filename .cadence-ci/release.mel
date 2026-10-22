@@ -1,12 +1,11 @@
-use cicd/naive::simpleStepWithInput
 use cicd/runners::CicdDispatchEngine
 use process/command::|command
+use root/step::containerStepWithInput
 use std/data/map::Map
 use std/data/map::|entry as |secret_entry
 use std/data/map::|map as |secret_map
 use std/data/string_map::|entry
 use std/data/string_map::|map
-use std/flow::one
 use std/ops/option::|wrap
 use std/secret::|locate
 use std/text/compose::|format
@@ -35,13 +34,13 @@ treatment publishRelease[cicd: CicdDispatchEngine](
   output completed: Block<void>
   output failed: Block<void>
 {
-    publish: simpleStepWithInput[dispatcher=cicd](
+    publish: containerStepWithInput[cicd=cicd](
+        gitlab_token=gitlab_token,
         name=|format("publish-{directory}", |entry("directory", directory)),
+        description=|format("Publish {directory} of release {release_version}", |map([|entry("directory", directory), |entry("release_version", release_version)])),
         image="debian:trixie",
         arch=|wrap<Arch>(|amd64()),
-        cpu=500,
-        memory=500,
-        storage=5000,
+        storage=20000,
         secret_variables=|wrap<Map>(|secret_map([
             |secret_entry<Option<Secret<string>>>("PUBLISH_SERVER", |locate<string>(|format("env:MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_SERVER", |entry("destination", destination)), "publish_server", "value", false)),
             |secret_entry<Option<Secret<string>>>("PUBLISH_USER", |locate<string>(|format("env:MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_USER", |entry("destination", destination)), "publish_user", "value", false)),
@@ -67,23 +66,14 @@ sshpass -e rsync -a "{release_version}" "$PUBLISH_USER@$PUBLISH_SERVER:$PUBLISH_
             )])
         ],
         in_file="archive",
-        report=true,
-        gitlab=true,
-        gitlab_token=gitlab_token,
+        ref=ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
-        gitlab_ref=ref,
-        gitlab_pipeline_id=gitlab_pipeline_id,
-        log_service_response=true,
-        description=|format("Publish {directory} of release {release_version}", |map([|entry("directory", directory), |entry("release_version", release_version)]))
+        gitlab_pipeline_id=gitlab_pipeline_id
     )
 
     Self.trigger -> publish.trigger
     Self.archive -> publish.data
-    publish.success -> Self.completed
-
-    publishFailure: one<void>()
-    publish.error  -> publishFailure.a
-    publish.failed -> publishFailure.b
-    publishFailure.value -> Self.failed
+    publish.completed -> Self.completed
+    publish.failed ----> Self.failed
 }

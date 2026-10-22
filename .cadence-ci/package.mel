@@ -73,9 +73,11 @@ treatment packageAll[cicd: CicdDispatchEngine](
 
     setupRunner[dispatcher=cicd, runner=runner](
         name="packaging",
-        cpu=200, memory=200, storage=1500,
+        // Storage of the worker must exceed its volumes.
+        cpu=200, memory=200, storage=3500,
         arch=|wrap<Arch>(|amd64()),
         max_duration=14400,
+        tags=["name=packaging"],
         volumes=[|volume("binaries", 3000)],
         containers=[
             |container("package", 2000, 2000, 10000, |wrap<Arch>(|amd64()), [|mount("binaries", "/mounted/binaries")], "rust:1.98-trixie", _)

@@ -1,13 +1,10 @@
-use cicd/naive::simpleStep
-use cicd/naive::simpleStepWithInput
 use cicd/runners::CicdDispatchEngine
 use process/command::|command
-use regex::|replace
+use root/step::containerStep
+use root/step::containerStepWithInput
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
-use std/flow::one
-use std/ops/option::|unwrap_or
 use std/text/compose::|format
 use work/resources/arch::Arch
 
@@ -17,7 +14,6 @@ use work/resources/arch::Arch
   `setup` and `script` are shell lines run with `set -ex`: each command is echoed as it runs, and the
   first failing one stops the step. Files to give back are written in `/mnt/data`, `out_file` naming
   the one sent through `data`.
-  `name` is also the hostname of the container with the "compose" location, so its underscores are replaced.
 */
 treatment sourceStep[cicd: CicdDispatchEngine](
     const gitlab_token: Secret<string>,
@@ -44,8 +40,10 @@ treatment sourceStep[cicd: CicdDispatchEngine](
   output completed: Block<void>
   output failed: Block<void>
 {
-    step: simpleStep[dispatcher=cicd](
-        name=|unwrap_or<string>(|replace(name, "_", "-"), name),
+    step: containerStep[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name=name,
+        description=description,
         image=image,
         arch=arch,
         cpu=cpu,
@@ -71,24 +69,15 @@ cd /source
             )])
         ],
         out_file=out_file,
-        report=true,
-        gitlab=true,
-        gitlab_token=gitlab_token,
+        ref=ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
-        gitlab_ref=ref,
-        gitlab_pipeline_id=gitlab_pipeline_id,
-        log_service_response=true,
-        description=description
+        gitlab_pipeline_id=gitlab_pipeline_id
     )
 
     Self.trigger -> step.trigger,data -> Self.data
-    step.success -> Self.completed
-
-    stepFailure: one<void>()
-    step.error  -> stepFailure.a
-    step.failed -> stepFailure.b
-    stepFailure.value -> Self.failed
+    step.completed -> Self.completed
+    step.failed ----> Self.failed
 }
 
 /**
@@ -121,8 +110,10 @@ treatment sourceStepWithInput[cicd: CicdDispatchEngine](
   output completed: Block<void>
   output failed: Block<void>
 {
-    step: simpleStepWithInput[dispatcher=cicd](
-        name=|unwrap_or<string>(|replace(name, "_", "-"), name),
+    step: containerStepWithInput[cicd=cicd](
+        gitlab_token=gitlab_token,
+        name=name,
+        description=description,
         image=image,
         arch=arch,
         cpu=cpu,
@@ -149,23 +140,14 @@ cd /source
         ],
         in_file=in_file,
         out_file=out_file,
-        report=true,
-        gitlab=true,
-        gitlab_token=gitlab_token,
+        ref=ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
-        gitlab_ref=ref,
-        gitlab_pipeline_id=gitlab_pipeline_id,
-        log_service_response=true,
-        description=description
+        gitlab_pipeline_id=gitlab_pipeline_id
     )
 
     Self.trigger -> step.trigger
-    Self.data ----> step.data,data -> Self.result
-    step.success -> Self.completed
-
-    stepFailure: one<void>()
-    step.error  -> stepFailure.a
-    step.failed -> stepFailure.b
-    stepFailure.value -> Self.failed
+    Self.data ----> step.data,result -> Self.result
+    step.completed -> Self.completed
+    step.failed ----> Self.failed
 }
