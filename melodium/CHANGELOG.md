@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Adding the `api-id:<audience>` secret source, giving the identity token of the Cadence.CI run for `audience`, such as `vault::Vault(auth="jwt", jwt="api-id:vault")`; `api-id` is reserved as `api` is (#153).
 - Adding the `api:` secret source, in builds with the `distribution` feature: programs run by Cadence.CI, with `melodium run` or `melodium dist`, read the secrets stored for their organization, such as `api:prod/db-password`, from the API with the token of their run (`MELODIUM_API_URL`, `MELODIUM_API_TOKEN`, `MELODIUM_RUN_ID`). Elsewhere these secrets are refused with the reason, and `api` is reserved: a model registering it fails the launch (D0252). `secret_sources` gives the sources given to engines (#150).
 
 ## [v0.11.0] (2026-10-15)

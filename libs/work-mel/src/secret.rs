@@ -1,5 +1,5 @@
 //! Secrets stored on Cadence.CI, given to the programs it runs through `api:<name>` locators,
-//! and stored by them.
+//! and stored by them, and identity tokens of runs, given through `api-id:<audience>` locators.
 
 use async_trait::async_trait;
 use core::fmt::{Debug, Formatter};
@@ -12,11 +12,17 @@ use melodium_core::*;
 use melodium_macro::mel_treatment;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
 
 /// Scheme of the locators of secrets stored on Cadence.CI.
 pub const SCHEME: &str = "api";
+/// Scheme of the locators of the identity tokens of runs.
+pub const IDENTITY_SCHEME: &str = "api-id";
+
+/// Time left to an identity token below which a new one is requested.
+const IDENTITY_TOKEN_MARGIN: Duration = Duration::from_secs(30);
 
 /// Longest secret name the API takes.
 const MAX_NAME_LENGTH: usize = 200;
@@ -86,8 +92,11 @@ impl Api {
 /// Its secrets are never plainly revealed: a program only gets them as secrets, revealed by
 /// the elements using them.
 pub struct ApiSource {
+    /// How to reach the API, or what is missing to.
     api: Result<Api, String>,
     cache: Mutex<HashMap<String, Zeroizing<Vec<u8>>>>,
+    /// Identity tokens, by audience, with the instant they expire.
+    tokens: Mutex<HashMap<String, (Zeroizing<String>, SystemTime)>>,
 }
 
 impl ApiSource {
@@ -104,17 +113,14 @@ impl ApiSource {
     ///
     /// Elsewhere, it refuses every secret, telling what is missing.
     pub fn from_environment() -> Arc<Self> {
-        Self::with(Api::from_environment().map_err(|problem| {
-            format!(
-                "'{SCHEME}:' secrets are only given to programs run by Cadence.CI, and {problem}"
-            )
-        }))
+        Self::with(Api::from_environment())
     }
 
     fn with(api: Result<Api, String>) -> Arc<Self> {
         let source = Arc::new(Self {
             api,
             cache: Mutex::new(HashMap::new()),
+            tokens: Mutex::new(HashMap::new()),
         });
         register_wipe(Arc::downgrade(&source) as Weak<dyn Wipe>);
         let mut sources = SOURCES.lock().unwrap_or_else(PoisonError::into_inner);
@@ -148,7 +154,11 @@ impl SecretSource for ApiSource {
     }
 
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
-        let api = self.api.as_ref().map_err(Clone::clone)?;
+        let api = self.api.as_ref().map_err(|problem| {
+            format!(
+                "'{SCHEME}:' secrets are only given to programs run by Cadence.CI, and {problem}"
+            )
+        })?;
         check_name(path)?;
         let as_bytes = match datatype {
             DataType::String => false,
@@ -195,14 +205,107 @@ impl SecretSource for ApiSource {
 impl Wipe for ApiSource {
     fn wipe(&self) -> bool {
         let mut cache = self.cache.lock().unwrap_or_else(PoisonError::into_inner);
-        let wiped = !cache.is_empty();
+        let mut tokens = self.tokens.lock().unwrap_or_else(PoisonError::into_inner);
+        let wiped = !cache.is_empty() || !tokens.is_empty();
         // Values overwrite themselves when dropped.
         cache.clear();
+        tokens.clear();
         if wiped {
             count_wiped();
         }
         wiped
     }
+}
+
+/// `api-id:<audience>` source, giving the OIDC identity token of the run for `audience`,
+/// such as `api-id:vault`, configured as `api:`.
+///
+/// Cadence.CI signs these tokens for each run, valid a few minutes, so that clouds and Vault
+/// trusting Cadence.CI let programs in without long-lived keys. A token is kept until shortly
+/// before it expires, then a new one is requested; tokens are wiped when the engine ends, and
+/// before the process exits.
+///
+/// Its secrets are never plainly revealed.
+#[derive(Debug)]
+pub struct ApiIdentitySource(Arc<ApiSource>);
+
+impl ApiIdentitySource {
+    /// Source of identity tokens, reaching the API as `source` does.
+    pub fn new(source: &Arc<ApiSource>) -> Arc<Self> {
+        Arc::new(Self(Arc::clone(source)))
+    }
+}
+
+#[async_trait]
+impl SecretSource for ApiIdentitySource {
+    fn plain_reveal(&self) -> bool {
+        false
+    }
+
+    async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
+        let source = &self.0;
+        let api = source.api.as_ref().map_err(|problem| {
+            format!(
+                "'{IDENTITY_SCHEME}:' tokens are only given to programs run by Cadence.CI, and {problem}"
+            )
+        })?;
+        if datatype != &DataType::String {
+            return Err(format!(
+                "identity tokens are given as string, not as {datatype}"
+            ));
+        }
+        if path.is_empty() {
+            return Err(format!(
+                "identity tokens need an audience, as in '{IDENTITY_SCHEME}:vault'"
+            ));
+        }
+
+        let renew_at = SystemTime::now() + IDENTITY_TOKEN_MARGIN;
+        {
+            let mut tokens = source.tokens.lock().unwrap_or_else(PoisonError::into_inner);
+            // The token overwrites itself when dropped.
+            tokens.retain(|_, (_, expires)| *expires > renew_at);
+            if let Some((token, _)) = tokens.get(path) {
+                return Ok(Value::String(token.to_string()));
+            }
+        }
+
+        let token = fetch_identity_token(api, path).await?;
+        // A token whose expiry cannot be read is not kept.
+        if let Some(expires) = expiry(&token).filter(|expires| *expires > renew_at) {
+            source
+                .tokens
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .insert(path.to_string(), (token.clone(), expires));
+        }
+        Ok(Value::String(token.to_string()))
+    }
+
+    fn shutdown(&self) {
+        self.0.wipe();
+    }
+}
+
+/// Gives the instant `token`, a JSON Web Token, expires, from its `exp` claim.
+#[cfg(feature = "real")]
+fn expiry(token: &str) -> Option<SystemTime> {
+    use base64::Engine;
+
+    let payload = token.split('.').nth(1)?;
+    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload.trim_end_matches('='))
+        .ok()?;
+    let expires = serde_json::from_slice::<serde_json::Value>(&payload)
+        .ok()?
+        .get("exp")?
+        .as_u64()?;
+    SystemTime::UNIX_EPOCH.checked_add(Duration::from_secs(expires))
+}
+
+#[cfg(feature = "mock")]
+fn expiry(_token: &str) -> Option<SystemTime> {
+    None
 }
 
 // The token and the values are never shown.
@@ -390,6 +493,51 @@ async fn put(api: &Api, name: &str, value: Zeroizing<Vec<u8>>) -> Result<(), Str
 async fn put(_api: &Api, name: &str, _value: Zeroizing<Vec<u8>>) -> Result<(), String> {
     Err(format!(
         "secret '{name}' cannot be stored on Cadence.CI in this build"
+    ))
+}
+
+/// Requests an identity token of the run for `audience` from the API.
+#[cfg(feature = "real")]
+async fn fetch_identity_token(api: &Api, audience: &str) -> Result<Zeroizing<String>, String> {
+    use async_compat::Compat;
+
+    let request = crate::http::CLIENT
+        .as_ref()
+        .map_err(Clone::clone)?
+        .get(format!(
+            "{}/execution/run/{}/id-token",
+            api.url.trim_end_matches('/'),
+            api.run_id
+        ))
+        .query(&[("audience", audience)])
+        .bearer_auth(api.token.as_str());
+
+    // The HTTP client runs on Tokio.
+    let (status, body) = Compat::new(async {
+        let response = request.send().await?;
+        let status = response.status();
+        response.bytes().await.map(|body| (status, body))
+    })
+    .await
+    .map_err(|err| format!("Cadence.CI cannot be reached: {err}"))?;
+    let content = Zeroizing::new(body.to_vec());
+    if let Ok(mut body) = body.try_into_mut() {
+        body.as_mut().zeroize();
+    }
+
+    if !status.is_success() {
+        return Err(refusal(status, &content));
+    }
+    match std::str::from_utf8(&content).map(str::trim) {
+        Ok(token) if !token.is_empty() => Ok(Zeroizing::new(token.to_string())),
+        _ => Err("Cadence.CI gave no identity token".to_string()),
+    }
+}
+
+#[cfg(feature = "mock")]
+async fn fetch_identity_token(_api: &Api, audience: &str) -> Result<Zeroizing<String>, String> {
+    Err(format!(
+        "identity tokens for '{audience}' cannot be requested from Cadence.CI in this build"
     ))
 }
 

@@ -29,14 +29,15 @@ use std::sync::{Arc, Weak};
 ///
 /// - `address`: address of the server, such as `https://vault.example.com:8200`.
 /// - `source`: name of the source, the scheme of locators (`vault` by default); two models
-/// with the same source, or a source named `env`, `file` or `api`, make the launch fail.
+/// with the same source, or a source named `env`, `file`, `api` or `api-id`, make the launch fail.
 /// - `namespace`: namespace to work in, if any.
 ///
 /// Authentication is chosen by `auth`:
 /// - `token`: uses `token` as client token.
 /// - `approle`: logs in with `role_id` and `secret_id`.
 /// - `kubernetes`: logs in as `role` with the service account token `kubernetes_token`.
-/// - `jwt`: logs in as `role` with the `jwt` token, such as a GitLab CI ID token.
+/// - `jwt`: logs in as `role` with the `jwt` token, such as a GitLab CI ID token, or the
+/// identity token of a Cadence.CI run, `jwt="api-id:vault"` for the `vault` audience.
 /// - `github`: logs in as `role` with a GitHub Actions OIDC token, requested for
 /// the `github_audience` audience using `github_token`.
 ///

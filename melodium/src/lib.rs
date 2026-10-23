@@ -321,16 +321,21 @@ pub fn load_file_force_entrypoint(
 
 /// Secret sources given to the engines of this build, besides `env` and `file`.
 ///
-/// With distribution, `api` reads the secrets stored on Cadence.CI, on its workers. Elsewhere
-/// it refuses them, telling why, and the scheme stays reserved: no model can register it.
+/// With distribution, `api` reads the secrets stored on Cadence.CI, and `api-id` gives the
+/// identity tokens of the run, on its workers. Elsewhere they refuse their secrets, telling
+/// why, and both schemes stay reserved: no model can register them.
 pub fn secret_sources() -> Vec<(String, Arc<dyn SecretSource>)> {
     #[allow(unused_mut)]
     let mut sources: Vec<(String, Arc<dyn SecretSource>)> = Vec::new();
     #[cfg(feature = "distribution")]
-    sources.push((
-        work_mel::secret::SCHEME.to_string(),
-        work_mel::secret::ApiSource::from_environment(),
-    ));
+    {
+        let source = work_mel::secret::ApiSource::from_environment();
+        sources.push((
+            work_mel::secret::IDENTITY_SCHEME.to_string(),
+            work_mel::secret::ApiIdentitySource::new(&source),
+        ));
+        sources.push((work_mel::secret::SCHEME.to_string(), source));
+    }
     sources
 }
 
