@@ -1,11 +1,15 @@
-//! Secrets stored on Cadence.CI, given to the programs it runs through `api:<name>` locators.
+//! Secrets stored on Cadence.CI, given to the programs it runs through `api:<name>` locators,
+//! and stored by them.
 
 use async_trait::async_trait;
 use core::fmt::{Debug, Formatter};
 use melodium_core::common::descriptor::DataType;
 use melodium_core::common::executive::{
-    count_wiped, register_wipe, PackedArray, SecretSource, Value, Wipe,
+    count_wiped, register_wipe, PackedArray, Secret as ExecutiveSecret, SecretSource,
+    SecretsAccess, Wipe,
 };
+use melodium_core::*;
+use melodium_macro::mel_treatment;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 use uuid::Uuid;
@@ -20,11 +24,53 @@ const MAX_NAME_LENGTH: usize = 200;
 #[cfg(feature = "real")]
 const MAX_REASON_LENGTH: usize = 300;
 
-/// How the source reaches the API.
+/// Sources alive in this process, whose cached values become stale when a secret is stored.
+static SOURCES: Mutex<Vec<Weak<ApiSource>>> = Mutex::new(Vec::new());
+
+/// How secrets are read and stored through the API.
 struct Api {
     url: String,
     token: Zeroizing<String>,
     run_id: Uuid,
+}
+
+impl Api {
+    /// Reaches the API as configured on Cadence.CI workers, or tells what is missing.
+    fn from_environment() -> Result<Self, String> {
+        let url = std::env::var("MELODIUM_API_URL").ok();
+        let token = std::env::var("MELODIUM_API_TOKEN").ok().map(Zeroizing::new);
+        let run_id = std::env::var("MELODIUM_RUN_ID").ok();
+        match (url, token, run_id) {
+            (Some(url), Some(token), Some(run_id)) => Uuid::parse_str(&run_id)
+                .map(|run_id| Api { url, token, run_id })
+                .map_err(|_| "MELODIUM_RUN_ID is not a run identifier".to_string()),
+            (url, token, run_id) => {
+                let missing = [
+                    ("MELODIUM_API_URL", url.is_none()),
+                    ("MELODIUM_API_TOKEN", token.is_none()),
+                    ("MELODIUM_RUN_ID", run_id.is_none()),
+                ]
+                .into_iter()
+                .filter_map(|(variable, missing)| missing.then_some(variable))
+                .collect::<Vec<_>>();
+                Err(format!(
+                    "{} {} not set",
+                    missing.join(", "),
+                    if missing.len() > 1 { "are" } else { "is" }
+                ))
+            }
+        }
+    }
+
+    /// URL of the secret `name` of the run.
+    #[cfg(feature = "real")]
+    fn secret_url(&self, name: &str) -> String {
+        format!(
+            "{}/execution/run/{}/secret/{name}",
+            self.url.trim_end_matches('/'),
+            self.run_id
+        )
+    }
 }
 
 /// `api:<name>` source, giving the secret `name` stored on Cadence.CI to the run reading it.
@@ -58,30 +104,11 @@ impl ApiSource {
     ///
     /// Elsewhere, it refuses every secret, telling what is missing.
     pub fn from_environment() -> Arc<Self> {
-        let url = std::env::var("MELODIUM_API_URL").ok();
-        let token = std::env::var("MELODIUM_API_TOKEN").ok().map(Zeroizing::new);
-        let run_id = std::env::var("MELODIUM_RUN_ID").ok();
-        let api = match (url, token, run_id) {
-            (Some(url), Some(token), Some(run_id)) => Uuid::parse_str(&run_id)
-                .map(|run_id| Api { url, token, run_id })
-                .map_err(|_| "MELODIUM_RUN_ID is not a run identifier".to_string()),
-            (url, token, run_id) => {
-                let missing = [
-                    ("MELODIUM_API_URL", url.is_none()),
-                    ("MELODIUM_API_TOKEN", token.is_none()),
-                    ("MELODIUM_RUN_ID", run_id.is_none()),
-                ]
-                .into_iter()
-                .filter_map(|(variable, missing)| missing.then_some(variable))
-                .collect::<Vec<_>>();
-                Err(format!(
-                    "'{SCHEME}:' secrets are only given to programs run by Cadence.CI, and {} {} not set",
-                    missing.join(", "),
-                    if missing.len() > 1 { "are" } else { "is" }
-                ))
-            }
-        };
-        Self::with(api)
+        Self::with(Api::from_environment().map_err(|problem| {
+            format!(
+                "'{SCHEME}:' secrets are only given to programs run by Cadence.CI, and {problem}"
+            )
+        }))
     }
 
     fn with(api: Result<Api, String>) -> Arc<Self> {
@@ -90,7 +117,27 @@ impl ApiSource {
             cache: Mutex::new(HashMap::new()),
         });
         register_wipe(Arc::downgrade(&source) as Weak<dyn Wipe>);
+        let mut sources = SOURCES.lock().unwrap_or_else(PoisonError::into_inner);
+        sources.retain(|source| source.strong_count() > 0);
+        sources.push(Arc::downgrade(&source));
         source
+    }
+
+    /// Forgets the value of `name` kept by every source, once a new one is stored.
+    fn forget(name: &str) {
+        for source in SOURCES
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .filter_map(Weak::upgrade)
+        {
+            // The value overwrites itself when dropped.
+            source
+                .cache
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(name);
+        }
     }
 }
 
@@ -188,20 +235,173 @@ fn check_name(name: &str) -> Result<(), String> {
     }
 }
 
+/// Stores a secret on Cadence.CI, for later runs to read it through `api:<name>`.
+///
+/// The secret received through `secret` is revealed only to be sent to Cadence.CI, as the
+/// secret `name` of the organization of the run, as a new version when it already exists.
+/// Names are made of letters, digits, `_`, `.` and `-`, in parts separated by `/`.
+///
+/// Only programs run by Cadence.CI store secrets, when the rules of their organization allow
+/// it: a rule letting runs write must match `name`, and public runs never store any.
+/// Store credentials a program produces and later runs need, such as a generated database
+/// password or the kubeconfig of a cluster it created, rather than putting them in artifacts.
+///
+/// `completed` is emitted once the secret is stored. Otherwise `failed` is emitted, and `error`
+/// gives the reason, such as the rule refusing it.
+#[mel_treatment(
+    input secret Block<Secret<string>>
+    output completed Block<void>
+    output failed Block<void>
+    output error Block<string>
+    secrets_access
+)]
+pub async fn store(name: string) {
+    if let Ok(Value::Secret(received)) = secret.recv_one().await {
+        match store_secret(&secrets_access, &name, &received, false).await {
+            Ok(()) => {
+                let _ = completed.send_one(().into()).await;
+            }
+            Err(err) => {
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.into()).await;
+            }
+        }
+    }
+}
+
+/// Stores a binary secret on Cadence.CI, for later runs to read it through `api:<name>`.
+///
+/// Same as `store`, for a `Secret<Vec<byte>>`, such as a key file.
+#[mel_treatment(
+    input secret Block<Secret<Vec<byte>>>
+    output completed Block<void>
+    output failed Block<void>
+    output error Block<string>
+    secrets_access
+)]
+pub async fn store_bytes(name: string) {
+    if let Ok(Value::Secret(received)) = secret.recv_one().await {
+        match store_secret(&secrets_access, &name, &received, true).await {
+            Ok(()) => {
+                let _ = completed.send_one(().into()).await;
+            }
+            Err(err) => {
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.into()).await;
+            }
+        }
+    }
+}
+
+/// Stores `secret` as `name`, revealing it only to send it, giving why it could not be.
+async fn store_secret(
+    access: &SecretsAccess,
+    name: &str,
+    secret: &ExecutiveSecret,
+    bytes: bool,
+) -> Result<(), String> {
+    let api = Api::from_environment().map_err(|problem| {
+        format!("secrets are only stored on Cadence.CI by the programs it runs, and {problem}")
+    })?;
+    check_name(name)?;
+    let value = if bytes {
+        access
+            .reveal_bytes(secret, |value| Zeroizing::new(value.to_vec()))
+            .await
+    } else {
+        access
+            .reveal_str(secret, |value| Zeroizing::new(value.as_bytes().to_vec()))
+            .await
+    }
+    .map_err(|err| format!("secret {secret}: {err}"))?;
+
+    put(&api, name, value).await?;
+    ApiSource::forget(name);
+    Ok(())
+}
+
+/// Describes a refusal of the API, from its status and body.
+#[cfg(feature = "real")]
+fn refusal(status: reqwest::StatusCode, body: &[u8]) -> String {
+    // The API gives the reason of a refusal, never a value. Proxies in between can answer
+    // whole pages instead.
+    let mut reason = String::from_utf8_lossy(body)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if let Some((cut, _)) = reason.char_indices().nth(MAX_REASON_LENGTH) {
+        reason.truncate(cut);
+        reason.push('…');
+    }
+    if reason.is_empty() {
+        format!("Cadence.CI answered {status}")
+    } else {
+        format!("Cadence.CI answered {status}: {reason}")
+    }
+}
+
+/// Sends `value` to the API, as the new value of the secret `name`.
+#[cfg(feature = "real")]
+async fn put(api: &Api, name: &str, value: Zeroizing<Vec<u8>>) -> Result<(), String> {
+    use async_compat::Compat;
+    use reqwest::header::CONTENT_TYPE;
+
+    let client = crate::http::CLIENT.as_ref().map_err(Clone::clone)?;
+    // Held apart, to be overwritten once sent.
+    let body = bytes::Bytes::from(value.to_vec());
+    drop(value);
+
+    let mut result = Err(String::new());
+    // A conflict tells someone else created the secret meanwhile: storing again makes a new
+    // version of it.
+    for _ in 0..2 {
+        let request = client
+            .put(api.secret_url(name))
+            .bearer_auth(api.token.as_str())
+            .header(CONTENT_TYPE, "application/octet-stream")
+            .body(body.clone());
+        // The HTTP client runs on Tokio.
+        result = Compat::new(async {
+            let response = request.send().await?;
+            let status = response.status();
+            response.bytes().await.map(|answer| (status, answer))
+        })
+        .await
+        .map_err(|err| format!("Cadence.CI cannot be reached: {err}"))
+        .and_then(|(status, answer)| {
+            if status.is_success() {
+                Ok(())
+            } else {
+                Err(refusal(status, &answer))
+            }
+        });
+        if !matches!(&result, Err(error) if error.starts_with("Cadence.CI answered 409")) {
+            break;
+        }
+    }
+
+    if let Ok(mut body) = body.try_into_mut() {
+        body.as_mut().zeroize();
+    }
+    result
+}
+
+#[cfg(feature = "mock")]
+async fn put(_api: &Api, name: &str, _value: Zeroizing<Vec<u8>>) -> Result<(), String> {
+    Err(format!(
+        "secret '{name}' cannot be stored on Cadence.CI in this build"
+    ))
+}
+
 /// Reads the value of the secret `name` from the API.
 #[cfg(feature = "real")]
 async fn fetch(api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
     use async_compat::Compat;
 
-    let url = format!(
-        "{}/execution/run/{}/secret/{name}",
-        api.url.trim_end_matches('/'),
-        api.run_id
-    );
     let request = crate::http::CLIENT
         .as_ref()
         .map_err(Clone::clone)?
-        .get(url)
+        .get(api.secret_url(name))
         .bearer_auth(api.token.as_str());
 
     // The HTTP client runs on Tokio.
@@ -220,21 +420,7 @@ async fn fetch(api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
     if status.is_success() {
         Ok(content)
     } else {
-        // The API gives the reason of a refusal, never a value. Proxies in between can
-        // answer whole pages instead.
-        let mut reason = String::from_utf8_lossy(&content)
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
-        if let Some((cut, _)) = reason.char_indices().nth(MAX_REASON_LENGTH) {
-            reason.truncate(cut);
-            reason.push('…');
-        }
-        if reason.is_empty() {
-            Err(format!("Cadence.CI answered {status}"))
-        } else {
-            Err(format!("Cadence.CI answered {status}: {reason}"))
-        }
+        Err(refusal(status, &content))
     }
 }
 
@@ -243,4 +429,30 @@ async fn fetch(_api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
     Err(format!(
         "secret '{name}' cannot be read from Cadence.CI in this build"
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stored_secrets_are_forgotten_by_every_source() {
+        let run_id = Uuid::new_v4();
+        let sources = [
+            ApiSource::new("http://127.0.0.1:1".to_string(), String::new(), run_id),
+            ApiSource::new("http://127.0.0.1:1".to_string(), String::new(), run_id),
+        ];
+        for source in &sources {
+            let mut cache = source.cache.lock().unwrap();
+            cache.insert("stored".to_string(), Zeroizing::new(b"old".to_vec()));
+            cache.insert("other".to_string(), Zeroizing::new(b"kept".to_vec()));
+        }
+
+        ApiSource::forget("stored");
+        for source in &sources {
+            let cache = source.cache.lock().unwrap();
+            assert!(!cache.contains_key("stored"));
+            assert!(cache.contains_key("other"));
+        }
+    }
 }

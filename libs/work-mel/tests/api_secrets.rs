@@ -214,6 +214,6 @@ fn secrets_are_refused_outside_cadence_ci() {
         smol::block_on(
             ApiSource::from_environment().resolve("prod/db-password", &DataType::String)
         ),
-        Err("MELODIUM_RUN_ID is not a run identifier".to_string())
+        Err("'api:' secrets are only given to programs run by Cadence.CI, and MELODIUM_RUN_ID is not a run identifier".to_string())
     );
 }

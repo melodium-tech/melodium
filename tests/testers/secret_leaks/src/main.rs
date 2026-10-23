@@ -24,6 +24,7 @@ const HIDDEN: &str = "hidden-leak-sentinel";
 const SHOWN: &str = "shown-leak-sentinel";
 const API_TOKEN: &str = "api-token-leak-sentinel";
 const STORED: &str = "stored-leak-sentinel";
+const WRITTEN: &str = "written-leak-sentinel";
 const RUN_ID: &str = "14014014-0140-0140-0140-140140140140";
 
 fn directory(name: &str) -> PathBuf {
@@ -159,6 +160,7 @@ fn secret_values_never_appear_in_run_outputs() {
         .arg("--directory")
         .arg(&directory)
         .env("MELODIUM_SECRET_LEAKS_HIDDEN", HIDDEN)
+        .env("MELODIUM_SECRET_LEAKS_WRITTEN", WRITTEN)
         .env("MELODIUM_API_URL", &address)
         .env("MELODIUM_API_TOKEN", API_TOKEN)
         .env("MELODIUM_RUN_ID", RUN_ID)
@@ -199,12 +201,30 @@ fn secret_values_never_appear_in_run_outputs() {
     assert!(targets
         .iter()
         .any(|target| target.ends_with("/program/details")));
+    // The written secret only goes to Cadence.CI.
+    let writes: Vec<&Received> = requests
+        .iter()
+        .filter(|request| request.target.starts_with("PUT /execution/run/"))
+        .collect();
+    assert_eq!(writes.len(), 1, "{:?}", targets);
+    assert_eq!(
+        writes[0].target,
+        format!("PUT /execution/run/{RUN_ID}/secret/leaks/written")
+    );
+    assert_eq!(writes[0].body, WRITTEN);
+    let requests: Vec<&Received> = requests
+        .iter()
+        .filter(|request| !request.target.starts_with("PUT /execution/run/"))
+        .collect();
+
     let debug_uploads: Vec<&Received> = requests
         .iter()
+        .copied()
         .filter(|request| request.body.contains("debug/debug_"))
         .collect();
     let other_requests: Vec<&Received> = requests
         .iter()
+        .copied()
         .filter(|request| !request.body.contains("debug/debug_"))
         .collect();
     assert!(!debug_uploads.is_empty(), "{:?}", targets);
@@ -212,7 +232,7 @@ fn secret_values_never_appear_in_run_outputs() {
         .iter()
         .any(|request| request.body.contains("logs/logs_")));
 
-    for value in [HIDDEN, STORED, API_TOKEN] {
+    for value in [HIDDEN, STORED, WRITTEN, API_TOKEN] {
         assert!(!stdout.contains(value));
         assert!(!stderr.contains(value));
         assert!(!logs.contains(value), "{}", logs);
@@ -239,7 +259,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
     std::fs::create_dir_all(&package).unwrap();
     std::fs::write(
         package.join("Compo.toml"),
-        "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.11.0\"\nprocess = \"0.11.0\"\nfs = \"0.11.0\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
+        "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.11.0\"\nprocess = \"0.11.0\"\nfs = \"0.11.0\"\nwork = \"0.11.0\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
     )
     .unwrap();
     // The same program without the header of standalone files.
@@ -257,6 +277,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
         .arg(&package)
         .arg(&jeu)
         .env("MELODIUM_SECRET_LEAKS_HIDDEN", HIDDEN)
+        .env("MELODIUM_SECRET_LEAKS_WRITTEN", WRITTEN)
         .output()
         .unwrap();
     assert!(
@@ -302,7 +323,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
         let content = std::fs::read(&file).unwrap();
         let content = String::from_utf8_lossy(&content);
         documented |= content.contains("MELODIUM_SECRET_LEAKS_HIDDEN");
-        for value in [HIDDEN, SHOWN, STORED] {
+        for value in [HIDDEN, SHOWN, STORED, WRITTEN] {
             assert!(!content.contains(value), "{}", file.display());
         }
     }

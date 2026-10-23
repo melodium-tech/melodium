@@ -23,6 +23,7 @@ async-fs = "2.2"
 async-process = { version = "2.5", optional = true }
 async-trait = "0.1.71"
 async-walkdir = "2.0"
+bytes = { version = "1.10", optional = true }
 futures = "0.3.28"
 std-mel = { path = "../std-mel", version = "0.11.0" }
 fs-mel = { path = "../fs-mel", version = "0.11.0" }
@@ -53,7 +54,7 @@ smol = "2.0"
 default = []
 mock = []
 plugin = []
-real = ["async-compat", "async-process", "smol"]
+real = ["async-compat", "async-process", "bytes", "smol"]
 kubernetes = ["real", "kube", "k8s-openapi", "tokio"]
 "docs.rs" = ["mock", "std-mel/docs.rs", "fs-mel/docs.rs", "net-mel/docs.rs", "process-mel/docs.rs"]
 
