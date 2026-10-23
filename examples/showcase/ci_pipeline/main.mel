@@ -267,6 +267,7 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
                     |entry("POSTGRES_PASSWORD", "ci"),
                     |entry("POSTGRES_DB",       "ci_test")
                 ])),
+                _,
                 _
             )
         ],

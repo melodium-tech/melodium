@@ -30,6 +30,7 @@
       "name": "builder",
       "image": "registry.example.org/builder:1",
       "pull_secret": "",
+      "pull_secret_name": "registry/example",
       "memory": 512,
       "cpu": 500,
       "storage": 1024,
@@ -53,6 +54,9 @@
       "mounts": [],
       "env": {
         "POSTGRES_DB": "ci"
+      },
+      "secret_env": {
+        "POSTGRES_PASSWORD": "ci/database-password"
       },
       "command": ["postgres", "-c", "fsync=off"]
     }

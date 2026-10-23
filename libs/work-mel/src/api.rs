@@ -297,6 +297,9 @@ pub struct Container {
     pub name: String,
     pub image: String,
     pub pull_secret: String,
+    /// Name of the secret stored on Cadence.CI holding the pull secret, given at boot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pull_secret_name: Option<String>,
     pub memory: u32,
     pub cpu: u32,
     pub storage: u32,
@@ -311,6 +314,9 @@ pub struct ServiceContainer {
     pub name: String,
     pub image: String,
     pub pull_secret: String,
+    /// Name of the secret stored on Cadence.CI holding the pull secret, given at boot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pull_secret_name: Option<String>,
     pub memory: u32,
     pub cpu: u32,
     pub storage: u32,
@@ -319,6 +325,9 @@ pub struct ServiceContainer {
     pub arch: Option<Arch>,
     pub mounts: Vec<VolumeMount>,
     pub env: HashMap<String, String>,
+    /// Variables given by the secrets stored on Cadence.CI, by variable name, given at boot.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub secret_env: HashMap<String, String>,
     pub command: Option<Vec<String>>,
 }
 

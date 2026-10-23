@@ -8,7 +8,10 @@ use crate::resources::*;
 use core::time::Duration;
 use melodium_core::common::{
     descriptor::DataType,
-    executive::{Secret as ExecutiveSecret, SecretOrigin, SecretPolicy, Value},
+    executive::{
+        wipe_value, Secret as ExecutiveSecret, SecretError, SecretOrigin, SecretPolicy,
+        SecretTransfer, SecretTransmission, SecretsAccess, Value,
+    },
 };
 use melodium_core::*;
 use melodium_macro::{mel_function, mel_model, mel_treatment};
@@ -378,6 +381,14 @@ impl DistantEngine {
 ///
 /// Tags are hints: they are never a requirement and never a reason to refuse a run. Whatever spawns the worker may use them, for example by copying them to the resources it creates.
 ///
+/// ## Secrets of containers
+///
+/// Containers start before the engine of the worker, so their pull secrets, and the secret variables of service containers, are given with the request:
+///
+/// - a secret stored on Cadence.CI (`api:<name>`) whose transmission is `reference` or `value` is given by name, never revealed, and Cadence.CI gives its value to the worker;
+/// - any other secret is revealed and given by value, if its transmission is `value`, as with `std/secret::|locate<string>("env:MELODIUM_SECRET_DB_PASSWORD", "db_password", "value", false)`;
+/// - other secrets, `local` ones included, are refused: `failed` is emitted, and the error names the container.
+///
 /// ## Where the worker is spawned
 ///
 /// The `location` of the dispatching engine tells where the worker is spawned:
@@ -394,6 +405,7 @@ impl DistantEngine {
 /// | `edition` (optional) | none, `standard`, `container` | `desktop`, `webassembly`, `mock` |
 /// | `system` (optional) | none, `\|linux()`, `\|linux_distribution("alpine")` | `\|linux_distribution("ubuntu")`, `\|linux_distribution_version("alpine", "3.20")`, `\|windows()`, `\|image("nixos-ci")` |
 /// | `arch` (optional) | none, the architecture of this machine | any other architecture |
+/// | secrets of containers | given by value | stored on Cadence.CI (`api:`) |
 /// | `tags` | anything | never refused |
 ///
 /// A request Compose cannot satisfy starts nothing: `failed` is emitted and the errors say which need cannot be satisfied.
@@ -457,34 +469,71 @@ pub async fn distant(
     let model = DistantEngineModel::into(distant_engine);
     let distant = model.inner();
 
-    // Pull secrets are only revealed to be sent with the request.
-    let mut pull_secrets = Vec::new();
-    for secret in containers
-        .iter()
-        .map(|cont| &cont.1)
-        .chain(service_containers.iter().map(|cont| &cont.1))
-    {
-        pull_secrets.push(match secret {
-            Some(secret) => {
-                match secrets_access
-                    .reveal_str(secret, |value| Zeroizing::new(value.to_string()))
-                    .await
-                {
-                    Ok(value) => Some(value),
-                    Err(error) => {
-                        let _ = failed.send_one_as(()).await;
-                        let _ = errors.send_one_as(format!("pull secret: {error}")).await;
-                        return;
-                    }
+    // Secrets of containers are given with the request, by name or by value.
+    let mut request_containers = Vec::with_capacity(containers.len());
+    for Container(mut container, pull_secret) in containers.into_iter().map(Arc::unwrap_or_clone) {
+        if let Some(pull_secret) = pull_secret {
+            match container_secret(&secrets_access, &pull_secret).await {
+                Ok(ContainerSecret::Name(name)) => container.pull_secret_name = Some(name),
+                Ok(ContainerSecret::Value(value)) => container.pull_secret = value.to_string(),
+                Err(error) => {
+                    let _ = failed.send_one_as(()).await;
+                    let _ = errors
+                        .send_one_as(format!(
+                            "pull secret of container '{}': {error}",
+                            container.name
+                        ))
+                        .await;
+                    return;
                 }
             }
-            None => None,
-        });
+        }
+        request_containers.push(container);
     }
-    let mut pull_secrets = pull_secrets.into_iter();
+    let mut request_service_containers = Vec::with_capacity(service_containers.len());
+    for ServiceContainer(mut container, pull_secret, secret_env) in
+        service_containers.into_iter().map(Arc::unwrap_or_clone)
+    {
+        let secrets = pull_secret
+            .map(|secret| ("pull secret".to_string(), None, Some(secret)))
+            .into_iter()
+            .chain(secret_env.into_iter().map(|(variable, secret)| {
+                (format!("variable '{variable}'"), Some(variable), secret)
+            }));
+        for (what, variable, secret) in secrets {
+            let given = match secret {
+                Some(secret) => container_secret(&secrets_access, &secret).await,
+                None => Err(SecretError::MismatchingValue),
+            };
+            match (given, variable) {
+                (Ok(ContainerSecret::Name(name)), Some(variable)) => {
+                    container.env.remove(&variable);
+                    container.secret_env.insert(variable, name);
+                }
+                (Ok(ContainerSecret::Value(value)), Some(variable)) => {
+                    container.env.insert(variable, value.to_string());
+                }
+                (Ok(ContainerSecret::Name(name)), None) => container.pull_secret_name = Some(name),
+                (Ok(ContainerSecret::Value(value)), None) => {
+                    container.pull_secret = value.to_string()
+                }
+                (Err(error), _) => {
+                    let _ = failed.send_one_as(()).await;
+                    let _ = errors
+                        .send_one_as(format!(
+                            "{what} of service container '{}': {error}",
+                            container.name
+                        ))
+                        .await;
+                    return;
+                }
+            }
+        }
+        request_service_containers.push(container);
+    }
 
     let key = Uuid::new_v4();
-    let mut start = api::Request {
+    let start = api::Request {
         edition,
         max_duration: Some(max_duration),
         memory: Some(memory),
@@ -498,26 +547,13 @@ pub async fn distant(
         arch: arch.map(|arch| arch.0),
         system: api::SystemRequest(system.map(|system| system.0.clone())),
         volumes: volumes.into_iter().map(|vol| vol.0.clone()).collect(),
-        containers: containers.into_iter().map(|cont| cont.0.clone()).collect(),
-        service_containers: service_containers
-            .into_iter()
-            .map(|cont| cont.0.clone())
-            .collect(),
+        containers: request_containers,
+        service_containers: request_service_containers,
         group_id: Some(melodium_engine::execution_group_id().clone()),
         parent_id: Some(melodium_engine::execution_run_id().clone()),
         tags: tags,
         local_exec: false,
     };
-    for container in &mut start.containers {
-        if let Some(Some(pull_secret)) = pull_secrets.next() {
-            container.pull_secret = pull_secret.to_string();
-        }
-    }
-    for container in &mut start.service_containers {
-        if let Some(Some(pull_secret)) = pull_secrets.next() {
-            container.pull_secret = pull_secret.to_string();
-        }
-    }
 
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {
@@ -559,6 +595,58 @@ pub async fn distant(
                 let _ = errors.send_many_as(vec![err]).await;
             }
         }
+    }
+}
+
+/// What a worker request gives for a secret of one of its containers.
+enum ContainerSecret {
+    /// Name of the secret stored on Cadence.CI, whose value Cadence.CI gives to the worker.
+    Name(String),
+    /// Revealed value.
+    Value(Zeroizing<String>),
+}
+
+/// Gives what the worker request gives for `secret`, a pull secret or a secret variable of
+/// a container, as `distant` documents it.
+async fn container_secret(
+    access: &SecretsAccess,
+    secret: &ExecutiveSecret,
+) -> Result<ContainerSecret, SecretError> {
+    let stored = secret
+        .locator()
+        .and_then(|locator| locator.strip_prefix(&format!("{}:", crate::secret::SCHEME)));
+    match (secret.policy().transmission, stored) {
+        (SecretTransmission::Local, _) => Err(SecretError::Denied(
+            "its policy keeps it on this engine".to_string(),
+        )),
+        (_, Some(name)) => {
+            // Sent by reference, so recorded as such and never revealed.
+            let by_reference = secret.narrow(&SecretPolicy {
+                transmission: SecretTransmission::Reference,
+                ..SecretPolicy::unrestricted()
+            });
+            match access.transmit(&by_reference, true).await? {
+                SecretTransfer::Reference(_) => Ok(ContainerSecret::Name(name.to_string())),
+                // A secret sent by reference gives its locator, not its value.
+                SecretTransfer::Value(mut value) => {
+                    wipe_value(&mut value);
+                    Err(SecretError::Denied(
+                        "it cannot be given by reference".to_string(),
+                    ))
+                }
+            }
+        }
+        (SecretTransmission::Value, None) => {
+            access
+                .reveal_str(secret, |value| {
+                    ContainerSecret::Value(Zeroizing::new(value.to_string()))
+                })
+                .await
+        }
+        (SecretTransmission::Reference, None) => Err(SecretError::Denied(format!(
+            "containers only get secrets by reference when stored on Cadence.CI, located '{}:<name>'",
+            crate::secret::SCHEME
+        ))),
     }
 }
 

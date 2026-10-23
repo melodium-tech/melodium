@@ -81,6 +81,7 @@ const COMPOSE_EDITIONS: [&str; 2] = ["standard", "container"];
 /// (without version) and these editions (or none) are satisfied,
 /// while any machine image, distribution, version, other family or other edition is not.
 /// Only the architecture of the host is satisfied, for the worker and for each container giving one.
+/// Secrets stored on Cadence.CI, given to containers by name, are out of reach of Compose.
 fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
@@ -128,6 +129,30 @@ fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
                 "Compose location cannot satisfy the architecture '{arch}' requested for {who}, only the host one '{host}'"
             ));
         }
+    }
+
+    let stored_secrets = request
+        .containers
+        .iter()
+        .filter(|container| container.pull_secret_name.is_some())
+        .map(|container| format!("the pull secret of container '{}'", container.name))
+        .chain(request.service_containers.iter().flat_map(|container| {
+            container
+                .pull_secret_name
+                .iter()
+                .map(|_| format!("the pull secret of service container '{}'", container.name))
+                .chain(container.secret_env.keys().map(|variable| {
+                    format!(
+                        "variable '{variable}' of service container '{}'",
+                        container.name
+                    )
+                }))
+                .collect::<Vec<_>>()
+        }));
+    for what in stored_secrets {
+        errors.push(format!(
+            "Compose location cannot give secrets stored on Cadence.CI, such as {what}"
+        ));
     }
 
     if errors.is_empty() {
@@ -844,6 +869,37 @@ mod needs_tests {
     }
 
     #[test]
+    fn secrets_stored_on_cadence_ci() {
+        let mut request = request(None);
+        request.containers.push(container("builder", None));
+        request.containers[0].pull_secret_name = Some("registry".to_string());
+        let mut service: crate::api::ServiceContainer = serde_json::from_value(serde_json::json!({
+            "name": "postgres", "image": "postgres:16", "pull_secret": "{}", "memory": 100,
+            "cpu": 100, "storage": 100, "mounts": [], "env": {"POSTGRES_USER": "ci"},
+            "command": null
+        }))
+        .unwrap();
+        // Given by value, as other variables.
+        service
+            .env
+            .insert("POSTGRES_DB".to_string(), "ci".to_string());
+        request.service_containers.push(service.clone());
+        assert_eq!(check_needs(&request, Arch::Amd64).unwrap_err().len(), 1);
+
+        service
+            .secret_env
+            .insert("POSTGRES_PASSWORD".to_string(), "ci/postgres".to_string());
+        request.service_containers[0] = service;
+        assert_eq!(
+            check_needs(&request, Arch::Amd64).unwrap_err(),
+            vec![
+                "Compose location cannot give secrets stored on Cadence.CI, such as the pull secret of container 'builder'".to_string(),
+                "Compose location cannot give secrets stored on Cadence.CI, such as variable 'POSTGRES_PASSWORD' of service container 'postgres'".to_string(),
+            ]
+        );
+    }
+
+    #[test]
     fn edition() {
         let mut request = request(None);
         assert!(check_needs(&request, Arch::Amd64).is_ok());
@@ -877,6 +933,7 @@ mod needs_tests {
             name: name.to_string(),
             image: "alpine".to_string(),
             pull_secret: "{}".to_string(),
+            pull_secret_name: None,
             memory: 100,
             cpu: 100,
             storage: 100,
