@@ -3,9 +3,11 @@
 //! (logs, debug events, program dump and details), nor in `.jeu` packages and
 //! documentation. A value read by the program, concealed, then plainly revealed
 //! through `std/secret::reveal` is ordinary data, so it only appears in debug data
-//! events; secrets from the environment and from files are never plainly revealed.
+//! events; secrets from the environment, from files and from Cadence.CI are never plainly
+//! revealed.
 //!
-//! The API and its uploads are a mock answering every request.
+//! The API and its uploads are a mock answering every request, and giving the `api:`
+//! secret to the run.
 
 #![cfg_attr(not(unix), allow(dead_code, unused_imports))]
 
@@ -21,6 +23,8 @@ const SCRIPT: &str = include_str!("../../../secret_leaks.mel");
 const HIDDEN: &str = "hidden-leak-sentinel";
 const SHOWN: &str = "shown-leak-sentinel";
 const API_TOKEN: &str = "api-token-leak-sentinel";
+const STORED: &str = "stored-leak-sentinel";
+const RUN_ID: &str = "14014014-0140-0140-0140-140140140140";
 
 fn directory(name: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
@@ -116,7 +120,9 @@ fn answer(
         parts.next().unwrap_or_default()
     );
 
-    let response = if target.ends_with("/execution/report/request") {
+    let response = if target == format!("GET /execution/run/{RUN_ID}/secret/leaks/stored") {
+        STORED.to_string()
+    } else if target.ends_with("/execution/report/request") {
         // Gives back the run and group identifiers, with uploads to this server.
         format!(
             r#"{},"dashboard":null,"logs":{{"presigned_post_s3":{{"uri":"{uploads}/storage","fields":{{}},"path":"logs"}}}},"debug":{{"presigned_post_s3":{{"uri":"{uploads}/storage","fields":{{}},"path":"debug"}}}},"program":{{"presigned_put_s3":{{"uri":"{uploads}/storage/program","headers":{{}}}}}}}}"#,
@@ -155,16 +161,21 @@ fn secret_values_never_appear_in_run_outputs() {
         .env("MELODIUM_SECRET_LEAKS_HIDDEN", HIDDEN)
         .env("MELODIUM_API_URL", &address)
         .env("MELODIUM_API_TOKEN", API_TOKEN)
+        .env("MELODIUM_RUN_ID", RUN_ID)
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(output.status.success(), "{}{}", stdout, stderr);
 
-    // The command got the never revealed secret.
+    // The command got the never revealed secrets.
     assert_eq!(
         std::fs::read_to_string(directory.join("hidden")).unwrap(),
         HIDDEN
+    );
+    assert_eq!(
+        std::fs::read_to_string(directory.join("stored")).unwrap(),
+        STORED
     );
 
     let logs = std::fs::read_to_string(&logs).unwrap();
@@ -201,7 +212,7 @@ fn secret_values_never_appear_in_run_outputs() {
         .iter()
         .any(|request| request.body.contains("logs/logs_")));
 
-    for value in [HIDDEN, API_TOKEN] {
+    for value in [HIDDEN, STORED, API_TOKEN] {
         assert!(!stdout.contains(value));
         assert!(!stderr.contains(value));
         assert!(!logs.contains(value), "{}", logs);
@@ -291,7 +302,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
         let content = std::fs::read(&file).unwrap();
         let content = String::from_utf8_lossy(&content);
         documented |= content.contains("MELODIUM_SECRET_LEAKS_HIDDEN");
-        for value in [HIDDEN, SHOWN] {
+        for value in [HIDDEN, SHOWN, STORED] {
             assert!(!content.contains(value), "{}", file.display());
         }
     }

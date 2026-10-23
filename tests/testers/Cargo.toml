@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "api_secrets",
     "check_rejections",
     "complex_call",
     "crypto_webhooks",

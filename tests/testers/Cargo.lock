@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "api_secrets"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

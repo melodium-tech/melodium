@@ -8,13 +8,16 @@
 //! it back, and values known to the requesting engine are masked in its logs. Secrets held inside data values, such as
 //! process environments, follow the same rules. Received references stay secrets from
 //! the environment of the node, which it never reveals plainly: its refusals come back
-//! with its debug events, and the commands it runs get the values.
+//! with its debug events, and the commands it runs get the values. A node running on a
+//! Cadence.CI worker resolves received `api:` references from the API, here a mock.
 
 #![cfg_attr(not(unix), allow(dead_code, unused_imports))]
 
-use std::net::TcpStream;
+use std::io::{BufRead, BufReader, Write};
+use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const SCRIPT: &str = include_str!("../../../secret_distribution.mel");
@@ -26,6 +29,8 @@ const ENVIRONMENT_SCRIPT: &str = include_str!("../../../secret_environment.mel")
 const GROUP_ID: &str = "10101010-1010-1010-1010-101010101010";
 const NODE_RECV_KEY: &str = "11111111-1111-1111-1111-111111111111";
 const NODE_SEND_KEY: &str = "22222222-2222-2222-2222-222222222222";
+const NODE_RUN_ID: &str = "33333333-3333-3333-3333-333333333333";
+const NODE_RUN_TOKEN: &str = "cad_v_node-run-token";
 
 fn script(name: &str, content: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
@@ -43,6 +48,11 @@ fn probe() -> PathBuf {
 /// Starts a node, that sends its debug events to the requesting engine, and ends once
 /// the program stops the distribution, or at the latest 5 seconds after it started.
 fn node(port: u16, tls: bool) -> Child {
+    node_with(port, tls, &[])
+}
+
+/// Starts a node as `node` does, with the environment variables `envs` too.
+fn node_with(port: u16, tls: bool, envs: &[(&str, &str)]) -> Child {
     let mut command = Command::new("melodium");
     command
         .args(["dist", "--localhost", "--port", &port.to_string()])
@@ -55,6 +65,7 @@ fn node(port: u16, tls: bool) -> Child {
         .env("MELODIUM_SECRET_DIST_DATA_TOKEN", "node-data-value")
         .env("MELODIUM_SECRET_DIST_ENV_TOKEN", "node-token")
         .env("MELODIUM_SECRET_DIST_ENV_INPUT", "node-input")
+        .envs(envs.iter().cloned())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     if !tls {
@@ -101,6 +112,9 @@ fn distribute(script: &PathBuf, port: u16, options: &[&str], args: &[&str]) -> S
         .env("MELODIUM_SECRET_DIST_DATA_TOKEN", "requester-data-value")
         .env("MELODIUM_SECRET_DIST_ENV_TOKEN", "requester-token")
         .env("MELODIUM_SECRET_DIST_ENV_INPUT", "requester-input")
+        .env_remove("MELODIUM_API_URL")
+        .env_remove("MELODIUM_API_TOKEN")
+        .env_remove("MELODIUM_RUN_ID")
         .output()
         .unwrap();
     assert!(output.status.success(), "{:?}", output);
@@ -409,6 +423,114 @@ fn secrets_inside_data_values_follow_their_policy() {
     }
 }
 
+/// Starts a mock of the API giving the secret `dist/token` to the run of the node, giving
+/// its address and the requests it receives, with their authorization.
+#[cfg(unix)]
+fn api_server() -> (String, Arc<Mutex<Vec<(String, Option<String>)>>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let received = Arc::new(Mutex::new(Vec::new()));
+
+    let requests = Arc::clone(&received);
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut request_line = String::new();
+            let _ = reader.read_line(&mut request_line);
+            let mut authorization = None;
+            loop {
+                let mut line = String::new();
+                let _ = reader.read_line(&mut line);
+                let line = line.trim_end();
+                if line.is_empty() {
+                    break;
+                }
+                if let Some((name, value)) = line.split_once(':') {
+                    if name.eq_ignore_ascii_case("authorization") {
+                        authorization = Some(value.trim().to_string());
+                    }
+                }
+            }
+            let mut parts = request_line.split_whitespace();
+            let target = format!(
+                "{} {}",
+                parts.next().unwrap_or_default(),
+                parts.next().unwrap_or_default()
+            );
+            let (status, body) =
+                if target == format!("GET /execution/run/{NODE_RUN_ID}/secret/dist/token") {
+                    ("200 OK", "node-api-token")
+                } else {
+                    ("404 Not Found", "No such secret.")
+                };
+            requests.lock().unwrap().push((target, authorization));
+            let _ = write!(
+                stream,
+                "HTTP/1.1 {status}\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+
+    (address, received)
+}
+
+/// A secret of Cadence.CI sent by reference is resolved by the node, from the API, with the
+/// token of its own run: the requesting engine never reads it.
+#[cfg(unix)]
+fn api_references_are_resolved_by_the_distant_engine() {
+    let script = script("environment", ENVIRONMENT_SCRIPT);
+    let directory = std::env::temp_dir().join(format!(
+        "melodium_secret_distribution_{}_api",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).unwrap();
+    let (address, requests) = api_server();
+    let port = 62622;
+
+    let mut node = node_with(
+        port,
+        true,
+        &[
+            ("MELODIUM_API_URL", &address),
+            ("MELODIUM_API_TOKEN", NODE_RUN_TOKEN),
+            ("MELODIUM_RUN_ID", NODE_RUN_ID),
+        ],
+    );
+    let stdout = distribute(
+        &script,
+        port,
+        &[],
+        &[
+            "--directory",
+            directory.to_str().unwrap(),
+            "--transmission",
+            "reference",
+            "--token",
+            "api:dist/token",
+        ],
+    );
+    let _ = node.kill();
+    let _ = node.wait();
+
+    assert_eq!(
+        std::fs::read_to_string(directory.join("variable")).ok(),
+        Some("node-api-token".to_string()),
+        "{}",
+        stdout
+    );
+    assert_eq!(
+        *requests.lock().unwrap(),
+        vec![(
+            format!("GET /execution/run/{NODE_RUN_ID}/secret/dist/token"),
+            Some(format!("Bearer {NODE_RUN_TOKEN}"))
+        )]
+    );
+    assert!(!stdout.contains("node-api-token"), "{}", stdout);
+}
+
 pub fn run_cases() -> ! {
     let mut cases: Vec<(&str, fn())> = Vec::new();
     cases.push((
@@ -430,6 +552,11 @@ pub fn run_cases() -> ! {
     cases.push((
         "secrets_inside_data_values_follow_their_policy",
         secrets_inside_data_values_follow_their_policy,
+    ));
+    #[cfg(unix)]
+    cases.push((
+        "api_references_are_resolved_by_the_distant_engine",
+        api_references_are_resolved_by_the_distant_engine,
     ));
     tester::cases(&cases)
 }

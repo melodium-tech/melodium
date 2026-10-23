@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Adding the `api:` secret source, in builds with the `distribution` feature: programs run by Cadence.CI, with `melodium run` or `melodium dist`, read the secrets stored for their organization, such as `api:prod/db-password`, from the API with the token of their run (`MELODIUM_API_URL`, `MELODIUM_API_TOKEN`, `MELODIUM_RUN_ID`). Elsewhere these secrets are refused with the reason, and `api` is reserved: a model registering it fails the launch (D0252). `secret_sources` gives the sources given to engines (#150).
+
 ## [v0.11.0] (2026-10-15)
 
 - Moving from async-std, which is discontinued, to smol; the number of threads running tracks is given by `MELODIUM_THREADS`, one per core by default, and `api_report` gives a `smol::Task`, breaking for library users (#104).

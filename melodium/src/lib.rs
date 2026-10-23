@@ -19,7 +19,7 @@ use melodium_common::{
         Collection, Entry, Identifier, LoadingError, LoadingResult, Package, PackageRequirement,
         VersionReq,
     },
-    executive::{Level, Log, Secret, Value},
+    executive::{Level, Log, Secret, SecretSource, Value},
 };
 use melodium_engine::interruption::live_until_interrupted;
 pub use melodium_engine::interruption::Interruption;
@@ -319,6 +319,21 @@ pub fn load_file_force_entrypoint(
     }
 }
 
+/// Secret sources given to the engines of this build, besides `env` and `file`.
+///
+/// With distribution, `api` reads the secrets stored on Cadence.CI, on its workers. Elsewhere
+/// it refuses them, telling why, and the scheme stays reserved: no model can register it.
+pub fn secret_sources() -> Vec<(String, Arc<dyn SecretSource>)> {
+    #[allow(unused_mut)]
+    let mut sources: Vec<(String, Arc<dyn SecretSource>)> = Vec::new();
+    #[cfg(feature = "distribution")]
+    sources.push((
+        work_mel::secret::SCHEME.to_string(),
+        work_mel::secret::ApiSource::from_environment(),
+    ));
+    sources
+}
+
 pub async fn launch(
     collection: Arc<Collection>,
     identifier: &Identifier,
@@ -352,6 +367,10 @@ pub async fn launch(
         }
     });
     let engine = melodium_engine::new_engine(collection, Level::Trace, debug_level);
+    for (scheme, source) in secret_sources() {
+        // Given before genesis, so never refused.
+        let _ = engine.add_secret_source(&scheme, source);
+    }
 
     let mut monitoring: futures::stream::FuturesUnordered<Monitoring> =
         futures::stream::FuturesUnordered::new();

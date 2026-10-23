@@ -11,7 +11,8 @@ use zeroize::Zeroize;
 ///
 /// Sources are registered under their scheme, a `vault` source resolving `vault:<path>`
 /// locators, by models declaring `secret_sources` in `#[mel_model]`, before any model is
-/// initialized. `env` and `file` are built in.
+/// initialized. `env` and `file` are built in, and the program running the engine can give
+/// others before genesis, such as `api` on Cadence.CI workers.
 #[async_trait]
 pub trait SecretSource: Debug + Send + Sync {
     /// Gives the value at `path` (the locator part following `<scheme>:`), as `datatype`.
@@ -24,6 +25,11 @@ pub trait SecretSource: Debug + Send + Sync {
     fn plain_reveal(&self) -> bool {
         true
     }
+
+    /// Called when the engine ends, to wipe what the source keeps, such as cached values.
+    ///
+    /// Tracks still finishing may resolve secrets afterwards.
+    fn shutdown(&self) {}
 }
 
 /// Computes the value of a derived secret from the values of its input secrets.
@@ -245,8 +251,8 @@ impl SecretsAccess {
     /// Registers `source` for the `scheme` of locators, such as `vault` for `vault:<path>`.
     ///
     /// Only possible from the `secret_sources` function of a model, called before any
-    /// model is initialized. Registering a scheme twice, or `env` and `file`, makes
-    /// the launch fail.
+    /// model is initialized. Registering a scheme twice, or one the engine already has,
+    /// such as `env`, `file` and `api`, makes the launch fail.
     pub fn register_source(
         &self,
         scheme: &str,
