@@ -10,6 +10,7 @@ compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
 pub mod access;
 pub mod api;
+pub mod artifact;
 pub mod cache;
 pub mod compose;
 pub mod container;

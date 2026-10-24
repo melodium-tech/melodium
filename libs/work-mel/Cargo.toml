@@ -33,6 +33,7 @@ melodium-core = { path = "../../melodium-core", version = "0.11.0" }
 melodium-engine = { path = "../../melodium-engine", version = "0.11.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
 melodium-share = { path = "../../melodium-share", version = "0.11.0" }
+mime_guess = { version = "2.0", optional = true }
 net-mel = { path = "../net-mel", version = "0.11.0" }
 process-mel = { path = "../process-mel", version = "0.11.0" }
 regex = { version = "1.9.1" }
@@ -60,7 +61,7 @@ smol = "2.0"
 default = []
 mock = []
 plugin = []
-real = ["async-compat", "async-process", "base64", "bytes", "hex", "sha2", "smol", "tar", "tempfile", "zstd"]
+real = ["async-compat", "async-process", "base64", "bytes", "hex", "mime_guess", "sha2", "smol", "tar", "tempfile", "zstd"]
 kubernetes = ["real", "kube", "k8s-openapi", "tokio"]
 "docs.rs" = ["mock", "std-mel/docs.rs", "fs-mel/docs.rs", "net-mel/docs.rs", "process-mel/docs.rs"]
 

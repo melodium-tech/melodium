@@ -1,0 +1,23 @@
+#!/usr/bin/env melodium
+#! name = run_artifacts_fetch
+#! version = 0.1.0
+#! require = std:0.11.0 work:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logError
+use work/artifact::fetch
+
+// Fetches the artifact `name` of the run `run` into `into` of the volume `data`.
+treatment main(const into: string, const run: string, const name: string)
+{
+    startup()
+
+    fetchArtifact: fetch(volume="data", path=into, run=run, name=name)
+    logFetched: logInfoMessage(label="artifact", message="fetched")
+    logFetchError: logError(label="artifact")
+
+    startup.trigger -> fetchArtifact.trigger
+    fetchArtifact.completed -> logFetched.trigger
+    fetchArtifact.error -> logFetchError.message
+}

@@ -17,6 +17,7 @@ use work/resources/arch::|arm64
 use work/resources::|service_container
 use work/cache::Cache
 use work/cache::|cache
+use work/artifact::|artifact
 use cicd/runners::CicdDispatchEngine
 use cicd/naive::simpleStep
 use cicd/naive::simpleStepWithInput
@@ -35,7 +36,8 @@ use fs/local::writeLocal
 //                      not just the one used as the default `repo_url`).
 //                      Downloaded crates and build outputs are a cache of
 //                      Cadence.CI, restored before the build and saved
-//                      after it under `cache_key`.
+//                      after it under `cache_key`. The binary is kept as the
+//                      run artifact `binary`.
 //
 //   Stage 2, test:    rust:1.90-slim + postgres:16 service container; a
 //                      `psql` connectivity check exercises DATABASE_URL
@@ -43,6 +45,8 @@ use fs/local::writeLocal
 //                      repo's own test suite (the default repo's tests do
 //                      not themselves touch the database; the sidecar's
 //                      reachability is what this stage actually proves).
+//                      The test output is kept as the run artifact
+//                      `test-report` when the tests pass.
 //
 //   Stage 3, package: debian:bookworm-slim container; bundles the binary
 //                      into a tar.gz archive and streams the archive back.
@@ -239,7 +243,9 @@ treatment build[dispatcher: CicdDispatchEngine](const repo_url: string, const ca
         ])),
         out_storage  = |wrap<u32>(4096),
         out_file     = "binary",
-        cache        = |wrap<Cache>(|cache("data", "cache", cache_key, ["cargo-"]))
+        cache        = |wrap<Cache>(|cache("data", "cache", cache_key, ["cargo-"])),
+        // Kept as a run artifact, downloadable from its address on Cadence.CI.
+        artifacts    = [|artifact("data", "binary", "binary")]
     )
 
     Self.trigger -> simpleStep.trigger
@@ -297,12 +303,13 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
             |command("sh", ["-c", "apt-get update -qq && apt-get install -y --no-install-recommends git postgresql-client"]),
             |command("sh", ["-c", "git clone --depth 1 ${REPO_URL} /workspace"]),
             |command("sh", ["-c", "psql \"${DATABASE_URL}\" -c \"SELECT 1;\""]),
-            |command("sh", ["-c", "cd /workspace && cargo test 2>&1"])
+            |command("sh", ["-c", "cd /workspace && cargo test > /mnt/data/test-report.txt 2>&1; status=$?; cat /mnt/data/test-report.txt; exit $status"])
         ],
         variables    = |wrap<StringMap>(|map([
             |entry("REPO_URL",     repo_url),
             |entry("DATABASE_URL", "postgres://ci:ci@postgres/ci_test")
-        ]))
+        ])),
+        artifacts    = [|artifact("data", "test-report.txt", "test-report")]
     )
 
     Self.trigger -> simpleStep.trigger

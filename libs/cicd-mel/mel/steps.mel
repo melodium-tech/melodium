@@ -22,12 +22,15 @@ use std/engine/log::logDebugs
 use std/engine/log::logError
 use std/engine/log::logErrorMessage
 use std/engine/log::logWarning
+use std/engine/log::logErrors
 use work/distant::DistantEngine
 use work/distant::distant
 use work/resources::getExecutor
 use work/cache::Cache
 use work/cache::restoreCache
 use work/cache::saveCache
+use work/artifact::Artifact
+use work/artifact::pushArtifacts
 use distrib::distribute
 use distrib::sendBlock
 use distrib::sendStream
@@ -59,13 +62,15 @@ About the outputs signals:
 With a `cache` (see `work/cache::|cache`), its directory is restored from Cadence.CI before `commands` run, and saved under its key once they succeed, unless the cache was restored under that same key.
 A missed cache only logs a warning, as does a cache that cannot be saved; the volume needs room for the cache and for its archive while it is transferred.
 
+`artifacts` (see `work/artifact::|artifact`) are pushed as run artifacts of Cadence.CI once `commands` succeed, an artifact not pushed being logged as an error.
+
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
 `out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
 
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOn[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOn[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   output started: Block<void>
   output finished: Block<void>
@@ -83,7 +88,8 @@ treatment stepOn[runner: CicdRunnerEngine](var name: string, var executor_name: 
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeData: close<byte>()
 
@@ -119,13 +125,15 @@ About the outputs signals:
 With a `cache` (see `work/cache::|cache`), its directory is restored from Cadence.CI before `commands` run, and saved under its key once they succeed, unless the cache was restored under that same key.
 A missed cache only logs a warning, as does a cache that cannot be saved; the volume needs room for the cache and for its archive while it is transferred.
 
+`artifacts` (see `work/artifact::|artifact`) are pushed as run artifacts of Cadence.CI once `commands` succeed, an artifact not pushed being logged as an error.
+
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOnWithInput only write `data` to the designated location, and then succeed.
 `out_file` and `out_filesystem` can be left _none_ and `data` stream will be closed without emitting reading error.
 
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input data: Stream<byte>
   output started: Block<void>
@@ -147,7 +155,8 @@ treatment stepOnWithInput[runner: CicdRunnerEngine](var name: string, var in_fil
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeBlock<void>()
 
@@ -186,13 +195,15 @@ In that case, `terminated` and `finished` are emitted but not `failed` nor `erro
 With a `cache` (see `work/cache::|cache`), its directory is restored from Cadence.CI before `commands` run, and saved under its key once they succeed, unless the cache was restored under that same key.
 A missed cache only logs a warning, as does a cache that cannot be saved; the volume needs room for the cache and for its archive while it is transferred.
 
+`artifacts` (see `work/artifact::|artifact`) are pushed as run artifacts of Cadence.CI once `commands` succeed, an artifact not pushed being logged as an error.
+
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
 `out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
 
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnTerminable[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnTerminable[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input terminate: Block<void>
   output started: Block<void>
@@ -212,7 +223,8 @@ treatment stepOnTerminable[runner: CicdRunnerEngine](var name: string, var execu
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeData: close<byte>()
     closeBlock<void>()
@@ -254,13 +266,15 @@ In that case, `terminated` and `finished` are emitted but not `failed` nor `erro
 With a `cache` (see `work/cache::|cache`), its directory is restored from Cadence.CI before `commands` run, and saved under its key once they succeed, unless the cache was restored under that same key.
 A missed cache only logs a warning, as does a cache that cannot be saved; the volume needs room for the cache and for its archive while it is transferred.
 
+`artifacts` (see `work/artifact::|artifact`) are pushed as run artifacts of Cadence.CI once `commands` succeed, an artifact not pushed being logged as an error.
+
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOnWithInput only write `data` to the designated location, and then succeed.
 `out_file` and `out_filesystem` can be left _none_ and `data` stream will be closed without emitting reading error.
 
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input data: Stream<byte>
   input terminate: Block<void>
@@ -293,6 +307,7 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, 
     sendOutFilesystemName: sendBlock<string>[distributor=runner](name="out_filesystem_name")
     sendOutFileName: sendBlock<string>[distributor=runner](name="out_file_name")
     sendCache: sendBlock<Option<Cache>>[distributor=runner](name="cache")
+    sendArtifacts: sendBlock<Vec<Artifact>>[distributor=runner](name="artifacts")
 
     recvStarted: recvBlock<void>[distributor=runner](name="started")
     recvFinished: recvBlock<void>[distributor=runner](name="finished")
@@ -313,6 +328,7 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, 
     distribute.distribution_id -> sendOutFilesystemName.distribution_id
     distribute.distribution_id -> sendOutFileName.distribution_id
     distribute.distribution_id -> sendCache.distribution_id
+    distribute.distribution_id -> sendArtifacts.distribution_id
     distribute.distribution_id -> recvStarted.distribution_id
     distribute.distribution_id -> recvFinished.distribution_id
     distribute.distribution_id -> recvFailed.distribution_id
@@ -339,6 +355,7 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, 
     unwrapOutFileName: unwrap<string>()
 
     emitCache: emit<Option<Cache>>(value=cache)
+    emitArtifacts: emit<Vec<Artifact>>(value=artifacts)
 
     Self.trigger -> emitInFilesystemName.trigger,emit -> unwrapInFilesystemName.option,value -> sendInFilesystemName.data
     Self.trigger -> emitInFileName.trigger,emit -> unwrapInFileName.option,value -> sendInFileName.data
@@ -348,6 +365,7 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, 
     Self.trigger -> emitOutFilesystemName.trigger,emit -> unwrapOutFilesystemName.option,value -> sendOutFilesystemName.data
     Self.trigger -> emitOutFileName.trigger,emit -> unwrapOutFileName.option,value -> sendOutFileName.data
     Self.trigger -> emitCache.trigger,emit -> sendCache.data
+    Self.trigger -> emitArtifacts.trigger,emit -> sendArtifacts.data
     Self.terminate -> sendTerminate.data
     Self.data ------> sendData.data
 
@@ -402,6 +420,7 @@ treatment step(var label: string)
   input out_filesystem_name: Block<string>
   input out_file_name: Block<string>
   input cache: Block<Option<Cache>>
+  input artifacts: Block<Vec<Artifact>>
   output started: Block<void>
   output finished: Block<void>
   output failed: Block<void>
@@ -461,6 +480,19 @@ treatment step(var label: string)
     saveCache.finished -> saveDone.a
     saveCache.finished -> uncheckSaveFinished.value,uncheck -> saveDone.b
 
+    // Once commands succeed, artifacts are pushed.
+    releaseArtifacts: releaseBlock<Vec<Artifact>>()
+    pushArtifacts()
+    logArtifactErrors: logErrors(label=label)
+    pushDone: one<void>()
+    uncheckPushFinished: uncheck<void>()
+
+    Self.artifacts -> releaseArtifacts.data,released -> pushArtifacts.artifacts
+    spawnCommands.success -> releaseArtifacts.leverage
+    pushArtifacts.errors -> logArtifactErrors.messages
+    pushArtifacts.finished -> pushDone.a
+    pushArtifacts.finished -> uncheckPushFinished.value,uncheck -> pushDone.b
+
     spawnOrReadFileFailed: one<void>()
     spawnCommands.failed -> spawnOrReadFileFailed.a
     readFile.failed ------> spawnOrReadFileFailed.b
@@ -479,10 +511,13 @@ treatment step(var label: string)
 
     spawnCommands.started --------------------> Self.started
     waitFinishedAndSaved: waitBlock<void>()
+    waitFinishedSavedAndPushed: waitBlock<void>()
     triggerSpawnAndReadFileFinished.last -> waitFinishedAndSaved.a
     saveDone.value -> waitFinishedAndSaved.b
+    waitFinishedAndSaved.awaited -> waitFinishedSavedAndPushed.a
+    pushDone.value -> waitFinishedSavedAndPushed.b
 
-    waitFinishedAndSaved.awaited -------------> Self.finished
+    waitFinishedSavedAndPushed.awaited -------> Self.finished
     spawnOrReadFileFailed.value --------------> Self.failed
     waitSpawnAndReadFileCompleted.awaited ----> Self.completed
     spawnCommands.terminated -----------------> Self.terminated

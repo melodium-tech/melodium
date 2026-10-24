@@ -17,6 +17,7 @@ use process/environment::Environment
 use cicd/steps::step
 use work/cache::Cache
 use work/cache::|cache
+use work/artifact::Artifact
 
 // Runs a step on the local executor, its command building `target` of the volume `data`
 // at `directory`, cached under `key`. The command notes in `seen` whether `target` was
@@ -40,6 +41,9 @@ treatment main(const key: string, const directory: string, const exit: string = 
     startup.trigger -> emitEnvironment.trigger,emit -> step.environment
     startup.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> step.commands
     startup.trigger -> emitCache.trigger,emit -> step.cache
+
+    emitArtifacts: emit<Vec<Artifact>>(value=[])
+    startup.trigger -> emitArtifacts.trigger,emit -> step.artifacts
 
     // No input file, no output file, never terminated.
     closeInFilesystem: closeBlock<string>()

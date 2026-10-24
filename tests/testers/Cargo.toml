@@ -26,6 +26,7 @@ members = [
     "process_secrets",
     "protocol_timeout_survives_jitter",
     "regex",
+    "run_artifacts",
     "run_caches",
     "secret_access_cli",
     "secret_distribution",

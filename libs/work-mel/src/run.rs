@@ -73,6 +73,17 @@ impl RunApi {
         Self::send(request).await
     }
 
+    /// Gets `url`, giving the status and body of the answer.
+    #[cfg(feature = "real")]
+    pub async fn get(&self, url: String) -> Result<(reqwest::StatusCode, bytes::Bytes), String> {
+        let request = crate::http::CLIENT
+            .as_ref()
+            .map_err(Clone::clone)?
+            .get(url)
+            .bearer_auth(self.token.as_str());
+        Self::send(request).await
+    }
+
     #[cfg(feature = "real")]
     async fn send(
         request: reqwest::RequestBuilder,

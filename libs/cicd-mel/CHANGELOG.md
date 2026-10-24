@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Adding `artifacts` to steps (`stepOn`, `simpleStep` and their variants): `work/artifact::Artifact` pushed as run artifacts once the commands succeed, an artifact not pushed being logged as an error (#155).
 - Adding `cache` to steps (`stepOn`, `simpleStep` and their variants): a `work/cache::Cache` restored before the commands and saved once they succeed, unless it was restored under its key, a missed or unsaved cache only logging a warning (#154).
 
 ## [v0.11.0] (2026-10-15)

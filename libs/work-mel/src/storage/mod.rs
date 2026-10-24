@@ -5,6 +5,8 @@
 pub(crate) mod archive;
 #[cfg(feature = "real")]
 pub(crate) mod transfer;
+#[cfg(feature = "real")]
+pub(crate) mod tree;
 
 use core::fmt::{Debug, Formatter};
 use serde::{Deserialize, Serialize};

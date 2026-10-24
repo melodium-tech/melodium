@@ -8536,6 +8536,7 @@ dependencies = [
  "melodium-engine",
  "melodium-macro",
  "melodium-share",
+ "mime_guess",
  "net-mel",
  "process-mel",
  "regex",

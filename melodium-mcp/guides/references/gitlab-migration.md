@@ -18,7 +18,7 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | Masked or protected variables, `CI_JOB_TOKEN` | `Secret<string>` parameters, see [Secrets](#secrets) |
 | `image:` | `image` parameter of `simpleStep` |
 | `services:` | `service_containers` parameter of `simpleStep` |
-| `artifacts:` | `out_file` + `data` stream output; `simpleStepWithInput` to consume |
+| `artifacts:` | `out_file` + `data` stream output, `simpleStepWithInput` to consume; `artifacts` parameter of `simpleStep` to keep them as run artifacts of Cadence.CI (`work/artifact::\|artifact`) |
 | `cache:` | `cache` parameter of `simpleStep`, `\|wrap<Cache>(\|cache("data", "<dir under /mnt/data>", key, restore_keys))` from `work/cache`, restored before `commands` and saved after success, on Cadence.CI workers |
 | `rules:` / `only:` / `except:` | `filterBlock<void>()` or `passBlock<void>()` on the `trigger` |
 | `when: on_success` | Default: chain `success` output to next trigger |
@@ -198,6 +198,7 @@ treatment buildJob[dispatcher: CicdDispatchEngine](
 | `out_file` | `_` | File to stream back as `data` after success (equivalent to `artifacts:`) |
 | `out_storage` | `_` | Override data volume size in MB |
 | `cache` | `_` | Directory of the `data` volume restored from a Cadence.CI cache before `commands` and saved under its key after success (`Option<Cache>`, from `work/cache::\|cache`), equivalent to `cache:` |
+| `artifacts` | `[]` | Files or directories of the `data` volume pushed as run artifacts of Cadence.CI once `commands` succeed (`Vec<Artifact>`, from `work/artifact::\|artifact`), equivalent to `artifacts:` |
 | `report` | `true` | Enable service state reporting |
 | `gitlab` | `false` | Report to GitLab commit status API |
 | `gitlab_root_url` | `"https://gitlab.com/api/v4"` | GitLab API root URL |
