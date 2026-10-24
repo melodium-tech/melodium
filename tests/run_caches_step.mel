@@ -1,0 +1,59 @@
+#!/usr/bin/env melodium
+#! name = run_caches_step
+#! version = 0.1.0
+#! require = std:0.11.0 cicd:0.11.0 process:0.11.0 work:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/flow::close
+use std/flow::closeBlock
+use std/flow::emit
+use std/flow::stream
+use std/flow/vec::flatten
+use std/ops/option::|wrap
+use process/command::Command
+use process/command::|command
+use process/environment::Environment
+use cicd/steps::step
+use work/cache::Cache
+use work/cache::|cache
+
+// Runs a step on the local executor, its command building `target` of the volume `data`
+// at `directory`, cached under `key`. The command notes in `seen` whether `target` was
+// restored before it ran, and exits with `exit`.
+treatment main(const key: string, const directory: string, const exit: string = "0")
+{
+    startup()
+
+    emitExecutor: emit<Option<string>>(value=_)
+    emitEnvironment: emit<Option<Environment>>(value=_)
+    emitCommands: emit<Vec<Command>>(value=[|command("sh", ["-c", "test -f \"$0/target/out\" && echo restored > \"$0/seen\"; mkdir -p \"$0/target\" && echo built > \"$0/target/out\" && exit $1", directory, exit])])
+    streamCommands: stream<Vec<Command>>()
+    flattenCommands: flatten<Command>()
+    emitCache: emit<Option<Cache>>(value=|wrap<Cache>(|cache("data", "target", key, ["build-"])))
+
+    step(label="build")
+    logSuccess: logInfoMessage(label="step", message="success")
+    logFinished: logInfoMessage(label="step", message="finished")
+
+    startup.trigger -> emitExecutor.trigger,emit -> step.executor_name
+    startup.trigger -> emitEnvironment.trigger,emit -> step.environment
+    startup.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> step.commands
+    startup.trigger -> emitCache.trigger,emit -> step.cache
+
+    // No input file, no output file, never terminated.
+    closeInFilesystem: closeBlock<string>()
+    closeInFile: closeBlock<string>()
+    closeData: close<byte>()
+    closeTerminate: closeBlock<void>()
+    closeOutFilesystem: closeBlock<string>()
+    closeOutFile: closeBlock<string>()
+    startup.trigger -> closeInFilesystem.trigger,closed -> step.in_filesystem_name
+    startup.trigger -> closeInFile.trigger,closed -> step.in_file_name
+    startup.trigger -> closeData.trigger,closed -> step.data
+    startup.trigger -> closeTerminate.trigger,closed -> step.terminate
+    startup.trigger -> closeOutFilesystem.trigger,closed -> step.out_filesystem_name
+    startup.trigger -> closeOutFile.trigger,closed -> step.out_file_name
+    step.success -> logSuccess.trigger
+    step.finished -> logFinished.trigger
+}

@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding `cache` to steps (`stepOn`, `simpleStep` and their variants): a `work/cache::Cache` restored before the commands and saved once they succeed, unless it was restored under its key, a missed or unsaved cache only logging a warning (#154).
+
 ## [v0.11.0] (2026-10-15)
 
 - No longer depending on async-std, which is discontinued (#104).

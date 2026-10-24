@@ -26,6 +26,7 @@ async-walkdir = "2.0"
 base64 = { version = "0.22", optional = true }
 bytes = { version = "1.10", optional = true }
 futures = "0.3.28"
+hex = { version = "0.4", optional = true }
 std-mel = { path = "../std-mel", version = "0.11.0" }
 fs-mel = { path = "../fs-mel", version = "0.11.0" }
 melodium-core = { path = "../../melodium-core", version = "0.11.0" }
@@ -37,7 +38,11 @@ process-mel = { path = "../process-mel", version = "0.11.0" }
 regex = { version = "1.9.1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sha2 = { version = "0.10", optional = true }
+tar = { version = "0.4", optional = true }
+tempfile = { version = "3", optional = true }
 zeroize = "1.9"
+zstd = { version = "0.13", optional = true }
 serde_yaml = "0.9"
 uuid = { version = "1.5.0", features = ["serde", "v4", "fast-rng"] }
 compose_spec = "0.3.0"
@@ -55,7 +60,7 @@ smol = "2.0"
 default = []
 mock = []
 plugin = []
-real = ["async-compat", "async-process", "base64", "bytes", "smol"]
+real = ["async-compat", "async-process", "base64", "bytes", "hex", "sha2", "smol", "tar", "tempfile", "zstd"]
 kubernetes = ["real", "kube", "k8s-openapi", "tokio"]
 "docs.rs" = ["mock", "std-mel/docs.rs", "fs-mel/docs.rs", "net-mel/docs.rs", "process-mel/docs.rs"]
 

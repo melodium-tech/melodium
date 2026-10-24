@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Searching the revealed values in data leaving the engine, as is, in base64, URL-encoded, or as bytes when they are not text, never line by line as masking does (#154).
 - Adding `Engine::add_secret_source`, giving a secret source before genesis, registered before the sources of models, so that a model registering the same scheme fails the launch (D0252), breaking for `Engine` implementors. Ending the engine shuts its secret sources down (#150).
 
 ## [v0.11.0] (2026-10-15)

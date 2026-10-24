@@ -15,6 +15,8 @@ use process/command::|command
 use work/resources/arch::Arch
 use work/resources/arch::|arm64
 use work/resources::|service_container
+use work/cache::Cache
+use work/cache::|cache
 use cicd/runners::CicdDispatchEngine
 use cicd/naive::simpleStep
 use cicd/naive::simpleStepWithInput
@@ -31,6 +33,9 @@ use fs/local::writeLocal
 //                      the cloned repo's own Cargo.toml, streamed back
 //                      locally (works for any ordinary single-binary crate,
 //                      not just the one used as the default `repo_url`).
+//                      Downloaded crates and build outputs are a cache of
+//                      Cadence.CI, restored before the build and saved
+//                      after it under `cache_key`.
 //
 //   Stage 2, test:    rust:1.90-slim + postgres:16 service container; a
 //                      `psql` connectivity check exercises DATABASE_URL
@@ -64,10 +69,14 @@ use fs/local::writeLocal
 //   melodium run --api-report Compo.toml \
 //     --repo_url "https://github.com/your-org/your-project.git"
 //
+//   # with a new cache, after updating dependencies:
+//   melodium run --api-report Compo.toml --cache_key cargo-2
+//
 
 treatment main(
-    const repo_url: string = "https://github.com/sharkdp/hexyl.git",
-    const output:   string = "artifact.tar.gz"
+    const repo_url:  string = "https://github.com/sharkdp/hexyl.git",
+    const output:    string = "artifact.tar.gz",
+    const cache_key: string = "cargo-1"
 )
   model dispatcher: CicdDispatchEngine()
 {
@@ -76,7 +85,7 @@ treatment main(
     startup.trigger -> logStart.trigger
 
     // Stage 1, build: compile release binary in a Rust container.
-    build[dispatcher=dispatcher](repo_url=repo_url)
+    build[dispatcher=dispatcher](repo_url=repo_url, cache_key=cache_key)
     startup.trigger -> build.trigger
 
     buildFailed: logErrorMessage(label="build", message="build stage failed")
@@ -187,7 +196,14 @@ treatment main(
 // The binary's name is read back from the repo's own Cargo.toml (works for
 // any simple single-binary crate, not just the default `repo_url`), then
 // streamed back via `data` (read from /mnt/data/binary on the container).
-treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
+//
+// Cargo keeps downloaded crates (`CARGO_HOME`) and build outputs
+// (`CARGO_TARGET_DIR`) in /mnt/data/cache, the `cache` directory of the
+// step's `data` volume. That directory is restored from Cadence.CI before the
+// commands run, by `cache_key`, or else by the newest cache whose key starts
+// with `cargo-`, and saved under `cache_key` once they succeed. A cache is
+// never replaced: a new `cache_key` saves a new one.
+treatment build[dispatcher: CicdDispatchEngine](const repo_url: string, const cache_key: string)
   input  trigger:  Block<void>
   output started:  Block<void>
   output success:  Block<void>
@@ -214,10 +230,16 @@ treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
             |command("sh", ["-c", "apt-get update -qq && apt-get install -y --no-install-recommends git"]),
             |command("sh", ["-c", "git clone --depth 1 ${REPO_URL} /workspace"]),
             |command("sh", ["-c", "cd /workspace && cargo build --release 2>&1"]),
-            |command("sh", ["-c", "BIN=$(grep -m1 '^name' /workspace/Cargo.toml | cut -d '\"' -f2) && cp \"/workspace/target/release/$BIN\" /mnt/data/binary"])
+            |command("sh", ["-c", "BIN=$(grep -m1 '^name' /workspace/Cargo.toml | cut -d '\"' -f2) && cp \"$CARGO_TARGET_DIR/release/$BIN\" /mnt/data/binary"])
         ],
-        variables    = |wrap<StringMap>(|map([|entry("REPO_URL", repo_url)])),
-        out_file     = "binary"
+        variables    = |wrap<StringMap>(|map([
+            |entry("REPO_URL", repo_url),
+            |entry("CARGO_HOME", "/mnt/data/cache/cargo"),
+            |entry("CARGO_TARGET_DIR", "/mnt/data/cache/target")
+        ])),
+        out_storage  = |wrap<u32>(4096),
+        out_file     = "binary",
+        cache        = |wrap<Cache>(|cache("data", "cache", cache_key, ["cargo-"]))
     )
 
     Self.trigger -> simpleStep.trigger

@@ -19,7 +19,7 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | `image:` | `image` parameter of `simpleStep` |
 | `services:` | `service_containers` parameter of `simpleStep` |
 | `artifacts:` | `out_file` + `data` stream output; `simpleStepWithInput` to consume |
-| `cache:` | No direct equivalent; share data via `data` streams or mounted volumes |
+| `cache:` | `cache` parameter of `simpleStep`, `\|wrap<Cache>(\|cache("data", "<dir under /mnt/data>", key, restore_keys))` from `work/cache`, restored before `commands` and saved after success, on Cadence.CI workers |
 | `rules:` / `only:` / `except:` | `filterBlock<void>()` or `passBlock<void>()` on the `trigger` |
 | `when: on_success` | Default: chain `success` output to next trigger |
 | `when: on_failure` | Chain `failed` or `error` output to next trigger |
@@ -197,6 +197,7 @@ treatment buildJob[dispatcher: CicdDispatchEngine](
 | `commands` | required | List of `Command` to run sequentially |
 | `out_file` | `_` | File to stream back as `data` after success (equivalent to `artifacts:`) |
 | `out_storage` | `_` | Override data volume size in MB |
+| `cache` | `_` | Directory of the `data` volume restored from a Cadence.CI cache before `commands` and saved under its key after success (`Option<Cache>`, from `work/cache::\|cache`), equivalent to `cache:` |
 | `report` | `true` | Enable service state reporting |
 | `gitlab` | `false` | Report to GitLab commit status API |
 | `gitlab_root_url` | `"https://gitlab.com/api/v4"` | GitLab API root URL |

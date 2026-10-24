@@ -32,6 +32,7 @@ use work/resources::|volume
 use work/resources::|mount
 use work/resources::ServiceContainer
 use work/resources/arch::Arch
+use work/cache::Cache
 
 /**
 Run a CI/CD step on the local machine.
@@ -214,6 +215,9 @@ The image is pulled with `pull_secret`, revealed only to request the container.
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
+With a `cache`, a directory of the volume `data` (mounted in `/mnt/data`) is restored from Cadence.CI before `commands`, and saved under its key once they succeed, unless it was restored under that same key, such as `|wrap<Cache>(|cache("data", "cargo", "cargo-<hash of Cargo.lock>", ["cargo-"]))` for `CARGO_HOME=/mnt/data/cargo`.
+A missed cache only logs a warning, as does a cache that cannot be saved; `out_storage` needs room for the cache and for its archive while it is transferred.
+
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
 - `completed`: emitted when the step finished to be executed;
@@ -239,6 +243,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
     commands: Vec<Command>,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
+    cache: Option<Cache> = _,
 
     report: bool = true,
     github: bool = false,
@@ -295,7 +300,8 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
         description=description,
-        log_service_response=log_service_response
+        log_service_response=log_service_response,
+        cache=cache
     )
     closeTerminate: closeBlock<void>()
 
@@ -334,6 +340,9 @@ The image is pulled with `pull_secret`, revealed only to request the container.
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
+With a `cache`, a directory of the volume `data` (mounted in `/mnt/data`) is restored from Cadence.CI before `commands`, and saved under its key once they succeed, unless it was restored under that same key, such as `|wrap<Cache>(|cache("data", "cargo", "cargo-<hash of Cargo.lock>", ["cargo-"]))` for `CARGO_HOME=/mnt/data/cargo`.
+A missed cache only logs a warning, as does a cache that cannot be saved; `out_storage` needs room for the cache and for its archive while it is transferred.
+
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
 - `completed`: emitted when the step finished to be executed;
@@ -359,6 +368,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
     commands: Vec<Command>,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
+    cache: Option<Cache> = _,
 
     report: bool = true,
     github: bool = false,
@@ -407,7 +417,8 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
         commands=commands,
         environment=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))),
         out_file=out_file,
-        out_filesystem="data"
+        out_filesystem="data",
+        cache=cache
     )
     stopRunner[runner=runner]()
     setServiceState(
@@ -485,6 +496,9 @@ The image is pulled with `pull_secret`, revealed only to request the container.
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
+With a `cache`, a directory of the volume `data` (mounted in `/mnt/data`) is restored from Cadence.CI before `commands`, and saved under its key once they succeed, unless it was restored under that same key, such as `|wrap<Cache>(|cache("data", "cargo", "cargo-<hash of Cargo.lock>", ["cargo-"]))` for `CARGO_HOME=/mnt/data/cargo`.
+A missed cache only logs a warning, as does a cache that cannot be saved; `out_storage` needs room for the cache and for its archive while it is transferred.
+
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
 - `completed`: emitted when the step finished to be executed;
@@ -511,6 +525,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
     in_file: string,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
+    cache: Option<Cache> = _,
 
     report: bool = true,
     github: bool = false,
@@ -568,7 +583,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
         description=description,
-        log_service_response=log_service_response
+        log_service_response=log_service_response,
+        cache=cache
     )
     closeTerminate: closeBlock<void>()
 
@@ -607,6 +623,9 @@ The image is pulled with `pull_secret`, revealed only to request the container.
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
+With a `cache`, a directory of the volume `data` (mounted in `/mnt/data`) is restored from Cadence.CI before `commands`, and saved under its key once they succeed, unless it was restored under that same key, such as `|wrap<Cache>(|cache("data", "cargo", "cargo-<hash of Cargo.lock>", ["cargo-"]))` for `CARGO_HOME=/mnt/data/cargo`.
+A missed cache only logs a warning, as does a cache that cannot be saved; `out_storage` needs room for the cache and for its archive while it is transferred.
+
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
 - `completed`: emitted when the step finished to be executed;
@@ -633,6 +652,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
     in_file: string,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
+    cache: Option<Cache> = _,
 
     report: bool = true,
     github: bool = false,
@@ -684,7 +704,8 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
         in_file=|wrap<string>(in_file),
         in_filesystem="data",
         out_file=out_file,
-        out_filesystem="data"
+        out_filesystem="data",
+        cache=cache
     )
     stopRunner[runner=runner]()
     setServiceState(

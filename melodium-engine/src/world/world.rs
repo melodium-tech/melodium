@@ -32,9 +32,9 @@ use melodium_common::descriptor::{
 use melodium_common::executive::{
     check_secret_resolution, register_wipe, Context as ExecutiveContext, ContinuousFuture,
     DirectCreationCallback, Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId,
-    Output as ExecutiveOutput, ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretError,
-    SecretId, SecretSource, SecretTransmission, SecretsAccess, SecretsHost, TrackCreationCallback,
-    TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
+    Output as ExecutiveOutput, ResultStatus, RevealedValues, Secret, SecretAudit,
+    SecretAuditOutcome, SecretError, SecretId, SecretSource, SecretTransmission, SecretsAccess,
+    SecretsHost, TrackCreationCallback, TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::future::Future;
@@ -1309,6 +1309,10 @@ impl SecretsHost for World {
 
     fn add_masked_value(&self, secret_name: &str, value: &Value) {
         self.masking.add(secret_name, value);
+    }
+
+    fn revealed_values(&self) -> Option<Arc<dyn RevealedValues>> {
+        Some(Arc::clone(&self.masking) as Arc<dyn RevealedValues>)
     }
 
     fn revealing(&self) -> bool {

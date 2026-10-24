@@ -103,9 +103,88 @@ pub trait SecretsHost: Debug + Send + Sync {
     /// Registers a value revealed from the secret named `secret_name`,
     /// masked from then on in log messages and remote debug text.
     fn add_masked_value(&self, secret_name: &str, value: &Value);
+    /// Gives the values revealed so far, and from then on, to search them in data.
+    fn revealed_values(&self) -> Option<Arc<dyn RevealedValues>> {
+        None
+    }
     /// Records an access to a secret, as a debug event, and also in the log
     /// for denials and resolution failures.
     async fn secret_audit(&self, audit: SecretAudit);
+}
+
+/// Values revealed by an engine, searched in data leaving it, such as files a program uploads.
+///
+/// Each value is searched as is, in base64 and URL-encoded, never line by line as masking
+/// does, so that ordinary lines of a multi-line value are not found everywhere.
+#[doc(hidden)]
+pub trait RevealedValues: Send + Sync {
+    /// Gives the name of the secret whose revealed value is found in `data`, if any.
+    fn find(&self, data: &[u8]) -> Option<String>;
+    /// Length of the longest value searched, in bytes.
+    fn longest(&self) -> usize;
+}
+
+/// Search of the values revealed by the engine in data given chunk by chunk,
+/// finding values across chunks too.
+///
+/// Values revealed while the search goes on are searched from then on.
+pub struct RevealedScan {
+    values: Option<Arc<dyn RevealedValues>>,
+    /// End of the data searched so far, as long as the longest value but one byte.
+    tail: Vec<u8>,
+}
+
+impl RevealedScan {
+    /// Search finding nothing, for engines revealing nothing.
+    pub fn none() -> Self {
+        Self {
+            values: None,
+            tail: Vec::new(),
+        }
+    }
+
+    /// Searches `chunk`, following the chunks searched before, and gives the name of the
+    /// secret whose revealed value is found, if any.
+    pub fn scan(&mut self, chunk: &[u8]) -> Option<String> {
+        let values = self.values.as_ref()?;
+        let kept = values.longest().saturating_sub(1);
+        if kept == 0 {
+            return None;
+        }
+
+        let found = values.find(chunk).or_else(|| {
+            // Values across the end of the previous data and the start of this chunk.
+            let mut boundary = self.tail.clone();
+            boundary.extend_from_slice(&chunk[..chunk.len().min(kept)]);
+            let found = values.find(&boundary);
+            boundary.zeroize();
+            found
+        });
+
+        if chunk.len() >= kept {
+            self.tail.zeroize();
+            self.tail.clear();
+            self.tail.extend_from_slice(&chunk[chunk.len() - kept..]);
+        } else {
+            self.tail.extend_from_slice(chunk);
+            let excess = self.tail.len().saturating_sub(kept);
+            self.tail[..excess].zeroize();
+            self.tail.drain(..excess);
+        }
+        found
+    }
+}
+
+impl Drop for RevealedScan {
+    fn drop(&mut self) {
+        self.tail.zeroize();
+    }
+}
+
+impl Debug for RevealedScan {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RevealedScan").finish_non_exhaustive()
+    }
 }
 
 /// Resolves the value of `secret` and drops it right away, for the engine itself,
@@ -248,6 +327,18 @@ impl SecretsAccess {
         }
     }
 
+    /// Starts a search of the values the engine revealed in data given chunk by chunk,
+    /// such as files leaving the engine, so that elements refuse to send revealed values
+    /// where they would no longer be masked.
+    ///
+    /// The search only knows the values revealed by this engine, not by distant ones.
+    pub fn revealed_scan(&self) -> RevealedScan {
+        RevealedScan {
+            values: self.host.upgrade().and_then(|host| host.revealed_values()),
+            tail: Vec::new(),
+        }
+    }
+
     /// Registers `source` for the `scheme` of locators, such as `vault` for `vault:<path>`.
     ///
     /// Only possible from the `secret_sources` function of a model, called before any
@@ -376,3 +467,60 @@ impl Display for SecretError {
 }
 
 impl std::error::Error for SecretError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Values searched with a plain search, `name` being found for each one.
+    struct Values(Vec<(&'static [u8], &'static str)>);
+
+    impl RevealedValues for Values {
+        fn find(&self, data: &[u8]) -> Option<String> {
+            self.0
+                .iter()
+                .find(|(value, _)| data.windows(value.len()).any(|window| window == *value))
+                .map(|(_, name)| name.to_string())
+        }
+
+        fn longest(&self) -> usize {
+            self.0
+                .iter()
+                .map(|(value, _)| value.len())
+                .max()
+                .unwrap_or(0)
+        }
+    }
+
+    fn scan(values: Vec<(&'static [u8], &'static str)>) -> RevealedScan {
+        RevealedScan {
+            values: Some(Arc::new(Values(values))),
+            tail: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn finds_values_within_and_across_chunks() {
+        let mut within = scan(vec![(b"revealed-value", "token")]);
+        assert_eq!(
+            within.scan(b"some revealed-value here"),
+            Some("token".to_string())
+        );
+
+        let mut across = scan(vec![(b"revealed-value", "token")]);
+        assert_eq!(across.scan(b"some reve"), None);
+        assert_eq!(across.scan(b"aled-va"), None);
+        assert_eq!(across.scan(b"lue and more"), Some("token".to_string()));
+    }
+
+    #[test]
+    fn finds_nothing_in_other_data() {
+        let mut other = scan(vec![(b"revealed-value", "token")]);
+        for chunk in [&b"revealed"[..], b"-", b"other", b"revealed-valu"] {
+            assert_eq!(other.scan(chunk), None);
+        }
+
+        let mut nothing_revealed = RevealedScan::none();
+        assert_eq!(nothing_revealed.scan(b"revealed-value"), None);
+    }
+}

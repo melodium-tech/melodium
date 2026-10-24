@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Adding `SecretsAccess::revealed_scan`, searching the values the engine revealed in data given chunk by chunk, such as files leaving it, through `SecretsHost::revealed_values` and the `RevealedValues` trait (#154).
 - Adding `SecretSource::shutdown`, called when the engine ends, for sources to wipe what they keep (#150).
 
 ## [v0.11.0] (2026-10-15)

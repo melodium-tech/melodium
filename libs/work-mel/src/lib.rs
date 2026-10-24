@@ -10,6 +10,7 @@ compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
 pub mod access;
 pub mod api;
+pub mod cache;
 pub mod compose;
 pub mod container;
 pub mod distant;
@@ -17,7 +18,9 @@ pub mod distant;
 mod http;
 pub mod reporting;
 pub mod resources;
+mod run;
 pub mod secret;
+mod storage;
 
 #[cfg(feature = "kubernetes")]
 mod kube;

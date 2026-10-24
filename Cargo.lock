@@ -7143,6 +7143,7 @@ checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
 dependencies = [
  "filetime",
  "libc",
+ "xattr",
 ]
 
 [[package]]
@@ -8528,6 +8529,7 @@ dependencies = [
  "compose_spec",
  "fs-mel",
  "futures",
+ "hex",
  "k8s-openapi",
  "kube",
  "melodium-core",
@@ -8541,11 +8543,15 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2 0.10.9",
  "smol",
  "std-mel",
+ "tar",
+ "tempfile",
  "tokio",
  "uuid",
  "zeroize",
+ "zstd 0.13.3",
 ]
 
 [[package]]
@@ -8565,6 +8571,16 @@ name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
+
+[[package]]
+name = "xattr"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
+dependencies = [
+ "libc",
+ "rustix",
+]
 
 [[package]]
 name = "xmlparser"

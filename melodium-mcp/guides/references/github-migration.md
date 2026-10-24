@@ -27,6 +27,7 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | `env` | Parameters passed to treatments |
 | `step.continue-on-error` | `continue_on_error` parameter of `runAction`, chain `continue` output |
 | `step.timeout-minutes` | No direct equivalent per step; apply `max_duration` at runner level |
+| `actions/cache` | `cache` parameter of `simpleStep`, `\|wrap<Cache>(\|cache("data", "<dir under /mnt/data>", key, restore_keys))` from `work/cache`, or `work/cache::restore` and `save` in programs run on Cadence.CI workers |
 | Status reporting | `postGithubState` / `postGithubStateContext` |
 
 ---
