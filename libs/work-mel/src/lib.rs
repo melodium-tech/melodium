@@ -17,6 +17,8 @@ pub mod distant;
 mod http;
 pub mod reporting;
 pub mod resources;
+#[cfg(feature = "real")]
+mod volume;
 
 #[cfg(feature = "kubernetes")]
 mod kube;

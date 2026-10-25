@@ -100,6 +100,9 @@ pub async fn getExecutor() {
 /// Retrieve a filesystem handle by volume name from the current work environment.
 ///
 /// `name` identifies the volume to look up (container volume or Kubernetes persistent volume).
+/// Paths given to the filesystem are relative to the volume and stay within it: `..`, absolute
+/// paths and links leading out of it are refused, including links that executors sharing the
+/// volume create meanwhile.
 ///
 /// `filesystem` is emitted when the volume is found and ready.
 /// `failed` and `error` are emitted if the volume cannot be located.
@@ -125,47 +128,19 @@ pub async fn getExecutor() {
 pub async fn getFileSystem() {
     #[cfg(feature = "real")]
     if let Ok(name) = name.recv_one_as::<String>().await {
-        match std::env::var("MELODIUM_RUN_EXECUTOR").as_deref() {
-            Ok("podman") | Ok("docker") => {
-                match crate::container::ContainerFileSystem::try_new(name).await {
-                    Ok(container_fs) => {
-                        let _ = filesystem
-                            .send_one_as(std::sync::Arc::new(FileSystem {
-                                filesystem: std::sync::Arc::new(container_fs),
-                            }) as std::sync::Arc<dyn Data>)
-                            .await;
-                    }
-                    Err(err) => {
-                        let _ = failed.send_one_as(()).await;
-                        let _ = error.send_one_as(err).await;
-                    }
-                }
+        match crate::volume::volume_root(&name) {
+            Ok(root) => {
+                let _ = filesystem
+                    .send_one_as(std::sync::Arc::new(FileSystem {
+                        filesystem: std::sync::Arc::new(
+                            fs_mel::rooted::RootedFileSystemEngine::new(root),
+                        ),
+                    }) as std::sync::Arc<dyn Data>)
+                    .await;
             }
-            _ => {
-                #[cfg(feature = "kubernetes")]
-                {
-                    match crate::kube::KubeFileSystem::try_new(name).await {
-                        Ok(kube_fs) => {
-                            let _ = filesystem
-                                .send_one_as(std::sync::Arc::new(FileSystem {
-                                    filesystem: std::sync::Arc::new(kube_fs),
-                                })
-                                    as std::sync::Arc<dyn Data>)
-                                .await;
-                        }
-                        Err(err) => {
-                            let _ = failed.send_one_as(()).await;
-                            let _ = error.send_one_as(err).await;
-                        }
-                    }
-                }
-                #[cfg(not(feature = "kubernetes"))]
-                {
-                    let _ = failed.send_one_as(()).await;
-                    let _ = error
-                        .send_one_as(format!("No volume '{name}' available"))
-                        .await;
-                }
+            Err(err) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err).await;
             }
         }
     }

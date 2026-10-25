@@ -8,27 +8,14 @@ use melodium_macro::{check, mel_function};
 use std::path::{Path, PathBuf};
 use std::{fmt::Debug, sync::Arc};
 
+/// Local file system, without root: paths are those of the process, absolute or relative to
+/// its working directory.
 #[derive(Debug)]
-struct LocalFileSystemEngine {
-    path: Option<PathBuf>,
-}
+struct LocalFileSystemEngine;
 
 impl LocalFileSystemEngine {
     async fn full_path(&self, path: &Path) -> std::io::Result<PathBuf> {
-        if let Some(root_path) = self.path.as_ref() {
-            let full_path = root_path.join(path);
-
-            if full_path.starts_with(root_path) {
-                Ok(full_path)
-            } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "file not found",
-                ))
-            }
-        } else {
-            Ok(path.into())
-        }
+        Ok(path.into())
     }
 }
 
@@ -288,16 +275,24 @@ impl FileSystemEngine for LocalFileSystemEngine {
 /// Create a local filesystem handle optionally rooted at `path`.
 ///
 /// When `path` is `Some`, all file operations performed through the returned `FileSystem`
-/// are interpreted relative to that directory.
-/// When `path` is `None`, the process working directory is used as the root.
+/// are interpreted relative to that directory, and stay within it: `..`, absolute paths and
+/// links leading out of it are refused, links staying within it are followed.
+/// When `path` is `None`, paths are those of the process, absolute or relative to its working
+/// directory.
 ///
 /// Returns `None` only when the underlying engine cannot be initialised, which in practice
 /// never happens for a local filesystem.
 #[mel_function]
 pub fn local_filesystem(path: Option<string>) -> Option<FileSystem> {
+    #[cfg(feature = "real")]
+    if let Some(path) = path {
+        return Some(FileSystem {
+            filesystem: Arc::new(crate::rooted::RootedFileSystemEngine::new(PathBuf::from(
+                path,
+            ))),
+        });
+    }
     Some(FileSystem {
-        filesystem: Arc::new(LocalFileSystemEngine {
-            path: path.map(|path| PathBuf::from(path)),
-        }),
+        filesystem: Arc::new(LocalFileSystemEngine),
     })
 }

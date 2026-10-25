@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- `getFileSystem` gives the file system of a volume rooted at its directory (`fs_mel::rooted::RootedFileSystemEngine`), whatever the executors: `..`, absolute paths and links leading out of the volume are refused, including links that executors sharing the volume create meanwhile. `ContainerFileSystem` and `KubeFileSystem`, which joined paths to the volume, are removed.
+
 ## [v0.11.0] (2026-10-15)
 
 - Moving from async-std, which is discontinued, to smol: the Mélodium API is requested with reqwest, like the reports to S3, and reqwest and Kubernetes run in a Tokio context given by async-compat, and an answer 409 to a run start, the run being already started, is no longer an error; files written in containers and Kubernetes volumes are flushed before `completed` (#104).

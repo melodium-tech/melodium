@@ -15,5 +15,7 @@ pub mod file;
 pub mod filesystem;
 pub mod local;
 pub mod path;
+#[cfg(feature = "real")]
+pub mod rooted;
 
 mel_package!();
