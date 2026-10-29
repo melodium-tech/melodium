@@ -329,13 +329,12 @@ fn check_name(name: &str) -> Result<(), String> {
     }
 }
 
-/// How long an artifact is kept.
+/// How long an artifact is kept (`ArtifactRetention` of the API), none being the retention of
+/// the plan, three months at least.
 #[cfg(feature = "real")]
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Retention {
-    /// The retention of the plan, three months at least.
-    Default,
     /// Until deleted.
     Never,
     Days(u32),
@@ -350,24 +349,27 @@ struct PushedFile<'a> {
     media_type: String,
 }
 
-/// Request pushing an artifact.
+/// Request pushing an artifact (`ArtifactPushRequest` of the API).
 #[cfg(feature = "real")]
 #[derive(Serialize)]
 struct PushRequest<'a> {
     name: &'a str,
     files: Vec<PushedFile<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     entrypoint: Option<&'a str>,
     access: &'a str,
-    retention: Retention,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    retention: Option<Retention>,
     lock: bool,
 }
 
-/// Artifact reserved, with how to upload each of its files.
+/// Artifact reserved, with how to upload each of its files (`ArtifactPushResponse` of the
+/// API).
 #[cfg(feature = "real")]
 #[derive(Deserialize)]
 struct Pushed {
     artifact_id: uuid::Uuid,
-    files: Vec<FileUpload>,
+    uploads: Vec<FileUpload>,
 }
 
 #[cfg(feature = "real")]
@@ -392,7 +394,8 @@ struct CompletedFile {
     parts: Vec<UploadedPart>,
 }
 
-/// Files of an artifact, as its stable address gives them with `?manifest`.
+/// Files of an artifact, as its stable address gives them with `?manifest` (`ArtifactDownload`
+/// of the API).
 #[cfg(feature = "real")]
 #[derive(Deserialize)]
 struct Manifest {
@@ -404,7 +407,8 @@ struct Manifest {
 struct ManifestFile {
     path: String,
     size: u64,
-    sha256: String,
+    /// Recorded when the file was pushed, so always given for complete artifacts.
+    sha256: Option<String>,
     download: PresignedRequest,
 }
 
@@ -424,9 +428,9 @@ async fn pushing(
         ));
     }
     let retention = match (artifact.retention, artifact.expires) {
-        (None, true) => Retention::Default,
-        (Some(days), true) => Retention::Days(days),
-        (None, false) => Retention::Never,
+        (None, true) => None,
+        (Some(days), true) => Some(Retention::Days(days)),
+        (None, false) => Some(Retention::Never),
         (Some(_), false) => {
             return Err("an artifact kept until deleted has no retention".to_string())
         }
@@ -508,7 +512,7 @@ async fn pushing(
     let pushed: Pushed = answer(api.post_json(api.run_url("artifacts"), &request).await?)?;
 
     let mut uploads = pushed
-        .files
+        .uploads
         .into_iter()
         .map(|file| (file.path, file.upload))
         .collect::<std::collections::HashMap<_, _>>();
@@ -589,6 +593,9 @@ async fn fetching(volume: &str, path: &str, run: &str, name: &str) -> Result<usi
     let manifest: Manifest = answer((status, body))?;
     for file in &manifest.files {
         tree::check_path(&file.path)?;
+        if file.sha256.is_none() {
+            return Err(format!("'{}' has no sha256 to check it against", file.path));
+        }
     }
 
     let created = create_directories(&target, &manifest.files)?;
@@ -605,9 +612,14 @@ async fn fetching(volume: &str, path: &str, run: &str, name: &str) -> Result<usi
                 let handle = temporary
                     .reopen()
                     .map_err(|err| format!("'{}' cannot be written: {err}", file.path))?;
-                transfer::download(&file.download, file.size, &file.sha256, handle)
-                    .await
-                    .map_err(|problem| format!("'{}' not fetched, {problem}", file.path))?;
+                transfer::download(
+                    &file.download,
+                    file.size,
+                    file.sha256.as_deref().unwrap_or_default(),
+                    handle,
+                )
+                .await
+                .map_err(|problem| format!("'{}' not fetched, {problem}", file.path))?;
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::PermissionsExt;
@@ -748,5 +760,56 @@ mod tests {
         for invalid in ["", ".", "..", "a/b", "a b", "été"] {
             assert!(check_name(invalid).is_err(), "{invalid}");
         }
+    }
+
+    /// Answers as `melodium-service-api` serializes them, and requests as it parses them.
+    #[cfg(feature = "real")]
+    #[test]
+    fn exchanges_are_those_of_the_api() {
+        let pushed = r#"{"artifact_id":"00000000-0000-0000-0000-000000000001","uploads":[{"path":"index.html","upload":{"single":{"request":{"method":"PUT","url":"https://s/f","headers":{"x-amz-meta":"v"}}}}}]}"#;
+        let pushed: Pushed = serde_json::from_str(pushed).unwrap();
+        assert_eq!(pushed.uploads[0].path, "index.html");
+        assert!(matches!(pushed.uploads[0].upload, Upload::Single { .. }));
+
+        let manifest = r#"{"artifact":{"id":"00000000-0000-0000-0000-000000000001","run_id":"00000000-0000-0000-0000-000000000001","organization_id":"00000000-0000-0000-0000-000000000001","name":"site","entrypoint":null,"access":"public","expire_date":null,"locked_date":null,"state":"complete","created_date":"1970-01-01T00:00:00Z","files":[],"copies":[]},"files":[{"path":"index.html","size":6,"sha256":"cd","media_type":"text/html","download":{"method":"GET","url":"https://s/f","headers":{"x-amz-meta":"v"}}}]}"#;
+        let manifest: Manifest = serde_json::from_str(manifest).unwrap();
+        assert_eq!(manifest.files[0].sha256.as_deref(), Some("cd"));
+        assert_eq!(manifest.files[0].size, 6);
+
+        let request = |retention, entrypoint| PushRequest {
+            name: "site",
+            files: vec![PushedFile {
+                path: "index.html",
+                size: 6,
+                media_type: "text/html".to_string(),
+            }],
+            entrypoint,
+            access: "public",
+            retention,
+            lock: false,
+        };
+        assert_eq!(
+            serde_json::to_string(&request(None, None)).unwrap(),
+            r#"{"name":"site","files":[{"path":"index.html","size":6,"media_type":"text/html"}],"access":"public","lock":false}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&request(Some(Retention::Days(30)), Some("index.html"))).unwrap(),
+            r#"{"name":"site","files":[{"path":"index.html","size":6,"media_type":"text/html"}],"entrypoint":"index.html","access":"public","retention":{"days":30},"lock":false}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&request(Some(Retention::Never), None)).unwrap(),
+            r#"{"name":"site","files":[{"path":"index.html","size":6,"media_type":"text/html"}],"access":"public","retention":"never","lock":false}"#
+        );
+        let completion = ArtifactCompletion {
+            files: vec![CompletedFile {
+                path: "index.html".to_string(),
+                sha256: "cd".to_string(),
+                parts: Vec::new(),
+            }],
+        };
+        assert_eq!(
+            serde_json::to_string(&completion).unwrap(),
+            r#"{"files":[{"path":"index.html","sha256":"cd","parts":[]}]}"#
+        );
     }
 }

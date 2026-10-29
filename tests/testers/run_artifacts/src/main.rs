@@ -190,7 +190,11 @@ fn manifest(address: &str, files: &[ArtifactFile]) -> String {
             )
         })
         .collect();
-    format!(r#"{{"files":[{}]}}"#, files.join(","))
+    // The artifact itself comes along, as `ArtifactDownload` of the API gives it.
+    format!(
+        r#"{{"artifact":{{"name":"listed","access":"organization","state":"complete"}},"files":[{}]}}"#,
+        files.join(",")
+    )
 }
 
 /// Starts a mock of the API keeping run artifacts, and of storage.
@@ -264,12 +268,12 @@ fn api_server() -> Mock {
                                     })
                                     .collect();
                                 format!(
-                                    r#"{{"kind":"multipart","part_size":{PART_SIZE},"parts":[{}]}}"#,
+                                    r#"{{"multipart":{{"part_size":{PART_SIZE},"parts":[{}]}}}}"#,
                                     parts.join(",")
                                 )
                             } else {
                                 format!(
-                                    r#"{{"kind":"single","request":{}}}"#,
+                                    r#"{{"single":{{"request":{}}}}}"#,
                                     presigned(&base, &format!("/storage/{object}"), "PUT")
                                 )
                             };
@@ -300,7 +304,7 @@ fn api_server() -> Mock {
                         (
                             "200 OK",
                             format!(
-                                r#"{{"artifact_id":"{id}","files":[{}]}}"#,
+                                r#"{{"artifact_id":"{id}","uploads":[{}]}}"#,
                                 uploads.join(",")
                             )
                             .into_bytes(),
@@ -333,6 +337,7 @@ fn api_server() -> Mock {
                                 stored.parts.len(),
                                 "every part is completed"
                             );
+                            assert_eq!(file.matches("\"part_number\"").count(), stored.parts.len());
                             let mut numbers: Vec<u32> = stored.parts.keys().copied().collect();
                             numbers.sort();
                             stored.content = numbers
@@ -537,7 +542,7 @@ fn pushed_trees_are_fetched_whole() {
     let report = artifact(&mock, "report");
     assert!(report.complete);
     assert_eq!(report.access, "public");
-    assert_eq!(report.retention, "\"default\"");
+    assert_eq!(report.retention, "", "no retention for the default");
     assert!(!report.lock);
     assert_eq!(
         report
