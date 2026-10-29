@@ -34,9 +34,9 @@ impl Debug for PresignedRequest {
     }
 }
 
-/// How an object is uploaded, as the API reserved it.
+/// How an object is uploaded, as the API reserved it (`StorageUpload` of the API).
 #[derive(Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum Upload {
     /// One request sending the whole object, for objects up to the part size of the API.
     Single { request: PresignedRequest },
@@ -47,10 +47,12 @@ pub(crate) enum Upload {
     },
 }
 
-/// Part of an object uploaded, with the entity tag storage gave it.
+/// Part of an object uploaded, with the entity tag storage gave it (`StorageUploadedPart` of
+/// the API).
 #[derive(Debug, Serialize)]
 pub(crate) struct UploadedPart {
-    pub number: u32,
+    /// From 1.
+    pub part_number: u32,
     pub etag: String,
 }
 

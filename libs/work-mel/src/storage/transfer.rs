@@ -63,7 +63,10 @@ pub(crate) async fn upload(
                 let etag = put(request, data)
                     .await?
                     .ok_or_else(|| format!("storage gave no entity tag for part {number}"))?;
-                uploaded.push(UploadedPart { number, etag });
+                uploaded.push(UploadedPart {
+                    part_number: number,
+                    etag,
+                });
             }
         }
     }
