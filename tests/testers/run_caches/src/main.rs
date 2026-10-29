@@ -220,7 +220,7 @@ fn api_server() -> Mock {
                         Some(cache) => (
                             "200 OK",
                             format!(
-                                r#"{{"result":"hit","key":"{}","size":{},"sha256":"{}","download":{}}}"#,
+                                r#"{{"hit":{{"key":"{}","size":{},"sha256":"{}","download":{}}}}}"#,
                                 cache.key,
                                 cache.size,
                                 cache.sha256.unwrap(),
@@ -228,7 +228,7 @@ fn api_server() -> Mock {
                             )
                             .into_bytes(),
                         ),
-                        None => ("200 OK", br#"{"result":"miss"}"#.to_vec()),
+                        None => ("200 OK", br#""miss""#.to_vec()),
                     }
                 }
                 ("POST", Some("save"), _) => {
@@ -239,7 +239,12 @@ fn api_server() -> Mock {
                         .iter()
                         .any(|cache| cache.key == key && cache.sha256.is_some())
                     {
-                        ("200 OK", br#"{"result":"exists"}"#.to_vec())
+                        ("200 OK", br#""exists""#.to_vec())
+                    } else if key.starts_with("full-") {
+                        (
+                            "200 OK",
+                            br#"{"skipped":{"reason":"storage full"}}"#.to_vec(),
+                        )
                     } else {
                         next_object += 1;
                         let object = format!("00000000-0000-0000-0000-{next_object:012}");
@@ -268,21 +273,19 @@ fn api_server() -> Mock {
                                 })
                                 .collect();
                             format!(
-                                r#"{{"kind":"multipart","part_size":{PART_SIZE},"parts":[{}]}}"#,
+                                r#"{{"multipart":{{"part_size":{PART_SIZE},"parts":[{}]}}}}"#,
                                 parts.join(",")
                             )
                         } else {
                             format!(
-                                r#"{{"kind":"single","request":{}}}"#,
+                                r#"{{"single":{{"request":{}}}}}"#,
                                 presigned(&base, &format!("/storage/{object}"), "PUT")
                             )
                         };
                         (
                             "200 OK",
-                            format!(
-                                r#"{{"result":"upload","object_id":"{object}","upload":{upload}}}"#
-                            )
-                            .into_bytes(),
+                            format!(r#"{{"upload":{{"object_id":"{object}","upload":{upload}}}}}"#)
+                                .into_bytes(),
                         )
                     }
                 }
@@ -295,6 +298,7 @@ fn api_server() -> Mock {
                         .to_string();
                     let sha256 = strings(&json, "sha256").pop();
                     let etags = json.matches("\"etag\"").count();
+                    assert_eq!(json.matches("\"part_number\"").count(), etags);
                     let stored = state.objects.get_mut(&object).unwrap();
                     if stored.multipart {
                         assert_eq!(etags, stored.parts.len(), "every part is completed");
@@ -586,6 +590,33 @@ fn existing_keys_upload_nothing() {
     let _ = std::fs::remove_dir_all(&second);
 }
 
+/// Cadence.CI skips caches it has no room for: nothing is uploaded, and the run goes on.
+fn skipped_caches_upload_nothing() {
+    let save = temp_file("run_caches", "save.mel", SAVE_SCRIPT);
+    let mock = api_server();
+    let full = volume("full", &dependencies());
+
+    let output = run(&save, Some(&mock.address), &full, &["--key", "full-abc"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_contains(
+        &stdout,
+        "Cache 'full-abc' not saved from 'target' of volume 'data': Cadence.CI skipped it: storage full",
+    );
+    assert!(!stdout.contains("cache: saved"), "{}", stdout);
+    let state = mock.state.lock().unwrap();
+    assert_eq!(
+        state
+            .requests
+            .iter()
+            .map(|(target, _)| target.as_str())
+            .collect::<Vec<_>>(),
+        vec![format!("POST /execution/run/{RUN_ID}/cache/save").as_str()]
+    );
+    drop(state);
+
+    let _ = std::fs::remove_dir_all(&full);
+}
+
 fn misses_are_not_errors() {
     let restore = temp_file("run_caches", "restore.mel", RESTORE_SCRIPT);
     let mock = api_server();
@@ -825,6 +856,10 @@ pub fn run_cases() -> ! {
     ));
     cases.push(("existing_keys_upload_nothing", existing_keys_upload_nothing));
     cases.push(("misses_are_not_errors", misses_are_not_errors));
+    cases.push((
+        "skipped_caches_upload_nothing",
+        skipped_caches_upload_nothing,
+    ));
     cases.push((
         "tampered_archives_are_never_extracted",
         tampered_archives_are_never_extracted,

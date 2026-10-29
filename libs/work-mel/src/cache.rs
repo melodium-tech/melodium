@@ -146,7 +146,8 @@ pub async fn restoreCache() {
 /// is kept in the volume, in a file without name: the volume needs room for it.
 ///
 /// `completed` is emitted once the cache is saved, or already existed. Otherwise `failed` is
-/// emitted, and `error` gives the reason. `finished` is emitted in any case.
+/// emitted, and `error` gives the reason, such as Cadence.CI skipping the cache when the
+/// storage of the organization is full. `finished` is emitted in any case.
 #[mel_treatment(
     input key Block<string>
     output completed Block<void>
@@ -304,10 +305,10 @@ struct RestoreRequest<'a> {
     keys: &'a [String],
 }
 
-/// Cache matching a restore request, if any.
+/// Cache matching a restore request, if any (`CacheRestoreResponse` of the API).
 #[cfg(feature = "real")]
 #[derive(Deserialize)]
-#[serde(tag = "result", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 enum Restore {
     Hit {
         key: String,
@@ -326,15 +327,17 @@ struct SaveRequest<'a> {
     size: u64,
 }
 
-/// What to do to save a cache.
+/// What to do to save a cache (`CacheSaveResponse` of the API).
 #[cfg(feature = "real")]
 #[derive(Deserialize)]
-#[serde(tag = "result", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 enum Save {
     /// A cache already exists under that key.
     Exists,
     /// The archive is to be uploaded as `upload` tells, then completed.
     Upload { object_id: Uuid, upload: Upload },
+    /// Not saved, such as when the storage of the organization is full.
+    Skipped { reason: String },
 }
 
 /// Restores the first cache matching `keys` into `path` of `volume`, giving its key.
@@ -419,6 +422,7 @@ async fn saving(
     )? {
         Save::Exists => return Ok(false),
         Save::Upload { object_id, upload } => (object_id, upload),
+        Save::Skipped { reason } => return Err(format!("Cadence.CI skipped it: {reason}")),
     };
 
     let (sha256, parts) =
@@ -447,4 +451,78 @@ async fn saving(
     _key: &str,
 ) -> Result<bool, String> {
     Err("caches cannot be saved in this build".to_string())
+}
+
+/// Answers as `melodium-service-api` serializes them, and requests as it parses them.
+#[cfg(all(test, feature = "real"))]
+mod contract_tests {
+    use super::*;
+
+    #[test]
+    fn answers_of_the_api_are_understood() {
+        let hit = r#"{"hit":{"key":"cargo-1","size":10,"sha256":"ab","download":{"method":"GET","url":"https://s/c","headers":{"x-amz-meta":"v"}}}}"#;
+        match serde_json::from_str::<Restore>(hit).unwrap() {
+            Restore::Hit {
+                key,
+                size,
+                sha256,
+                download,
+            } => {
+                assert_eq!((key.as_str(), size, sha256.as_str()), ("cargo-1", 10, "ab"));
+                assert_eq!(download.headers["x-amz-meta"], "v");
+            }
+            Restore::Miss => panic!("hit expected"),
+        }
+        assert!(matches!(
+            serde_json::from_str::<Restore>(r#""miss""#).unwrap(),
+            Restore::Miss
+        ));
+
+        let upload = r#"{"upload":{"object_id":"00000000-0000-0000-0000-000000000001","upload":{"multipart":{"part_size":5,"parts":[{"method":"PUT","url":"https://s/1","headers":{"x-amz-meta":"v"}},{"method":"PUT","url":"https://s/2","headers":{"x-amz-meta":"v"}}]}}}}"#;
+        match serde_json::from_str::<Save>(upload).unwrap() {
+            Save::Upload {
+                upload: Upload::Multipart { part_size, parts },
+                ..
+            } => {
+                assert_eq!((part_size, parts.len()), (5, 2))
+            }
+            _ => panic!("multipart upload expected"),
+        }
+        assert!(matches!(
+            serde_json::from_str::<Save>(r#""exists""#).unwrap(),
+            Save::Exists
+        ));
+        match serde_json::from_str::<Save>(r#"{"skipped":{"reason":"storage full"}}"#).unwrap() {
+            Save::Skipped { reason } => assert_eq!(reason, "storage full"),
+            _ => panic!("skipped expected"),
+        }
+    }
+
+    #[test]
+    fn requests_are_those_of_the_api() {
+        let keys = vec!["cargo-1".to_string()];
+        assert_eq!(
+            serde_json::to_string(&RestoreRequest { keys: &keys }).unwrap(),
+            r#"{"keys":["cargo-1"]}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&SaveRequest {
+                key: "cargo-1",
+                size: 10
+            })
+            .unwrap(),
+            r#"{"key":"cargo-1","size":10}"#
+        );
+        let completion = Completion {
+            sha256: "ab".to_string(),
+            parts: vec![crate::storage::UploadedPart {
+                part_number: 1,
+                etag: "\"e\"".to_string(),
+            }],
+        };
+        assert_eq!(
+            serde_json::to_string(&completion).unwrap(),
+            r#"{"sha256":"ab","parts":[{"part_number":1,"etag":"\"e\""}]}"#
+        );
+    }
 }
