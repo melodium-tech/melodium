@@ -1,4 +1,8 @@
-use super::value::value;
+use super::{
+    sorted_attributes,
+    value::{inline_value, value},
+    RestitutionOptions,
+};
 use crate::restitution::describe_type;
 use itertools::Itertools;
 use melodium_common::descriptor::{
@@ -29,6 +33,14 @@ impl Model {
     }
 
     pub fn implementation(&self, names: &BTreeMap<Identifier, String>) -> String {
+        self.implementation_with_options(names, &RestitutionOptions::default())
+    }
+
+    pub fn implementation_with_options(
+        &self,
+        names: &BTreeMap<Identifier, String>,
+        options: &RestitutionOptions,
+    ) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
         let mut implementation = if descriptor.documentation().trim().is_empty() {
@@ -45,7 +57,7 @@ impl Model {
             )
         };
 
-        for (name, attribute) in descriptor.attributes() {
+        for (name, attribute) in sorted_attributes(descriptor.attributes()) {
             implementation.push_str("#[");
             implementation.push_str(name);
             implementation.push_str("(");
@@ -69,6 +81,7 @@ impl Model {
                         attributes = param
                             .attributes()
                             .iter()
+                            .sorted()
                             .map(|(name, attribute)| format!("\n    #[{name}({attribute})] "))
                             .collect::<Vec<_>>()
                             .join(""),
@@ -102,7 +115,14 @@ impl Model {
             implementation.push_str("    ");
             implementation.push_str(&param.name);
             implementation.push_str(" = ");
-            implementation.push_str(&value(&param.value, names, 2));
+            let single_line = inline_value(&param.value, names);
+            if !single_line.contains('\n')
+                && param.name.chars().count() + single_line.chars().count() + 7 <= options.width
+            {
+                implementation.push_str(&single_line);
+            } else {
+                implementation.push_str(&value(&param.value, names, 2));
+            }
             implementation.push_str("\n");
         }
 
