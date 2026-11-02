@@ -12,7 +12,7 @@ use zeroize::Zeroize;
 /// Sources are registered under their scheme, a `vault` source resolving `vault:<path>`
 /// locators, by models declaring `secret_sources` in `#[mel_model]`, before any model is
 /// initialized. `env` and `file` are built in, and the program running the engine can give
-/// others before genesis, such as `api` on Cadence.CI workers.
+/// others before genesis, such as `api` on api.melodium.tech workers.
 #[async_trait]
 pub trait SecretSource: Debug + Send + Sync {
     /// Gives the value at `path` (the locator part following `<scheme>:`), as `datatype`.

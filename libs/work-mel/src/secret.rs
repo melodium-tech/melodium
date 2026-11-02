@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex, PoisonError, Weak};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
 
-/// Scheme of the locators of secrets stored on Cadence.CI.
+/// Scheme of the locators of secrets stored on api.melodium.tech.
 pub const SCHEME: &str = "api";
 
 /// Longest secret name the API takes.
@@ -75,7 +75,7 @@ impl Api {
 
 /// `api:<name>` source, giving the secret `name` stored on Cadence.CI to the run reading it.
 ///
-/// The API is reached as configured on Cadence.CI workers: at `MELODIUM_API_URL`, with the
+/// The API is reached as configured on api.melodium.tech workers: at `MELODIUM_API_URL`, with the
 /// token `MELODIUM_API_TOKEN` of the run `MELODIUM_RUN_ID`. The token configures Mélodium
 /// itself, programs never get it.
 ///
@@ -100,7 +100,7 @@ impl ApiSource {
         }))
     }
 
-    /// Source configured from the environment, as on Cadence.CI workers.
+    /// Source configured from the environment, as on api.melodium.tech workers.
     ///
     /// Elsewhere, it refuses every secret, telling what is missing.
     pub fn from_environment() -> Arc<Self> {
@@ -212,7 +212,7 @@ impl Debug for ApiSource {
     }
 }
 
-/// Checks that `name` is a secret name of Cadence.CI: parts of letters, digits, `_`, `.` and
+/// Checks that `name` is a secret name of api.melodium.tech: parts of letters, digits, `_`, `.` and
 /// `-`, separated by `/`. Neither `.` nor `..` are parts, so that no name reaches another
 /// endpoint of the API.
 fn check_name(name: &str) -> Result<(), String> {
@@ -230,7 +230,7 @@ fn check_name(name: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "'{name}' is not a secret name of Cadence.CI, made of letters, digits, '_', '.' and '-', in parts separated by '/'"
+            "'{name}' is not a secret name of api.melodium.tech, made of letters, digits, '_', '.' and '-', in parts separated by '/'"
         ))
     }
 }
@@ -411,7 +411,7 @@ async fn fetch(api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
         response.bytes().await.map(|body| (status, body))
     })
     .await
-    .map_err(|err| format!("Cadence.CI cannot be reached: {err}"))?;
+    .map_err(|err| format!("api.melodium.tech cannot be reached: {err}"))?;
     let content = Zeroizing::new(body.to_vec());
     if let Ok(mut body) = body.try_into_mut() {
         body.as_mut().zeroize();
@@ -427,7 +427,7 @@ async fn fetch(api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
 #[cfg(feature = "mock")]
 async fn fetch(_api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
     Err(format!(
-        "secret '{name}' cannot be read from Cadence.CI in this build"
+        "secret '{name}' cannot be read from api.melodium.tech in this build"
     ))
 }
 

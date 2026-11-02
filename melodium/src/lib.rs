@@ -321,7 +321,7 @@ pub fn load_file_force_entrypoint(
 
 /// Secret sources given to the engines of this build, besides `env` and `file`.
 ///
-/// With distribution, `api` reads the secrets stored on Cadence.CI, on its workers. Elsewhere
+/// With distribution, `api` reads the secrets stored on api.melodium.tech, on its workers. Elsewhere
 /// it refuses them, telling why, and the scheme stays reserved: no model can register it.
 pub fn secret_sources() -> Vec<(String, Arc<dyn SecretSource>)> {
     #[allow(unused_mut)]

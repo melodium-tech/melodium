@@ -81,7 +81,7 @@ const COMPOSE_EDITIONS: [&str; 2] = ["standard", "container"];
 /// (without version) and these editions (or none) are satisfied,
 /// while any machine image, distribution, version, other family or other edition is not.
 /// Only the architecture of the host is satisfied, for the worker and for each container giving one.
-/// Secrets stored on Cadence.CI, given to containers by name, are out of reach of Compose.
+/// Secrets stored on api.melodium.tech, given to containers by name, are out of reach of Compose.
 fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
@@ -151,7 +151,7 @@ fn check_needs(request: &Request, host: Arch) -> Result<(), Vec<String>> {
         }));
     for what in stored_secrets {
         errors.push(format!(
-            "Compose location cannot give secrets stored on Cadence.CI, such as {what}"
+            "Compose location cannot give secrets stored on api.melodium.tech, such as {what}"
         ));
     }
 
@@ -869,7 +869,7 @@ mod needs_tests {
     }
 
     #[test]
-    fn secrets_stored_on_cadence_ci() {
+    fn secrets_stored_on_api_melodium_tech() {
         let mut request = request(None);
         request.containers.push(container("builder", None));
         request.containers[0].pull_secret_name = Some("registry".to_string());
@@ -893,8 +893,8 @@ mod needs_tests {
         assert_eq!(
             check_needs(&request, Arch::Amd64).unwrap_err(),
             vec![
-                "Compose location cannot give secrets stored on Cadence.CI, such as the pull secret of container 'builder'".to_string(),
-                "Compose location cannot give secrets stored on Cadence.CI, such as variable 'POSTGRES_PASSWORD' of service container 'postgres'".to_string(),
+                "Compose location cannot give secrets stored on api.melodium.tech, such as the pull secret of container 'builder'".to_string(),
+                "Compose location cannot give secrets stored on api.melodium.tech, such as variable 'POSTGRES_PASSWORD' of service container 'postgres'".to_string(),
             ]
         );
     }

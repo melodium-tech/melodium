@@ -1,6 +1,6 @@
 //! The worker request reveals the API token and the container pull secrets only to send
 //! them to the API, and fails explicitly when they cannot be resolved. Secrets of
-//! containers stored on Cadence.CI go by name, never revealed, others by value when their
+//! containers stored on api.melodium.tech go by name, never revealed, others by value when their
 //! policy allows it, and local ones are refused.
 
 use std::io::{Read, Write};
@@ -132,7 +132,7 @@ fn unresolved_credentials_fail_the_request() {
     );
 }
 
-fn container_secrets_stored_on_cadence_ci_go_by_name() {
+fn container_secrets_stored_on_api_melodium_tech_go_by_name() {
     let (api_url, server) = api_server();
     let stdout = run_script(
         "container",
@@ -189,7 +189,7 @@ fn local_container_secrets_are_refused() {
         ("local", "access denied: its policy keeps it on this engine"),
         (
             "reference",
-            "access denied: containers only get secrets by reference when stored on Cadence.CI, located 'api:<name>'",
+            "access denied: containers only get secrets by reference when stored on api.melodium.tech, located 'api:<name>'",
         ),
     ] {
         let stdout = run_script(
@@ -229,8 +229,8 @@ pub fn run_cases() -> ! {
         unresolved_credentials_fail_the_request,
     ));
     cases.push((
-        "container_secrets_stored_on_cadence_ci_go_by_name",
-        container_secrets_stored_on_cadence_ci_go_by_name,
+        "container_secrets_stored_on_api_melodium_tech_go_by_name",
+        container_secrets_stored_on_api_melodium_tech_go_by_name,
     ));
     cases.push((
         "other_container_secrets_go_by_value",
