@@ -8522,6 +8522,7 @@ dependencies = [
  "async-process",
  "async-trait",
  "async-walkdir",
+ "bytes",
  "chrono",
  "compose_spec",
  "fs-mel",

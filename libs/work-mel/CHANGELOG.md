@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Adding `work/secret::store` and `storeBytes`, storing a `Secret<string>` or `Secret<Vec<byte>>` on api.melodium.tech as a secret of the organization of the run, revealed only to send it, for later runs to read through `api:`; the value the engine kept for that name is forgotten (#152).
 - Breaking: `|service_container` takes `secret_env`, after `env`, variables given as `Secret<string>`. Pull secrets and secret variables stored on api.melodium.tech (`api:<name>`) go by name in the worker request (`pull_secret_name`, `secret_env`), never revealed, other secrets by value when their transmission is `value`, and `local` ones are refused, which pull secrets with the default policy now are. Compose refuses secrets given by name (#151).
 - Adding `secret::ApiSource`, the `api:<name>` secret source giving the secrets stored on api.melodium.tech to the run reading them, through `GET /execution/run/{id}/secret/{name}` with the token of the run; each value is read once, kept until the engine ends and wiped then and before exit, and never plainly revealed (#150).
 - Giving Compose containers whose names are not valid hostnames, such as names with `_`, a hostname where the invalid characters become `-`, instead of failing.
