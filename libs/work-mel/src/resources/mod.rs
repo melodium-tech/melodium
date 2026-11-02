@@ -4,10 +4,12 @@ pub mod system;
 use crate::api;
 use arch::*;
 use fs_mel::filesystem::*;
-use melodium_core::common::executive::Secret as ExecutiveSecret;
+use melodium_core::common::{descriptor::DataType, executive::Secret as ExecutiveSecret};
 use melodium_core::*;
 use melodium_macro::{mel_data, mel_function, mel_treatment};
 use process_mel::exec::*;
+use std::collections::BTreeMap;
+use std_mel::data::map::*;
 use std_mel::data::string_map::*;
 
 /// Retrieve an executor by name from the current work environment.
@@ -179,7 +181,7 @@ pub async fn getFileSystem() {
 /// Container specification for a work request.
 ///
 /// Used in `distant` to request containers that run alongside the Mélodium engine as executors.
-/// The pull secret is held apart, and revealed only to send the request.
+/// The pull secret is held apart, and only given with the request, as `distant` tells.
 #[mel_data]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Container(
@@ -196,7 +198,7 @@ pub struct Container(
 /// - `arch`: CPU architecture required, none meaning the one of the machine the worker runs on.
 /// - `mounts`: list of volume mounts.
 /// - `image`: container image reference.
-/// - `pull_secret`: optional image pull secret, the registry credentials as a Docker configuration JSON (defaults to `"{}"`).
+/// - `pull_secret`: optional image pull secret, the registry credentials as a Docker configuration JSON (defaults to `"{}"`), given with the request as `distant` tells.
 #[mel_function]
 pub fn container(
     name: string,
@@ -213,6 +215,7 @@ pub fn container(
             name,
             image,
             pull_secret: "{}".to_string(),
+            pull_secret_name: None,
             memory,
             cpu,
             storage,
@@ -227,12 +230,16 @@ pub fn container(
 ///
 /// Service containers run alongside the Mélodium engine and are accessible as network services,
 /// but are not directly used as executors.
-/// The pull secret is held apart, and revealed only to send the request.
+/// The pull secret and the secret variables are held apart, and only given with the request,
+/// as `distant` tells.
 #[mel_data]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServiceContainer(
     pub api::ServiceContainer,
     #[serde(default)] pub Option<ExecutiveSecret>,
+    /// Secret variables, none for those given without a `Secret<string>`.
+    #[serde(default)]
+    pub BTreeMap<String, Option<ExecutiveSecret>>,
 );
 
 /// Build a `ServiceContainer` specification.
@@ -240,6 +247,9 @@ pub struct ServiceContainer(
 /// - `name`: unique name for this service container.
 /// - `memory`, `cpu`, `storage`, `arch`, `mounts`, `image`, `pull_secret`: same as `|container`.
 /// - `env`: optional environment variables for the container.
+/// - `secret_env`: optional variables given as `Secret<string>`, or `Option<Secret<string>>` as
+/// `std/secret::|locate` gives, replacing those of `env` with the same name, given with the
+/// request as `distant` tells.
 /// - `command`: optional entrypoint override.
 #[mel_function]
 pub fn service_container(
@@ -252,22 +262,42 @@ pub fn service_container(
     image: string,
     pull_secret: Option<Secret<string>>,
     env: Option<StringMap>,
+    secret_env: Option<Map>,
     command: Option<Vec<string>>,
 ) -> ServiceContainer {
+    let secret_env = secret_env
+        .map(|map| map.map)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(name, value)| {
+            let secret = match value {
+                Value::Option(Some(value)) => match *value {
+                    Value::Secret(secret) if secret.datatype() == &DataType::String => Some(secret),
+                    _ => None,
+                },
+                Value::Secret(secret) if secret.datatype() == &DataType::String => Some(secret),
+                _ => None,
+            };
+            (name, secret)
+        })
+        .collect();
     ServiceContainer(
         api::ServiceContainer {
             name,
             image,
             pull_secret: "{}".to_string(),
+            pull_secret_name: None,
             memory,
             cpu,
             storage,
             arch: arch.map(|arch| arch.0),
             mounts: mounts.into_iter().map(|mount| mount.0).collect(),
             env: env.map(|map| map.map).unwrap_or_default(),
+            secret_env: Default::default(),
             command: command,
         },
         pull_secret,
+        secret_env,
     )
 }
 

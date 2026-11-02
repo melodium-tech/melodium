@@ -56,7 +56,7 @@ startup ──┬──▶ build (rust container)  ──▶ [success? true/fals
 ### Key Mélodium patterns used
 
 - **`simpleStep` / `simpleStepWithInput`**: the difference is exactly what it sounds like, whether the step needs data streamed *in* (as a file at `/mnt/data/<in_file>`) in addition to whatever it streams *out*.
-- **`service_containers`**: sidecar containers (like the Postgres instance for stage 2) that live alongside the step's main container for its duration; `|service_container(...)`'s parameters follow its documented order (`name, memory, cpu, storage, arch, mounts, image, pull_secret, env, command`).
+- **`service_containers`**: sidecar containers (like the Postgres instance for stage 2) that live alongside the step's main container for its duration; `|service_container(...)`'s parameters follow its documented order (`name, memory, cpu, storage, arch, mounts, image, pull_secret, env, secret_env, command`).
 - **`one<void>()` as an OR-gate**: fans multiple `Block<void>` failure signals into one, without hand-writing the check four times.
 - **A guaranteed `Block<bool>` plus `and()`, for a true AND-gate on an optional signal.** `success`/`error`/`failed` are mutually exclusive but only one is guaranteed to actually fire depending on what happened; folding the three into one always-present `true`/`false` value first is what makes a plain `and()` behave correctly afterward.
 - **`commands` is not a shell, no matter how shell-like the strings look.** `|raw_commands` tokenises a string; it does not interpret `${VAR}`, `&&`, `cd`, or redirection. Anything that needs those needs an explicit `|command("sh", ["-c", "..."])`.
