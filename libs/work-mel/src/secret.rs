@@ -528,9 +528,21 @@ async fn fetch_identity_token(api: &Api, audience: &str) -> Result<Zeroizing<Str
     if !status.is_success() {
         return Err(refusal(status, &content));
     }
-    match std::str::from_utf8(&content).map(str::trim) {
-        Ok(token) if !token.is_empty() => Ok(Zeroizing::new(token.to_string())),
-        _ => Err("Cadence.CI gave no identity token".to_string()),
+    // The answer also gives `expires_at`, which the token tells by its `exp` claim.
+    #[derive(serde::Deserialize)]
+    struct IdentityToken {
+        value: String,
+    }
+    match serde_json::from_slice::<IdentityToken>(&content) {
+        Ok(IdentityToken { value }) => {
+            let token = Zeroizing::new(value);
+            if token.trim().is_empty() {
+                Err("Cadence.CI gave no identity token".to_string())
+            } else {
+                Ok(token)
+            }
+        }
+        Err(_) => Err("Cadence.CI gave no identity token".to_string()),
     }
 }
 

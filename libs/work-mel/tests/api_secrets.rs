@@ -57,9 +57,10 @@ fn api_server() -> (String, Arc<Mutex<Vec<Received>>>) {
             let audience =
                 target.strip_prefix(&format!("GET /execution/run/{RUN_ID}/id-token?audience="));
             let (status, body): (&str, Vec<u8>) = match (audience, name) {
-                (Some("vault"), _) => ("200 OK", jwt(600).into_bytes()),
-                (Some("short"), _) => ("200 OK", jwt(5).into_bytes()),
-                (Some("opaque"), _) => ("200 OK", b"opaque-token\n".to_vec()),
+                (Some("vault"), _) => ("200 OK", id_token(&jwt(600))),
+                (Some("short"), _) => ("200 OK", id_token(&jwt(5))),
+                (Some("opaque"), _) => ("200 OK", id_token("opaque-token")),
+                (Some("plain"), _) => ("200 OK", jwt(600).into_bytes()),
                 (Some(_), _) => (
                     "403 Forbidden",
                     b"Secret refused: public runs get no identity token.".to_vec(),
@@ -86,6 +87,11 @@ fn api_server() -> (String, Arc<Mutex<Vec<Received>>>) {
     });
 
     (address, received)
+}
+
+/// Gives the answer of the API carrying the identity token `value`.
+fn id_token(value: &str) -> Vec<u8> {
+    format!(r#"{{"value":"{value}","expires_at":"2026-11-02T12:00:00Z"}}"#).into_bytes()
 }
 
 /// Gives a JSON Web Token expiring in `seconds`.
@@ -252,10 +258,17 @@ fn identity_tokens_are_kept_until_shortly_before_they_expire() {
     assert!(resolve("opaque").is_ok());
     assert_eq!(requests.lock().unwrap().len(), 5);
 
+    // Only the answer of the API carries a token, never a bare one.
+    assert_eq!(
+        resolve("plain"),
+        Err("Cadence.CI gave no identity token".to_string())
+    );
+    assert_eq!(requests.lock().unwrap().len(), 6);
+
     // Wiped with the secrets of the source.
     assert!(source.wipe());
     assert!(resolve("vault").is_ok());
-    assert_eq!(requests.lock().unwrap().len(), 6);
+    assert_eq!(requests.lock().unwrap().len(), 7);
     identity.shutdown();
     assert!(!source.wipe());
     assert!(!identity.plain_reveal());

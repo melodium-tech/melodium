@@ -98,7 +98,13 @@ fn api_server() -> Mock {
                 ("GET", path)
                     if path == format!("/execution/run/{RUN_ID}/id-token?audience=vault") =>
                 {
-                    ("200 OK", ID_TOKEN.as_bytes().to_vec())
+                    (
+                        "200 OK",
+                        format!(
+                            r#"{{"value":"{ID_TOKEN}","expires_at":"2026-11-02T12:00:00Z"}}"#
+                        )
+                        .into_bytes(),
+                    )
                 }
                 ("POST", "/v1/auth/jwt/login")
                     if login.contains(&format!(r#""jwt":"{ID_TOKEN}""#))
