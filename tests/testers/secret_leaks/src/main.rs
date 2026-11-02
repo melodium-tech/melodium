@@ -3,7 +3,7 @@
 //! (logs, debug events, program dump and details), nor in `.jeu` packages and
 //! documentation. A value read by the program, concealed, then plainly revealed
 //! through `std/secret::reveal` is ordinary data, so it only appears in debug data
-//! events; secrets from the environment, from files and from Cadence.CI are never plainly
+//! events; secrets from the environment, from files and from api.melodium.tech are never plainly
 //! revealed.
 //!
 //! The API and its uploads are a mock answering every request, and giving the `api:`

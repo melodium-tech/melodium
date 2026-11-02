@@ -166,13 +166,13 @@ fn refusals_give_the_reason_of_the_api() {
     assert_eq!(
         smol::block_on(source.resolve("unknown", &DataType::String)),
         Err(
-            "Cadence.CI answered 404 Not Found: No secret named `unknown` in this organization."
+            "api.melodium.tech answered 404 Not Found: No secret named `unknown` in this organization."
                 .to_string()
         )
     );
     assert_eq!(
         smol::block_on(source.resolve("forbidden", &DataType::String)),
-        Err("Cadence.CI answered 403 Forbidden: Secret refused: public runs cannot read `forbidden`.".to_string())
+        Err("api.melodium.tech answered 403 Forbidden: Secret refused: public runs cannot read `forbidden`.".to_string())
     );
 }
 
@@ -191,20 +191,20 @@ fn names_cannot_reach_other_endpoints() {
     ] {
         assert_eq!(
             smol::block_on(source.resolve(name, &DataType::String)),
-            Err(format!("'{name}' is not a secret name of Cadence.CI, made of letters, digits, '_', '.' and '-', in parts separated by '/'"))
+            Err(format!("'{name}' is not a secret name of api.melodium.tech, made of letters, digits, '_', '.' and '-', in parts separated by '/'"))
         );
     }
     assert!(requests.lock().unwrap().is_empty());
 }
 
 #[test]
-fn secrets_are_refused_outside_cadence_ci() {
+fn secrets_are_refused_outside_api_melodium_tech() {
     std::env::remove_var("MELODIUM_API_URL");
     std::env::remove_var("MELODIUM_API_TOKEN");
     std::env::set_var("MELODIUM_RUN_ID", RUN_ID);
     assert_eq!(
         smol::block_on(ApiSource::from_environment().resolve("prod/db-password", &DataType::String)),
-        Err("'api:' secrets are only given to programs run by Cadence.CI, and MELODIUM_API_URL, MELODIUM_API_TOKEN are not set".to_string())
+        Err("'api:' secrets are only given to programs run by api.melodium.tech, and MELODIUM_API_URL, MELODIUM_API_TOKEN are not set".to_string())
     );
 
     std::env::set_var("MELODIUM_API_URL", "http://127.0.0.1:1");
