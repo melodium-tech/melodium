@@ -3,7 +3,7 @@
 
 ## [Unreleased]
 
-- Breaking: `launch_listen`, `launch_listen_localcert` and `launch_listen_unsecure` take the secret sources given to the engine, such as `api` on Cadence.CI workers (#150).
+- Breaking: `launch_listen`, `launch_listen_localcert` and `launch_listen_unsecure` take the secret sources given to the engine, such as `api` on api.melodium.tech workers (#150).
 
 ## [v0.11.0] (2026-10-15)
 

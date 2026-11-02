@@ -9,7 +9,7 @@
 //! process environments, follow the same rules. Received references stay secrets from
 //! the environment of the node, which it never reveals plainly: its refusals come back
 //! with its debug events, and the commands it runs get the values. A node running on a
-//! Cadence.CI worker resolves received `api:` references from the API, here a mock.
+//! api.melodium.tech worker resolves received `api:` references from the API, here a mock.
 
 #![cfg_attr(not(unix), allow(dead_code, unused_imports))]
 
@@ -476,7 +476,7 @@ fn api_server() -> (String, Arc<Mutex<Vec<(String, Option<String>)>>>) {
     (address, received)
 }
 
-/// A secret of Cadence.CI sent by reference is resolved by the node, from the API, with the
+/// A secret of api.melodium.tech sent by reference is resolved by the node, from the API, with the
 /// token of its own run: the requesting engine never reads it.
 #[cfg(unix)]
 fn api_references_are_resolved_by_the_distant_engine() {

@@ -3,7 +3,7 @@
 
 ## [Unreleased]
 
-- Adding `secret::ApiSource`, the `api:<name>` secret source giving the secrets stored on Cadence.CI to the run reading them, through `GET /execution/run/{id}/secret/{name}` with the token of the run; each value is read once, kept until the engine ends and wiped then and before exit, and never plainly revealed (#150).
+- Adding `secret::ApiSource`, the `api:<name>` secret source giving the secrets stored on api.melodium.tech to the run reading them, through `GET /execution/run/{id}/secret/{name}` with the token of the run; each value is read once, kept until the engine ends and wiped then and before exit, and never plainly revealed (#150).
 
 ## [v0.11.0] (2026-10-15)
 
