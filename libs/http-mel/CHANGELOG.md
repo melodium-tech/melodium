@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding prepared requests (`http/client::PreparedRequest`, `|prepared_request`), such as presigned by object storage, made as given and shown by method and host only, and `http/client::download`, streaming what one gives and resuming after cuts with `Range` and `If-Match`, never giving a byte twice nor the URL in errors (#164).
+
 ## [v0.11.0] (2026-10-15)
 
 - Serving and requesting with trillium-smol instead of trillium-async-std (#104).
