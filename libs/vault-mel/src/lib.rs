@@ -37,7 +37,7 @@ use std::sync::{Arc, Weak};
 /// - `approle`: logs in with `role_id` and `secret_id`.
 /// - `kubernetes`: logs in as `role` with the service account token `kubernetes_token`.
 /// - `jwt`: logs in as `role` with the `jwt` token, such as a GitLab CI ID token, or the
-/// identity token of a Cadence.CI run, `jwt="api-id:vault"` for the `vault` audience.
+/// identity token of an api.melodium.tech run, `jwt="api-id:vault"` for the `vault` audience.
 /// - `github`: logs in as `role` with a GitHub Actions OIDC token, requested for
 /// the `github_audience` audience using `github_token`.
 ///

@@ -261,7 +261,7 @@ fn identity_tokens_are_kept_until_shortly_before_they_expire() {
     // Only the answer of the API carries a token, never a bare one.
     assert_eq!(
         resolve("plain"),
-        Err("Cadence.CI gave no identity token".to_string())
+        Err("api.melodium.tech gave no identity token".to_string())
     );
     assert_eq!(requests.lock().unwrap().len(), 6);
 
@@ -292,7 +292,7 @@ fn identity_tokens_need_an_audience_and_a_run_allowed_to() {
     assert_eq!(
         smol::block_on(identity.resolve("https://sts.example.com/a b", &DataType::String)),
         Err(
-            "Cadence.CI answered 403 Forbidden: Secret refused: public runs get no identity token."
+            "api.melodium.tech answered 403 Forbidden: Secret refused: public runs get no identity token."
                 .to_string()
         )
     );
@@ -305,7 +305,7 @@ fn identity_tokens_need_an_audience_and_a_run_allowed_to() {
 }
 
 #[test]
-fn secrets_are_refused_outside_cadence_ci() {
+fn secrets_are_refused_outside_api_melodium_tech() {
     std::env::remove_var("MELODIUM_API_URL");
     std::env::remove_var("MELODIUM_API_TOKEN");
     std::env::set_var("MELODIUM_RUN_ID", RUN_ID);
@@ -318,7 +318,7 @@ fn secrets_are_refused_outside_cadence_ci() {
             ApiIdentitySource::new(&ApiSource::from_environment())
                 .resolve("vault", &DataType::String)
         ),
-        Err("'api-id:' tokens are only given to programs run by Cadence.CI, and MELODIUM_API_URL, MELODIUM_API_TOKEN are not set".to_string())
+        Err("'api-id:' tokens are only given to programs run by api.melodium.tech, and MELODIUM_API_URL, MELODIUM_API_TOKEN are not set".to_string())
     );
 
     std::env::set_var("MELODIUM_API_URL", "http://127.0.0.1:1");

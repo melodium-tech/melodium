@@ -1,4 +1,4 @@
-//! Secrets stored on Cadence.CI, given to the programs it runs through `api:<name>` locators,
+//! Secrets stored on api.melodium.tech, given to the programs it runs through `api:<name>` locators,
 //! and stored by them, and identity tokens of runs, given through `api-id:<audience>` locators.
 
 use async_trait::async_trait;
@@ -156,7 +156,7 @@ impl SecretSource for ApiSource {
     async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
         let api = self.api.as_ref().map_err(|problem| {
             format!(
-                "'{SCHEME}:' secrets are only given to programs run by Cadence.CI, and {problem}"
+                "'{SCHEME}:' secrets are only given to programs run by api.melodium.tech, and {problem}"
             )
         })?;
         check_name(path)?;
@@ -220,8 +220,8 @@ impl Wipe for ApiSource {
 /// `api-id:<audience>` source, giving the OIDC identity token of the run for `audience`,
 /// such as `api-id:vault`, configured as `api:`.
 ///
-/// Cadence.CI signs these tokens for each run, valid a few minutes, so that clouds and Vault
-/// trusting Cadence.CI let programs in without long-lived keys. A token is kept until shortly
+/// api.melodium.tech signs these tokens for each run, valid a few minutes, so that clouds and Vault
+/// trusting api.melodium.tech let programs in without long-lived keys. A token is kept until shortly
 /// before it expires, then a new one is requested; tokens are wiped when the engine ends, and
 /// before the process exits.
 ///
@@ -246,7 +246,7 @@ impl SecretSource for ApiIdentitySource {
         let source = &self.0;
         let api = source.api.as_ref().map_err(|problem| {
             format!(
-                "'{IDENTITY_SCHEME}:' tokens are only given to programs run by Cadence.CI, and {problem}"
+                "'{IDENTITY_SCHEME}:' tokens are only given to programs run by api.melodium.tech, and {problem}"
             )
         })?;
         if datatype != &DataType::String {
@@ -519,7 +519,7 @@ async fn fetch_identity_token(api: &Api, audience: &str) -> Result<Zeroizing<Str
         response.bytes().await.map(|body| (status, body))
     })
     .await
-    .map_err(|err| format!("Cadence.CI cannot be reached: {err}"))?;
+    .map_err(|err| format!("api.melodium.tech cannot be reached: {err}"))?;
     let content = Zeroizing::new(body.to_vec());
     if let Ok(mut body) = body.try_into_mut() {
         body.as_mut().zeroize();
@@ -537,19 +537,19 @@ async fn fetch_identity_token(api: &Api, audience: &str) -> Result<Zeroizing<Str
         Ok(IdentityToken { value }) => {
             let token = Zeroizing::new(value);
             if token.trim().is_empty() {
-                Err("Cadence.CI gave no identity token".to_string())
+                Err("api.melodium.tech gave no identity token".to_string())
             } else {
                 Ok(token)
             }
         }
-        Err(_) => Err("Cadence.CI gave no identity token".to_string()),
+        Err(_) => Err("api.melodium.tech gave no identity token".to_string()),
     }
 }
 
 #[cfg(feature = "mock")]
 async fn fetch_identity_token(_api: &Api, audience: &str) -> Result<Zeroizing<String>, String> {
     Err(format!(
-        "identity tokens for '{audience}' cannot be requested from Cadence.CI in this build"
+        "identity tokens for '{audience}' cannot be requested from api.melodium.tech in this build"
     ))
 }
 

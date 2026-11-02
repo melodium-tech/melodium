@@ -321,7 +321,7 @@ pub fn load_file_force_entrypoint(
 
 /// Secret sources given to the engines of this build, besides `env` and `file`.
 ///
-/// With distribution, `api` reads the secrets stored on Cadence.CI, and `api-id` gives the
+/// With distribution, `api` reads the secrets stored on api.melodium.tech, and `api-id` gives the
 /// identity tokens of the run, on its workers. Elsewhere they refuse their secrets, telling
 /// why, and both schemes stay reserved: no model can register them.
 pub fn secret_sources() -> Vec<(String, Arc<dyn SecretSource>)> {
