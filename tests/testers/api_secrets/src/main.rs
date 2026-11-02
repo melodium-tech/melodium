@@ -298,7 +298,7 @@ fn refused_stores_give_the_reason() {
     );
     assert_contains(
         &String::from_utf8_lossy(&output.stdout),
-        "store: Cadence.CI answered 403 Forbidden: Secret refused: no rule lets runs write `denied/db-password`.",
+        "store: api.melodium.tech answered 403 Forbidden: Secret refused: no rule lets runs write `denied/db-password`.",
     );
     assert!(!mock
         .secrets
@@ -309,7 +309,7 @@ fn refused_stores_give_the_reason() {
     let output = run(&store, None, &[]);
     assert_contains(
         &String::from_utf8_lossy(&output.stdout),
-        "store: secrets are only stored on Cadence.CI by the programs it runs, and MELODIUM_API_URL, MELODIUM_API_TOKEN, MELODIUM_RUN_ID are not set",
+        "store: secrets are only stored on api.melodium.tech by the programs it runs, and MELODIUM_API_URL, MELODIUM_API_TOKEN, MELODIUM_RUN_ID are not set",
     );
 }
 

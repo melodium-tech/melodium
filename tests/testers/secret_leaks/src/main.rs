@@ -201,7 +201,7 @@ fn secret_values_never_appear_in_run_outputs() {
     assert!(targets
         .iter()
         .any(|target| target.ends_with("/program/details")));
-    // The written secret only goes to Cadence.CI.
+    // The written secret only goes to api.melodium.tech.
     let writes: Vec<&Received> = requests
         .iter()
         .filter(|request| request.target.starts_with("PUT /execution/run/"))
