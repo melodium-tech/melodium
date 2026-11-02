@@ -385,7 +385,7 @@ impl DistantEngine {
 ///
 /// Containers start before the engine of the worker, so their pull secrets, and the secret variables of service containers, are given with the request:
 ///
-/// - a secret stored on Cadence.CI (`api:<name>`) whose transmission is `reference` or `value` is given by name, never revealed, and Cadence.CI gives its value to the worker;
+/// - a secret stored on api.melodium.tech (`api:<name>`) whose transmission is `reference` or `value` is given by name, never revealed, and api.melodium.tech gives its value to the worker;
 /// - any other secret is revealed and given by value, if its transmission is `value`, as with `std/secret::|locate<string>("env:MELODIUM_SECRET_DB_PASSWORD", "db_password", "value", false)`;
 /// - other secrets, `local` ones included, are refused: `failed` is emitted, and the error names the container.
 ///
@@ -405,7 +405,7 @@ impl DistantEngine {
 /// | `edition` (optional) | none, `standard`, `container` | `desktop`, `webassembly`, `mock` |
 /// | `system` (optional) | none, `\|linux()`, `\|linux_distribution("alpine")` | `\|linux_distribution("ubuntu")`, `\|linux_distribution_version("alpine", "3.20")`, `\|windows()`, `\|image("nixos-ci")` |
 /// | `arch` (optional) | none, the architecture of this machine | any other architecture |
-/// | secrets of containers | given by value | stored on Cadence.CI (`api:`) |
+/// | secrets of containers | given by value | stored on api.melodium.tech (`api:`) |
 /// | `tags` | anything | never refused |
 ///
 /// A request Compose cannot satisfy starts nothing: `failed` is emitted and the errors say which need cannot be satisfied.
@@ -600,7 +600,7 @@ pub async fn distant(
 
 /// What a worker request gives for a secret of one of its containers.
 enum ContainerSecret {
-    /// Name of the secret stored on Cadence.CI, whose value Cadence.CI gives to the worker.
+    /// Name of the secret stored on api.melodium.tech, whose value api.melodium.tech gives to the worker.
     Name(String),
     /// Revealed value.
     Value(Zeroizing<String>),
@@ -644,7 +644,7 @@ async fn container_secret(
                 .await
         }
         (SecretTransmission::Reference, None) => Err(SecretError::Denied(format!(
-            "containers only get secrets by reference when stored on Cadence.CI, located '{}:<name>'",
+            "containers only get secrets by reference when stored on api.melodium.tech, located '{}:<name>'",
             crate::secret::SCHEME
         ))),
     }

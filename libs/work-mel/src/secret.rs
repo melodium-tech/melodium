@@ -16,7 +16,7 @@ use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
 
-/// Scheme of the locators of secrets stored on Cadence.CI.
+/// Scheme of the locators of secrets stored on api.melodium.tech.
 pub const SCHEME: &str = "api";
 /// Scheme of the locators of the identity tokens of runs.
 pub const IDENTITY_SCHEME: &str = "api-id";
@@ -41,7 +41,7 @@ struct Api {
 }
 
 impl Api {
-    /// Reaches the API as configured on Cadence.CI workers, or tells what is missing.
+    /// Reaches the API as configured on api.melodium.tech workers, or tells what is missing.
     fn from_environment() -> Result<Self, String> {
         let url = std::env::var("MELODIUM_API_URL").ok();
         let token = std::env::var("MELODIUM_API_TOKEN").ok().map(Zeroizing::new);
@@ -79,9 +79,9 @@ impl Api {
     }
 }
 
-/// `api:<name>` source, giving the secret `name` stored on Cadence.CI to the run reading it.
+/// `api:<name>` source, giving the secret `name` stored on api.melodium.tech to the run reading it.
 ///
-/// The API is reached as configured on Cadence.CI workers: at `MELODIUM_API_URL`, with the
+/// The API is reached as configured on api.melodium.tech workers: at `MELODIUM_API_URL`, with the
 /// token `MELODIUM_API_TOKEN` of the run `MELODIUM_RUN_ID`. The token configures Mélodium
 /// itself, programs never get it.
 ///
@@ -109,7 +109,7 @@ impl ApiSource {
         }))
     }
 
-    /// Source configured from the environment, as on Cadence.CI workers.
+    /// Source configured from the environment, as on api.melodium.tech workers.
     ///
     /// Elsewhere, it refuses every secret, telling what is missing.
     pub fn from_environment() -> Arc<Self> {
@@ -315,7 +315,7 @@ impl Debug for ApiSource {
     }
 }
 
-/// Checks that `name` is a secret name of Cadence.CI: parts of letters, digits, `_`, `.` and
+/// Checks that `name` is a secret name of api.melodium.tech: parts of letters, digits, `_`, `.` and
 /// `-`, separated by `/`. Neither `.` nor `..` are parts, so that no name reaches another
 /// endpoint of the API.
 fn check_name(name: &str) -> Result<(), String> {
@@ -333,18 +333,18 @@ fn check_name(name: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "'{name}' is not a secret name of Cadence.CI, made of letters, digits, '_', '.' and '-', in parts separated by '/'"
+            "'{name}' is not a secret name of api.melodium.tech, made of letters, digits, '_', '.' and '-', in parts separated by '/'"
         ))
     }
 }
 
-/// Stores a secret on Cadence.CI, for later runs to read it through `api:<name>`.
+/// Stores a secret on api.melodium.tech, for later runs to read it through `api:<name>`.
 ///
-/// The secret received through `secret` is revealed only to be sent to Cadence.CI, as the
+/// The secret received through `secret` is revealed only to be sent to api.melodium.tech, as the
 /// secret `name` of the organization of the run, as a new version when it already exists.
 /// Names are made of letters, digits, `_`, `.` and `-`, in parts separated by `/`.
 ///
-/// Only programs run by Cadence.CI store secrets, when the rules of their organization allow
+/// Only programs run by api.melodium.tech store secrets, when the rules of their organization allow
 /// it: a rule letting runs write must match `name`, and public runs never store any.
 /// Store credentials a program produces and later runs need, such as a generated database
 /// password or the kubeconfig of a cluster it created, rather than putting them in artifacts.
@@ -372,7 +372,7 @@ pub async fn store(name: string) {
     }
 }
 
-/// Stores a binary secret on Cadence.CI, for later runs to read it through `api:<name>`.
+/// Stores a binary secret on api.melodium.tech, for later runs to read it through `api:<name>`.
 ///
 /// Same as `store`, for a `Secret<Vec<byte>>`, such as a key file.
 #[mel_treatment(
@@ -404,7 +404,7 @@ async fn store_secret(
     bytes: bool,
 ) -> Result<(), String> {
     let api = Api::from_environment().map_err(|problem| {
-        format!("secrets are only stored on Cadence.CI by the programs it runs, and {problem}")
+        format!("secrets are only stored on api.melodium.tech by the programs it runs, and {problem}")
     })?;
     check_name(name)?;
     let value = if bytes {
@@ -437,9 +437,9 @@ fn refusal(status: reqwest::StatusCode, body: &[u8]) -> String {
         reason.push('…');
     }
     if reason.is_empty() {
-        format!("Cadence.CI answered {status}")
+        format!("api.melodium.tech answered {status}")
     } else {
-        format!("Cadence.CI answered {status}: {reason}")
+        format!("api.melodium.tech answered {status}: {reason}")
     }
 }
 
@@ -470,7 +470,7 @@ async fn put(api: &Api, name: &str, value: Zeroizing<Vec<u8>>) -> Result<(), Str
             response.bytes().await.map(|answer| (status, answer))
         })
         .await
-        .map_err(|err| format!("Cadence.CI cannot be reached: {err}"))
+        .map_err(|err| format!("api.melodium.tech cannot be reached: {err}"))
         .and_then(|(status, answer)| {
             if status.is_success() {
                 Ok(())
@@ -478,7 +478,7 @@ async fn put(api: &Api, name: &str, value: Zeroizing<Vec<u8>>) -> Result<(), Str
                 Err(refusal(status, &answer))
             }
         });
-        if !matches!(&result, Err(error) if error.starts_with("Cadence.CI answered 409")) {
+        if !matches!(&result, Err(error) if error.starts_with("api.melodium.tech answered 409")) {
             break;
         }
     }
@@ -492,7 +492,7 @@ async fn put(api: &Api, name: &str, value: Zeroizing<Vec<u8>>) -> Result<(), Str
 #[cfg(feature = "mock")]
 async fn put(_api: &Api, name: &str, _value: Zeroizing<Vec<u8>>) -> Result<(), String> {
     Err(format!(
-        "secret '{name}' cannot be stored on Cadence.CI in this build"
+        "secret '{name}' cannot be stored on api.melodium.tech in this build"
     ))
 }
 
@@ -571,7 +571,7 @@ async fn fetch(api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
         response.bytes().await.map(|body| (status, body))
     })
     .await
-    .map_err(|err| format!("Cadence.CI cannot be reached: {err}"))?;
+    .map_err(|err| format!("api.melodium.tech cannot be reached: {err}"))?;
     let content = Zeroizing::new(body.to_vec());
     if let Ok(mut body) = body.try_into_mut() {
         body.as_mut().zeroize();
@@ -587,7 +587,7 @@ async fn fetch(api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
 #[cfg(feature = "mock")]
 async fn fetch(_api: &Api, name: &str) -> Result<Zeroizing<Vec<u8>>, String> {
     Err(format!(
-        "secret '{name}' cannot be read from Cadence.CI in this build"
+        "secret '{name}' cannot be read from api.melodium.tech in this build"
     ))
 }
 

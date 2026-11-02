@@ -1,4 +1,4 @@
-//! Programs run by Cadence.CI read the secrets stored for their organization through
+//! Programs run by api.melodium.tech read the secrets stored for their organization through
 //! `api:<name>` locators, from the API, with the token of their run. Each one is read once,
 //! `--check-secrets` included, and never plainly revealed. They store secrets for later runs
 //! with `work/secret::store`, and log in to Vault with the identity token of their run,
@@ -174,7 +174,7 @@ fn directory(name: &str) -> PathBuf {
     path
 }
 
-/// Runs `script` with `--check-secrets`, configured as on a Cadence.CI worker when an API
+/// Runs `script` with `--check-secrets`, configured as on an api.melodium.tech worker when an API
 /// address is given, and as elsewhere otherwise.
 fn run(script: &Path, api: Option<&str>, args: &[&str]) -> Output {
     let mut command: Command = melodium();
@@ -261,14 +261,14 @@ fn unknown_names_are_reported_at_startup() {
     assert!(!output.status.success());
     assert_contains(
         &String::from_utf8_lossy(&output.stderr),
-        "Secret of parameter 'password' cannot be resolved: resolution failed: Cadence.CI answered 404 Not Found: No secret named `prod/unknown` in this organization.",
+        "Secret of parameter 'password' cannot be resolved: resolution failed: api.melodium.tech answered 404 Not Found: No secret named `prod/unknown` in this organization.",
     );
     assert!(!directory.join("password").exists());
 
     let _ = std::fs::remove_dir_all(&directory);
 }
 
-fn secrets_are_refused_outside_cadence_ci() {
+fn secrets_are_refused_outside_api_melodium_tech() {
     let script = temp_file("api_secrets", "script.mel", SCRIPT);
     let directory = directory("outside");
 
@@ -276,7 +276,7 @@ fn secrets_are_refused_outside_cadence_ci() {
     assert!(!output.status.success());
     assert_contains(
         &String::from_utf8_lossy(&output.stderr),
-        "Secret of parameter 'password' cannot be resolved: resolution failed: 'api:' secrets are only given to programs run by Cadence.CI, and MELODIUM_API_URL, MELODIUM_API_TOKEN, MELODIUM_RUN_ID are not set",
+        "Secret of parameter 'password' cannot be resolved: resolution failed: 'api:' secrets are only given to programs run by api.melodium.tech, and MELODIUM_API_URL, MELODIUM_API_TOKEN, MELODIUM_RUN_ID are not set",
     );
 
     let _ = std::fs::remove_dir_all(&directory);
@@ -345,7 +345,7 @@ fn refused_stores_give_the_reason() {
     );
     assert_contains(
         &String::from_utf8_lossy(&output.stdout),
-        "store: Cadence.CI answered 403 Forbidden: Secret refused: no rule lets runs write `denied/db-password`.",
+        "store: api.melodium.tech answered 403 Forbidden: Secret refused: no rule lets runs write `denied/db-password`.",
     );
     assert!(!mock
         .secrets
@@ -356,7 +356,7 @@ fn refused_stores_give_the_reason() {
     let output = run(&store, None, &[]);
     assert_contains(
         &String::from_utf8_lossy(&output.stdout),
-        "store: secrets are only stored on Cadence.CI by the programs it runs, and MELODIUM_API_URL, MELODIUM_API_TOKEN, MELODIUM_RUN_ID are not set",
+        "store: secrets are only stored on api.melodium.tech by the programs it runs, and MELODIUM_API_URL, MELODIUM_API_TOKEN, MELODIUM_RUN_ID are not set",
     );
 }
 
@@ -429,8 +429,8 @@ pub fn run_cases() -> ! {
         unknown_names_are_reported_at_startup,
     ));
     cases.push((
-        "secrets_are_refused_outside_cadence_ci",
-        secrets_are_refused_outside_cadence_ci,
+        "secrets_are_refused_outside_api_melodium_tech",
+        secrets_are_refused_outside_api_melodium_tech,
     ));
     cases.push(("models_cannot_register_api", models_cannot_register_api));
     // The later run runs `sh`.
