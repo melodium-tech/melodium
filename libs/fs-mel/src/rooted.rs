@@ -8,6 +8,7 @@ use futures::{AsyncReadExt, AsyncWriteExt};
 use melodium_macro::check;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 /// File system rooted at a directory.
 ///
@@ -296,6 +297,157 @@ impl FileSystemEngine for RootedFileSystemEngine {
             failed().await;
         }
     }
+
+    async fn metadata(&self, path: &str) -> Result<Metadata, String> {
+        let path = PathBuf::from(path);
+        self.within(move |dir| {
+            let metadata = dir.symlink_metadata(&path)?;
+            let file_type = metadata.file_type();
+            Ok(Metadata {
+                kind: if file_type.is_symlink() {
+                    EntryKind::Link
+                } else if file_type.is_dir() {
+                    EntryKind::Directory
+                } else if file_type.is_file() {
+                    EntryKind::File
+                } else {
+                    EntryKind::Other
+                },
+                size: metadata.len(),
+                mode: mode(&metadata.permissions()),
+                modified: metadata.modified().ok().map(|time| time.into_std()),
+            })
+        })
+        .await
+        .map_err(|err| err.to_string())
+    }
+
+    async fn read_dir(&self, path: &str) -> Result<Vec<String>, String> {
+        let path = PathBuf::from(if path.is_empty() { "." } else { path });
+        self.within(move |dir| {
+            dir.read_dir(&path)?
+                .map(|entry| {
+                    entry.and_then(|entry| {
+                        entry.file_name().into_string().map_err(|name| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                format!("{} is not a valid name", name.to_string_lossy()),
+                            )
+                        })
+                    })
+                })
+                .collect()
+        })
+        .await
+        .map_err(|err| err.to_string())
+    }
+
+    async fn read_link(&self, path: &str) -> Result<String, String> {
+        let path = PathBuf::from(path);
+        // The target is given as written, absolute or leading out of the root, never followed.
+        self.within(move |dir| dir.read_link_contents(&path))
+            .await
+            .map_err(|err| err.to_string())?
+            .into_os_string()
+            .into_string()
+            .map_err(|target| format!("{} is not a valid target", target.to_string_lossy()))
+    }
+
+    async fn create_link(&self, target: &str, path: &str) -> Result<(), String> {
+        #[cfg(not(windows))]
+        {
+            let target = PathBuf::from(target);
+            let path = PathBuf::from(path);
+            self.within(move |dir| dir.symlink_contents(&target, &path))
+                .await
+                .map_err(|err| err.to_string())
+        }
+        #[cfg(windows)]
+        {
+            let _ = (target, path);
+            Err("links cannot be created on Windows".to_string())
+        }
+    }
+
+    async fn set_metadata(
+        &self,
+        path: &str,
+        mode: Option<u32>,
+        modified: Option<SystemTime>,
+    ) -> Result<(), String> {
+        let path = PathBuf::from(path);
+        self.within(move |dir| {
+            let file_type = dir.symlink_metadata(&path)?.file_type();
+            if file_type.is_symlink() {
+                return Ok(());
+            }
+            // Times first, as the mode could forbid opening the entry.
+            if let Some(modified) = modified {
+                dir.open_with(&path, OpenOptions::new().read(true))?
+                    .into_std()
+                    .set_modified(modified)?;
+            }
+            if let Some(mode) = mode {
+                set_mode(dir, &path, mode)?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|err| err.to_string())
+    }
+
+    async fn remove(&self, path: &str, recursive: bool) -> Result<(), String> {
+        let path = PathBuf::from(path);
+        self.within(move |dir| {
+            if dir.symlink_metadata(&path)?.is_dir() {
+                if recursive {
+                    dir.remove_dir_all(&path)
+                } else {
+                    dir.remove_dir(&path)
+                }
+            } else {
+                dir.remove_file(&path)
+            }
+        })
+        .await
+        .map_err(|err| err.to_string())
+    }
+
+    async fn rename(&self, from: &str, to: &str) -> Result<(), String> {
+        let from = PathBuf::from(from);
+        let to = PathBuf::from(to);
+        self.within(move |dir| dir.rename(&from, dir, &to))
+            .await
+            .map_err(|err| err.to_string())
+    }
+}
+
+/// Permissions mode, where there is one.
+fn mode(permissions: &cap_std::fs::Permissions) -> Option<u32> {
+    #[cfg(unix)]
+    {
+        use cap_std::fs::PermissionsExt;
+        Some(permissions.mode())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = permissions;
+        None
+    }
+}
+
+/// Sets the permissions `mode` of `path`, on systems having modes.
+fn set_mode(dir: &Dir, path: &Path, mode: u32) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use cap_std::fs::PermissionsExt;
+        dir.set_permissions(path, cap_std::fs::Permissions::from_mode(mode))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (dir, path, mode);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -568,5 +720,122 @@ mod tests {
             std::fs::read(fixture.outside.join("inside/file")).unwrap(),
             b"outside"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn entries_are_described_moved_and_removed_within_the_root() {
+        let fixture = Fixture::new("operations");
+        let engine = fixture.engine();
+
+        let file = block_on(engine.metadata("inside/file")).unwrap();
+        assert_eq!(file.kind, EntryKind::File);
+        assert_eq!(file.size, 6);
+        assert!(file.mode.is_some());
+        assert_eq!(
+            block_on(engine.metadata("inside")).unwrap().kind,
+            EntryKind::Directory
+        );
+        // Links are described, never followed, even leading out of the root.
+        assert_eq!(
+            block_on(engine.metadata("out")).unwrap().kind,
+            EntryKind::Link
+        );
+        let mut names = block_on(engine.read_dir("")).unwrap();
+        names.sort();
+        assert_eq!(names, ["abs", "inner", "inside", "out"]);
+        assert_eq!(block_on(engine.read_link("out")).unwrap(), "../outside");
+        assert_eq!(
+            block_on(engine.read_link("abs")).unwrap(),
+            fixture.outside.to_string_lossy()
+        );
+
+        // Links are made as written.
+        block_on(engine.create_link("/etc/passwd", "inside/abs-link")).unwrap();
+        assert_eq!(
+            block_on(engine.read_link("inside/abs-link")).unwrap(),
+            "/etc/passwd"
+        );
+
+        let modified = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000_000);
+        block_on(engine.set_metadata("inside/file", Some(0o640), Some(modified))).unwrap();
+        block_on(engine.set_metadata("inside", None, Some(modified))).unwrap();
+        let file = block_on(engine.metadata("inside/file")).unwrap();
+        assert_eq!(file.mode.unwrap() & 0o777, 0o640);
+        assert_eq!(file.modified, Some(modified));
+        assert_eq!(
+            block_on(engine.metadata("inside")).unwrap().modified,
+            Some(modified)
+        );
+        // A link keeps its own, and what it points to is left unchanged.
+        block_on(engine.set_metadata("out", Some(0o600), Some(modified))).unwrap();
+        assert_ne!(
+            std::fs::metadata(&fixture.outside)
+                .unwrap()
+                .modified()
+                .unwrap(),
+            modified
+        );
+
+        block_on(engine.rename("inside", "moved")).unwrap();
+        assert_eq!(
+            std::fs::read(fixture.root.join("moved/file")).unwrap(),
+            b"inside"
+        );
+        assert!(block_on(engine.remove("moved", false)).is_err());
+        block_on(engine.remove("moved", true)).unwrap();
+        assert!(!fixture.root.join("moved").exists());
+
+        // Removing a link removes the link only.
+        block_on(engine.remove("out", false)).unwrap();
+        block_on(engine.remove("abs", true)).unwrap();
+        assert!(fixture.outside.join("secret").exists());
+    }
+
+    #[test]
+    fn operations_leaving_the_root_are_refused() {
+        let fixture = Fixture::new("operations-leaving");
+        let engine = fixture.engine();
+        let secret = fixture.outside.join("secret").to_string_lossy().to_string();
+
+        let mut leaving = vec![
+            "../outside/secret",
+            "inside/../../outside/secret",
+            secret.as_str(),
+        ];
+        #[cfg(unix)]
+        leaving.extend(["out/secret", "abs/secret"]);
+        for path in leaving {
+            assert!(block_on(engine.metadata(path)).is_err(), "metadata {path}");
+            assert!(
+                block_on(engine.set_metadata(path, Some(0o777), None)).is_err(),
+                "set_metadata {path}"
+            );
+            assert!(
+                block_on(engine.remove(path, true)).is_err(),
+                "remove {path}"
+            );
+            assert!(
+                block_on(engine.rename(path, "inside/taken")).is_err(),
+                "rename from {path}"
+            );
+            assert!(
+                block_on(engine.rename("inside/file", &path.replace("secret", "put"))).is_err(),
+                "rename to {path}"
+            );
+            assert!(
+                block_on(engine.create_link("x", &path.replace("secret", "link"))).is_err(),
+                "create_link {path}"
+            );
+        }
+        assert!(block_on(engine.read_dir("..")).is_err());
+        #[cfg(unix)]
+        assert!(block_on(engine.read_dir("out")).is_err());
+
+        assert_eq!(
+            std::fs::read(fixture.outside.join("secret")).unwrap(),
+            b"outside"
+        );
+        assert!(std::fs::read_dir(&fixture.outside).unwrap().count() == 1);
     }
 }
