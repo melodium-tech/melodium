@@ -547,6 +547,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     packages.push(audio_mel::__mel_package::package());
     #[cfg(feature = "cicd-mel")]
     packages.push(cicd_mel::__mel_package::package());
+    #[cfg(feature = "compression-mel")]
+    packages.push(compression_mel::__mel_package::package());
     #[cfg(feature = "crypto-mel")]
     packages.push(crypto_mel::__mel_package::package());
     #[cfg(feature = "distrib-mel")]

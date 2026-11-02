@@ -6,6 +6,7 @@
 //! testers, in `tests/testers`.
 
 mod common;
+mod compression;
 mod crypto;
 mod option_defaults;
 mod restitution;
