@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- `jwt` takes the identity token of an api.melodium.tech run, `api-id:vault`, and a `source` named `api-id` makes the launch fail (#153).
 - A `source` named `api` makes the launch fail, as `api` is reserved for the secrets of api.melodium.tech (#150).
 
 ## [v0.11.0] (2026-10-15)

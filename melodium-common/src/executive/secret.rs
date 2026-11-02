@@ -252,7 +252,7 @@ impl SecretsAccess {
     ///
     /// Only possible from the `secret_sources` function of a model, called before any
     /// model is initialized. Registering a scheme twice, or one the engine already has,
-    /// such as `env`, `file` and `api`, makes the launch fail.
+    /// such as `env`, `file`, `api` and `api-id`, makes the launch fail.
     pub fn register_source(
         &self,
         scheme: &str,
