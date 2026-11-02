@@ -13,7 +13,7 @@ use futures::io::{AsyncRead as Read, AsyncWrite as Write};
 use futures::stream::{unfold, FuturesUnordered};
 use futures::{pin_mut, select, FutureExt, StreamExt};
 use futures_rustls::TlsAcceptor;
-use melodium_common::executive::{Level, Log};
+use melodium_common::executive::{Level, Log, SecretSource};
 use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
     executive::ResultStatus,
@@ -137,6 +137,7 @@ pub async fn launch_listen(
     expect_key: Uuid,
     emit_key: Uuid,
     loader: Loader,
+    secret_sources: Vec<(String, Arc<dyn SecretSource>)>,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
@@ -189,6 +190,7 @@ pub async fn launch_listen(
         expect_key,
         emit_key,
         loader,
+        secret_sources,
         max_duration,
         logs_senders,
         debug_senders,
@@ -209,6 +211,7 @@ pub async fn launch_listen_localcert(
     expect_key: Uuid,
     emit_key: Uuid,
     loader: Loader,
+    secret_sources: Vec<(String, Arc<dyn SecretSource>)>,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
@@ -235,6 +238,7 @@ pub async fn launch_listen_localcert(
         expect_key,
         emit_key,
         loader,
+        secret_sources,
         wait_for,
         max_duration,
         logs_senders,
@@ -256,6 +260,7 @@ pub async fn launch_listen_unsecure(
     expect_key: Uuid,
     emit_key: Uuid,
     loader: Loader,
+    secret_sources: Vec<(String, Arc<dyn SecretSource>)>,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
@@ -303,6 +308,7 @@ pub async fn launch_listen_unsecure(
         expect_key,
         emit_key,
         loader,
+        secret_sources,
         max_duration,
         logs_senders,
         debug_senders,
@@ -324,6 +330,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     expect_key: Uuid,
     emit_key: Uuid,
     loader: Loader,
+    secret_sources: Vec<(String, Arc<dyn SecretSource>)>,
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
@@ -515,6 +522,10 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     });
     let engine = melodium_engine::new_engine(Arc::clone(&collection), Level::Trace, debug_level);
     engine.set_auto_end(false);
+    for (scheme, source) in secret_sources {
+        // Given before genesis, so never refused.
+        let _ = engine.add_secret_source(&scheme, source);
+    }
 
     let (logs_sender, logs_receiver) = bounded(log_channel_capacity());
     engine.add_logs_listener(logs_sender);

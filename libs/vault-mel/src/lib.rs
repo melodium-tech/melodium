@@ -29,7 +29,7 @@ use std::sync::{Arc, Weak};
 ///
 /// - `address`: address of the server, such as `https://vault.example.com:8200`.
 /// - `source`: name of the source, the scheme of locators (`vault` by default); two models
-/// with the same source, or a source named `env` or `file`, make the launch fail.
+/// with the same source, or a source named `env`, `file` or `api`, make the launch fail.
 /// - `namespace`: namespace to work in, if any.
 ///
 /// Authentication is chosen by `auth`:

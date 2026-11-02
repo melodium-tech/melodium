@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding `Engine::add_secret_source`, giving a secret source before genesis, registered before the sources of models, so that a model registering the same scheme fails the launch (D0252), breaking for `Engine` implementors. Ending the engine shuts its secret sources down (#150).
+
 ## [v0.11.0] (2026-10-15)
 
 - Moving from async-std, which is discontinued, to smol: tracks and continuous tasks run on threads owned by the engine (`runtime` module), one per core unless the `MELODIUM_THREADS` environment variable gives another number, and Unix signals are received through async-signal (#104).

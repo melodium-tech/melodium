@@ -70,6 +70,8 @@ pub struct World {
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
     secret_sources: RwLock<HashMap<String, Arc<dyn SecretSource>>>,
+    /// Sources given before genesis, registered before the ones of models.
+    given_secret_sources: RwLock<Vec<(String, Arc<dyn SecretSource>)>>,
     masking: Arc<Masking>,
     /// Whether models can register secret sources, only while genesis asks them to.
     secret_sources_registration: AtomicBool,
@@ -192,8 +194,9 @@ impl World {
             .for_each(|value| find(value, &mut secrets));
     }
 
-    /// Registers the secret sources of every model, then checks that the secrets known
-    /// at launch that only this engine can resolve have a source for their scheme.
+    /// Registers the secret sources given before genesis, then those of every model, then
+    /// checks that the secrets known at launch that only this engine can resolve have a
+    /// source for their scheme.
     ///
     /// Secrets sent by reference may be resolved by distant engines, with their own
     /// sources, so they are not checked. Derived secrets cannot be sent by reference:
@@ -201,6 +204,10 @@ impl World {
     fn prepare_secret_sources(&self) -> Vec<LogicError> {
         self.secret_sources_registration
             .store(true, Ordering::Relaxed);
+        for (scheme, source) in self.given_secret_sources.write().unwrap().drain(..) {
+            // A scheme registered twice makes the launch fail.
+            let _ = self.register_secret_source(&scheme, source);
+        }
         self.models
             .read()
             .unwrap()
@@ -274,6 +281,7 @@ impl World {
             models: RwLock::new(Vec::new()),
             sources: RwLock::new(HashMap::new()),
             secret_sources: RwLock::new(Self::builtin_secret_sources()),
+            given_secret_sources: RwLock::new(Vec::new()),
             masking: {
                 let masking = Arc::new(Masking::new());
                 register_wipe(Arc::downgrade(&masking) as Weak<dyn Wipe>);
@@ -612,6 +620,21 @@ impl World {
 impl Engine for World {
     fn collection(&self) -> Arc<Collection> {
         Arc::clone(&self.collection)
+    }
+
+    fn add_secret_source(
+        &self,
+        scheme: &str,
+        source: Arc<dyn SecretSource>,
+    ) -> Result<(), SecretError> {
+        if self.main_id.read().unwrap().is_some() {
+            return Err(SecretError::RegistrationClosed);
+        }
+        self.given_secret_sources
+            .write()
+            .unwrap()
+            .push((scheme.to_string(), source));
+        Ok(())
     }
 
     fn genesis(&self, entry: &Identifier, mut params: HashMap<String, Value>) -> LogicResult<()> {
@@ -1032,6 +1055,11 @@ impl Engine for World {
                 .unwrap()
                 .iter()
                 .for_each(|m| m.shutdown());
+            self.secret_sources
+                .read()
+                .unwrap()
+                .values()
+                .for_each(|source| source.shutdown());
             self.tracks_sender.close();
             self.closing_check_sender.close();
             self.closing.store(true, Ordering::Relaxed);
@@ -1603,6 +1631,75 @@ mod tests {
             host.register_secret_source("other", Arc::new(TestSource)),
             Err(SecretError::RegistrationClosed)
         );
+    }
+
+    #[derive(Debug, Default)]
+    struct ShutdownSource(AtomicBool);
+
+    #[async_trait]
+    impl SecretSource for ShutdownSource {
+        async fn resolve(&self, _path: &str, _datatype: &DataType) -> Result<Value, String> {
+            Err("unused".to_string())
+        }
+
+        fn shutdown(&self) {
+            self.0.store(true, Ordering::Relaxed);
+        }
+    }
+
+    #[test]
+    fn given_sources_are_registered_before_the_ones_of_models() {
+        let world = world();
+        let host = world.secrets_host();
+        let given = Arc::new(ShutdownSource::default());
+        assert_eq!(
+            world.add_secret_source("given", Arc::clone(&given) as Arc<dyn SecretSource>),
+            Ok(())
+        );
+        assert_eq!(
+            world.add_secret_source("twice", Arc::new(TestSource)),
+            Ok(())
+        );
+        assert_eq!(
+            world.add_secret_source("twice", Arc::new(TestSource)),
+            Ok(())
+        );
+        assert!(host.secret_source("given").is_none());
+
+        assert_eq!(
+            world
+                .prepare_secret_sources()
+                .iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>(),
+            vec!["D0252: A secret source is already registered for 'twice:'"]
+        );
+        assert!(host.secret_source("given").is_some());
+
+        // Models register theirs within the same window, after the given ones.
+        world
+            .secret_sources_registration
+            .store(true, Ordering::Relaxed);
+        assert_eq!(
+            host.register_secret_source("given", Arc::new(TestSource)),
+            Err(SecretError::SourceAlreadyRegistered("given".to_string()))
+        );
+
+        // Once genesis started, sources are not given anymore.
+        world
+            .main_id
+            .write()
+            .unwrap()
+            .replace("test::main".parse().unwrap());
+        assert_eq!(
+            world.add_secret_source("late", Arc::new(TestSource)),
+            Err(SecretError::RegistrationClosed)
+        );
+
+        // Ending the engine shuts the sources down.
+        assert!(!given.0.load(Ordering::Relaxed));
+        block_on(world.end());
+        assert!(given.0.load(Ordering::Relaxed));
     }
 
     #[test]
