@@ -19,6 +19,7 @@ pub struct Source {
     parameters: HashMap<String, Parameter>,
     outputs: HashMap<String, Output>,
     source_from: HashMap<String, Vec<String>>,
+    generics: Vec<Generic>,
     auto_reference: Weak<Self>,
 }
 
@@ -31,6 +32,7 @@ impl Source {
         parameters: Vec<Parameter>,
         source_from: Vec<(String, Vec<String>)>,
         outputs: Vec<Output>,
+        generics: Vec<Generic>,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
         let _ = documentation;
@@ -45,6 +47,7 @@ impl Source {
             ),
             outputs: HashMap::from_iter(outputs.into_iter().map(|o| (o.name().to_string(), o))),
             source_from: HashMap::from_iter(source_from.into_iter()),
+            generics,
             auto_reference: me.clone(),
         })
     }
@@ -202,7 +205,6 @@ impl TreatmentDescriptor for Source {
 
 impl Generics for Source {
     fn generics(&self) -> &Vec<Generic> {
-        static VEC: OnceCell<Vec<Generic>> = OnceCell::new();
-        VEC.get_or_init(|| Vec::new())
+        &self.generics
     }
 }

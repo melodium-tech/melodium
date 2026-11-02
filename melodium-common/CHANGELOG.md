@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Giving the types of generic sources to models in `Model::invoke_source`, and making tracks only for the entries of given types in `World::create_track`, breaking for implementors of both (#166).
 - Adding `SecretSource::shutdown`, called when the engine ends, for sources to wipe what they keep (#150).
 
 ## [v0.11.0] (2026-10-15)

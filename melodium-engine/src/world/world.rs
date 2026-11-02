@@ -27,7 +27,7 @@ use futures::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::{pin_mut, select, FutureExt};
 use melodium_common::descriptor::{
-    Collection, Entry as CollectionEntry, Flow, Identifier, Treatment,
+    Collection, DataType, Entry as CollectionEntry, Flow, Identifier, Treatment,
 };
 use melodium_common::executive::{
     check_secret_resolution, register_wipe, Context as ExecutiveContext, ContinuousFuture,
@@ -365,6 +365,7 @@ impl World {
         name: &str,
         descriptor: Arc<dyn Treatment>,
         params: HashMap<String, Value>,
+        generics: HashMap<String, DataType>,
         build_id: BuildId,
     ) {
         let mut sources = self.sources.write().unwrap();
@@ -377,11 +378,12 @@ impl World {
             descriptor,
             id: build_id,
             params: params.clone(),
+            generics: generics.clone(),
         });
 
         let model = self.models.read().unwrap()[model_id].clone();
 
-        model.invoke_source(name, params);
+        model.invoke_source(name, params, generics);
     }
 
     pub fn direct(&self, id: &TrackId) -> LogicResult<FeedingInputs> {
@@ -1121,6 +1123,7 @@ impl ExecutiveWorld for World {
         id: ModelId,
         source: &str,
         params: &HashMap<String, Value>,
+        generics: Option<&HashMap<String, DataType>>,
         contexts: Vec<Arc<dyn ExecutiveContext>>,
         parent_track: Option<TrackId>,
         callback: Option<TrackCreationCallback>,
@@ -1149,8 +1152,11 @@ impl ExecutiveWorld for World {
                 contextual_environment.add_context(context.descriptor().name(), context.clone())
             });
 
+            // Entries of generic sources are only built for the types asked, if any.
             for entry in entries {
-                if &entry.params == params {
+                if &entry.params == params
+                    && generics.map_or(true, |generics| &entry.generics == generics)
+                {
                     let build_result = self
                         .builder(entry.descriptor.identifier())
                         .success()

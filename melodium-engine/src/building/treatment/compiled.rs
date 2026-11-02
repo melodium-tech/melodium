@@ -99,6 +99,7 @@ impl BuilderTrait for Builder {
                     source,
                     self.descriptor.upgrade().unwrap(),
                     environment.variables().clone(),
+                    environment.generics().clone(),
                     idx,
                 );
             }
