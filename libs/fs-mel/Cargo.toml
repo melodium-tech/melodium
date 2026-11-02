@@ -17,6 +17,7 @@ crate-type = ["lib", "cdylib"]
 name = "fs_mel"
 
 [dependencies]
+async-channel = "2.3"
 async-fs = "2.2"
 async-trait = "0.1.71"
 async-walkdir = "2.0"
@@ -27,6 +28,7 @@ melodium-core = { path = "../../melodium-core", version = "0.11.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
 serde = "1.0.185"
 std-mel = { path = "../std-mel", version = "0.11.0" }
+tar = { version = "0.4", default-features = false }
 
 [features]
 mock = []
