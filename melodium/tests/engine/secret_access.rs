@@ -293,3 +293,39 @@ fn only_declaring_elements_get_secrets_access() {
     assert!(!descriptor("std/secret::conceal").secrets_access());
     assert!(!descriptor("std/flow::emit").secrets_access());
 }
+
+const SECRET_SCAN_SCRIPT: &str = include_str!("scripts/secret_scan.mel");
+
+/// Bytes sent by the output `output` of the instance labelled `label`.
+fn sent_bytes(events: &[Event], label: &str, output: &str) -> Vec<u8> {
+    common::sent(events, label, output)
+        .into_iter()
+        .map(|value| match value {
+            Value::Byte(byte) => byte,
+            other => panic!("not a byte: {other:?}"),
+        })
+        .collect()
+}
+
+#[test]
+fn scan_cuts_data_holding_revealed_values() {
+    let (logs, events) = common::run(SECRET_SCAN_SCRIPT, HashMap::new());
+
+    // Data without the value is given whole.
+    assert_eq!(
+        sent_bytes(&events, "clean", "scanned"),
+        b"clean data, nothing revealed"
+    );
+    assert_eq!(common::sent(&events, "clean", "completed").len(), 1);
+    assert!(common::sent(&events, "clean", "failed").is_empty());
+
+    // Data holding it is cut before any byte of the value is given.
+    let given = sent_bytes(&events, "leaking", "scanned");
+    let prefix = b"012345678901234567890123456789012345678901234567890123456789";
+    assert!(prefix.starts_with(&given), "{given:?}");
+    assert!(common::sent(&events, "leaking", "completed").is_empty());
+    assert_eq!(common::sent(&events, "leaking", "failed").len(), 1);
+    let leak = common::message(&logs, "leak");
+    assert!(leak.contains("secret 'scanned'"), "{leak}");
+    assert!(!leak.contains("scan-test"), "{leak}");
+}
