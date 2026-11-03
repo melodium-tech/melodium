@@ -5,6 +5,8 @@ use root/runners::stopRunner
 use root/services::setServiceState
 use root/steps::stepOnTerminable
 use root/steps::stepOnTerminableWithInput
+use root/steps::stepOnTerminableCached
+use root/steps::stepOnTerminableWithInputCached
 use root/steps::spawnCommands
 use process/command::Command
 use process/command::|command
@@ -28,11 +30,14 @@ use std/ops/num::|div
 use std/ops::|max
 use std/ops/option::|wrap
 use std/ops/option::|unwrap_or
+use std/ops/option/block::unwrap
 use work/resources::|container
 use work/resources::|volume
 use work/resources::|mount
 use work/resources::ServiceContainer
 use work/resources/arch::Arch
+use root/cache::Cache
+use root/cache::|cache_name
 
 /**
 Run a CI/CD step on the local machine.
@@ -216,6 +221,9 @@ The image is pulled with `pull_secret`, revealed only to request the container.
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
+With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name of the cache, such as `|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", "cargo"))` for `CARGO_HOME=/mnt/data/cargo`.
+A missed cache and a cache that cannot be saved only log warnings.
+
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
 - `completed`: emitted when the step finished to be executed;
@@ -242,6 +250,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
     commands: Vec<Command>,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
+    cache: Option<Cache> = _,
 
     report: bool = true,
     github: bool = false,
@@ -299,7 +308,8 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
         description=description,
-        log_service_response=log_service_response
+        log_service_response=log_service_response,
+        cache=cache
     )
     closeTerminate: closeBlock<void>()
 
@@ -313,6 +323,135 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
     simpleStepTerminable.success ---> Self.success
     simpleStepTerminable.error -----> Self.error
     simpleStepTerminable.data ------> Self.data
+}
+
+/**
+Run a step on a container.
+
+This treatment manages creation and run of a container and runs commands inside it.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes, raised to the size of the `/mnt/data` volume if smaller;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `tags`: hints given with the worker request, never refusing it (such as `name=build` to name the job of the worker);
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `service_containers`: list of containers to instanciate alongside main container.
+
+The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `out_file` can be written.
+
+`commands` run with `variables` and `secret_variables` as environment variables, the values of `secret_variables`
+being `Secret<string>` revealed only to run them, never put in command arguments.
+The image is pulled with `pull_secret`, revealed only to request the container.
+
+`commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
+This output is ignored if no `out_file` is set.
+
+With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
+A missed cache and a cache that cannot be saved only log warnings.
+
+The `trigger` input signals the treatment to start, then:
+- `started`: emitted when the step effectively starts;
+- `completed`: emitted when the step finished to be executed;
+- `failed`: emitted if the step failed to be executed;
+- `success`: emitted when the step exit with code `0`;
+- `error`: emitted when the step exit with code different from `0`;
+- `finished`: emitted when the request finished, regardless of state.
+
+The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
+*/
+treatment simpleStepCached[dispatcher: CicdDispatchEngine](
+    name: string,
+    cpu: u32 = 500,
+    memory: u32 = 500,
+    storage: u32 = 5000,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    tags: Vec<string> = [],
+    service_containers: Vec<ServiceContainer> = [],
+    image: string,
+    pull_secret: Option<Secret<string>> = _,
+    variables: Option<StringMap> = _,
+    secret_variables: Option<Map> = _,
+    commands: Vec<Command>,
+    out_storage: Option<u32> = _,
+    out_file: Option<string> = _,
+    cache: Option<Cache> = _,
+
+    report: bool = true,
+    github: bool = false,
+    gitlab: bool = false,
+    const github_token: Secret<string> = "env:MELODIUM_SECRET_GITHUB_TOKEN",
+    github_project: string = "",
+    github_sha: string = "",
+    gitlab_root_url: string = "https://gitlab.com/api/v4",
+    const gitlab_token: Secret<string> = "env:MELODIUM_SECRET_GITLAB_TOKEN",
+    gitlab_project_id: string = "",
+    gitlab_sha: string = "",
+    gitlab_ref: string = "",
+    gitlab_pipeline_id: string = "",
+    description: string = "",
+    log_service_response: bool = false
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input cache_name: Block<string>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output data: Stream<byte>
+{
+
+    simpleStepTerminableCached[dispatcher=dispatcher](
+        name=name,
+        cpu=cpu,
+        memory=memory,
+        storage=storage,
+        arch=arch,
+        max_duration=max_duration,
+        tags=tags,
+        service_containers=service_containers,
+        image=image,
+        pull_secret=pull_secret,
+        variables=variables,
+        secret_variables=secret_variables,
+        commands=commands,
+        out_storage=out_storage,
+        out_file=out_file,
+
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description,
+        log_service_response=log_service_response,
+        cache=cache
+    )
+    closeTerminate: closeBlock<void>()
+
+    Self.trigger ----------------------------------> simpleStepTerminableCached.trigger
+    Self.trigger -> closeTerminate.trigger,closed -> simpleStepTerminableCached.terminate
+
+    simpleStepTerminableCached.started ---> Self.started
+    simpleStepTerminableCached.completed -> Self.completed
+    simpleStepTerminableCached.failed ----> Self.failed
+    simpleStepTerminableCached.finished --> Self.finished
+    simpleStepTerminableCached.success ---> Self.success
+    simpleStepTerminableCached.error -----> Self.error
+    simpleStepTerminableCached.data ------> Self.data
+    Self.cache_name -> simpleStepTerminableCached.cache_name
 }
 
 
@@ -338,6 +477,9 @@ The image is pulled with `pull_secret`, revealed only to request the container.
 
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
+
+With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name of the cache, such as `|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", "cargo"))` for `CARGO_HOME=/mnt/data/cargo`.
+A missed cache and a cache that cannot be saved only log warnings.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -365,6 +507,137 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
     commands: Vec<Command>,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
+    cache: Option<Cache> = _,
+
+    report: bool = true,
+    github: bool = false,
+    gitlab: bool = false,
+    const github_token: Secret<string> = "env:MELODIUM_SECRET_GITHUB_TOKEN",
+    github_project: string = "",
+    github_sha: string = "",
+    gitlab_root_url: string = "https://gitlab.com/api/v4",
+    const gitlab_token: Secret<string> = "env:MELODIUM_SECRET_GITLAB_TOKEN",
+    gitlab_project_id: string = "",
+    gitlab_sha: string = "",
+    gitlab_ref: string = "",
+    gitlab_pipeline_id: string = "",
+    description: string = "",
+    log_service_response: bool = false
+)
+  input trigger: Block<void>
+  input terminate: Block<void>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output terminated: Block<void>
+  output data: Stream<byte>
+{
+    simpleStepTerminableCached[dispatcher=dispatcher](
+
+        name=name,
+        cpu=cpu,
+        memory=memory,
+        storage=storage,
+        arch=arch,
+        max_duration=max_duration,
+        tags=tags,
+        service_containers=service_containers,
+        image=image,
+        pull_secret=pull_secret,
+        variables=variables,
+        secret_variables=secret_variables,
+        commands=commands,
+        out_storage=out_storage,
+        out_file=out_file,
+        cache=cache,
+
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description,
+        log_service_response=log_service_response
+    )
+    emitCacheName: emit<Option<string>>(value=|cache_name(cache))
+    unwrapCacheName: unwrap<string>()
+
+    Self.trigger -> simpleStepTerminableCached.trigger
+    Self.terminate -> simpleStepTerminableCached.terminate
+    Self.trigger -> emitCacheName.trigger,emit -> unwrapCacheName.option,value -> simpleStepTerminableCached.cache_name
+    simpleStepTerminableCached.started -> Self.started
+    simpleStepTerminableCached.completed -> Self.completed
+    simpleStepTerminableCached.failed -> Self.failed
+    simpleStepTerminableCached.finished -> Self.finished
+    simpleStepTerminableCached.success -> Self.success
+    simpleStepTerminableCached.error -> Self.error
+    simpleStepTerminableCached.terminated -> Self.terminated
+    simpleStepTerminableCached.data -> Self.data
+}
+
+/**
+Run a step on a container.
+
+This treatment manages creation and run of a container and runs commands inside it.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes, raised to the size of the `/mnt/data` volume if smaller;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `tags`: hints given with the worker request, never refusing it (such as `name=build` to name the job of the worker);
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `service_containers`: list of containers to instanciate alongside main container.
+
+The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `out_file` can be written.
+
+`commands` run with `variables` and `secret_variables` as environment variables, the values of `secret_variables`
+being `Secret<string>` revealed only to run them, never put in command arguments.
+The image is pulled with `pull_secret`, revealed only to request the container.
+
+`commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
+This output is ignored if no `out_file` is set.
+
+With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
+A missed cache and a cache that cannot be saved only log warnings.
+
+The `trigger` input signals the treatment to start, then:
+- `started`: emitted when the step effectively starts;
+- `completed`: emitted when the step finished to be executed;
+- `failed`: emitted if the step failed to be executed;
+- `success`: emitted when the step exit with code `0`;
+- `error`: emitted when the step exit with code different from `0`;
+- `finished`: emitted when the request finished, regardless of state.
+
+The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
+*/
+treatment simpleStepTerminableCached[dispatcher: CicdDispatchEngine](
+    name: string,
+    cpu: u32 = 500,
+    memory: u32 = 500,
+    storage: u32 = 5000,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    tags: Vec<string> = [],
+    service_containers: Vec<ServiceContainer> = [],
+    image: string,
+    pull_secret: Option<Secret<string>> = _,
+    variables: Option<StringMap> = _,
+    secret_variables: Option<Map> = _,
+    commands: Vec<Command>,
+    out_storage: Option<u32> = _,
+    out_file: Option<string> = _,
+    cache: Option<Cache> = _,
 
     report: bool = true,
     github: bool = false,
@@ -384,6 +657,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
   input terminate: Block<void>
+  input cache_name: Block<string>
   output started: Block<void>
   output completed: Block<void>
   output failed: Block<void>
@@ -409,13 +683,14 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
         service_containers=service_containers,
         tags=tags
     )
-    stepOnTerminable[runner=runner](
+    stepOnTerminableCached[runner=runner](
         name=name,
         executor_name=|wrap<string>(name),
         commands=commands,
         environment=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))),
         out_file=out_file,
-        out_filesystem="data"
+        out_filesystem="data",
+        cache=cache
     )
     stopRunner[runner=runner]()
     setServiceState(
@@ -438,7 +713,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
 
   oneFailed: one<void>()
   setupRunner.failed -> oneFailed.a,value -> Self.failed
-  stepOnTerminable.failed ------> oneFailed.b
+  stepOnTerminableCached.failed ------> oneFailed.b
 
   // `setupRunner.ready` never fires when `setupRunner.failed` does (they come from a
   // `one<void>` gate), so `stepOnTerminable` never even starts on that path, and its
@@ -452,23 +727,24 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
   oneFailed.value -> closeDataOnSetupFailure.trigger
   mergeData: merge<byte>()
   closeDataOnSetupFailure.closed -> mergeData.a
-  stepOnTerminable.data --------> mergeData.b,value -> Self.data
+  stepOnTerminableCached.data --------> mergeData.b,value -> Self.data
 
-  stepOnTerminable.finished -> stopRunner.trigger
+  stepOnTerminableCached.finished -> stopRunner.trigger
 
-  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminable.trigger,finished ---------------> finishedOnSetupFailure.b
-  Self.terminate ----------------------------> stepOnTerminable.terminate,terminated -----------> Self.terminated
-                                               stepOnTerminable.completed ----------------------> Self.completed
-                                               stepOnTerminable.started ------------------------> Self.started
-                                               stepOnTerminable.success ------------------------> Self.success
-                                               stepOnTerminable.error --------------------------> Self.error
+  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminableCached.trigger,finished ---------------> finishedOnSetupFailure.b
+  Self.terminate ----------------------------> stepOnTerminableCached.terminate,terminated -----------> Self.terminated
+                                               stepOnTerminableCached.completed ----------------------> Self.completed
+                                               stepOnTerminableCached.started ------------------------> Self.started
+                                               stepOnTerminableCached.success ------------------------> Self.success
+                                               stepOnTerminableCached.error --------------------------> Self.error
 
   Self.trigger ----------------> setServiceState.pending
-  stepOnTerminable.started ----> setServiceState.running
-  stepOnTerminable.success ----> setServiceState.success
+  stepOnTerminableCached.started ----> setServiceState.running
+  stepOnTerminableCached.success ----> setServiceState.success
   oneFailed.value -------------> setServiceState.failed
-  stepOnTerminable.error ------> setServiceState.error
-  stepOnTerminable.terminated -> setServiceState.canceled
+  stepOnTerminableCached.error ------> setServiceState.error
+  stepOnTerminableCached.terminated -> setServiceState.canceled
+  Self.cache_name -> stepOnTerminableCached.cache_name
 }
 
 /**
@@ -493,6 +769,9 @@ The image is pulled with `pull_secret`, revealed only to request the container.
 
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
+
+With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name of the cache, such as `|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", "cargo"))` for `CARGO_HOME=/mnt/data/cargo`.
+A missed cache and a cache that cannot be saved only log warnings.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -521,6 +800,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
     in_file: string,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
+    cache: Option<Cache> = _,
 
     report: bool = true,
     github: bool = false,
@@ -579,7 +859,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
         description=description,
-        log_service_response=log_service_response
+        log_service_response=log_service_response,
+        cache=cache
     )
     closeTerminate: closeBlock<void>()
 
@@ -619,6 +900,141 @@ The image is pulled with `pull_secret`, revealed only to request the container.
 `commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
 This output is ignored if no `out_file` is set.
 
+With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
+A missed cache and a cache that cannot be saved only log warnings.
+
+The `trigger` input signals the treatment to start, then:
+- `started`: emitted when the step effectively starts;
+- `completed`: emitted when the step finished to be executed;
+- `failed`: emitted if the step failed to be executed;
+- `success`: emitted when the step exit with code `0`;
+- `error`: emitted when the step exit with code different from `0`;
+- `finished`: emitted when the request finished, regardless of state.
+
+The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
+*/
+treatment simpleStepWithInputCached[dispatcher: CicdDispatchEngine](
+    name: string,
+    cpu: u32 = 500,
+    memory: u32 = 500,
+    storage: u32 = 5000,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    tags: Vec<string> = [],
+    service_containers: Vec<ServiceContainer> = [],
+    image: string,
+    pull_secret: Option<Secret<string>> = _,
+    variables: Option<StringMap> = _,
+    secret_variables: Option<Map> = _,
+    commands: Vec<Command>,
+    in_file: string,
+    out_storage: Option<u32> = _,
+    out_file: Option<string> = _,
+    cache: Option<Cache> = _,
+
+    report: bool = true,
+    github: bool = false,
+    gitlab: bool = false,
+    const github_token: Secret<string> = "env:MELODIUM_SECRET_GITHUB_TOKEN",
+    github_project: string = "",
+    github_sha: string = "",
+    gitlab_root_url: string = "https://gitlab.com/api/v4",
+    const gitlab_token: Secret<string> = "env:MELODIUM_SECRET_GITLAB_TOKEN",
+    gitlab_project_id: string = "",
+    gitlab_sha: string = "",
+    gitlab_ref: string = "",
+    gitlab_pipeline_id: string = "",
+    description: string = "",
+    log_service_response: bool = false
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input cache_name: Block<string>
+  input data: Stream<byte>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output finished: Block<void>
+  output data: Stream<byte>
+{
+    simpleStepTerminableWithInputCached[dispatcher=dispatcher](
+        name=name,
+        cpu=cpu,
+        memory=memory,
+        storage=storage,
+        arch=arch,
+        max_duration=max_duration,
+        tags=tags,
+        service_containers=service_containers,
+        image=image,
+        pull_secret=pull_secret,
+        variables=variables,
+        secret_variables=secret_variables,
+        commands=commands,
+        in_file=in_file,
+        out_storage=out_storage,
+        out_file=out_file,
+
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description,
+        log_service_response=log_service_response,
+        cache=cache
+    )
+    closeTerminate: closeBlock<void>()
+
+    Self.trigger ----------------------------------> simpleStepTerminableWithInputCached.trigger
+    Self.trigger -> closeTerminate.trigger,closed -> simpleStepTerminableWithInputCached.terminate
+    Self.data -------------------------------------> simpleStepTerminableWithInputCached.data
+
+    simpleStepTerminableWithInputCached.started ---> Self.started
+    simpleStepTerminableWithInputCached.completed -> Self.completed
+    simpleStepTerminableWithInputCached.failed ----> Self.failed
+    simpleStepTerminableWithInputCached.finished --> Self.finished
+    simpleStepTerminableWithInputCached.success ---> Self.success
+    simpleStepTerminableWithInputCached.error -----> Self.error
+    simpleStepTerminableWithInputCached.data ------> Self.data
+    Self.cache_name -> simpleStepTerminableWithInputCached.cache_name
+}
+
+/**
+Run a step on a container.
+
+This treatment manages creation and run of a container and runs commands inside it.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes, raised to the size of the `/mnt/data` volume if smaller;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `tags`: hints given with the worker request, never refusing it (such as `name=build` to name the job of the worker);
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `service_containers`: list of containers to instanciate alongside main container.
+
+The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `in_file` and `out_file` can be written (`in_file="some.txt"` meaning file `"/mnt/data/some.txt"`).
+
+`commands` run with `variables` and `secret_variables` as environment variables, the values of `secret_variables`
+being `Secret<string>` revealed only to run them, never put in command arguments.
+The image is pulled with `pull_secret`, revealed only to request the container.
+
+`commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
+This output is ignored if no `out_file` is set.
+
+With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name of the cache, such as `|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", "cargo"))` for `CARGO_HOME=/mnt/data/cargo`.
+A missed cache and a cache that cannot be saved only log warnings.
+
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
 - `completed`: emitted when the step finished to be executed;
@@ -646,6 +1062,141 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
     in_file: string,
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
+    cache: Option<Cache> = _,
+
+    report: bool = true,
+    github: bool = false,
+    gitlab: bool = false,
+    const github_token: Secret<string> = "env:MELODIUM_SECRET_GITHUB_TOKEN",
+    github_project: string = "",
+    github_sha: string = "",
+    gitlab_root_url: string = "https://gitlab.com/api/v4",
+    const gitlab_token: Secret<string> = "env:MELODIUM_SECRET_GITLAB_TOKEN",
+    gitlab_project_id: string = "",
+    gitlab_sha: string = "",
+    gitlab_ref: string = "",
+    gitlab_pipeline_id: string = "",
+    description: string = "",
+    log_service_response: bool = false
+)
+  input trigger: Block<void>
+  input terminate: Block<void>
+  input data: Stream<byte>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output finished: Block<void>
+  output terminated: Block<void>
+  output data: Stream<byte>
+{
+    simpleStepTerminableWithInputCached[dispatcher=dispatcher](
+
+        name=name,
+        cpu=cpu,
+        memory=memory,
+        storage=storage,
+        arch=arch,
+        max_duration=max_duration,
+        tags=tags,
+        service_containers=service_containers,
+        image=image,
+        pull_secret=pull_secret,
+        variables=variables,
+        secret_variables=secret_variables,
+        commands=commands,
+        in_file=in_file,
+        out_storage=out_storage,
+        out_file=out_file,
+        cache=cache,
+
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description,
+        log_service_response=log_service_response
+    )
+    emitCacheName: emit<Option<string>>(value=|cache_name(cache))
+    unwrapCacheName: unwrap<string>()
+
+    Self.trigger -> simpleStepTerminableWithInputCached.trigger
+    Self.terminate -> simpleStepTerminableWithInputCached.terminate
+    Self.data -> simpleStepTerminableWithInputCached.data
+    Self.trigger -> emitCacheName.trigger,emit -> unwrapCacheName.option,value -> simpleStepTerminableWithInputCached.cache_name
+    simpleStepTerminableWithInputCached.started -> Self.started
+    simpleStepTerminableWithInputCached.completed -> Self.completed
+    simpleStepTerminableWithInputCached.failed -> Self.failed
+    simpleStepTerminableWithInputCached.success -> Self.success
+    simpleStepTerminableWithInputCached.error -> Self.error
+    simpleStepTerminableWithInputCached.finished -> Self.finished
+    simpleStepTerminableWithInputCached.terminated -> Self.terminated
+    simpleStepTerminableWithInputCached.data -> Self.data
+}
+
+/**
+Run a step on a container.
+
+This treatment manages creation and run of a container and runs commands inside it.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes, raised to the size of the `/mnt/data` volume if smaller;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `tags`: hints given with the worker request, never refusing it (such as `name=build` to name the job of the worker);
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `service_containers`: list of containers to instanciate alongside main container.
+
+The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `in_file` and `out_file` can be written (`in_file="some.txt"` meaning file `"/mnt/data/some.txt"`).
+
+`commands` run with `variables` and `secret_variables` as environment variables, the values of `secret_variables`
+being `Secret<string>` revealed only to run them, never put in command arguments.
+The image is pulled with `pull_secret`, revealed only to request the container.
+
+`commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
+This output is ignored if no `out_file` is set.
+
+With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
+A missed cache and a cache that cannot be saved only log warnings.
+
+The `trigger` input signals the treatment to start, then:
+- `started`: emitted when the step effectively starts;
+- `completed`: emitted when the step finished to be executed;
+- `failed`: emitted if the step failed to be executed;
+- `success`: emitted when the step exit with code `0`;
+- `error`: emitted when the step exit with code different from `0`;
+- `finished`: emitted when the request finished, regardless of state.
+
+The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
+*/
+treatment simpleStepTerminableWithInputCached[dispatcher: CicdDispatchEngine](
+    name: string,
+    cpu: u32 = 500,
+    memory: u32 = 500,
+    storage: u32 = 5000,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    tags: Vec<string> = [],
+    service_containers: Vec<ServiceContainer> = [],
+    image: string,
+    pull_secret: Option<Secret<string>> = _,
+    variables: Option<StringMap> = _,
+    secret_variables: Option<Map> = _,
+    commands: Vec<Command>,
+    in_file: string,
+    out_storage: Option<u32> = _,
+    out_file: Option<string> = _,
+    cache: Option<Cache> = _,
 
     report: bool = true,
     github: bool = false,
@@ -665,6 +1216,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
   input terminate: Block<void>
+  input cache_name: Block<string>
   input data: Stream<byte>
   output started: Block<void>
   output completed: Block<void>
@@ -691,7 +1243,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
         service_containers=service_containers,
         tags=tags
     )
-    stepOnTerminableWithInput[runner=runner](
+    stepOnTerminableWithInputCached[runner=runner](
         name=name,
         executor_name=|wrap<string>(name),
         commands=commands,
@@ -699,7 +1251,8 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
         in_file=|wrap<string>(in_file),
         in_filesystem="data",
         out_file=out_file,
-        out_filesystem="data"
+        out_filesystem="data",
+        cache=cache
     )
     stopRunner[runner=runner]()
     setServiceState(
@@ -722,7 +1275,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
   
   oneFailed: one<void>()
   setupRunner.failed ----------> oneFailed.a,value -> Self.failed
-  stepOnTerminableWithInput.failed ------> oneFailed.b
+  stepOnTerminableWithInputCached.failed ------> oneFailed.b
 
   // `setupRunner.ready` never fires when `setupRunner.failed` does (they come from a
   // `one<void>` gate), so `stepOnTerminableWithInput` never even starts on that path, and
@@ -736,23 +1289,24 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
   oneFailed.value -> closeDataOnSetupFailure.trigger
   mergeData: merge<byte>()
   closeDataOnSetupFailure.closed -----> mergeData.a
-  stepOnTerminableWithInput.data --> mergeData.b,value -> Self.data
+  stepOnTerminableWithInputCached.data --> mergeData.b,value -> Self.data
 
-  stepOnTerminableWithInput.finished -> stopRunner.trigger
+  stepOnTerminableWithInputCached.finished -> stopRunner.trigger
 
-  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminableWithInput.trigger,finished ----> finishedOnSetupFailure.b
-  Self.terminate ----------------------------> stepOnTerminableWithInput.terminate
-  Self.data ---------------------------------> stepOnTerminableWithInput.data
-                                               stepOnTerminableWithInput.completed -----------> Self.completed
-                                               stepOnTerminableWithInput.started -------------> Self.started
-                                               stepOnTerminableWithInput.success -------------> Self.success
-                                               stepOnTerminableWithInput.error ---------------> Self.error
-                                               stepOnTerminableWithInput.terminated ----------> Self.terminated
+  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminableWithInputCached.trigger,finished ----> finishedOnSetupFailure.b
+  Self.terminate ----------------------------> stepOnTerminableWithInputCached.terminate
+  Self.data ---------------------------------> stepOnTerminableWithInputCached.data
+                                               stepOnTerminableWithInputCached.completed -----------> Self.completed
+                                               stepOnTerminableWithInputCached.started -------------> Self.started
+                                               stepOnTerminableWithInputCached.success -------------> Self.success
+                                               stepOnTerminableWithInputCached.error ---------------> Self.error
+                                               stepOnTerminableWithInputCached.terminated ----------> Self.terminated
 
   Self.trigger -------------------------> setServiceState.pending
-  stepOnTerminableWithInput.started ----> setServiceState.running
+  stepOnTerminableWithInputCached.started ----> setServiceState.running
   oneFailed.value ----------------------> setServiceState.failed
-  stepOnTerminableWithInput.success ----> setServiceState.success
-  stepOnTerminableWithInput.error ------> setServiceState.error
-  stepOnTerminableWithInput.terminated -> setServiceState.canceled
+  stepOnTerminableWithInputCached.success ----> setServiceState.success
+  stepOnTerminableWithInputCached.error ------> setServiceState.error
+  stepOnTerminableWithInputCached.terminated -> setServiceState.canceled
+  Self.cache_name -> stepOnTerminableWithInputCached.cache_name
 }

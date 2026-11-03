@@ -1420,6 +1420,9 @@ impl SecretsHost for World {
                 Err(SecretError::SourceAlreadyRegistered(scheme.to_string()))
             }
             Entry::Vacant(entry) => {
+                for (name, value) in source.masked_values() {
+                    self.masking.add(&name, &value);
+                }
                 entry.insert(source);
                 Ok(())
             }

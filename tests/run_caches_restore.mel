@@ -1,0 +1,52 @@
+#!/usr/bin/env melodium
+#! name = run_caches_restore
+#! version = 0.1.0
+#! require = std:0.11.0 fs:0.11.0 work:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logError
+use std/flow::emit
+use std/flow::releaseBlock
+use std/flow::waitBlock
+use fs/filesystem::FileSystem
+use work/resources::getFileSystem
+use work/cache::restoreCache
+
+// Restores the cache `name` at `path` of the volume `data`, falling back to `fallback` when
+// `name` misses.
+treatment main(const name: string, const fallback: string, const path: string = "target")
+{
+    startup()
+
+    emitVolume: emit<string>(value="data")
+    getFileSystem()
+    emitPath: emit<string>(value=path)
+    emitName: emit<string>(value=name)
+    restoreName: restoreCache()
+    logVolumeError: logError(label="volume")
+
+    startup.trigger -> emitVolume.trigger,emit -> getFileSystem.name,filesystem -> restoreName.filesystem
+    startup.trigger -> emitPath.trigger,emit -> restoreName.path
+    startup.trigger -> emitName.trigger,emit -> restoreName.name
+    getFileSystem.error -> logVolumeError.message
+
+    // The fallback, only on a miss.
+    fallbackFilesystem: releaseBlock<FileSystem>()
+    emitFallbackPath: emit<string>(value=path)
+    emitFallback: emit<string>(value=fallback)
+    restoreFallback: restoreCache()
+    restoreName.missed -> fallbackFilesystem.leverage
+    getFileSystem.filesystem -> fallbackFilesystem.data,released -> restoreFallback.filesystem
+    restoreName.missed -> emitFallbackPath.trigger,emit -> restoreFallback.path
+    restoreName.missed -> emitFallback.trigger,emit -> restoreFallback.name
+
+    logRestored: logInfoMessage(label="cache", message="restored")
+    logFallback: logInfoMessage(label="cache", message="restored fallback")
+    missedBoth: waitBlock<void>()
+    logMissed: logInfoMessage(label="cache", message="missed")
+    restoreName.restored -> logRestored.trigger
+    restoreFallback.restored -> logFallback.trigger
+    restoreName.missed -> missedBoth.a
+    restoreFallback.missed -> missedBoth.b,awaited -> logMissed.trigger
+}

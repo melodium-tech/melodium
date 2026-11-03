@@ -18,11 +18,15 @@ melodium run --api-report Compo.toml \
   --repo_url "https://github.com/your-org/your-project.git"
 ```
 
-- **Stage 1: build**: `rust:1.90-slim` container; `cargo build --release`; the binary's name is read back from the cloned repo's own `Cargo.toml` (works for any ordinary single-binary crate, not just the default one), and streams back locally.
+- **Stage 1: build**: `rust:1.90-slim` container; `cargo build --release`; the binary's name is read back from the cloned repo's own `Cargo.toml` (works for any ordinary single-binary crate, not just the default one), and streams back locally. Downloaded crates and build outputs are the cache `cargo` of api.melodium.tech: restored before the build, saved after it.
 - **Stage 2: test**: `rust:1.90-slim` + a `postgres:16` *service container*; a `psql` connectivity check against `DATABASE_URL` proves the sidecar is actually reachable, then `cargo test` runs the repo's own test suite. `hexyl`'s own tests are database-independent, so the `psql` check, not `cargo test`, is what this stage actually demonstrates about `service_containers`; point `repo_url` at a project with database-backed integration tests to exercise the sidecar more fully.
 - **Stage 3: package**: `debian:bookworm-slim`; bundles stage 1's binary into a `.tar.gz`, streamed back and written to disk.
 
 Stages 1 and 2 run **concurrently**; stage 3 waits for both to finish and only proceeds if neither failed.
+
+A cache is a name that each successful build updates: every save is a new version, and the next run restores the last one. There is nothing to bump when dependencies change. A program can also compute the name, such as from the digest of `Cargo.lock`, with the `Cached` variants of the steps (`simpleStepCached`), which take it on their `cache_name` input; [`tests/run_caches_step.mel`](../../../tests/run_caches_step.mel) does so, falling back to no cache when the name is new.
+
+Caches are kept by api.melodium.tech for the programs it runs: elsewhere, such as on a local compose setup, the build misses its cache and does not save it, which only logs warnings.
 
 ## How it is built
 
@@ -39,7 +43,7 @@ startup ──┬──▶ build (rust container)  ──▶ [success? true/fals
 
 ### Reference
 
-- **`cicd`**: [CicdDispatchEngine](https://doc.melodium.tech/latest/en/cicd/runners/CicdDispatchEngine.html), [simpleStep](https://doc.melodium.tech/latest/en/cicd/naive/simpleStep.html), [simpleStepWithInput](https://doc.melodium.tech/latest/en/cicd/naive/simpleStepWithInput.html)
+- **`cicd`**: [Cache](https://doc.melodium.tech/latest/en/cicd/cache/Cache.html), [|cache](https://doc.melodium.tech/latest/en/cicd/cache/|cache.html), [CicdDispatchEngine](https://doc.melodium.tech/latest/en/cicd/runners/CicdDispatchEngine.html), [simpleStep](https://doc.melodium.tech/latest/en/cicd/naive/simpleStep.html), [simpleStepWithInput](https://doc.melodium.tech/latest/en/cicd/naive/simpleStepWithInput.html)
 - **`fs`**: [writeLocal](https://doc.melodium.tech/latest/en/fs/local/writeLocal.html)
 - **`process`**: [|command](https://doc.melodium.tech/latest/en/process/command/|command.html)
 - **`std`**: [startup](https://doc.melodium.tech/latest/en/std/engine/util/startup.html), [logInfoMessage](https://doc.melodium.tech/latest/en/std/engine/log/logInfoMessage.html), [logErrorMessage](https://doc.melodium.tech/latest/en/std/engine/log/logErrorMessage.html), [one](https://doc.melodium.tech/latest/en/std/flow/one.html), [stream](https://doc.melodium.tech/latest/en/std/flow/stream.html), [trigger](https://doc.melodium.tech/latest/en/std/flow/trigger.html), [emit](https://doc.melodium.tech/latest/en/std/flow/emit.html), [filterBlock](https://doc.melodium.tech/latest/en/std/flow/filterBlock.html), [and](https://doc.melodium.tech/latest/en/std/ops/bin/and.html), [StringMap](https://doc.melodium.tech/latest/en/std/data/string_map/StringMap.html), [|map](https://doc.melodium.tech/latest/en/std/data/string_map/|map.html), [|entry](https://doc.melodium.tech/latest/en/std/data/string_map/|entry.html), [|wrap](https://doc.melodium.tech/latest/en/std/ops/option/|wrap.html)
@@ -55,6 +59,7 @@ startup ──┬──▶ build (rust container)  ──▶ [success? true/fals
 
 ### Key Mélodium patterns used
 
+- **A `cache` on a step**: `CARGO_HOME` and `CARGO_TARGET_DIR` point into `/mnt/data/cache`, the `cache` directory of the step's `data` volume, which `|cache(|wrap<string>("data"), "cache", "cargo")` restores before the commands and saves once they succeed. The archive is streamed while it is made, so `out_storage` only needs room for the cache itself.
 - **`simpleStep` / `simpleStepWithInput`**: the difference is exactly what it sounds like, whether the step needs data streamed *in* (as a file at `/mnt/data/<in_file>`) in addition to whatever it streams *out*.
 - **`service_containers`**: sidecar containers (like the Postgres instance for stage 2) that live alongside the step's main container for its duration; `|service_container(...)`'s parameters follow its documented order (`name, memory, cpu, storage, arch, mounts, image, pull_secret, env, secret_env, command`).
 - **`one<void>()` as an OR-gate**: fans multiple `Block<void>` failure signals into one, without hand-writing the check four times.

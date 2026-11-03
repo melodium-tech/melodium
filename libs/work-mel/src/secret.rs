@@ -1,5 +1,6 @@
 //! Secrets stored on api.melodium.tech, given to the programs it runs through `api:<name>` locators,
-//! and stored by them, and identity tokens of runs, given through `api-id:<audience>` locators.
+//! and stored by them, identity tokens of runs, given through `api-id:<audience>` locators, and
+//! the token of the run, given through `api-run:token`.
 
 use async_trait::async_trait;
 use core::fmt::{Debug, Formatter};
@@ -20,6 +21,10 @@ use zeroize::{Zeroize, Zeroizing};
 pub const SCHEME: &str = "api";
 /// Scheme of the locators of the identity tokens of runs.
 pub const IDENTITY_SCHEME: &str = "api-id";
+/// Scheme of the locator of the token of the run.
+pub const RUN_SCHEME: &str = "api-run";
+/// Name the token of the run is masked under.
+const RUN_TOKEN_NAME: &str = "api-run:token";
 
 /// Time left to an identity token below which a new one is requested.
 const IDENTITY_TOKEN_MARGIN: Duration = Duration::from_secs(30);
@@ -34,15 +39,15 @@ const MAX_REASON_LENGTH: usize = 300;
 static SOURCES: Mutex<Vec<Weak<ApiSource>>> = Mutex::new(Vec::new());
 
 /// How secrets are read and stored through the API.
-struct Api {
-    url: String,
+pub(crate) struct Api {
+    pub(crate) url: String,
     token: Zeroizing<String>,
-    run_id: Uuid,
+    pub(crate) run_id: Uuid,
 }
 
 impl Api {
     /// Reaches the API as configured on api.melodium.tech workers, or tells what is missing.
-    fn from_environment() -> Result<Self, String> {
+    pub(crate) fn from_environment() -> Result<Self, String> {
         let url = std::env::var("MELODIUM_API_URL").ok();
         let token = std::env::var("MELODIUM_API_TOKEN").ok().map(Zeroizing::new);
         let run_id = std::env::var("MELODIUM_RUN_ID").ok();
@@ -287,6 +292,60 @@ impl SecretSource for ApiIdentitySource {
     }
 }
 
+/// `api-run:token` source, giving the token of the run, for programs to call the endpoints of
+/// their run on api.melodium.tech themselves, such as to restore and save caches, at
+/// `work/run::|api_url()`.
+///
+/// The token is never plainly revealed: programs only give it in the secret headers of their
+/// requests, such as `|format("Bearer {}", "api-run:token")`. It is masked from the start of the
+/// engine, so that logs never show it and scans of data find it. Elsewhere than on
+/// api.melodium.tech workers, the source refuses it, telling what is missing.
+#[derive(Debug)]
+pub struct ApiRunSource(Arc<ApiSource>);
+
+impl ApiRunSource {
+    /// Source of the token of the run, reaching the API as `source` does.
+    pub fn new(source: &Arc<ApiSource>) -> Arc<Self> {
+        Arc::new(Self(Arc::clone(source)))
+    }
+}
+
+#[async_trait]
+impl SecretSource for ApiRunSource {
+    fn plain_reveal(&self) -> bool {
+        false
+    }
+
+    fn masked_values(&self) -> Vec<(String, Value)> {
+        match &self.0.api {
+            Ok(api) => vec![(
+                RUN_TOKEN_NAME.to_string(),
+                Value::String(api.token.to_string()),
+            )],
+            Err(_) => Vec::new(),
+        }
+    }
+
+    async fn resolve(&self, path: &str, datatype: &DataType) -> Result<Value, String> {
+        let api = self.0.api.as_ref().map_err(|problem| {
+            format!(
+                "'{RUN_SCHEME}:token' is only given to programs run by api.melodium.tech, and {problem}"
+            )
+        })?;
+        if path != "token" {
+            return Err(format!(
+                "'{RUN_SCHEME}:' only gives the token of the run, as '{RUN_SCHEME}:token'"
+            ));
+        }
+        if datatype != &DataType::String {
+            return Err(format!(
+                "the token of the run is given as string, not as {datatype}"
+            ));
+        }
+        Ok(Value::String(api.token.to_string()))
+    }
+}
+
 /// Gives the instant `token`, a JSON Web Token, expires, from its `exp` claim.
 #[cfg(feature = "real")]
 fn expiry(token: &str) -> Option<SystemTime> {
@@ -404,7 +463,9 @@ async fn store_secret(
     bytes: bool,
 ) -> Result<(), String> {
     let api = Api::from_environment().map_err(|problem| {
-        format!("secrets are only stored on api.melodium.tech by the programs it runs, and {problem}")
+        format!(
+            "secrets are only stored on api.melodium.tech by the programs it runs, and {problem}"
+        )
     })?;
     check_name(name)?;
     let value = if bytes {

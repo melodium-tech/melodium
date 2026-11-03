@@ -25,7 +25,11 @@ base64 = { version = "0.22", optional = true }
 bytes = { version = "1.10", optional = true }
 futures = "0.3.28"
 std-mel = { path = "../std-mel", version = "0.11.0" }
+compression-mel = { path = "../compression-mel", version = "0.11.0" }
+crypto-mel = { path = "../crypto-mel", version = "0.11.0" }
 fs-mel = { path = "../fs-mel", version = "0.11.0" }
+http-mel = { path = "../http-mel", version = "0.11.0" }
+json-mel = { path = "../json-mel", version = "0.11.0" }
 melodium-core = { path = "../../melodium-core", version = "0.11.0" }
 melodium-engine = { path = "../../melodium-engine", version = "0.11.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
@@ -55,7 +59,7 @@ mock = []
 plugin = []
 real = ["async-compat", "async-process", "base64", "bytes", "smol"]
 kubernetes = ["real", "kube", "k8s-openapi", "tokio"]
-"docs.rs" = ["mock", "std-mel/docs.rs", "fs-mel/docs.rs", "net-mel/docs.rs", "process-mel/docs.rs"]
+"docs.rs" = ["mock", "std-mel/docs.rs", "compression-mel/docs.rs", "crypto-mel/docs.rs", "fs-mel/docs.rs", "http-mel/docs.rs", "json-mel/docs.rs", "net-mel/docs.rs", "process-mel/docs.rs"]
 
 [package.metadata.docs.rs]
 features = ["docs.rs"]

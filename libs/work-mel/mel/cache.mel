@@ -1,0 +1,309 @@
+use compression/zstd::compress
+use compression/zstd::decompress
+use crypto/hash::sha256
+use fs/archive::tar
+use fs/archive::untar
+use fs/dir::remove as removeDir
+use fs/file::rename
+use fs/filesystem::FileSystem
+use fs/path::composition
+use http/client::PreparedRequest
+use http/client::download
+use json::Json
+use json/value::fromJson
+use json/value::fromString as jsonFromString
+use json/value::get as jsonGet
+use json/value::insert as jsonInsert
+use json/value::|object
+use std/data/string_map::StringMap
+use std/data/string_map/block::entry as stringEntry
+use std/data/string_map/block::insert as stringInsert
+use std/engine/log::logWarnings
+use std/flow::check
+use std/flow::emit
+use std/flow::filterBlock
+use std/flow::one
+use std/flow::releaseBlock
+use std/flow::stream
+use std/flow::trigger
+use std/flow::uncheck
+use std/flow::waitBlock
+use std/secret::scan
+use std/ops/block::equal
+use std/ops/option::unwrap
+use std/ops/option/block::map as mapOption
+use std/text/compose::format
+use root/run::RunApi
+use root/run::post
+use root/run::upload
+
+/**
+Restore a cache of api.melodium.tech.
+
+The current version of the cache `name` of the run is restored at `path` of `filesystem`, such
+as a volume of the worker (`work/resources::getFileSystem`) or the local file system of the
+engine, replacing what is there. `restored` is emitted once it is in place.
+
+The archive is downloaded, checked, decompressed and extracted all at once, into a directory
+next to `path` (`<path>.melodium-restore`), resuming the download after cuts. Only once the
+whole archive is extracted and its SHA-256 is the one api.melodium.tech recorded, `path` is
+removed and the directory renamed into its place: a damaged or tampered archive never reaches
+`path`.
+
+When there is no cache of that name, or it cannot be restored (the API, the download or the
+extraction fails, the digest differs), `missed` is emitted with a warning giving the reason,
+and `path` is left as it was. A miss is never an error: a program falls back by restoring
+another name on `missed`, or by building what the cache would have held.
+`finished` is emitted in every case.
+
+`path` cannot be the root of `filesystem`, the archive being extracted next to it. Caches are
+only restored by programs run by api.melodium.tech.
+*/
+treatment restoreCache()
+  model api: RunApi()
+  input filesystem: Block<FileSystem>
+  input path: Block<string>
+  input name: Block<string>
+  output restored: Block<void>
+  output missed: Block<void>
+  output finished: Block<void>
+{
+    // `path` must name something within the file system.
+    streamPath: stream<string>()
+    composition()
+    pathName: trigger<Option<string>>()
+    pathNameOption: mapOption<string>()
+    pathNamed: check<string>()
+    targetPath: releaseBlock<string>()
+    rootRefused: emit<string>(value="it cannot be restored at the root of a file system")
+    Self.path -> streamPath.block,stream -> composition.path
+    composition.file_name -> pathName.stream,first -> pathNameOption.option,value -> pathNamed.value,check -> targetPath.leverage
+    pathNameOption.none -> rootRefused.trigger
+    Self.path -> targetPath.data
+
+    // The cache, as api.melodium.tech has it.
+    emitPath: emit<string>(value="cache/restore")
+    named: check<string>()
+    emitObject: emit<Json>(value=|object())
+    streamObject: stream<Json>()
+    streamName: stream<string>()
+    nameToJson: jsonFromString<string>()
+    insertName: jsonInsert(key="name")
+    body: trigger<Json>()
+    post[api=api]()
+    targetPath.released -> named.value,check -> emitPath.trigger,emit -> post.path
+    named.check -> emitObject.trigger,emit -> streamObject.block,stream -> insertName.object
+    Self.name -> streamName.block,stream -> nameToJson.value,json -> insertName.value,json -> body.stream,first -> post.body
+
+    streamAnswer: stream<Json>()
+    getHit: jsonGet(key="hit")
+    hitOption: trigger<Option<Json>>()
+    hitOrMiss: mapOption<Json>()
+    noneOfName: emit<string>(value="api.melodium.tech has none of that name")
+    post.answer -> streamAnswer.block,stream -> getHit.json,value -> hitOption.stream,first -> hitOrMiss.option,none -> noneOfName.trigger
+
+    streamHit: stream<Json>()
+    getDigest: jsonGet(key="sha256")
+    unwrapDigest: unwrap<Json>()
+    digestFromJson: fromJson<string>()
+    unwrapRecorded: unwrap<string>()
+    recorded: trigger<string>()
+    getDownload: jsonGet(key="download")
+    unwrapDownload: unwrap<Json>()
+    downloadFromJson: fromJson<PreparedRequest>()
+    unwrapRequest: unwrap<PreparedRequest>()
+    request: trigger<PreparedRequest>()
+    hitOrMiss.value -> streamHit.block,stream -> getDigest.json,value -> unwrapDigest.option,value -> digestFromJson.json,value -> unwrapRecorded.option,value -> recorded.stream
+    streamHit.stream -> getDownload.json,value -> unwrapDownload.option,value -> downloadFromJson.json,value -> unwrapRequest.option,value -> request.stream
+
+    // Extraction next to `path`, into a directory emptied beforehand.
+    stagingEntry: stringEntry(key="path")
+    streamStaging: stream<StringMap>()
+    formatStaging: format(format="{path}.melodium-restore")
+    staging: trigger<string>()
+    targetPath.released -> stagingEntry.value,map -> streamStaging.block,stream -> formatStaging.entries,formatted -> staging.stream
+
+    emptyStaging: removeDir()
+    stagingEmptied: releaseBlock<string>()
+    Self.filesystem -> emptyStaging.filesystem
+    staging.first ---> emptyStaging.path,finished -> stagingEmptied.leverage
+    staging.first -------------------------------> stagingEmptied.data
+
+    download()
+    sha256()
+    decompress()
+    untar()
+    request.first -> download.request,data -> sha256.data
+    download.data -> decompress.data,decompressed -> untar.data
+    Self.filesystem -> untar.filesystem
+    stagingEmptied.released -> untar.path
+
+    // Put in place once everything is checked.
+    equal<string>()
+    digestChecked: check<bool>()
+    digestMatches: filterBlock<void>()
+    digestDiffers: emit<string>(value="its archive is not the one api.melodium.tech recorded")
+    sha256.digest -> equal.a
+    recorded.first -> equal.b,result -> digestChecked.value,check -> digestMatches.value
+    equal.result -> digestMatches.select
+    digestMatches.rejected -> digestDiffers.trigger
+
+    extracted: waitBlock<void>()
+    decompressed: waitBlock<void>()
+    downloaded: waitBlock<void>()
+    digestMatches.accepted -> extracted.a
+    untar.completed -------> extracted.b,awaited -> decompressed.a
+    decompress.completed -------------------> decompressed.b,awaited -> downloaded.a
+    download.completed --------------------------------------------> downloaded.b
+
+    // `removeDir` finishes even when given nothing: the checks are awaited again.
+    removeTarget: removeDir()
+    stagingChecked: releaseBlock<string>()
+    targetRemoved: waitBlock<void>()
+    targetReplaced: releaseBlock<string>()
+    rename()
+    Self.filesystem -> removeTarget.filesystem
+    downloaded.awaited -> stagingChecked.leverage
+    targetPath.released -> stagingChecked.data,released -> removeTarget.path,finished -> targetRemoved.a
+    downloaded.awaited ----------------------------------------------------------------> targetRemoved.b,awaited -> targetReplaced.leverage
+    staging.first ---------------------------------------------------------------------------------------------> targetReplaced.data,released -> rename.from
+    targetPath.released -> rename.to
+    Self.filesystem -> rename.filesystem
+
+    // Anything else is a miss, leaving nothing behind.
+    restoredOnce: check<void>()
+    notRestored: uncheck<void>()
+    rename.completed -> restoredOnce.value,check -> Self.restored
+    rename.completed -> notRestored.value,uncheck -> Self.missed
+
+    cleanable: waitBlock<void>()
+    cleanup: releaseBlock<string>()
+    removeStaging: removeDir()
+    notRestored.uncheck -> cleanable.a
+    untar.finished -----> cleanable.b,awaited -> cleanup.leverage
+    staging.first ------------------------------> cleanup.data,released -> removeStaging.path
+    Self.filesystem -> removeStaging.filesystem
+
+    finishedOnce: one<void>()
+    finishedOrRefused: one<void>()
+    rootRefusedFinished: check<string>()
+    restoredOnce.check ----> finishedOnce.a
+    removeStaging.finished -> finishedOnce.b,value -> finishedOrRefused.a,value -> Self.finished
+    refusedMissed: waitBlock<void>()
+    rootRefused.emit -> rootRefusedFinished.value,check -> refusedMissed.a
+    notRestored.uncheck -----------------------------> refusedMissed.b,awaited -> finishedOrRefused.b
+
+    // The first reason found is given, those of the archive only once it is downloaded.
+    untarError: trigger<string>()
+    untar.errors -> untarError.stream
+    decompressReason: releaseBlock<string>()
+    untarReason: releaseBlock<string>()
+    download.completed -> decompressReason.leverage
+    download.completed -> untarReason.leverage
+    decompress.error -> decompressReason.data
+    untarError.first -> untarReason.data
+    reasonOfRoot: one<string>()
+    reasonOfApi: one<string>()
+    reasonOfName: one<string>()
+    reasonOfDownload: one<string>()
+    reasonOfArchive: one<string>()
+    reasonOfExtraction: one<string>()
+    reasonOfDigest: one<string>()
+    rootRefused.emit -> reasonOfRoot.a
+    post.error ------> reasonOfRoot.b,value -> reasonOfApi.a
+    noneOfName.emit ------------------------> reasonOfApi.b,value -> reasonOfName.a
+    download.error ---------------------------------------------> reasonOfName.b,value -> reasonOfDownload.a
+    decompressReason.released ------------------------------------------------------> reasonOfDownload.b,value -> reasonOfArchive.a
+    untarReason.released ------------------------------------------------------------------------------------> reasonOfArchive.b,value -> reasonOfExtraction.a
+    digestDiffers.emit -----------------------------------------------------------------------------------------------------------> reasonOfExtraction.b,value -> reasonOfDigest.a
+    rename.error ----------------------------------------------------------------------------------------------------------------------------------------------> reasonOfDigest.b
+
+    reasonGiven: releaseBlock<string>()
+    warningName: stringEntry(key="name")
+    warningReason: stringInsert(key="reason")
+    streamWarning: stream<StringMap>()
+    formatWarning: format(format="Cache `{name}` not restored: {reason}")
+    logWarnings(label="cache")
+    notRestored.uncheck -> reasonGiven.leverage
+    reasonOfDigest.value -> reasonGiven.data,released -> warningReason.value
+    Self.name -> warningName.value,map -> warningReason.base,map -> streamWarning.block,stream -> formatWarning.entries,formatted -> logWarnings.messages
+}
+
+/**
+Save a cache on api.melodium.tech.
+
+The directory at `path` of `filesystem` is saved as the cache `name` of the run, a new version
+of it that restores get once its upload completes, the last completed one being the current.
+`completed` is emitted once saved, including when it holds what the current version already
+holds, api.melodium.tech then keeping that one.
+
+The directory is archived (`fs/archive::tar`, sorted, keeping modification times so that the
+same content gives the same archive), searched for revealed secret values
+(`std/secret::scan`), compressed with zstd, and uploaded in parts, all at once: memory holds a
+few parts, whatever the size of the cache, and nothing is written next to `path`.
+`parallel` parts are uploaded at once.
+
+If a revealed secret value is found in the archive, the save is aborted and `error` names the
+secret. If the directory cannot be archived, api.melodium.tech refuses the save (such as when
+the storage of the organization is full), or a part cannot be uploaded, the save is aborted too,
+leaving nothing in storage, and `error` gives the reason. `failed` is then emitted.
+`finished` is emitted in every case.
+
+Caches are only saved by programs run by api.melodium.tech.
+*/
+treatment saveCache(var parallel: u32 = 4)
+  model api: RunApi()
+  input filesystem: Block<FileSystem>
+  input path: Block<string>
+  input name: Block<string>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    tar()
+    scan()
+    compress()
+    upload[api=api](parallel=parallel)
+    Self.filesystem -> tar.filesystem
+    Self.path ------> tar.path,data -> scan.data,scanned -> compress.data,compressed -> upload.data
+
+    // The archive is whole once every step completed.
+    archived: waitBlock<void>()
+    compressed: waitBlock<void>()
+    tar.completed ----> archived.a
+    scan.completed ---> archived.b,awaited -> compressed.a
+    compress.completed --------------------> compressed.b,awaited -> upload.whole
+
+    // The purpose of the upload.
+    named: check<string>()
+    emitObject: emit<Json>(value=|object())
+    streamObject: stream<Json>()
+    emitCacheObject: emit<Json>(value=|object())
+    streamCacheObject: stream<Json>()
+    streamName: stream<string>()
+    nameToJson: jsonFromString<string>()
+    insertName: jsonInsert(key="name")
+    insertCache: jsonInsert(key="cache")
+    purpose: trigger<Json>()
+    Self.name -> named.value,check -> emitObject.trigger,emit -> streamObject.block,stream -> insertCache.object
+    named.check -> emitCacheObject.trigger,emit -> streamCacheObject.block,stream -> insertName.object
+    Self.name -> streamName.block,stream -> nameToJson.value,json -> insertName.value,json -> insertCache.value,json -> purpose.stream,first -> upload.purpose
+
+    upload.completed -> Self.completed
+    upload.failed ----> Self.failed
+    upload.finished --> Self.finished
+
+    // The secret found first, then the reason of the archive, then the one of the upload.
+    tarError: trigger<string>()
+    tar.errors -> tarError.stream
+    reasonOfScan: one<string>()
+    reasonOfTar: one<string>()
+    reasonOfCompression: one<string>()
+    givenOnFailure: releaseBlock<string>()
+    scan.error ------> reasonOfScan.a
+    tarError.first --> reasonOfScan.b,value -> reasonOfTar.a
+    compress.error ------------------------> reasonOfTar.b,value -> reasonOfCompression.a
+    upload.error -----------------------------------------------> reasonOfCompression.b,value -> givenOnFailure.data,released -> Self.error
+    upload.failed -> givenOnFailure.leverage
+}
