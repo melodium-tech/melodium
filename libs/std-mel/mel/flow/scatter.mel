@@ -1,0 +1,25 @@
+use root/flow/scatter::Scatter
+use root/flow/scatter::@Scattered
+use root/flow/scatter::gathered
+
+/**
+Gather a scattered track.
+
+In a track made by `scatter`, tells how the track ended: `completed` when it did what it had to,
+or `failed` with `error`. When neither `completed` nor `failed` is emitted before they end, the
+track is counted as failed, so that `scatter` never waits for it.
+
+`scatter` must be the same `Scatter` as the `scatter` and `scattered` making the track.
+*/
+treatment gather[scatter: Scatter]()
+  require @Scattered
+  input completed: Block<void>
+  input failed: Block<void>
+  input error: Block<string>
+{
+    gathered[scatter=scatter](scatter_id=@Scattered[scatter], index=@Scattered[index])
+
+    Self.completed -> gathered.completed
+    Self.failed ----> gathered.failed
+    Self.error -----> gathered.error
+}

@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding `std/flow/scatter`: `scatter` makes one track per value of a stream, at most `parallel` at once, where the generic `scattered` source gives the value and a value shared by all, the tracks inheriting the contexts of the track of `scatter` with `@Scattered`, and `gather` tells how each ended, a track ending without telling being counted as failed (#168).
+
 ## [v0.11.0] (2026-10-15)
 
 - Using async-channel and async-lock instead of async-std, which is discontinued (#104).
