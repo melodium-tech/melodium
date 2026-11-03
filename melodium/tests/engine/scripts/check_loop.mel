@@ -1,0 +1,25 @@
+#!/usr/bin/env melodium
+#! name = check_loop
+#! version = 0.1.0
+#! require = std:0.11.0
+
+use std/engine/util::startup
+use std/flow::trigger
+use std/flow::stream
+use std/flow::merge
+use std/engine/log::logInfoMessage
+
+// The end of the stream goes back into the stream itself.
+treatment main()
+{
+    startup()
+    toStream: stream<void>()
+    merge<void>()
+    trigger<void>()
+    backStream: stream<void>()
+    logInfoMessage(label="loop", message="looped")
+
+    startup.trigger -> toStream.block,stream -> merge.a
+    merge.value -> trigger.stream,start -> logInfoMessage.trigger
+    trigger.end -> backStream.block,stream -> merge.b
+}
