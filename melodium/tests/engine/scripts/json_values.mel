@@ -7,6 +7,7 @@ use std/engine/util::startup
 use std/engine/log::logInfos
 use std/flow::emit
 use std/flow::stream
+use std/flow/vec::flatten
 use std/ops/option::unwrap
 use std/conv::toString
 use std/data/string_map::StringMap
@@ -24,6 +25,8 @@ use json/value::|insert
 use json/value::|from_string
 use json/value::|array
 use json/value::|push
+use json/value::fromNumberU64
+use json/value::fromNumberI64
 
 treatment main()
 {
@@ -85,4 +88,20 @@ treatment main()
     builtText: toString<Json>()
     logBuilt: logInfos(label="built")
     startup.trigger -> emitBuilt.trigger,emit -> streamBuilt.block,stream -> builtText.value,into -> logBuilt.messages
+
+    // Numbers of any size, as numbers.
+    emitLarge: emit<Vec<u64>>(value=[70000, 18446744073709551615])
+    streamLarge: stream<Vec<u64>>()
+    flattenLarge: flatten<u64>()
+    largeJson: fromNumberU64<u64>()
+    largeText: toString<Json>()
+    logLarge: logInfos(label="large")
+    startup.trigger -> emitLarge.trigger,emit -> streamLarge.block,stream -> flattenLarge.vector,value -> largeJson.value,json -> largeText.value,into -> logLarge.messages
+
+    emitNegative: emit<i64>(value=-70000)
+    streamNegative: stream<i64>()
+    negativeJson: fromNumberI64<i64>()
+    negativeText: toString<Json>()
+    logNegative: logInfos(label="negative")
+    startup.trigger -> emitNegative.trigger,emit -> streamNegative.block,stream -> negativeJson.value,json -> negativeText.value,into -> logNegative.messages
 }

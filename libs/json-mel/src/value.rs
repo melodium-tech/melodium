@@ -110,7 +110,7 @@ pub async fn from_number_i64() {
             json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Arc::new(Json(serde_json::Value::from(val.to_i16()))))
+                    .map(|val| Arc::new(Json(serde_json::Value::from(val.to_i64()))))
                     .collect::<Vec<_>>()
             )
             .await
@@ -152,7 +152,7 @@ pub async fn from_number_u64() {
             json.send_many_as(
                 values
                     .into_iter()
-                    .map(|val| Arc::new(Json(serde_json::Value::from(val.to_u16()))))
+                    .map(|val| Arc::new(Json(serde_json::Value::from(val.to_u64()))))
                     .collect::<Vec<_>>()
             )
             .await
