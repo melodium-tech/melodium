@@ -4,6 +4,7 @@
 ## [Unreleased]
 
 - Adding `metadata`, `read_dir`, `read_link`, `create_link`, `set_metadata`, `remove` and `rename` to `FileSystemEngine`, breaking for its implementors, rooted file systems resolving every path within their root and never following links, and the `fs/file::remove`, `fs/file::rename` and `fs/dir::remove` treatments (#158).
+- Adding `fs/dir::files`, the regular files of a tree as relative paths sorted by name, links never followed and left out with other entries (#158).
 - Adding `rooted::RootedFileSystemEngine`, a file system rooted at a directory, whose paths are resolved within it with cap-std: `..`, absolute paths and links leading out of the directory are refused, even links created while it is used. `|local_filesystem` uses it when given a root, which it no longer joins paths to.
 
 ## [v0.11.0] (2026-10-15)
