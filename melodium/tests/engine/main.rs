@@ -8,6 +8,7 @@
 mod common;
 mod crypto;
 mod option_defaults;
+mod restitution;
 mod secret_access;
 mod secret_derivation;
 mod secret_runtime_derivation;
