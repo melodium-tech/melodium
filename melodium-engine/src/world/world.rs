@@ -4,13 +4,13 @@ use super::secret_sources::EnvironmentSource;
 #[cfg(feature = "filesystem")]
 use super::secret_sources::FileSource;
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
-use crate::building::HostTreatment;
 use crate::building::{
     model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
     BuildId, Builder, CheckEnvironment, CheckState,
     /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs, GenesisEnvironment,
     StaticBuildResult,
 };
+use crate::building::{CheckStep, HostTreatment};
 use crate::debug::{
     DebugLevel, Event, EventKind, TrackCreation, TransmissionDebug, TransmissionDetails,
 };
@@ -97,6 +97,8 @@ pub struct World {
 
     tracks_counter: Mutex<TrackId>,
     tracks_info: Mutex<HashMap<TrackId, InfoTrack>>,
+    /// Contexts of the running tracks having some, given to the tracks inheriting them.
+    tracks_contexts: std::sync::Mutex<HashMap<TrackId, Vec<Arc<dyn ExecutiveContext>>>>,
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
     tracks_running: AtomicUsize,
@@ -303,6 +305,7 @@ impl World {
             continuous_tasks_receiver,
             tracks_counter: Mutex::new(0),
             tracks_info: Mutex::new(HashMap::new()),
+            tracks_contexts: std::sync::Mutex::new(HashMap::new()),
             tracks_sender,
             tracks_receiver,
             tracks_running: AtomicUsize::new(0),
@@ -358,6 +361,42 @@ impl World {
             .unwrap();
 
         id
+    }
+
+    /// Checks the tracks of the source `entry` with `contexts`, recording in `reached` the
+    /// contexts each build of them is reached with.
+    fn check_source_entry(
+        &self,
+        entry: &SourceEntry,
+        contexts: Vec<String>,
+        reached: &mut HashMap<CheckStep, Vec<Vec<String>>>,
+    ) -> LogicResult<()> {
+        let mut state = CheckState::default();
+        let result = self
+            .builder(entry.descriptor.identifier())
+            .and_then(|builder| {
+                let check = builder
+                    .check_dynamic_build(
+                        entry.id,
+                        CheckEnvironment {
+                            contextes: contexts.clone(),
+                        },
+                        &mut state,
+                    )
+                    .unwrap();
+                let mut result = LogicResult::new_success(());
+                result.errors_mut().extend(check.errors);
+                result
+            });
+        let mut sorted = contexts;
+        sorted.sort();
+        for step in state.checked {
+            let known = reached.entry(step).or_default();
+            if !known.contains(&sorted) {
+                known.push(sorted.clone());
+            }
+        }
+        result
     }
 
     pub fn add_source(
@@ -548,6 +587,7 @@ impl World {
                 (id, result) = futures.select_next_some() => {
                     let _ = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
                     self.tracks_aborts.lock().unwrap().remove(&id);
+                    self.tracks_contexts.lock().unwrap().remove(&id);
                     let result = match result {
                         Ok(result) => result,
                         // Stopped, it has no result.
@@ -704,44 +744,83 @@ impl Engine for World {
         };
 
         // Check the tracks of every source: the contexts they need, and that they never loop.
+        // Sources inheriting contexts are checked once the builds hosting them are, with each
+        // set of contexts those are reached with.
         let mut result = result.and_degrade_failure(LogicResult::new_success(()));
         {
             let models = self.models.read().unwrap();
-            for (model_id, model_sources) in self.sources.read().unwrap().iter() {
-                let model = models.get(*model_id as usize).unwrap();
+            let sources = self.sources.read().unwrap();
+            let mut reached: HashMap<CheckStep, Vec<Vec<String>>> = HashMap::new();
+            let mut pending = Vec::new();
+            for (model_id, model_sources) in sources.iter() {
+                let model = models.get(*model_id as usize).unwrap().descriptor();
 
                 for (source, entries) in model_sources {
-                    let check_environment = CheckEnvironment {
-                        contextes: model
-                            .descriptor()
-                            .sources()
-                            .get(source)
-                            .unwrap()
-                            .iter()
-                            .map(|context| context.name().to_string())
-                            .collect(),
-                    };
-                    // One walk for the whole source, each build being checked once.
-                    let mut state = CheckState::default();
-
+                    let contexts: Vec<String> = model
+                        .sources()
+                        .get(source)
+                        .unwrap()
+                        .iter()
+                        .map(|context| context.name().to_string())
+                        .collect();
                     for entry in entries {
-                        result = result.and_degrade_failure(
-                            self.builder(entry.descriptor.identifier())
-                                .and_then(|builder| {
-                                    let check = builder
-                                        .check_dynamic_build(
-                                            entry.id,
-                                            check_environment.clone(),
-                                            &mut state,
-                                        )
-                                        .unwrap();
-                                    let mut result = LogicResult::new_success(());
-                                    result.errors_mut().extend(check.errors);
-                                    result
-                                }),
-                        );
+                        if model.source_inherits_contexts(source) {
+                            pending.push((contexts.clone(), entry));
+                        } else {
+                            result = result.and_degrade_failure(self.check_source_entry(
+                                entry,
+                                contexts.clone(),
+                                &mut reached,
+                            ));
+                        }
                     }
                 }
+            }
+
+            // Inheriting sources nested in others are checked in later rounds.
+            while !pending.is_empty() {
+                let mut waiting = Vec::new();
+                let count = pending.len();
+                for (contexts, entry) in pending {
+                    let host = self
+                        .builder(entry.descriptor.identifier())
+                        .success()
+                        .and_then(|builder| builder.check_host(entry.id));
+                    let inherited = match &host {
+                        Some(host) => reached.get(host).cloned(),
+                        None => Some(vec![Vec::new()]),
+                    };
+                    match inherited {
+                        Some(inherited) => {
+                            for inherited_contexts in inherited {
+                                let mut all_contexts = contexts.clone();
+                                all_contexts.extend(
+                                    inherited_contexts
+                                        .into_iter()
+                                        .filter(|context| !contexts.contains(context)),
+                                );
+                                result = result.and_degrade_failure(self.check_source_entry(
+                                    entry,
+                                    all_contexts,
+                                    &mut reached,
+                                ));
+                            }
+                        }
+                        None => waiting.push((contexts, entry)),
+                    }
+                }
+                if waiting.len() == count {
+                    // Hosts that no track reaches: their sources get their own contexts only.
+                    for (contexts, entry) in waiting {
+                        result = result.and_degrade_failure(self.check_source_entry(
+                            entry,
+                            contexts,
+                            &mut reached,
+                        ));
+                    }
+                    break;
+                }
+                pending = waiting;
             }
         }
 
@@ -1137,6 +1216,37 @@ impl ExecutiveWorld for World {
             track_id = *counter;
             *counter = track_id + 1;
             self.tracks_creating.fetch_add(1, Ordering::SeqCst);
+        }
+
+        // Tracks of sources inheriting contexts get those of their parent, then their own, an own
+        // context replacing an inherited one of the same name.
+        let inherits = self.models.read().unwrap()[id]
+            .descriptor()
+            .source_inherits_contexts(source);
+        let contexts = match parent_track.filter(|_| inherits) {
+            Some(parent) => {
+                let mut inherited = self
+                    .tracks_contexts
+                    .lock()
+                    .unwrap()
+                    .get(&parent)
+                    .cloned()
+                    .unwrap_or_default();
+                inherited.retain(|context| {
+                    !contexts
+                        .iter()
+                        .any(|own| own.descriptor().name() == context.descriptor().name())
+                });
+                inherited.extend(contexts);
+                inherited
+            }
+            None => contexts,
+        };
+        if !contexts.is_empty() {
+            self.tracks_contexts
+                .lock()
+                .unwrap()
+                .insert(track_id, contexts.clone());
         }
 
         let mut track_futures: Vec<TrackFuture> = Vec::new();

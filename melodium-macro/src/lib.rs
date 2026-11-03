@@ -550,6 +550,7 @@ fn config_full_source(
     Vec<(String, String, Vec<String>, HashMap<String, String>)>,
     HashMap<String, String>,
     Vec<(String, Vec<String>)>,
+    bool,
 ) {
     let mut next = ts.next();
     let attributes;
@@ -577,6 +578,7 @@ fn config_full_source(
 
         let mut params = HashMap::new();
         let mut generics = Vec::new();
+        let mut inherit = false;
         if let Some(TokenTree::Group(group)) = ts.next() {
             let mut ts = group.stream().into_iter();
 
@@ -588,6 +590,7 @@ fn config_full_source(
                         params.insert(param.0, (param.1, param.2, param.3));
                     }
                     "generic" => generics.push(config_generic(&mut ts)),
+                    "inherit" => inherit = true,
                     _ => panic!("Unrecognized source parameter configuration"),
                 }
             }
@@ -616,6 +619,7 @@ fn config_full_source(
             outputs,
             attributes,
             generics,
+            inherit,
         )
     } else {
         panic!("Name identity expected")
@@ -1751,9 +1755,12 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     params.insert(param, (ty, default_val, attributes));
                 }
                 "source" => {
-                    let (name, contexts, params, outputs, attributes, generics) =
+                    let (name, contexts, params, outputs, attributes, generics, inherit) =
                         config_full_source(&mut iter_attr);
-                    sources.insert(name, (contexts, params, outputs, attributes, generics));
+                    sources.insert(
+                        name,
+                        (contexts, params, outputs, attributes, generics, inherit),
+                    );
                 }
                 "initialize" => {
                     if let Some(TokenTree::Ident(name)) = iter_attr.next() {
@@ -1853,9 +1860,17 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {described_type}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
             )
         }).collect::<Vec<_>>().join(",").parse().unwrap();
+        let inheriting_sources: proc_macro2::TokenStream = sources
+            .iter()
+            .filter(|(_, (_, _, _, _, _, inherit))| *inherit)
+            .map(|(name, _)| format!(r#""{name}".to_string()"#))
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
         let sources: proc_macro2::TokenStream = sources
             .iter()
-            .map(|(name, (contextes, _, _, _, _))| {
+            .map(|(name, (contextes, _, _, _, _, _))| {
                 let contextes = contextes
                     .iter()
                     .map(|name| format!(r#"{name}::descriptor()"#))
@@ -1879,6 +1894,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     },
                     vec![#parameters],
                     vec![#sources],
+                    vec![#inheriting_sources],
                     #secrets_access,
                     AdHocModel::new,
                 );
@@ -1888,7 +1904,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut sources_description = proc_macro2::TokenStream::new();
     {
         let fancy_model_name = name.to_case(Case::Snake);
-        for (source_name, (_, params, outputs, attributes, generics)) in &sources {
+        for (source_name, (_, params, outputs, attributes, generics, _)) in &sources {
             let generics_list = generics
                 .iter()
                 .map(|(generic, _)| generic.clone())
@@ -1963,7 +1979,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         helper_implementation = parameters;
 
-        for (source_name, (contextes, _, _, _, generics)) in sources {
+        for (source_name, (contextes, _, _, _, generics, _)) in sources {
             let mut param_contextes = String::new();
             let mut assign_contextes = String::new();
             for context in &contextes {
