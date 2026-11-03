@@ -108,3 +108,45 @@ pub async fn scan(recursive: bool, follow_links: bool) {
             .await
     }
 }
+
+/// Remove a directory.
+///
+/// The directory at `path` is removed, with all its content when `recursive` (the default),
+/// or only when empty otherwise. Links within it are removed themselves, never what they point
+/// to.
+///
+/// `completed` is emitted when the directory is removed. If it cannot be, `failed` is emitted
+/// and `error` contains the reason. `finished` is emitted in both cases.
+#[mel_treatment(
+    default recursive true
+    input path Block<string>
+    input filesystem Block<FileSystem>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
+)]
+pub async fn remove(recursive: bool) {
+    if let (Ok(filesystem), Ok(path)) = (
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        path.recv_one_as::<string>().await,
+    ) {
+        let removed = match filesystem.filesystem.metadata(&path).await {
+            Ok(metadata) if metadata.kind != EntryKind::Directory => {
+                Err(format!("'{path}' is not a directory"))
+            }
+            Ok(_) => filesystem.filesystem.remove(&path, recursive).await,
+            Err(err) => Err(err),
+        };
+        match removed {
+            Ok(()) => {
+                let _ = completed.send_one_as(()).await;
+            }
+            Err(err) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err).await;
+            }
+        }
+    }
+    let _ = finished.send_one_as(()).await;
+}

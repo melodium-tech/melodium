@@ -1,0 +1,43 @@
+#!/usr/bin/env melodium
+#! name = fs_archive
+#! version = 0.1.0
+#! require = std:0.11.0 fs:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logErrors
+use std/flow::emit
+use std/flow::check
+use std/ops/option::|wrap
+use std/ops/option/block::unwrap
+use fs/filesystem::FileSystem
+use fs/local::|local_filesystem
+use fs/archive::tar
+use fs/archive::untar
+
+treatment main(const root: string)
+{
+    startup()
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem(|wrap<string>(root)))
+    filesystem: unwrap<FileSystem>()
+    startup.trigger -> emitFileSystem.trigger,emit -> filesystem.option
+
+    // The archive is extracted while it is made.
+    emitSource: emit<string>(value="source")
+    emitCopy: emit<string>(value="copy")
+    tar()
+    untar()
+    filesystem.value -> tar.filesystem
+    filesystem.value -> untar.filesystem
+    startup.trigger -> emitSource.trigger,emit -> tar.path
+    startup.trigger -> emitCopy.trigger,emit -> untar.path
+    tar.data -> untar.data
+
+    archived: check<void>()
+    extracted: check<void>()
+    logTar: logErrors(label="tar")
+    logUntar: logErrors(label="untar")
+    tar.completed -> archived.value
+    untar.completed -> extracted.value
+    tar.errors -> logTar.messages
+    untar.errors -> logUntar.messages
+}
