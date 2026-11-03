@@ -16,4 +16,13 @@ fn json_values_are_read_and_built() {
     assert_eq!(message("second"), r#"{"part_number":2}"#);
     assert_eq!(message("request"), r#"{"name":"cargo"}"#);
     assert_eq!(message("built"), r#"[{"part_number":"one"}]"#);
+
+    // Streamed numbers are not narrowed.
+    let large = logs
+        .iter()
+        .filter(|log| log.label == "large")
+        .map(|log| log.message.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(large, ["70000", "18446744073709551615"]);
+    assert_eq!(message("negative"), "-70000");
 }
