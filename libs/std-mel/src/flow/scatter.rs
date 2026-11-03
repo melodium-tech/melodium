@@ -103,7 +103,8 @@ impl Scatter {
 ///
 /// For each value received through `values`, a track is made where `scattered` gives it, with
 /// the value received through `shared` (a trigger when nothing is shared), at most `parallel`
-/// at once: `values` is not read further until one ends. Tracks start in the order of `values`,
+/// at once: `values` is not read further until one ends, a track ending when it tells
+/// `gather` how, even if some of its treatments still finish. Tracks start in the order of `values`,
 /// and end in any order, each telling how through `gather`. They get the contexts of the track
 /// of `scatter`, with `@Scattered`.
 ///
