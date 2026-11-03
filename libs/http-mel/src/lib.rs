@@ -13,5 +13,7 @@ pub mod client;
 pub mod method;
 pub mod server;
 pub mod status;
+mod transfer;
+pub mod upload;
 
 mel_package!();

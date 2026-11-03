@@ -8,6 +8,7 @@
 mod common;
 mod compression;
 mod crypto;
+mod http;
 mod json;
 mod option_defaults;
 mod restitution;
