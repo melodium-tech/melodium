@@ -36,6 +36,7 @@ use work/resources::|volume
 use work/resources::|mount
 use work/resources::ServiceContainer
 use work/resources/arch::Arch
+use root/artifact::Artifact
 use root/cache::Cache
 use root/cache::|cache_name
 
@@ -223,6 +224,7 @@ This output is ignored if no `out_file` is set.
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name of the cache, such as `|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", "cargo"))` for `CARGO_HOME=/mnt/data/cargo`.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -251,6 +253,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
     cache: Option<Cache> = _,
+    artifacts: Vec<Artifact> = [],
 
     report: bool = true,
     github: bool = false,
@@ -309,7 +312,8 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
         gitlab_pipeline_id=gitlab_pipeline_id,
         description=description,
         log_service_response=log_service_response,
-        cache=cache
+        cache=cache,
+        artifacts=artifacts
     )
     closeTerminate: closeBlock<void>()
 
@@ -350,6 +354,7 @@ This output is ignored if no `out_file` is set.
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -378,6 +383,7 @@ treatment simpleStepCached[dispatcher: CicdDispatchEngine](
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
     cache: Option<Cache> = _,
+    artifacts: Vec<Artifact> = [],
 
     report: bool = true,
     github: bool = false,
@@ -437,7 +443,8 @@ treatment simpleStepCached[dispatcher: CicdDispatchEngine](
         gitlab_pipeline_id=gitlab_pipeline_id,
         description=description,
         log_service_response=log_service_response,
-        cache=cache
+        cache=cache,
+        artifacts=artifacts
     )
     closeTerminate: closeBlock<void>()
 
@@ -480,6 +487,7 @@ This output is ignored if no `out_file` is set.
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name of the cache, such as `|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", "cargo"))` for `CARGO_HOME=/mnt/data/cargo`.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -508,6 +516,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
     cache: Option<Cache> = _,
+    artifacts: Vec<Artifact> = [],
 
     report: bool = true,
     github: bool = false,
@@ -553,6 +562,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
         out_storage=out_storage,
         out_file=out_file,
         cache=cache,
+        artifacts=artifacts,
 
         report=report,
         github=github,
@@ -610,6 +620,7 @@ This output is ignored if no `out_file` is set.
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -638,6 +649,7 @@ treatment simpleStepTerminableCached[dispatcher: CicdDispatchEngine](
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
     cache: Option<Cache> = _,
+    artifacts: Vec<Artifact> = [],
 
     report: bool = true,
     github: bool = false,
@@ -690,7 +702,8 @@ treatment simpleStepTerminableCached[dispatcher: CicdDispatchEngine](
         environment=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))),
         out_file=out_file,
         out_filesystem="data",
-        cache=cache
+        cache=cache,
+        artifacts=artifacts
     )
     stopRunner[runner=runner]()
     setServiceState(
@@ -772,6 +785,7 @@ This output is ignored if no `out_file` is set.
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name of the cache, such as `|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", "cargo"))` for `CARGO_HOME=/mnt/data/cargo`.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -801,6 +815,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
     cache: Option<Cache> = _,
+    artifacts: Vec<Artifact> = [],
 
     report: bool = true,
     github: bool = false,
@@ -860,7 +875,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
         gitlab_pipeline_id=gitlab_pipeline_id,
         description=description,
         log_service_response=log_service_response,
-        cache=cache
+        cache=cache,
+        artifacts=artifacts
     )
     closeTerminate: closeBlock<void>()
 
@@ -902,6 +918,7 @@ This output is ignored if no `out_file` is set.
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -931,6 +948,7 @@ treatment simpleStepWithInputCached[dispatcher: CicdDispatchEngine](
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
     cache: Option<Cache> = _,
+    artifacts: Vec<Artifact> = [],
 
     report: bool = true,
     github: bool = false,
@@ -991,7 +1009,8 @@ treatment simpleStepWithInputCached[dispatcher: CicdDispatchEngine](
         gitlab_pipeline_id=gitlab_pipeline_id,
         description=description,
         log_service_response=log_service_response,
-        cache=cache
+        cache=cache,
+        artifacts=artifacts
     )
     closeTerminate: closeBlock<void>()
 
@@ -1034,6 +1053,7 @@ This output is ignored if no `out_file` is set.
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name of the cache, such as `|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", "cargo"))` for `CARGO_HOME=/mnt/data/cargo`.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -1063,6 +1083,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
     cache: Option<Cache> = _,
+    artifacts: Vec<Artifact> = [],
 
     report: bool = true,
     github: bool = false,
@@ -1110,6 +1131,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
         out_storage=out_storage,
         out_file=out_file,
         cache=cache,
+        artifacts=artifacts,
 
         report=report,
         github=github,
@@ -1168,6 +1190,7 @@ This output is ignored if no `out_file` is set.
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands`, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
@@ -1197,6 +1220,7 @@ treatment simpleStepTerminableWithInputCached[dispatcher: CicdDispatchEngine](
     out_storage: Option<u32> = _,
     out_file: Option<string> = _,
     cache: Option<Cache> = _,
+    artifacts: Vec<Artifact> = [],
 
     report: bool = true,
     github: bool = false,
@@ -1252,7 +1276,8 @@ treatment simpleStepTerminableWithInputCached[dispatcher: CicdDispatchEngine](
         in_filesystem="data",
         out_file=out_file,
         out_filesystem="data",
-        cache=cache
+        cache=cache,
+        artifacts=artifacts
     )
     stopRunner[runner=runner]()
     setServiceState(

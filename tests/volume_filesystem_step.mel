@@ -5,7 +5,9 @@
 
 use std/engine/util::startup
 use std/engine/log::logInfos
+use std/flow::close
 use std/flow::closeBlock
+use cicd/artifact::Artifact
 use std/flow::emit
 use std/flow::stream
 use std/flow/vec::flatten
@@ -37,6 +39,7 @@ treatment main(const in_file: string, const out_file: string)
     closeCacheFilesystem: closeBlock<Option<string>>()
     closeCachePath: closeBlock<string>()
     closeCacheName: closeBlock<string>()
+    closeArtifacts: close<Artifact>()
 
     step(label="step")
     outputText: fromUtf8()
@@ -54,5 +57,6 @@ treatment main(const in_file: string, const out_file: string)
     startup.trigger -> closeCacheFilesystem.trigger,closed -> step.cache_filesystem
     startup.trigger -> closeCachePath.trigger,closed -> step.cache_path
     startup.trigger -> closeCacheName.trigger,closed -> step.cache_name
+    startup.trigger -> closeArtifacts.trigger,closed -> step.artifacts
     step.data -> outputText.encoded,text -> logOutput.messages
 }
