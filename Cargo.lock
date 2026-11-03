@@ -4018,6 +4018,7 @@ dependencies = [
 name = "json-mel"
 version = "0.11.0"
 dependencies = [
+ "erased-serde",
  "futures",
  "melodium-core",
  "melodium-macro",
