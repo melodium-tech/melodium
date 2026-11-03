@@ -25,7 +25,7 @@ treatment main()
 {
     startup()
 
-    emitValues: emit<Vec<string>>(value=["ok-0", "fail-1", "ok-2", "silent-3", "ok-4", "ok-5"])
+    emitValues: emit<Vec<string>>(value=["ok-0", "fail-1", "ok-2", "ok-3", "ok-4", "silent-5"])
     streamValues: stream<Vec<string>>()
     flattenValues: flatten<string>()
     emitShared: emit<string>(value="shared")
@@ -57,7 +57,7 @@ treatment main()
     mismatched.errors -> logMismatched.messages
 }
 
-// Track 1 fails, track 3 tells nothing, the others complete.
+// Track 1 fails, track 5 tells nothing, the others complete.
 treatment item[items: Scatter]()
   require @Scattered
 {
@@ -70,7 +70,7 @@ treatment item[items: Scatter]()
     scattered.shared -> logShared.message
 
     notFailing: passBlock<string>(cond=|not_equal<u64>(@Scattered[index], 1))
-    notSilent: passBlock<string>(cond=|not_equal<u64>(@Scattered[index], 3))
+    notSilent: passBlock<string>(cond=|not_equal<u64>(@Scattered[index], 5))
     completed: check<string>()
     scattered.value -> notFailing.block,passed -> notSilent.block,passed -> completed.value,check -> gather.completed
 
