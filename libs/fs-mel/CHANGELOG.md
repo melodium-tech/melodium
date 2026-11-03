@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding `rooted::RootedFileSystemEngine`, a file system rooted at a directory, whose paths are resolved within it with cap-std: `..`, absolute paths and links leading out of the directory are refused, even links created while it is used. `|local_filesystem` uses it when given a root, which it no longer joins paths to.
+
 ## [v0.11.0] (2026-10-15)
 
 - Using async-fs and standard paths instead of async-std, which is discontinued; `write` flushes the file before `completed`, an error then giving `failed` (#104).
