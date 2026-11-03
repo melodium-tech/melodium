@@ -1,6 +1,7 @@
 use root/flow/scatter::Scatter
 use root/flow/scatter::@Scattered
 use root/flow/scatter::gathered
+use root/flow/scatter::gatheredValue
 
 /**
 Gather a scattered track.
@@ -22,4 +23,28 @@ treatment gather[scatter: Scatter]()
     Self.completed -> gathered.completed
     Self.failed ----> gathered.failed
     Self.error -----> gathered.error
+}
+
+/**
+Gather a scattered track, with a value.
+
+As `gather`, giving the value received through `value` to `scatterGathering`, which gives it
+through `gathered`. The value is given whatever the end of the track, and a track sending none
+gives none.
+
+`scatter` must be the same `Scatter` as the `scatterGathering` and `scattered` making the track.
+*/
+treatment gatherValue<R>[scatter: Scatter]()
+  require @Scattered
+  input value: Block<R>
+  input completed: Block<void>
+  input failed: Block<void>
+  input error: Block<string>
+{
+    gatheredValue<R>[scatter=scatter](scatter_id=@Scattered[scatter], index=@Scattered[index])
+
+    Self.value -----> gatheredValue.value
+    Self.completed -> gatheredValue.completed
+    Self.failed ----> gatheredValue.failed
+    Self.error -----> gatheredValue.error
 }

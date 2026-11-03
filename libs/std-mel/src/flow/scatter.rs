@@ -4,13 +4,13 @@
 use futures::{pin_mut, select, FutureExt};
 use melodium_core::{
     common::descriptor::DataType,
-    common::executive::{Output, ResultStatus},
+    common::executive::{Input, Output, ResultStatus, TrackId},
     *,
 };
 use melodium_macro::{mel_context, mel_model, mel_treatment};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, Weak};
+use std::sync::{Arc, Mutex, Weak};
 
 /// Context of a scattered track.
 ///
@@ -31,14 +31,23 @@ enum Outcome {
     Silent,
 }
 
+/// End of a scattered track, with the value it gathered, if any, and its type.
+#[derive(Debug)]
+struct End {
+    index: u64,
+    outcome: Outcome,
+    value: Option<(DataType, Value)>,
+}
+
 /// Scatters values of streams over tracks of their own, and gathers how they end.
 ///
 /// `scatter` makes a track for each value it receives, where `scattered` gives the value and the
 /// value shared by all of them, and `gather` tells how the track ended. Scattered tracks get the
 /// contexts of the track of `scatter`, with `@Scattered`.
 ///
-/// Each use of `Scatter` is meant for one `scatter`, and the `scattered` and `gather` of its tracks,
-/// in the same treatment, as `http/server::connection` uses `incoming` and `outgoing`.
+/// Each use of `Scatter` is meant for one `scatter` (or `scatterGathering`), and the `scattered`
+/// and `gather` (or `gatherValue`) of its tracks, in the same treatment, as
+/// `http/server::connection` uses `incoming` and `outgoing`.
 #[mel_model(
     source scattered (Scattered) (generic T () generic S () inherit) (value Block<T> shared Block<S>)
     invoke_generic_source invoke_source
@@ -48,7 +57,7 @@ pub struct Scatter {
     /// Types of each use of `scattered`.
     entries: Mutex<Vec<HashMap<String, DataType>>>,
     /// `scatter` waiting for their tracks to end, by identifier.
-    scatters: Mutex<HashMap<String, async_channel::Sender<(u64, Outcome)>>>,
+    scatters: Mutex<HashMap<String, async_channel::Sender<End>>>,
     next: AtomicU64,
 }
 
@@ -71,7 +80,7 @@ impl Scatter {
     }
 
     /// Opens a scatter, giving its identifier and where the ends of its tracks come.
-    fn open(&self) -> (String, async_channel::Receiver<(u64, Outcome)>) {
+    fn open(&self) -> (String, async_channel::Receiver<End>) {
         let id = self.next.fetch_add(1, Ordering::Relaxed).to_string();
         let (sender, receiver) = async_channel::unbounded();
         self.scatters.lock().unwrap().insert(id.clone(), sender);
@@ -82,10 +91,10 @@ impl Scatter {
         self.scatters.lock().unwrap().remove(id);
     }
 
-    /// Tells the scatter `id` how its track `index` ended.
-    fn report(&self, id: &str, index: u64, outcome: Outcome) {
+    /// Tells the scatter `id` how its track ended.
+    fn report(&self, id: &str, end: End) {
         if let Some(sender) = self.scatters.lock().unwrap().get(id) {
-            let _ = sender.try_send((index, outcome));
+            let _ = sender.try_send(end);
         }
     }
 }
@@ -129,12 +138,90 @@ impl Scatter {
     output errors Stream<string>
 )]
 pub async fn scatter(parallel: u32) {
-    let model = ScatterModel::into(scatter);
-    let scatter = model.inner();
     let generics = HashMap::from([("T".to_string(), T), ("S".to_string(), S)]);
+    scatter_values(
+        ScatterModel::into(scatter),
+        track_id,
+        generics,
+        parallel,
+        &**values,
+        &**shared,
+        None,
+        [&**completed, &**failed, &**finished],
+        &**errors,
+    )
+    .await
+}
+
+/// Scatter values over tracks of their own, and gather their values.
+///
+/// As `scatter` does, with the values the tracks give to `gatherValue` coming through
+/// `gathered`, in the order the tracks end. A track gathering no value gives none, and values
+/// of another type than `R` are refused, the scatter failing.
+///
+/// ```mermaid
+/// graph LR
+///     T("scatterGathering()")
+///     V["… 🟦 🟦 🟦"] -->|values| T
+///     S["〈🟨〉"] -->|shared| T
+///
+///     T -.->|"track per 🟦"| X["scattered() … gatherValue()"]
+///     T -->|gathered| G["… 🟪 🟪 🟪"]
+///     T -->|completed| C["〈🟩〉"]
+///
+///     style V fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style X fill:#ffffff,stroke:#ffffff
+///     style G fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    generic S ()
+    generic R ()
+    model scatter Scatter
+    default parallel 8
+    input values Stream<T>
+    input shared Block<S>
+    output gathered Stream<R>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output errors Stream<string>
+)]
+pub async fn scatter_gathering(parallel: u32) {
+    let generics = HashMap::from([("T".to_string(), T), ("S".to_string(), S)]);
+    scatter_values(
+        ScatterModel::into(scatter),
+        track_id,
+        generics,
+        parallel,
+        &**values,
+        &**shared,
+        Some((R, &**gathered)),
+        [&**completed, &**failed, &**finished],
+        &**errors,
+    )
+    .await
+}
+
+/// Makes the tracks of `scatter` and `scatterGathering`, giving their gathered values through
+/// `gathered` when there is one.
+async fn scatter_values(
+    model: Arc<ScatterModel>,
+    track_id: TrackId,
+    generics: HashMap<String, DataType>,
+    parallel: u32,
+    values: &dyn Input,
+    shared: &dyn Input,
+    gathered: Option<(DataType, &dyn Output)>,
+    [completed, failed, finished]: [&dyn Output; 3],
+    errors: &dyn Output,
+) {
+    let scatter = model.inner();
 
     let mut problems = Vec::new();
-    let mut gathered = true;
+    let mut gathered_all = true;
     if parallel == 0 {
         problems.push("parallel must be at least 1".to_string());
     } else if !scatter.entries.lock().unwrap().contains(&generics) {
@@ -151,7 +238,7 @@ pub async fn scatter(parallel: u32) {
             // Ends of tracks already known are taken first.
             while let Ok(end) = ends.try_recv() {
                 running -= 1;
-                gathered &= ended(end, &mut problems);
+                gathered_all &= ended(end, gathered.as_ref(), &mut problems).await;
             }
             if values_ended || running >= parallel {
                 if running == 0 {
@@ -159,7 +246,7 @@ pub async fn scatter(parallel: u32) {
                 }
                 if let Ok(end) = ends.recv().await {
                     running -= 1;
-                    gathered &= ended(end, &mut problems);
+                    gathered_all &= ended(end, gathered.as_ref(), &mut problems).await;
                 }
                 continue;
             }
@@ -199,7 +286,10 @@ pub async fn scatter(parallel: u32) {
     }
 
     values.close();
-    if problems.is_empty() && gathered {
+    if let Some((_, gathered)) = &gathered {
+        gathered.close().await;
+    }
+    if problems.is_empty() && gathered_all {
         let _ = completed.send_one(().into()).await;
     } else {
         let _ = failed.send_one(().into()).await;
@@ -210,19 +300,40 @@ pub async fn scatter(parallel: u32) {
     let _ = finished.send_one(().into()).await;
 }
 
-/// Takes the end of a scattered track, telling whether it completed.
-fn ended((index, outcome): (u64, Outcome), problems: &mut Vec<String>) -> bool {
-    match outcome {
-        Outcome::Completed => true,
-        Outcome::Failed(error) => {
-            problems.push(format!("scattered track {index} failed: {error}"));
-            false
-        }
-        Outcome::Silent => {
-            problems.push(format!("scattered track {index} ended without telling how"));
-            false
+/// Takes the end of a scattered track, giving its value through `gathered` when there is one,
+/// and telling whether it completed.
+async fn ended(
+    End {
+        index,
+        outcome,
+        value,
+    }: End,
+    gathered: Option<&(DataType, &dyn Output)>,
+    problems: &mut Vec<String>,
+) -> bool {
+    let mut gathered_well = true;
+    if let (Some((expected, gathered)), Some((datatype, value))) = (gathered, value) {
+        if datatype == *expected {
+            let _ = gathered.send_one(value).await;
+        } else {
+            problems.push(format!(
+                "scattered track {index} gathered a value of type {datatype}, not {expected}"
+            ));
+            gathered_well = false;
         }
     }
+    gathered_well
+        && match outcome {
+            Outcome::Completed => true,
+            Outcome::Failed(error) => {
+                problems.push(format!("scattered track {index} failed: {error}"));
+                false
+            }
+            Outcome::Silent => {
+                problems.push(format!("scattered track {index} ended without telling how"));
+                false
+            }
+        }
 }
 
 /// Gives the value and the shared value to a scattered track.
@@ -251,8 +362,44 @@ async fn give(
     input error Block<string>
 )]
 pub async fn gathered(scatter_id: string, index: u64) {
-    let model = ScatterModel::into(scatter);
+    let outcome = outcome(&**completed, &**failed, &**error).await;
+    ScatterModel::into(scatter).inner().report(
+        &scatter_id,
+        End {
+            index,
+            outcome,
+            value: None,
+        },
+    );
+}
 
+/// Tell the scatter `scatter_id` how its track `index` ended, with a value.
+///
+/// As `gathered`, giving the value received through `value` to `scatterGathering`, whatever
+/// the track's end.
+#[mel_treatment(
+    generic R ()
+    model scatter Scatter
+    input value Block<R>
+    input completed Block<void>
+    input failed Block<void>
+    input error Block<string>
+)]
+pub async fn gathered_value(scatter_id: string, index: u64) {
+    let (value, outcome) =
+        futures::join!(value.recv_one(), outcome(&**completed, &**failed, &**error));
+    ScatterModel::into(scatter).inner().report(
+        &scatter_id,
+        End {
+            index,
+            outcome,
+            value: value.ok().map(|value| (R, value)),
+        },
+    );
+}
+
+/// How a track ended, from its `completed`, `failed` and `error`.
+async fn outcome(completed: &dyn Input, failed: &dyn Input, error: &dyn Input) -> Outcome {
     let completion = completed.recv_one().fuse();
     let failure = failed.recv_one().fuse();
     pin_mut!(completion, failure);
@@ -266,7 +413,7 @@ pub async fn gathered(scatter_id: string, index: u64) {
             Err(_) => completion.await.ok().map(|_| false),
         },
     };
-    let outcome = match has_failed {
+    match has_failed {
         Some(false) => Outcome::Completed,
         Some(true) => Outcome::Failed(
             error
@@ -275,6 +422,5 @@ pub async fn gathered(scatter_id: string, index: u64) {
                 .unwrap_or_else(|_| "no reason given".to_string()),
         ),
         None => Outcome::Silent,
-    };
-    model.inner().report(&scatter_id, index, outcome);
+    }
 }

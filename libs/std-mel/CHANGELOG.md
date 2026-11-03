@@ -3,7 +3,7 @@
 
 ## [Unreleased]
 
-- Adding `std/flow/scatter`: `scatter` makes one track per value of a stream, at most `parallel` at once, where the generic `scattered` source gives the value and a value shared by all, the tracks inheriting the contexts of the track of `scatter` with `@Scattered`, and `gather` tells how each ended, a track ending without telling being counted as failed (#168).
+- Adding `std/flow/scatter`: `scatter` makes one track per value of a stream, at most `parallel` at once, where the generic `scattered` source gives the value and a value shared by all, the tracks inheriting the contexts of the track of `scatter` with `@Scattered`, and `gather` tells how each ended, a track ending without telling being counted as failed; `scatterGathering` also gives the values the tracks give to `gatherValue`, in the order they end (#168).
 
 ## [v0.11.0] (2026-10-15)
 

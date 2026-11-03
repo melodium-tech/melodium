@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 const VALUES: &str = include_str!("scripts/scatter_values.mel");
 const NESTED: &str = include_str!("scripts/scatter_nested.mel");
 const OUTSIDE: &str = include_str!("scripts/scatter_outside.mel");
+const GATHERING: &str = include_str!("scripts/scatter_gathering.mel");
 
 /// Messages of the logs labelled `label`.
 fn messages(logs: &[melodium_common::executive::Log], label: &str) -> Vec<String> {
@@ -75,6 +76,26 @@ fn values_are_scattered_and_gathered() {
             .any(|message| message.contains("no `scattered<string, void>`")),
         "{mismatched:?}"
     );
+}
+
+#[test]
+fn values_of_tracks_are_gathered() {
+    let (logs, events) = common::run(GATHERING, HashMap::new());
+
+    // Track 2 gathers nothing, and still completes.
+    let mut gathered = messages(&logs, "gathered");
+    gathered.sort();
+    assert_eq!(gathered, ["10", "20", "40"], "{logs:?}");
+    assert!(messages(&logs, "scatter").is_empty(), "{logs:?}");
+    assert_eq!(common::sent(&events, "scatterCompleted", "check").len(), 1);
+    assert!(common::sent(&events, "scatterFailed", "check").is_empty());
+
+    // Values of another type than the scatter gathers fail it, and are not given.
+    assert_eq!(
+        messages(&logs, "mismatched"),
+        ["scattered track 0 gathered a value of type string, not u64"]
+    );
+    assert!(messages(&logs, "mismatched gathered").is_empty());
 }
 
 #[test]
