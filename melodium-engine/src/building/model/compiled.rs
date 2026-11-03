@@ -1,5 +1,5 @@
 use crate::building::{
-    BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
+    BuildId, CheckBuildResult, CheckEnvironment, CheckState, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
@@ -89,7 +89,7 @@ impl BuilderTrait for Builder {
         &self,
         _build: BuildId,
         _environment: CheckEnvironment,
-        _previous_steps: Vec<CheckStep>,
+        _state: &mut CheckState,
     ) -> Option<CheckBuildResult> {
         None
     }
@@ -99,7 +99,7 @@ impl BuilderTrait for Builder {
         _within_build: BuildId,
         _for_label: String,
         _environment: CheckEnvironment,
-        _previous_steps: Vec<CheckStep>,
+        _state: &mut CheckState,
     ) -> Option<CheckBuildResult> {
         None
     }

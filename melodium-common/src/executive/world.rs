@@ -1,5 +1,5 @@
 use crate::{
-    descriptor::Collection,
+    descriptor::{Collection, DataType},
     executive::{
         Context, ContinuousFuture, Input, Level, Log, ModelId, Output, Outputs, TrackFuture, Value,
     },
@@ -28,6 +28,7 @@ pub trait World: Debug + Send + Sync {
         id: ModelId,
         source: &str,
         params: &HashMap<String, Value>,
+        generics: Option<&HashMap<String, DataType>>,
         contexts: Vec<Arc<dyn Context>>,
         parent_track: Option<TrackId>,
         callback: Option<TrackCreationCallback>,

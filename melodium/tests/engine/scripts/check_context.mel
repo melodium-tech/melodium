@@ -1,0 +1,24 @@
+#!/usr/bin/env melodium
+#! name = check_context
+#! version = 0.1.0
+#! require = std:0.11.0 http:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use http/server::@HttpRequest
+
+// Needs the context of an HTTP request, which the track of `startup` does not have.
+treatment answer()
+  require @HttpRequest
+  input trigger: Block<void>
+{
+    logInfoMessage(label="request", message="answered")
+    Self.trigger -> logInfoMessage.trigger
+}
+
+treatment main()
+{
+    startup()
+    answer()
+    startup.trigger -> answer.trigger
+}

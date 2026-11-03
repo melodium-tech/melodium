@@ -17,6 +17,8 @@ pub struct Model {
     attributes: Attributes,
     parameters: HashMap<String, Parameter>,
     sources: HashMap<String, Vec<Arc<dyn Context>>>,
+    /// Sources whose tracks inherit the contexts of the track they are made from.
+    inheriting_sources: Vec<String>,
     secrets_access: bool,
     build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
     auto_reference: Weak<Self>,
@@ -29,6 +31,7 @@ impl Model {
         attributes: Attributes,
         parameters: Vec<Parameter>,
         sources: Vec<(String, Vec<Arc<dyn Context>>)>,
+        inheriting_sources: Vec<String>,
         secrets_access: bool,
         build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
     ) -> Arc<Self> {
@@ -43,6 +46,7 @@ impl Model {
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),
             ),
             sources: HashMap::from_iter(sources.into_iter()),
+            inheriting_sources,
             secrets_access,
             build_fn,
             auto_reference: me.clone(),
@@ -158,6 +162,10 @@ impl ModelDescriptor for Model {
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<dyn Context>>> {
         &self.sources
+    }
+
+    fn source_inherits_contexts(&self, source: &str) -> bool {
+        self.inheriting_sources.iter().any(|name| name == source)
     }
 
     fn secrets_access(&self) -> bool {

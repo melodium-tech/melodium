@@ -18,6 +18,11 @@ pub trait Model:
     fn is_core_model(&self) -> bool;
     fn base_model(&self) -> Option<Arc<dyn Model>>;
     fn sources(&self) -> &HashMap<String, Vec<Arc<dyn Context>>>;
+    /// Whether the tracks of `source` inherit the contexts of the track they are made from.
+    fn source_inherits_contexts(&self, source: &str) -> bool {
+        let _ = source;
+        false
+    }
     /// Whether the model reveals secrets or provides secret sources, getting an access
     /// to secrets from the engine.
     fn secrets_access(&self) -> bool {
