@@ -4,6 +4,7 @@ use melodium_macro::{check, mel_treatment};
 use std::collections::VecDeque;
 
 pub mod concentrate;
+pub mod scatter;
 pub mod vec;
 
 /// Chain two streams.

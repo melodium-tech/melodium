@@ -1,0 +1,21 @@
+#!/usr/bin/env melodium
+#! name = scatter_outside
+#! version = 0.1.0
+#! require = std:0.11.0
+
+use std/engine/util::startup
+use std/flow::emit
+use std/flow/scatter::Scatter
+use std/flow/scatter::gather
+
+// `gather` is used where no scattered track is, so `@Scattered` is missing.
+treatment main()
+  model items: Scatter()
+{
+    startup()
+    emitReason: emit<string>(value="none")
+    gather[scatter=items]()
+    startup.trigger -> gather.completed
+    startup.trigger -> gather.failed
+    startup.trigger -> emitReason.trigger,emit -> gather.error
+}
