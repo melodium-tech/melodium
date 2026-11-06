@@ -1,5 +1,5 @@
-//! The `fs` package removes and renames files and directories, and lists the files of trees,
-//! within rooted file systems.
+//! The `fs` package removes and renames files and directories, lists the files of trees,
+//! and archives and extracts directories, within rooted file systems.
 
 use super::common;
 use melodium_common::executive::Value;
@@ -41,6 +41,42 @@ fn files_and_directories_are_renamed_and_removed() {
     assert!(
         common::message(&logs, "not a file").contains("is a directory"),
         "{logs:?}"
+    );
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+const ARCHIVE: &str = include_str!("scripts/fs_archive.mel");
+
+#[test]
+fn directories_are_archived_and_extracted() {
+    let root = std::env::temp_dir().join(format!("melodium-fs-archive-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("source/nested")).unwrap();
+    std::fs::write(root.join("source/nested/file"), vec![3u8; 3_000_000]).unwrap();
+    std::fs::write(root.join("source/small"), b"small").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink("nested/file", root.join("source/link")).unwrap();
+
+    let (logs, events) = common::run(
+        ARCHIVE,
+        HashMap::from([(
+            "root".to_string(),
+            Value::String(root.to_string_lossy().to_string()),
+        )]),
+    );
+
+    assert!(logs.is_empty(), "{logs:?}");
+    assert_eq!(common::sent(&events, "tar", "completed").len(), 1);
+    assert_eq!(common::sent(&events, "untar", "completed").len(), 1);
+    assert_eq!(
+        std::fs::read(root.join("copy/nested/file")).unwrap(),
+        vec![3u8; 3_000_000]
+    );
+    assert_eq!(std::fs::read(root.join("copy/small")).unwrap(), b"small");
+    #[cfg(unix)]
+    assert_eq!(
+        std::fs::read_link(root.join("copy/link")).unwrap(),
+        std::path::Path::new("nested/file")
     );
     std::fs::remove_dir_all(&root).unwrap();
 }

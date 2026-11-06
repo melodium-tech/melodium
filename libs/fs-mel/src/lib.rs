@@ -10,6 +10,7 @@ compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
 use melodium_macro::mel_package;
 
+pub mod archive;
 pub mod dir;
 pub mod file;
 pub mod filesystem;
