@@ -1,0 +1,57 @@
+#!/usr/bin/env melodium
+#! name = fs_operations
+#! version = 0.1.0
+#! require = std:0.11.0 fs:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logError
+use std/flow::emit
+use std/flow::check
+use std/ops/option::|wrap
+use std/ops/option/block::unwrap
+use fs/filesystem::FileSystem
+use fs/local::|local_filesystem
+use fs/file::remove as removeFile
+use fs/file::rename
+use fs/dir::remove as removeDir
+
+treatment main(const root: string)
+{
+    startup()
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem(|wrap<string>(root)))
+    filesystem: unwrap<FileSystem>()
+    startup.trigger -> emitFileSystem.trigger,emit -> filesystem.option
+
+    // The staging directory is put in place of the target, then the old one removed.
+    emitFrom: emit<string>(value="staging")
+    emitTo: emit<string>(value="target")
+    rename()
+    filesystem.value -> rename.filesystem
+    startup.trigger -> emitFrom.trigger,emit -> rename.from
+    startup.trigger -> emitTo.trigger,emit -> rename.to
+
+    emitOld: emit<string>(value="old")
+    removeDir()
+    filesystem.value -> removeDir.filesystem
+    startup.trigger -> emitOld.trigger,emit -> removeDir.path
+
+    emitFile: emit<string>(value="file")
+    removeFile()
+    filesystem.value -> removeFile.filesystem
+    startup.trigger -> emitFile.trigger,emit -> removeFile.path
+
+    // A directory is not removed as a file.
+    emitNotFile: emit<string>(value="kept")
+    notFile: removeFile()
+    logNotFile: logError(label="not a file")
+    filesystem.value -> notFile.filesystem
+    startup.trigger -> emitNotFile.trigger,emit -> notFile.path
+    notFile.error -> logNotFile.message
+
+    renamed: check<void>()
+    removedDir: check<void>()
+    removedFile: check<void>()
+    rename.completed --> renamed.value
+    removeDir.completed -> removedDir.value
+    removeFile.completed -> removedFile.value
+}

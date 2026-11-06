@@ -8,6 +8,7 @@
 mod checks;
 mod common;
 mod crypto;
+mod fs;
 mod option_defaults;
 mod restitution;
 mod secret_access;

@@ -1,0 +1,51 @@
+#!/usr/bin/env melodium
+#! name = volume_filesystem_step
+#! version = 0.1.0
+#! require = std:0.11.0 cicd:0.11.0 process:0.11.0 work:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/flow::closeBlock
+use std/flow::emit
+use std/flow::stream
+use std/flow/vec::flatten
+use std/text/convert/string::fromUtf8
+use std/text/convert/string::toUtf8
+use process/command::Command
+use process/environment::Environment
+use cicd/steps::step
+
+// Runs a step without commands on the local executor: `step-input` is written to
+// `in_file`, then `out_file` is read back, both in the volume `data`.
+treatment main(const in_file: string, const out_file: string)
+{
+    startup()
+
+    emitVolume: emit<string>(value="data")
+    emitInFile: emit<string>(value=in_file)
+    emitOutFile: emit<string>(value=out_file)
+    emitInput: emit<string>(value="step-input")
+    streamInput: stream<string>()
+    inputBytes: toUtf8()
+    emitExecutor: emit<Option<string>>(value=_)
+    emitEnvironment: emit<Option<Environment>>(value=_)
+    emitCommands: emit<Vec<Command>>(value=[])
+    streamCommands: stream<Vec<Command>>()
+    flattenCommands: flatten<Command>()
+    closeTerminate: closeBlock<void>()
+
+    step(label="step")
+    outputText: fromUtf8()
+    logOutput: logInfos(label="out")
+
+    startup.trigger -> emitVolume.trigger,emit -> step.in_filesystem_name
+    emitVolume.emit -> step.out_filesystem_name
+    startup.trigger -> emitInFile.trigger,emit -> step.in_file_name
+    startup.trigger -> emitOutFile.trigger,emit -> step.out_file_name
+    startup.trigger -> emitInput.trigger,emit -> streamInput.block,stream -> inputBytes.text,encoded -> step.data
+    startup.trigger -> emitExecutor.trigger,emit -> step.executor_name
+    startup.trigger -> emitEnvironment.trigger,emit -> step.environment
+    startup.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> step.commands
+    startup.trigger -> closeTerminate.trigger,closed -> step.terminate
+    step.data -> outputText.encoded,text -> logOutput.messages
+}

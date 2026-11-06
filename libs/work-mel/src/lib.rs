@@ -18,6 +18,8 @@ mod http;
 pub mod reporting;
 pub mod resources;
 pub mod secret;
+#[cfg(feature = "real")]
+mod volume;
 
 #[cfg(feature = "kubernetes")]
 mod kube;
