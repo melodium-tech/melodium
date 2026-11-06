@@ -516,11 +516,148 @@ pub async fn reveal() {
     }
 }
 
+/// Searches the values revealed by the engine in data, cutting the data when one is found.
+///
+/// The bytes received through `data` are given through `scanned`, unless they hold a value
+/// the engine revealed, as is, in base64, URL-encoded, or as bytes when it is not text, such
+/// as before uploading files that would not be masked anymore once they left the engine.
+/// The last bytes received are held until the next ones come, as they could start a value:
+/// nothing of a value found is given.
+///
+/// Once `data` ends without any value found, the bytes held are given and `completed` is
+/// emitted. When a value is found, `scanned` and `data` are closed, `failed` is emitted, and
+/// `error` names the secret the value comes from, never the value.
+/// `finished` is emitted in both cases.
+///
+/// ⚠️ `scanned` ends in both cases: only `completed` tells that all the data was given, and
+/// that it holds no revealed value.
+///
+/// Values revealed while the data goes through are searched from then on. Only the values
+/// revealed by this engine are known, not those revealed by distant ones.
+///
+/// ```mermaid
+/// graph LR
+///     T("scan()")
+///     B["… 🟦 🟦 🟦"] -->|data| T
+///
+///     T -->|scanned| O["… 🟦 🟦 🟦"]
+///     T -->|completed| C["〈🟩〉"]
+///     T -->|failed| F["〈🟥〉"]
+///
+///     style B fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+/// ```
+#[mel_treatment(
+    input data Stream<byte>
+    output scanned Stream<byte>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
+    secrets_access
+)]
+pub async fn scan() {
+    let mut search = secrets_access.revealed_scan();
+    let mut held = Hold::default();
+    let mut found = None;
+    let mut given = true;
+
+    while let Ok(mut bytes) = data.recv_many_as::<u8>().await {
+        found = search.scan(&bytes);
+        if found.is_some() {
+            bytes.zeroize();
+            break;
+        }
+        let released = held.push(bytes, search.overlap());
+        if !released.is_empty()
+            && scanned
+                .send_many(TransmissionValue::Byte(released))
+                .await
+                .is_err()
+        {
+            given = false;
+            break;
+        }
+    }
+
+    match found {
+        Some(name) => {
+            data.close();
+            scanned.close().await;
+            let _ = failed.send_one(().into()).await;
+            let _ = error
+                .send_one(format!("the data holds a value revealed from secret '{name}'").into())
+                .await;
+        }
+        None if given => {
+            let rest = held.take();
+            if rest.is_empty()
+                || scanned
+                    .send_many(TransmissionValue::Byte(rest))
+                    .await
+                    .is_ok()
+            {
+                scanned.close().await;
+                let _ = completed.send_one(().into()).await;
+            }
+        }
+        None => {
+            data.close();
+        }
+    }
+    let _ = finished.send_one(().into()).await;
+}
+
+/// Bytes held back by `scan`, as they could start a revealed value, overwritten once dropped.
+#[derive(Default)]
+struct Hold(VecDeque<u8>);
+
+impl Hold {
+    /// Adds `bytes`, and gives the bytes that cannot start a value anymore, keeping the last
+    /// `overlap` ones.
+    fn push(&mut self, mut bytes: Vec<u8>, overlap: usize) -> VecDeque<u8> {
+        self.0.extend(bytes.iter());
+        bytes.zeroize();
+        let release = self.0.len().saturating_sub(overlap);
+        self.0.drain(..release).collect()
+    }
+
+    /// Gives every byte held.
+    fn take(&mut self) -> VecDeque<u8> {
+        core::mem::take(&mut self.0)
+    }
+}
+
+impl Drop for Hold {
+    fn drop(&mut self) {
+        self.0.iter_mut().for_each(|byte| *byte = 0);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const SENTINEL: &str = "s3cr3t:value/@";
+
+    #[test]
+    fn hold_keeps_what_could_start_a_value() {
+        let mut hold = Hold::default();
+        assert!(hold.push(b"abc".to_vec(), 5).is_empty());
+        assert_eq!(
+            hold.push(b"defgh".to_vec(), 5),
+            VecDeque::from(b"abc".to_vec())
+        );
+        assert_eq!(
+            hold.push(b"ij".to_vec(), 0),
+            VecDeque::from(b"defghij".to_vec())
+        );
+        assert!(hold.take().is_empty());
+        assert_eq!(hold.push(b"klm".to_vec(), 2), VecDeque::from(b"k".to_vec()));
+        assert_eq!(hold.take(), VecDeque::from(b"lm".to_vec()));
+    }
 
     #[test]
     fn format_fills_plain_and_secret_entries() {
