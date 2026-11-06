@@ -19,25 +19,56 @@ fn messages(logs: &[melodium_common::executive::Log], label: &str) -> Vec<String
 }
 
 /// Number of child tracks of each parent, and most child tracks running at once.
+///
+/// A track runs from its first event, `TrackAdded` being sent once the track already runs,
+/// until `gathered` receives how it ended, or else until it finishes, as `scatter` counts it.
+/// A track only starts once another one gathered, so receptions come before it.
 fn children(events: &[Event]) -> (HashMap<usize, usize>, usize) {
     let mut count = HashMap::new();
     let mut children = HashSet::new();
-    let mut running = 0;
-    let mut most = 0;
-    for event in events {
-        match &event.kind {
+    let mut starts = HashMap::new();
+    let mut ends = HashMap::new();
+    for (index, event) in events.iter().enumerate() {
+        let track = match &event.kind {
             EventKind::TrackAdded { info, .. } => {
                 if let Some(parent) = info.parent_id {
                     *count.entry(parent).or_insert(0) += 1;
                     children.insert(info.id);
-                    running += 1;
-                    most = most.max(running);
                 }
+                Some(info.id)
             }
-            EventKind::TrackFinished { info } if children.contains(&info.id) => running -= 1,
-            _ => {}
+            EventKind::DataSent { track_id, .. } => Some(*track_id),
+            EventKind::DataReceived {
+                input, track_id, ..
+            } => {
+                if input.label == "gathered" {
+                    ends.entry(*track_id).or_insert(index);
+                }
+                Some(*track_id)
+            }
+            EventKind::TrackFinished { info } => {
+                ends.entry(info.id).or_insert(index);
+                Some(info.id)
+            }
+            _ => None,
+        };
+        if let Some(track) = track {
+            starts.entry(track).or_insert(index);
         }
     }
+    let most = children
+        .iter()
+        .map(|track| {
+            let start = starts[track];
+            children
+                .iter()
+                .filter(|other| {
+                    starts[*other] <= start && ends.get(*other).map_or(true, |end| *end > start)
+                })
+                .count()
+        })
+        .max()
+        .unwrap_or(0);
     (count, most)
 }
 
@@ -49,7 +80,7 @@ fn values_are_scattered_and_gathered() {
     items.sort();
     assert_eq!(
         items,
-        ["fail-1", "ok-0", "ok-2", "ok-4", "ok-5", "silent-3"],
+        ["fail-1", "ok-0", "ok-2", "ok-3", "ok-4", "silent-5"],
         "{logs:?}"
     );
     assert_eq!(messages(&logs, "shared"), vec!["shared"; 6]);
@@ -58,7 +89,7 @@ fn values_are_scattered_and_gathered() {
     let errors = messages(&logs, "scatter");
     assert_eq!(errors.len(), 2, "{errors:?}");
     assert!(errors.contains(&"scattered track 1 failed: asked to fail".to_string()));
-    assert!(errors.contains(&"scattered track 3 ended without telling how".to_string()));
+    assert!(errors.contains(&"scattered track 5 ended without telling how".to_string()));
     assert_eq!(common::sent(&events, "scatterFailed", "check").len(), 1);
     assert!(common::sent(&events, "scatterCompleted", "check").is_empty());
     assert_eq!(common::sent(&events, "scatterFinished", "check").len(), 1);
