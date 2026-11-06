@@ -5,6 +5,7 @@
 //! package. Tests checking programs from outside, through the `melodium` executable, are
 //! testers, in `tests/testers`.
 
+mod checks;
 mod common;
 mod crypto;
 mod fs;
