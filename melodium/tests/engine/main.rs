@@ -7,6 +7,7 @@
 
 mod checks;
 mod common;
+mod compression;
 mod crypto;
 mod fs;
 mod option_defaults;
