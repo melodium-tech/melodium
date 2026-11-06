@@ -3,9 +3,10 @@ use crate::status::*;
 use async_ringbuf::AsyncHeapRb;
 use melodium_core::{
     common::executive::{Input, Output, SecretsAccess},
+    executive::*,
     *,
 };
-use melodium_macro::{check, mel_model, mel_treatment};
+use melodium_macro::{check, mel_data, mel_function, mel_model, mel_treatment};
 use std::sync::RwLock;
 use std::sync::{Arc, Weak};
 use std_mel::data::map::*;
@@ -627,4 +628,140 @@ async fn perform_request_with_body(
         }
         let _ = finished.send_one_as(()).await;
     }
+}
+
+/// HTTP request prepared by someone else, such as presigned by object storage: a method, a URL
+/// and headers, made as given.
+///
+/// Prepared requests hold no credential of the program, but their URL often is one, holding a
+/// signature: `Display` and `ToString` give only the method and the host, and treatments
+/// making them never give the URL in errors.
+///
+/// They are read from JSON as `{"method": "PUT", "url": "https://…", "headers": {…}}`, with
+/// `json/value::fromJson<PreparedRequest>`, `headers` being optional, or made with
+/// `|prepared_request`.
+#[mel_data(traits(Serialize Deserialize ToString Display))]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PreparedRequest {
+    pub method: String,
+    pub url: String,
+    #[serde(default)]
+    pub headers: std::collections::BTreeMap<String, String>,
+}
+
+impl PreparedRequest {
+    /// The method and host of the request, without anything of its URL that could be a
+    /// credential.
+    fn described(&self) -> String {
+        match Url::parse(&self.url)
+            .ok()
+            .and_then(|url| url.host_str().map(|host| host.to_string()))
+        {
+            Some(host) => format!("{} {host}", self.method),
+            None => self.method.clone(),
+        }
+    }
+}
+
+impl core::fmt::Debug for PreparedRequest {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PreparedRequest")
+            .field("method", &self.method)
+            .finish_non_exhaustive()
+    }
+}
+
+impl ToString for PreparedRequest {
+    fn to_string(&self) -> string {
+        self.described()
+    }
+}
+
+impl Display for PreparedRequest {
+    fn display(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(f, "{}", self.described())
+    }
+}
+
+/// Make a prepared request of `method` to `url`, with `headers`.
+#[mel_function]
+pub fn prepared_request(method: HttpMethod, url: string, headers: StringMap) -> PreparedRequest {
+    PreparedRequest {
+        method: method.0.to_string(),
+        url,
+        headers: headers.map.into_iter().collect(),
+    }
+}
+
+/// Download what a prepared request gives, resuming after cuts.
+///
+/// The body of the answer to `request`, such as a presigned download of object storage, is
+/// streamed through `data`. When the download is cut (connection lost, `5xx`, `429` or `408`
+/// answer), it resumes up to `retries` times, waiting longer each time, from where it was cut
+/// (`Range`), on the same version of the object (`If-Match` with the `ETag` of the first
+/// answer): no byte is given twice.
+///
+/// Once the whole object is given, `completed` is emitted. If the request is refused, the
+/// object changes, it cannot be resumed (no `ETag`), or retries are exhausted, `failed` is
+/// emitted and `error` contains the reason, with the status and the `<Code>` of XML error
+/// bodies, never the URL. What was given before does not make the whole object then.
+/// `finished` is emitted in every case.
+///
+/// The request is made as given, without the headers of any `HttpClient`.
+///
+/// ```mermaid
+/// graph LR
+///     T("download()")
+///     R["〈🟨〉"] -->|request| T
+///
+///     T -->|data| O["… 🟦 🟦 🟦"]
+///     T -->|completed| C["〈🟩〉"]
+///     T -->|failed| F["〈🟥〉"]
+///
+///     style R fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+/// ```
+#[mel_treatment(
+    default retries 5
+    input request Block<PreparedRequest>
+    output data Stream<byte>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
+)]
+pub async fn download(retries: u32) {
+    if let Ok(request) = request.recv_one_as::<Arc<PreparedRequest>>().await {
+        #[cfg(feature = "real")]
+        let result =
+            crate::transfer::download(crate::transfer::client(), &request, retries, |bytes| {
+                let data = &data;
+                async move {
+                    data.send_many(TransmissionValue::Byte(bytes.into()))
+                        .await
+                        .is_ok()
+                }
+            })
+            .await;
+        #[cfg(feature = "mock")]
+        let result: Result<bool, String> = {
+            let _ = (&request, retries);
+            Err("downloads are not available in mock mode".to_string())
+        };
+
+        data.close().await;
+        match result {
+            Ok(true) => {
+                let _ = completed.send_one(().into()).await;
+            }
+            Ok(false) => {}
+            Err(reason) => {
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(reason.into()).await;
+            }
+        }
+    }
+    let _ = finished.send_one(().into()).await;
 }

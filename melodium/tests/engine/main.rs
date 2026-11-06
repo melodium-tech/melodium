@@ -9,6 +9,7 @@ mod checks;
 mod common;
 mod compression;
 mod crypto;
+mod http;
 mod json;
 mod fs;
 mod option_defaults;
