@@ -1,0 +1,50 @@
+[package]
+name = "compression-mel"
+version = "0.11.0"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.94"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium compression library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "compression_mel"
+
+[dependencies]
+melodium-core = { path = "../../melodium-core", version = "0.11.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
+async-compression = { version = "0.4.51", default-features = false, features = ["futures-io", "brotli", "deflate", "deflate64", "gzip", "zlib", "zstd-mzstd"], optional = true }
+futures = "0.3"
+
+[dev-dependencies]
+futures = { version = "0.3", features = ["executor"] }
+
+[features]
+mock = []
+plugin = []
+real = ["dep:async-compression"]
+"docs.rs" = ["mock"]
+
+[package.metadata.docs.rs]
+features = ["docs.rs"]
+rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "riscv64gc-unknown-linux-gnu",
+    "s390x-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+    "wasm32-unknown-unknown"
+]
+

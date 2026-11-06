@@ -1,0 +1,107 @@
+#!/usr/bin/env melodium
+#! name = json_values
+#! version = 0.1.0
+#! require = std:0.11.0 json:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/flow::emit
+use std/flow::stream
+use std/flow/vec::flatten
+use std/ops/option::unwrap
+use std/conv::toString
+use std/data/string_map::StringMap
+use std/data/string_map::get as getHeader
+use json::Json
+use json::toJson
+use json/value::get
+use json/value::index
+use json/value::pointer
+use json/value::insert
+use json/value::fromJson
+use json/value::intoJson
+use json/value::|object
+use json/value::|insert
+use json/value::|from_string
+use json/value::|array
+use json/value::|push
+use json/value::fromNumberU64
+use json/value::fromNumberI64
+
+treatment main()
+{
+    startup()
+
+    emitAnswer: emit<string>(value=${{ {"hit": {"name": "cargo", "size": 42, "parts": [{"part_number": 1}, {"part_number": 2} ], "download": {"method": "GET", "headers": {"Range": "bytes=0-"} } } } }})
+    streamAnswer: stream<string>()
+    toJson()
+    unwrapAnswer: unwrap<Json>()
+    startup.trigger -> emitAnswer.trigger,emit -> streamAnswer.block,stream -> toJson.text,json -> unwrapAnswer.option
+
+    // A number at a pointer, read as u64.
+    size: pointer(pointer="/hit/size")
+    unwrapSize: unwrap<Json>()
+    sizeU64: fromJson<u64>()
+    unwrapSizeU64: unwrap<u64>()
+    sizeText: toString<u64>()
+    logSize: logInfos(label="size")
+    unwrapAnswer.value -> size.json,value -> unwrapSize.option,value -> sizeU64.json,value -> unwrapSizeU64.option,value -> sizeText.value,into -> logSize.messages
+
+    // An object of strings, read as a string map.
+    hit: get(key="hit")
+    unwrapHit: unwrap<Json>()
+    headers: pointer(pointer="/download/headers")
+    unwrapHeaders: unwrap<Json>()
+    headersMap: fromJson<StringMap>()
+    unwrapHeadersMap: unwrap<StringMap>()
+    range: getHeader(key="Range")
+    unwrapRange: unwrap<string>()
+    logRange: logInfos(label="range")
+    unwrapAnswer.value -> hit.json,value -> unwrapHit.option,value -> headers.json,value -> unwrapHeaders.option,value -> headersMap.json,value -> unwrapHeadersMap.option,value -> range.map,value -> unwrapRange.option,value -> logRange.messages
+
+    // An element of an array.
+    parts: pointer(pointer="/hit/parts")
+    unwrapParts: unwrap<Json>()
+    second: index(index=1)
+    unwrapSecond: unwrap<Json>()
+    secondText: toString<Json>()
+    logSecond: logInfos(label="second")
+    unwrapAnswer.value -> parts.json,value -> unwrapParts.option,value -> second.json,value -> unwrapSecond.option,value -> secondText.value,into -> logSecond.messages
+
+    // A request built from values received.
+    emitObject: emit<Json>(value=|object())
+    streamObject: stream<Json>()
+    emitName: emit<string>(value="cargo")
+    streamName: stream<string>()
+    nameJson: intoJson<string>()
+    unwrapName: unwrap<Json>()
+    insert(key="name")
+    requestText: toString<Json>()
+    logRequest: logInfos(label="request")
+    startup.trigger -> emitObject.trigger,emit -> streamObject.block,stream -> insert.object
+    startup.trigger -> emitName.trigger,emit -> streamName.block,stream -> nameJson.value,json -> unwrapName.option,value -> insert.value
+    insert.json -> requestText.value,into -> logRequest.messages
+
+    // The same with functions.
+    emitBuilt: emit<Json>(value=|push(|array([]), |insert(|object(), "part_number", |from_string<string>("one"))))
+    streamBuilt: stream<Json>()
+    builtText: toString<Json>()
+    logBuilt: logInfos(label="built")
+    startup.trigger -> emitBuilt.trigger,emit -> streamBuilt.block,stream -> builtText.value,into -> logBuilt.messages
+
+    // Numbers of any size, as numbers.
+    emitLarge: emit<Vec<u64>>(value=[70000, 18446744073709551615])
+    streamLarge: stream<Vec<u64>>()
+    flattenLarge: flatten<u64>()
+    largeJson: fromNumberU64<u64>()
+    largeText: toString<Json>()
+    logLarge: logInfos(label="large")
+    startup.trigger -> emitLarge.trigger,emit -> streamLarge.block,stream -> flattenLarge.vector,value -> largeJson.value,json -> largeText.value,into -> logLarge.messages
+
+    emitNegative: emit<i64>(value=-70000)
+    streamNegative: stream<i64>()
+    negativeJson: fromNumberI64<i64>()
+    negativeText: toString<Json>()
+    logNegative: logInfos(label="negative")
+    startup.trigger -> emitNegative.trigger,emit -> streamNegative.block,stream -> negativeJson.value,json -> negativeText.value,into -> logNegative.messages
+}

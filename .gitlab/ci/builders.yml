@@ -252,7 +252,7 @@
         cargo install xwin --locked
         xwin --accept-license --manifest-version 16 --arch x86_64 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
       fi
-    - export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/x86_64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/x86_64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/x86_64"
+    - export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static --cfg async_compression_unstable -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/x86_64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/x86_64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/x86_64"
     - export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=lld
     - export CARGO_BUILD_TARGET=x86_64-pc-windows-msvc
     - rustc --version
@@ -267,7 +267,7 @@
     - "& './rustup-init.exe' -vy"
     - $env:Path = "$env:USERPROFILE\.cargo\bin;$env:CARGO_HOME/bin;$env:Path"
     - rustup default stable-msvc
-    - $env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static"
+    - $env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static --cfg async_compression_unstable"
     - rustc --version
     - cargo --version 
 
@@ -299,7 +299,7 @@
         cargo install xwin --locked
         xwin --accept-license --manifest-version 16 --arch x86 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
       fi
-    - export CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/x86 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/x86 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/x86"
+    - export CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static --cfg async_compression_unstable -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/x86 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/x86 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/x86"
     - export CARGO_TARGET_I686_PC_WINDOWS_MSVC_LINKER=lld
     - export CARGO_BUILD_TARGET=i686-pc-windows-msvc
     - rustc --version
@@ -315,7 +315,7 @@
     - $env:Path = "$env:USERPROFILE\.cargo\bin;$env:CARGO_HOME/bin;$env:Path"
     - rustup default stable-msvc
     - rustup target add i686-pc-windows-msvc
-    - $env:CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static"
+    - $env:CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static --cfg async_compression_unstable"
     - rustc --version
     - cargo --version
 
@@ -334,7 +334,7 @@
         cargo install xwin --locked
         xwin --accept-license --manifest-version 16 --arch aarch64 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
       fi
-    - export CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/aarch64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/aarch64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/aarch64"
+    - export CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static --cfg async_compression_unstable -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/aarch64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/aarch64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/aarch64"
     - export CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER=lld
     - export CARGO_BUILD_TARGET=aarch64-pc-windows-msvc
     - rustc --version
@@ -355,7 +355,7 @@
     - rustup target add aarch64-pc-windows-msvc
     - Install-Module Pscx -Force -AllowClobber -Scope CurrentUser
     - Invoke-BatchFile "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64_arm64
-    - $env:CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static"
+    - $env:CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static --cfg async_compression_unstable"
     - rustc --version
     - cargo --version
   # script:

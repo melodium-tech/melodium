@@ -7,7 +7,10 @@
 
 mod checks;
 mod common;
+mod compression;
 mod crypto;
+mod json;
+mod fs;
 mod option_defaults;
 mod restitution;
 mod scatter;

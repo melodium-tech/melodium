@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding reading of JSON values (`json/value::|get`, `|index`, `|pointer`, and their treatments), building of objects and arrays (`|object`, `|insert`, `|array`, `|push`, and the `insert`, `array` and `push` treatments), and conversion of JSON values to and from typed values (`|from_json<T: Deserialize>`, `|into_json<T: Serialize>`, `fromJson`, `intoJson`), string maps being objects of strings (#163).
+- Fixing `fromNumberU64` and `fromNumberI64`, which narrowed streamed numbers to 16 bits and panicked on larger ones (#163).
+
 ## [v0.11.0] (2026-10-15)
 
 - No changes in this crate.
