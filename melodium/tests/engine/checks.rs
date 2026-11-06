@@ -34,7 +34,7 @@ fn missing_contexts_are_refused() {
 /// again: there are 2 to the power of `levels` paths from `startup`.
 fn diamonds(levels: usize) -> String {
     let mut script = String::from(
-        "#!/usr/bin/env melodium\n#! name = check_diamonds\n#! version = 0.1.0\n#! require = std:0.11.0\n\n\
+        "#!/usr/bin/env melodium\n#! name = check_diamonds\n#! version = 0.1.0\n#! require = std:0.11.1\n\n\
          use std/engine/util::startup\nuse std/flow::passBlock\nuse std/flow::one\n\n\
          treatment main()\n{\n    startup()\n",
     );

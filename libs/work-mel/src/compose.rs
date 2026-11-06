@@ -859,7 +859,7 @@ mod needs_tests {
 
     fn request(system: Option<System>) -> Request {
         let mut request: Request = serde_json::from_value(serde_json::json!({
-            "version": "0.11.0", "mode": "direct", "volumes": [], "containers": [],
+            "version": "0.11.1", "mode": "direct", "volumes": [], "containers": [],
             "service_containers": [], "tags": []
         }))
         .unwrap();

@@ -1,6 +1,6 @@
 [package]
 name = "sql-mel"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.94"
 edition = "2021"
@@ -19,9 +19,9 @@ name = "sql_mel"
 [dependencies]
 async-lock = "3.4"
 futures-lite = "2.6"
-melodium-core = { path = "../../melodium-core", version = "0.11.0" }
-melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
-std-mel = { path = "../std-mel", version = "0.11.0" }
+melodium-core = { path = "../../melodium-core", version = "0.11.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.11.1" }
+std-mel = { path = "../std-mel", version = "0.11.1" }
 sqlx = { version = "0.9" }
 url = "2.5"
 zeroize = "1.9"

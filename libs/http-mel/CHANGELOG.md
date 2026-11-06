@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Adding uploads to prepared requests (`http/upload`): data cut ahead in parts of growing sizes (`cut`, `|part_size`), each part sent with its own request and retried while kept (`parts`), giving the entity tags to complete the upload, and data of known size sent in one request (`put`) (#165).
 - Adding prepared requests (`http/client::PreparedRequest`, `|prepared_request`), such as presigned by object storage, made as given and shown by method and host only, and `http/client::download`, streaming what one gives and resuming after cuts with `Range` and `If-Match`, never giving a byte twice nor the URL in errors (#164).

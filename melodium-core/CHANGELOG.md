@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Giving the sources whose tracks inherit contexts to `descriptor::Model::new` (#167).
 - Adding generics to `descriptor::Source`, taken by `Source::new` (#166).

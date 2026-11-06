@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Adding the `api-run:token` secret source, giving the token of the api.melodium.tech run to the secret headers of requests to its endpoints, masked from the start; `api-run` is reserved as `api` is. The `distribution` feature brings `compression`, `crypto`, and the `http` and `json` packages, which `work` uses (#154).
 - Adding the `api-id:<audience>` secret source, giving the identity token of the api.melodium.tech run for `audience`, such as `vault::Vault(auth="jwt", jwt="api-id:vault")`; `api-id` is reserved as `api` is (#153).

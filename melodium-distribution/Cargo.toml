@@ -1,6 +1,6 @@
 [package]
 name = "melodium-distribution"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.94"
 edition = "2021"
@@ -16,10 +16,10 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_distribution"
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "0.11.0" }
-melodium-engine = { path = "../melodium-engine", version = "0.11.0" }
-melodium-share = { path = "../melodium-share", version = "0.11.0" }
-melodium-loader = { path = "../melodium-loader", version = "0.11.0" }
+melodium-common = { path = "../melodium-common", version = "0.11.1" }
+melodium-engine = { path = "../melodium-engine", version = "0.11.1" }
+melodium-share = { path = "../melodium-share", version = "0.11.1" }
+melodium-loader = { path = "../melodium-loader", version = "0.11.1" }
 async-channel = "2.5"
 async-lock = "3.4"
 ciborium = "0.2.2"
@@ -34,7 +34,7 @@ uuid = { version = "1.5.0", features = ["serde"] }
 serde_json = "1"
 
 [dev-dependencies]
-melodium-certs = { path = "../melodium-certs", version = "0.11.0" }
+melodium-certs = { path = "../melodium-certs", version = "0.11.1" }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

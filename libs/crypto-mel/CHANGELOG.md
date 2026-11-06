@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Adding SHA-256 digests of data streams (`crypto/hash::sha256`) and of byte vectors (`crypto/hash::|sha256`), in lowercase hexadecimal (#161).
 

@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Adding `work/artifact`: `pushArtifact` pushes the files of a directory as a run artifact of api.melodium.tech, each file in a track of its own (`std/flow/scatter`), read, scanned for revealed secret values with its path, and uploaded in parts while it is read, with its entrypoint (renders), access, retention and lock; `pushArtifactFile` pushes a single file under its name; `fetchArtifact` writes the files of an artifact of a run, downloaded with resumption and checked against their sha256, a file that differs being removed (#155).
 - Adding `work/run::get` and `|api_root_url()`, reading endpoints of api.melodium.tech as the run, such as the stable addresses of artifacts (#155).

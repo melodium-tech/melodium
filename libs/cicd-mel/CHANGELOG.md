@@ -1,7 +1,7 @@
 
 # Changelog
 
-## Unreleased
+## [v0.11.1] (2026-11-06)
 
 - Adding `cicd/artifact`: `Artifact`, `|artifact(filesystem, path, name)` for the files of a directory and `|artifact_file` for a single file, and `artifacts` on `stepOn`, `simpleStep` and their variants, pushed as run artifacts of api.melodium.tech once commands succeed, each in a track of its own, before the step finishes; an artifact that cannot be pushed only logs a warning (#155).
 - Adding `cicd/cache`: `Cache` and `|cache(filesystem, path, name)`, a directory of a volume, or of the local file system of the engine, restored before the commands of a step and saved once they succeed, a miss and a failed save only logging warnings. `stepOn`, `simpleStep` and their variants take a `cache`, and their `Cached` variants (`stepOnCached`, `simpleStepCached`...) take its name on a `cache_name` input, for names computed by programs. `step` finishes once the cache is saved (#154).

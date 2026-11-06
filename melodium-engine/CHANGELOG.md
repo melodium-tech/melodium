@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Masking the values secret sources give through `masked_values` from their registration (#154).
 - Giving the tracks of inheriting sources the contexts of their parent track, their own replacing inherited ones of the same name, and checking them at genesis with the contexts available where the treatment hosting the source runs (#167).

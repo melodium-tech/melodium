@@ -14,7 +14,7 @@ fn program(name: &str, call: &str) -> String {
         r#"#!/usr/bin/env melodium
 #! name = {name}
 #! version = 0.1.0
-#! require = std:0.11.0
+#! require = std:0.11.1
 
 use std/engine/util::startup
 use std/flow::emit
