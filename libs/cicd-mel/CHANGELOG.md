@@ -3,6 +3,7 @@
 
 ## Unreleased
 
+- Adding `cicd/cache`: `Cache` and `|cache(filesystem, path, name)`, a directory of a volume, or of the local file system of the engine, restored before the commands of a step and saved once they succeed, a miss and a failed save only logging warnings. `stepOn`, `simpleStep` and their variants take a `cache`, and their `Cached` variants (`stepOnCached`, `simpleStepCached`...) take its name on a `cache_name` input, for names computed by programs. `step` finishes once the cache is saved (#154).
 - Giving `max_duration` of `simpleStep` and `simpleStepWithInput` (and their terminable variants) to their worker, which kept the default of one hour.
 - Adding `tags` to `simpleStep` and `simpleStepWithInput` (and their terminable variants), hints given with the worker request, such as `name=build`.
 - Raising the storage of the container of `simpleStep` and `simpleStepWithInput` (and their terminable variants) to the size of its `/mnt/data` volume when `out_storage` is larger, instead of having the request refused.

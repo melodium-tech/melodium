@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Masking the values secret sources give through `masked_values` from their registration (#154).
 - Giving the tracks of inheriting sources the contexts of their parent track, their own replacing inherited ones of the same name, and checking them at genesis with the contexts available where the treatment hosting the source runs (#167).
 - Keeping the types of generic sources in their entries, given to models when sources are invoked, and making tracks only for entries of the types asked (#166).
 - Searching the revealed values in data leaving the engine, as is, in base64, URL-encoded, or as bytes when they are not text, never line by line as masking does (#162).

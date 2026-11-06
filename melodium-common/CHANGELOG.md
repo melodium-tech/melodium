@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Adding `SecretSource::masked_values`, values a source masks from its registration, empty by default (#154).
 - Adding `Model::source_inherits_contexts` to model descriptors, false by default (#167).
 - Giving the types of generic sources to models in `Model::invoke_source`, and making tracks only for the entries of given types in `World::create_track`, breaking for implementors of both (#166).
 - Adding `SecretsAccess::revealed_scan`, searching the values the engine revealed in data given chunk by chunk, values across chunks included, such as files leaving it, through `SecretsHost::revealed_values` and the `RevealedValues` trait (#162).

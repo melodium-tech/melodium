@@ -19,7 +19,7 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | `image:` | `image` parameter of `simpleStep` |
 | `services:` | `service_containers` parameter of `simpleStep` |
 | `artifacts:` | `out_file` + `data` stream output; `simpleStepWithInput` to consume |
-| `cache:` | No direct equivalent; share data via `data` streams or mounted volumes |
+| `cache:` | `cache` parameter of `simpleStep`, `\|wrap<Cache>(\|cache(\|wrap<string>("data"), "<dir under /mnt/data>", "<name>"))` from `cicd/cache`, restored before `commands` and saved as a new version after success, on api.melodium.tech workers; `simpleStepCached` takes a name computed by the program (such as from `cache:key:files`) on `cache_name`, and `work/cache::restoreCache` falls back to other names on `missed` |
 | `rules:` / `only:` / `except:` | `filterBlock<void>()` or `passBlock<void>()` on the `trigger` |
 | `when: on_success` | Default: chain `success` output to next trigger |
 | `when: on_failure` | Chain `failed` or `error` output to next trigger |
@@ -197,6 +197,7 @@ treatment buildJob[dispatcher: CicdDispatchEngine](
 | `commands` | required | List of `Command` to run sequentially |
 | `out_file` | `_` | File to stream back as `data` after success (equivalent to `artifacts:`) |
 | `out_storage` | `_` | Override data volume size in MB |
+| `cache` | `_` | Directory of the `data` volume restored from an api.melodium.tech cache before `commands` and saved after success (`Option<Cache>`, from `cicd/cache::\|cache`), equivalent to `cache:` |
 | `report` | `true` | Enable service state reporting |
 | `gitlab` | `false` | Report to GitLab commit status API |
 | `gitlab_root_url` | `"https://gitlab.com/api/v4"` | GitLab API root URL |

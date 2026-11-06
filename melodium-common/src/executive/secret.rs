@@ -26,6 +26,12 @@ pub trait SecretSource: Debug + Send + Sync {
         true
     }
 
+    /// Values masked from the moment the source is registered, by name, whether or not they
+    /// are ever revealed, such as a token the source holds and gives.
+    fn masked_values(&self) -> Vec<(String, Value)> {
+        Vec::new()
+    }
+
     /// Called when the engine ends, to wipe what the source keeps, such as cached values.
     ///
     /// Tracks still finishing may resolve secrets afterwards.

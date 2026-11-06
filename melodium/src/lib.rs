@@ -321,9 +321,10 @@ pub fn load_file_force_entrypoint(
 
 /// Secret sources given to the engines of this build, besides `env` and `file`.
 ///
-/// With distribution, `api` reads the secrets stored on api.melodium.tech, and `api-id` gives the
-/// identity tokens of the run, on its workers. Elsewhere they refuse their secrets, telling
-/// why, and both schemes stay reserved: no model can register them.
+/// With distribution, `api` reads the secrets stored on api.melodium.tech, `api-id` gives the
+/// identity tokens of the run, and `api-run` the token of the run, on its workers. Elsewhere
+/// they refuse their secrets, telling why, and the schemes stay reserved: no model can register
+/// them.
 pub fn secret_sources() -> Vec<(String, Arc<dyn SecretSource>)> {
     #[allow(unused_mut)]
     let mut sources: Vec<(String, Arc<dyn SecretSource>)> = Vec::new();
@@ -333,6 +334,10 @@ pub fn secret_sources() -> Vec<(String, Arc<dyn SecretSource>)> {
         sources.push((
             work_mel::secret::IDENTITY_SCHEME.to_string(),
             work_mel::secret::ApiIdentitySource::new(&source),
+        ));
+        sources.push((
+            work_mel::secret::RUN_SCHEME.to_string(),
+            work_mel::secret::ApiRunSource::new(&source),
         ));
         sources.push((work_mel::secret::SCHEME.to_string(), source));
     }
