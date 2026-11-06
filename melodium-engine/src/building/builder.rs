@@ -1,5 +1,5 @@
 use super::{
-    BuildId, CheckBuildResult, CheckEnvironment, CheckState, ContextualEnvironment,
+    BuildId, CheckBuildResult, CheckEnvironment, CheckState, CheckStep, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, HostTreatment, StaticBuildResult,
 };
 use crate::{design::Value, error::LogicResult};
@@ -37,6 +37,11 @@ pub trait Builder: Debug + Send + Sync {
         environment: CheckEnvironment,
         state: &mut CheckState,
     ) -> Option<CheckBuildResult>;
+    /// The build hosting `build`, for builds whose tracks start in a host, such as sources.
+    fn check_host(&self, build: BuildId) -> Option<CheckStep> {
+        let _ = build;
+        None
+    }
     #[allow(unused)]
     fn check_give_next(
         &self,

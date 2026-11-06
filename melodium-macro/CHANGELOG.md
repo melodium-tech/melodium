@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Adding `inherit` to the sources of `mel_model`, whose tracks then get the contexts of the track they are made from (#167).
 - Adding generic sources to `mel_model`, declared with `generic` in their parameters, the types of each use being given to `invoke_generic_source`, and the `new_<source>` helpers of generic sources taking the types of the tracks to make (#166).
 
 ## [v0.11.0] (2026-10-15)
