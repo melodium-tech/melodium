@@ -1,13 +1,29 @@
-//! The `crypto` package signs data with HMAC, verifies Ed25519 signatures, signs and
-//! verifies JSON Web Tokens, and makes random tokens.
+//! The `crypto` package digests data, signs data with HMAC, verifies Ed25519 signatures,
+//! signs and verifies JSON Web Tokens, and makes random tokens.
 
 use super::common::{self, revealed};
 use melodium_common::descriptor::DataType;
 use melodium_common::executive::{Secret, SecretOrigin, SecretPolicy, Value};
 use std::collections::HashMap;
 
+const HASH: &str = include_str!("scripts/crypto_hash.mel");
 const SIGN: &str = include_str!("scripts/crypto_sign.mel");
 const SIGNATURES: &str = include_str!("scripts/crypto_signatures.mel");
+
+#[test]
+fn data_is_digested() {
+    let (logs, _) = common::run(HASH, HashMap::new());
+    let message = |label: &str| common::message(&logs, label).to_string();
+
+    // FIPS 180-2, "abc".
+    let abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+    assert_eq!(message("stream"), abc);
+    assert_eq!(message("function"), abc);
+    assert_eq!(
+        message("empty"),
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
+}
 
 #[test]
 fn data_is_signed_with_hmac() {

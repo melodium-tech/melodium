@@ -141,3 +141,79 @@ pub async fn write(append: bool, create: bool, new: bool) {
             .await
     }
 }
+
+/// Remove one file.
+///
+/// The file or link at `path` is removed: a link is removed itself, never what it points to.
+/// Directories are removed with `fs/dir::remove`.
+///
+/// `completed` is emitted when the file is removed. If it cannot be, `failed` is emitted and
+/// `error` contains the reason. `finished` is emitted in both cases.
+#[mel_treatment(
+    input path Block<string>
+    input filesystem Block<FileSystem>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
+)]
+pub async fn remove() {
+    if let (Ok(filesystem), Ok(path)) = (
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        path.recv_one_as::<string>().await,
+    ) {
+        let removed = match filesystem.filesystem.metadata(&path).await {
+            Ok(metadata) if metadata.kind == EntryKind::Directory => {
+                Err(format!("'{path}' is a directory"))
+            }
+            Ok(_) => filesystem.filesystem.remove(&path, false).await,
+            Err(err) => Err(err),
+        };
+        match removed {
+            Ok(()) => {
+                let _ = completed.send_one_as(()).await;
+            }
+            Err(err) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err).await;
+            }
+        }
+    }
+    let _ = finished.send_one_as(()).await;
+}
+
+/// Rename a file or a directory.
+///
+/// The file, directory or link at `from` is moved to `to`, within the same file system, such
+/// as to put a directory prepared beside in place. An existing file at `to` is replaced, an
+/// existing directory only when empty.
+///
+/// `completed` is emitted when it is moved. If it cannot be, `failed` is emitted and `error`
+/// contains the reason. `finished` is emitted in both cases.
+#[mel_treatment(
+    input from Block<string>
+    input to Block<string>
+    input filesystem Block<FileSystem>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
+)]
+pub async fn rename() {
+    if let (Ok(filesystem), Ok(from), Ok(to)) = (
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        from.recv_one_as::<string>().await,
+        to.recv_one_as::<string>().await,
+    ) {
+        match filesystem.filesystem.rename(&from, &to).await {
+            Ok(()) => {
+                let _ = completed.send_one_as(()).await;
+            }
+            Err(err) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err).await;
+            }
+        }
+    }
+    let _ = finished.send_one_as(()).await;
+}

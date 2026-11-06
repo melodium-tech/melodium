@@ -8,27 +8,14 @@ use melodium_macro::{check, mel_function};
 use std::path::{Path, PathBuf};
 use std::{fmt::Debug, sync::Arc};
 
+/// Local file system, without root: paths are those of the process, absolute or relative to
+/// its working directory.
 #[derive(Debug)]
-struct LocalFileSystemEngine {
-    path: Option<PathBuf>,
-}
+struct LocalFileSystemEngine;
 
 impl LocalFileSystemEngine {
     async fn full_path(&self, path: &Path) -> std::io::Result<PathBuf> {
-        if let Some(root_path) = self.path.as_ref() {
-            let full_path = root_path.join(path);
-
-            if full_path.starts_with(root_path) {
-                Ok(full_path)
-            } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "file not found",
-                ))
-            }
-        } else {
-            Ok(path.into())
-        }
+        Ok(path.into())
     }
 }
 
@@ -283,21 +270,226 @@ impl FileSystemEngine for LocalFileSystemEngine {
             let _ = failed().await;
         }
     }
+    async fn metadata(&self, path: &str) -> Result<Metadata, String> {
+        let path = PathBuf::from(path);
+        local(move || {
+            let metadata = std::fs::symlink_metadata(&path)?;
+            let file_type = metadata.file_type();
+            Ok(Metadata {
+                kind: if file_type.is_symlink() {
+                    EntryKind::Link
+                } else if file_type.is_dir() {
+                    EntryKind::Directory
+                } else if file_type.is_file() {
+                    EntryKind::File
+                } else {
+                    EntryKind::Other
+                },
+                size: metadata.len(),
+                mode: mode(&metadata.permissions()),
+                modified: metadata.modified().ok(),
+            })
+        })
+        .await
+    }
+
+    async fn read_dir(&self, path: &str) -> Result<Vec<String>, String> {
+        let path = PathBuf::from(if path.is_empty() { "." } else { path });
+        local(move || {
+            std::fs::read_dir(&path)?
+                .map(|entry| {
+                    entry.and_then(|entry| {
+                        entry.file_name().into_string().map_err(|name| {
+                            std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                format!("{} is not a valid name", name.to_string_lossy()),
+                            )
+                        })
+                    })
+                })
+                .collect()
+        })
+        .await
+    }
+
+    async fn read_link(&self, path: &str) -> Result<String, String> {
+        let path = PathBuf::from(path);
+        local(move || std::fs::read_link(&path))
+            .await?
+            .into_os_string()
+            .into_string()
+            .map_err(|target| format!("{} is not a valid target", target.to_string_lossy()))
+    }
+
+    async fn create_link(&self, target: &str, path: &str) -> Result<(), String> {
+        #[cfg(unix)]
+        {
+            let target = PathBuf::from(target);
+            let path = PathBuf::from(path);
+            local(move || std::os::unix::fs::symlink(&target, &path)).await
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (target, path);
+            Err("links can only be created on Unix systems".to_string())
+        }
+    }
+
+    async fn set_metadata(
+        &self,
+        path: &str,
+        mode: Option<u32>,
+        modified: Option<std::time::SystemTime>,
+    ) -> Result<(), String> {
+        let path = PathBuf::from(path);
+        local(move || {
+            if std::fs::symlink_metadata(&path)?.file_type().is_symlink() {
+                return Ok(());
+            }
+            // Times first, as the mode could forbid opening the entry.
+            if let Some(modified) = modified {
+                std::fs::File::open(&path)?.set_modified(modified)?;
+            }
+            if let Some(mode) = mode {
+                set_mode(&path, mode)?;
+            }
+            Ok(())
+        })
+        .await
+    }
+
+    async fn remove(&self, path: &str, recursive: bool) -> Result<(), String> {
+        let path = PathBuf::from(path);
+        local(move || {
+            if std::fs::symlink_metadata(&path)?.is_dir() {
+                if recursive {
+                    std::fs::remove_dir_all(&path)
+                } else {
+                    std::fs::remove_dir(&path)
+                }
+            } else {
+                std::fs::remove_file(&path)
+            }
+        })
+        .await
+    }
+
+    async fn rename(&self, from: &str, to: &str) -> Result<(), String> {
+        let from = PathBuf::from(from);
+        let to = PathBuf::from(to);
+        local(move || std::fs::rename(&from, &to)).await
+    }
+}
+
+/// Runs `operation` on a thread where blocking is allowed.
+async fn local<T: Send + 'static>(
+    operation: impl FnOnce() -> std::io::Result<T> + Send + 'static,
+) -> Result<T, String> {
+    #[cfg(feature = "real")]
+    {
+        blocking::unblock(operation)
+            .await
+            .map_err(|err| err.to_string())
+    }
+    #[cfg(feature = "mock")]
+    {
+        let _ = operation;
+        Err("Mock mode".to_string())
+    }
+}
+
+/// Permissions mode, where there is one.
+fn mode(permissions: &std::fs::Permissions) -> Option<u32> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        Some(permissions.mode())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = permissions;
+        None
+    }
+}
+
+/// Sets the permissions `mode` of `path`, on systems having modes.
+fn set_mode(path: &Path, mode: u32) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, mode);
+        Ok(())
+    }
 }
 
 /// Create a local filesystem handle optionally rooted at `path`.
 ///
 /// When `path` is `Some`, all file operations performed through the returned `FileSystem`
-/// are interpreted relative to that directory.
-/// When `path` is `None`, the process working directory is used as the root.
+/// are interpreted relative to that directory, and stay within it: `..`, absolute paths and
+/// links leading out of it are refused, links staying within it are followed.
+/// When `path` is `None`, paths are those of the process, absolute or relative to its working
+/// directory.
 ///
 /// Returns `None` only when the underlying engine cannot be initialised, which in practice
 /// never happens for a local filesystem.
 #[mel_function]
 pub fn local_filesystem(path: Option<string>) -> Option<FileSystem> {
+    #[cfg(feature = "real")]
+    if let Some(path) = path {
+        return Some(FileSystem {
+            filesystem: Arc::new(crate::rooted::RootedFileSystemEngine::new(PathBuf::from(
+                path,
+            ))),
+        });
+    }
     Some(FileSystem {
-        filesystem: Arc::new(LocalFileSystemEngine {
-            path: path.map(|path| PathBuf::from(path)),
-        }),
+        filesystem: Arc::new(LocalFileSystemEngine),
     })
+}
+
+#[cfg(all(test, feature = "real", unix))]
+mod tests {
+    use super::*;
+    use futures::executor::block_on;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn entries_are_described_moved_and_removed() {
+        let base = std::env::temp_dir().join(format!("fs-mel-local-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("dir")).unwrap();
+        std::fs::write(base.join("dir/file"), b"local").unwrap();
+        let engine = LocalFileSystemEngine;
+        let path = |name: &str| base.join(name).to_string_lossy().to_string();
+
+        block_on(engine.create_link("/nowhere", &path("dir/link"))).unwrap();
+        assert_eq!(
+            block_on(engine.read_link(&path("dir/link"))).unwrap(),
+            "/nowhere"
+        );
+        assert_eq!(
+            block_on(engine.metadata(&path("dir/link"))).unwrap().kind,
+            EntryKind::Link
+        );
+        let mut names = block_on(engine.read_dir(&path("dir"))).unwrap();
+        names.sort();
+        assert_eq!(names, ["file", "link"]);
+
+        let modified = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000_000);
+        block_on(engine.set_metadata(&path("dir/file"), Some(0o600), Some(modified))).unwrap();
+        let file = block_on(engine.metadata(&path("dir/file"))).unwrap();
+        assert_eq!((file.kind, file.size), (EntryKind::File, 5));
+        assert_eq!(file.mode.unwrap() & 0o777, 0o600);
+        assert_eq!(file.modified, Some(modified));
+
+        block_on(engine.rename(&path("dir"), &path("moved"))).unwrap();
+        assert!(block_on(engine.remove(&path("moved"), false)).is_err());
+        block_on(engine.remove(&path("moved"), true)).unwrap();
+        assert!(!base.join("moved").exists());
+        std::fs::remove_dir_all(&base).unwrap();
+    }
 }
