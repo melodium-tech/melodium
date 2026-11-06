@@ -8619,6 +8619,8 @@ dependencies = [
  "async-compat",
  "async-process",
  "async-trait",
+ "base64 0.22.1",
+ "bytes",
  "chrono",
  "compose_spec",
  "fs-mel",

@@ -217,7 +217,12 @@ pub enum RawValue {
         value: Option<SecretValue>,
     },
 
-    Data(Identifier, Option<Vec<u8>>),
+    Data(
+        Identifier,
+        #[serde(with = "serde_bytes")]
+        #[cfg_attr(feature = "webassembly", tsify(type = "Uint8Array | null"))]
+        Option<Vec<u8>>,
+    ),
 }
 
 /// Tells if `value` may hold secrets, directly or inside data values.
@@ -1248,5 +1253,22 @@ mod secret_wire_tests {
         assert!(Value::Raw(raw)
             .to_value(&Collection::new(), &scope)
             .is_failure());
+    }
+
+    #[test]
+    fn data_payload_is_a_cbor_byte_string() {
+        let payload = vec![0xA5u8; 300];
+        let raw = RawValue::Data(
+            Identifier {
+                version: None,
+                path: vec!["root".to_string()],
+                name: "Custom".to_string(),
+            },
+            Some(payload.clone()),
+        );
+        let cbor = cbor4ii::serde::to_vec(Vec::new(), &raw).unwrap();
+        assert!(cbor.len() < payload.len() + 64);
+        let back: RawValue = cbor4ii::serde::from_slice(&cbor).unwrap();
+        assert_eq!(back, raw);
     }
 }

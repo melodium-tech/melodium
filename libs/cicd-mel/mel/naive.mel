@@ -25,6 +25,7 @@ use std/flow::merge
 use std/flow/vec::flatten
 use std/ops/num::|saturating_add
 use std/ops/num::|div
+use std/ops::|max
 use std/ops/option::|wrap
 use std/ops/option::|unwrap_or
 use work/resources::|container
@@ -200,8 +201,9 @@ This treatment manages creation and run of a container and runs commands inside 
 The runner configuration values are:
 - `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
 - `memory`: memory requested for the worker, in megabytes;
-- `storage`: filesystem storage requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes, raised to the size of the `/mnt/data` volume if smaller;
 - `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `tags`: hints given with the worker request, never refusing it (such as `name=build` to name the job of the worker);
 - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
 - `service_containers`: list of containers to instanciate alongside main container.
 
@@ -231,6 +233,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
     storage: u32 = 5000,
     arch: Option<Arch> = _,
     max_duration: u32 = 3600,
+    tags: Vec<string> = [],
     service_containers: Vec<ServiceContainer> = [],
     image: string,
     pull_secret: Option<Secret<string>> = _,
@@ -273,6 +276,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine](
         storage=storage,
         arch=arch,
         max_duration=max_duration,
+        tags=tags,
         service_containers=service_containers,
         image=image,
         pull_secret=pull_secret,
@@ -320,8 +324,9 @@ This treatment manages creation and run of a container and runs commands inside 
 The runner configuration values are:
 - `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
 - `memory`: memory requested for the worker, in megabytes;
-- `storage`: filesystem storage requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes, raised to the size of the `/mnt/data` volume if smaller;
 - `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `tags`: hints given with the worker request, never refusing it (such as `name=build` to name the job of the worker);
 - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
 - `service_containers`: list of containers to instanciate alongside main container.
 
@@ -351,6 +356,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
     storage: u32 = 5000,
     arch: Option<Arch> = _,
     max_duration: u32 = 3600,
+    tags: Vec<string> = [],
     service_containers: Vec<ServiceContainer> = [],
     image: string,
     pull_secret: Option<Secret<string>> = _,
@@ -395,11 +401,13 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
         cpu=100,
         memory=500,
         storage=|saturating_add<u32>(|unwrap_or<u32>(out_storage, |div<u32>(storage, 10)), 80),
+        max_duration=max_duration,
         volumes=[|volume("data", |unwrap_or<u32>(out_storage, |div<u32>(storage, 10)))],
         containers=[
-            |container(name, memory, cpu, storage, arch, [|mount("data", "/mnt/data")], image, pull_secret)
+            |container(name, memory, cpu, |max<u32>(storage, |unwrap_or<u32>(out_storage, |div<u32>(storage, 10))), arch, [|mount("data", "/mnt/data")], image, pull_secret)
         ],
-        service_containers=service_containers
+        service_containers=service_containers,
+        tags=tags
     )
     stepOnTerminable[runner=runner](
         name=name,
@@ -471,8 +479,9 @@ This treatment manages creation and run of a container and runs commands inside 
 The runner configuration values are:
 - `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
 - `memory`: memory requested for the worker, in megabytes;
-- `storage`: filesystem storage requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes, raised to the size of the `/mnt/data` volume if smaller;
 - `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `tags`: hints given with the worker request, never refusing it (such as `name=build` to name the job of the worker);
 - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
 - `service_containers`: list of containers to instanciate alongside main container.
 
@@ -502,6 +511,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
     storage: u32 = 5000,
     arch: Option<Arch> = _,
     max_duration: u32 = 3600,
+    tags: Vec<string> = [],
     service_containers: Vec<ServiceContainer> = [],
     image: string,
     pull_secret: Option<Secret<string>> = _,
@@ -545,6 +555,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
         storage=storage,
         arch=arch,
         max_duration=max_duration,
+        tags=tags,
         service_containers=service_containers,
         image=image,
         pull_secret=pull_secret,
@@ -593,8 +604,9 @@ This treatment manages creation and run of a container and runs commands inside 
 The runner configuration values are:
 - `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
 - `memory`: memory requested for the worker, in megabytes;
-- `storage`: filesystem storage requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes, raised to the size of the `/mnt/data` volume if smaller;
 - `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `tags`: hints given with the worker request, never refusing it (such as `name=build` to name the job of the worker);
 - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
 - `service_containers`: list of containers to instanciate alongside main container.
 
@@ -624,6 +636,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
     storage: u32 = 5000,
     arch: Option<Arch> = _,
     max_duration: u32 = 3600,
+    tags: Vec<string> = [],
     service_containers: Vec<ServiceContainer> = [],
     image: string,
     pull_secret: Option<Secret<string>> = _,
@@ -670,11 +683,13 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
         cpu=100,
         memory=500,
         storage=|saturating_add<u32>(|unwrap_or<u32>(out_storage, |div<u32>(storage, 10)), 80),
+        max_duration=max_duration,
         volumes=[|volume("data", |unwrap_or<u32>(out_storage, |div<u32>(storage, 10)))],
         containers=[
-            |container(name, memory, cpu, storage, arch, [|mount("data", "/mnt/data")], image, pull_secret)
+            |container(name, memory, cpu, |max<u32>(storage, |unwrap_or<u32>(out_storage, |div<u32>(storage, 10))), arch, [|mount("data", "/mnt/data")], image, pull_secret)
         ],
-        service_containers=service_containers
+        service_containers=service_containers,
+        tags=tags
     )
     stepOnTerminableWithInput[runner=runner](
         name=name,
