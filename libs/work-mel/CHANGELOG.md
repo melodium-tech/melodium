@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- `getFileSystem` gives the file system of a volume rooted at its directory (`fs_mel::rooted::RootedFileSystemEngine`), whatever the executors: `..`, absolute paths and links leading out of the volume are refused, including links that executors sharing the volume create meanwhile. `ContainerFileSystem` and `KubeFileSystem`, which joined paths to the volume, are removed.
 - Adding `secret::ApiIdentitySource`, the `api-id:<audience>` secret source giving the OIDC identity token of the run, requested with `GET /execution/run/{id}/id-token?audience=<audience>`, kept until 30 seconds before it expires, wiped with the values of `api:`, and never plainly revealed (#153).
 - Adding `work/secret::store` and `storeBytes`, storing a `Secret<string>` or `Secret<Vec<byte>>` on api.melodium.tech as a secret of the organization of the run, revealed only to send it, for later runs to read through `api:`; the value the engine kept for that name is forgotten (#152).
 - Breaking: `|service_container` takes `secret_env`, after `env`, variables given as `Secret<string>`. Pull secrets and secret variables stored on api.melodium.tech (`api:<name>`) go by name in the worker request (`pull_secret_name`, `secret_env`), never revealed, other secrets by value when their transmission is `value`, and `local` ones are refused, which pull secrets with the default policy now are. Compose refuses secrets given by name (#151).

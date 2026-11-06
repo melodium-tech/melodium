@@ -1,5 +1,5 @@
 use super::{
-    BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
+    BuildId, CheckBuildResult, CheckEnvironment, CheckState, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, HostTreatment, StaticBuildResult,
 };
 use crate::{design::Value, error::LogicResult};
@@ -35,7 +35,7 @@ pub trait Builder: Debug + Send + Sync {
         &self,
         build: BuildId,
         environment: CheckEnvironment,
-        previous_steps: Vec<CheckStep>,
+        state: &mut CheckState,
     ) -> Option<CheckBuildResult>;
     #[allow(unused)]
     fn check_give_next(
@@ -43,7 +43,7 @@ pub trait Builder: Debug + Send + Sync {
         within_build: BuildId,
         for_label: String,
         environment: CheckEnvironment,
-        previous_steps: Vec<CheckStep>,
+        state: &mut CheckState,
     ) -> Option<CheckBuildResult>;
 }
 

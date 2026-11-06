@@ -7,8 +7,9 @@ use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 use crate::building::HostTreatment;
 use crate::building::{
     model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
-    BuildId, Builder, /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs,
-    GenesisEnvironment, StaticBuildResult,
+    BuildId, Builder, CheckEnvironment, CheckState,
+    /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs, GenesisEnvironment,
+    StaticBuildResult,
 };
 use crate::debug::{
     DebugLevel, Event, EventKind, TrackCreation, TransmissionDebug, TransmissionDetails,
@@ -32,9 +33,9 @@ use melodium_common::descriptor::{
 use melodium_common::executive::{
     check_secret_resolution, register_wipe, Context as ExecutiveContext, ContinuousFuture,
     DirectCreationCallback, Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId,
-    Output as ExecutiveOutput, ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretError,
-    SecretId, SecretSource, SecretTransmission, SecretsAccess, SecretsHost, TrackCreationCallback,
-    TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
+    Output as ExecutiveOutput, ResultStatus, RevealedValues, Secret, SecretAudit,
+    SecretAuditOutcome, SecretError, SecretId, SecretSource, SecretTransmission, SecretsAccess,
+    SecretsHost, TrackCreationCallback, TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::future::Future;
@@ -700,45 +701,47 @@ impl Engine for World {
             _ => panic!("Cannot make a genesis with something else than a treatment"),
         };
 
-        // Check all the tracks/paths
-        let /*mut*/ result = result.and_degrade_failure(LogicResult::new_success(()));
-        /*let models = self.models.read().unwrap();
-        let mut builds = Vec::new();
-        for (model_id, model_sources) in self.sources.read().unwrap().iter() {
-            let model = models.get(*model_id as usize).unwrap();
+        // Check the tracks of every source: the contexts they need, and that they never loop.
+        let mut result = result.and_degrade_failure(LogicResult::new_success(()));
+        {
+            let models = self.models.read().unwrap();
+            for (model_id, model_sources) in self.sources.read().unwrap().iter() {
+                let model = models.get(*model_id as usize).unwrap();
 
-            for (source, entries) in model_sources {
-                let check_environment = CheckEnvironment {
-                    contextes: model
-                        .descriptor()
-                        .sources()
-                        .get(source)
-                        .unwrap()
-                        .iter()
-                        .map(|context| context.name().to_string())
-                        .collect(),
-                };
+                for (source, entries) in model_sources {
+                    let check_environment = CheckEnvironment {
+                        contextes: model
+                            .descriptor()
+                            .sources()
+                            .get(source)
+                            .unwrap()
+                            .iter()
+                            .map(|context| context.name().to_string())
+                            .collect(),
+                    };
+                    // One walk for the whole source, each build being checked once.
+                    let mut state = CheckState::default();
 
-                for entry in entries {
-                    result = result.and_degrade_failure(
-                        self.builder(entry.descriptor.identifier())
-                            .and_then(|builder| {
-                                let check = builder
-                                    .check_dynamic_build(
-                                        entry.id,
-                                        check_environment.clone(),
-                                        Vec::new(),
-                                    )
-                                    .unwrap();
-                                builds.extend(check.checked_builds);
-                                let mut result = LogicResult::new_success(());
-                                result.errors_mut().extend(check.errors);
-                                result
-                            }),
-                    );
+                    for entry in entries {
+                        result = result.and_degrade_failure(
+                            self.builder(entry.descriptor.identifier())
+                                .and_then(|builder| {
+                                    let check = builder
+                                        .check_dynamic_build(
+                                            entry.id,
+                                            check_environment.clone(),
+                                            &mut state,
+                                        )
+                                        .unwrap();
+                                    let mut result = LogicResult::new_success(());
+                                    result.errors_mut().extend(check.errors);
+                                    result
+                                }),
+                        );
+                    }
                 }
             }
-        }*/
+        }
 
         let mut borrowed_errors = self.errors.write().unwrap();
         borrowed_errors.extend(result.errors().clone());
@@ -1309,6 +1312,10 @@ impl SecretsHost for World {
 
     fn add_masked_value(&self, secret_name: &str, value: &Value) {
         self.masking.add(secret_name, value);
+    }
+
+    fn revealed_values(&self) -> Option<Arc<dyn RevealedValues>> {
+        Some(Arc::clone(&self.masking) as Arc<dyn RevealedValues>)
     }
 
     fn revealing(&self) -> bool {
