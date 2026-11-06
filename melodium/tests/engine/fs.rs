@@ -1,5 +1,5 @@
-//! The `fs` package removes and renames files and directories, lists the files of trees, and
-//! archives and extracts directories, within rooted file systems.
+//! The `fs` package removes and renames files and directories, lists the files of trees,
+//! and archives and extracts directories, within rooted file systems.
 
 use super::common;
 use melodium_common::executive::Value;

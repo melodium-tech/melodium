@@ -1,6 +1,6 @@
 # Mélodium compression library
 
-This library provides compression utilities for the Mélodium environment: compressing and decompressing data streams with zstd.
+This library provides compression utilities for the Mélodium environment: compressing and decompressing data streams with zstd, gzip, zlib, deflate and brotli, and decompressing them with deflate64.
 
 ## For Mélodium project
 
