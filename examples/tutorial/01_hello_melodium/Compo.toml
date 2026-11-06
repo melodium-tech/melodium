@@ -2,8 +2,8 @@ name    = "hello_melodium"
 version = "0.1.0"
 
 [dependencies]
-std = "0.11.0"
-fs  = "0.11.0"
+std = "0.11.1"
+fs  = "0.11.1"
 
 [entrypoints]
 main = "hello_melodium/main::main"

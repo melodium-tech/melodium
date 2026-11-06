@@ -47,7 +47,7 @@ async fn detection_does_not_hang() {
         id: None,
         organization_id: None,
         edition: None,
-        version: "0.11.0".to_string(),
+        version: "0.11.1".to_string(),
         mode: ModeRequest::Direct,
         max_duration: Some(60),
         memory: Some(100),

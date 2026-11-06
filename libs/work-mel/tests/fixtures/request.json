@@ -3,7 +3,7 @@
   "id": null,
   "organization_id": null,
   "edition": null,
-  "version": "0.11.0",
+  "version": "0.11.1",
   "mode": {
     "distribution_secret_key": {
       "key": "6f1c1d3e-5f0e-4a0b-9d38-2b5a0c7e41aa"

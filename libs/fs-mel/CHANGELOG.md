@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Adding `fs/archive::tar` and `fs/archive::untar`, archiving a directory of any file system into a tar stream and extracting one while the data flows, archives being deterministic (entries sorted, mode and modification time kept, owner 0), links kept as links and never followed, and extraction never writing out of its target, which it creates (#159).
 - Adding `metadata`, `read_dir`, `read_link`, `create_link`, `set_metadata`, `remove` and `rename` to `FileSystemEngine`, breaking for its implementors, rooted file systems resolving every path within their root and never following links, and the `fs/file::remove`, `fs/file::rename` and `fs/dir::remove` treatments (#158).

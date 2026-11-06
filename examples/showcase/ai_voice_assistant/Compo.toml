@@ -2,13 +2,13 @@ name    = "ai_voice_assistant"
 version = "0.1.0"
 
 [dependencies]
-std      = "0.11.0"
-http     = "0.11.0"
-net      = "0.11.0"
-encoding = "0.11.0"
-fs       = "0.11.0"
-record   = "0.11.0"
-ml       = "0.11.0"
+std      = "0.11.1"
+http     = "0.11.1"
+net      = "0.11.1"
+encoding = "0.11.1"
+fs       = "0.11.1"
+record   = "0.11.1"
+ml       = "0.11.1"
 
 [entrypoints]
 chat  = "ai_voice_assistant/main::chat"

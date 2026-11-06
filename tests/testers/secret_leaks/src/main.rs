@@ -259,7 +259,7 @@ fn secret_values_never_appear_in_packages_nor_documentation() {
     std::fs::create_dir_all(&package).unwrap();
     std::fs::write(
         package.join("Compo.toml"),
-        "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.11.0\"\nprocess = \"0.11.0\"\nfs = \"0.11.0\"\nwork = \"0.11.0\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
+        "name = \"secret_leaks\"\nversion = \"0.1.0\"\n\n[dependencies]\nstd = \"0.11.1\"\nprocess = \"0.11.1\"\nfs = \"0.11.1\"\nwork = \"0.11.1\"\n\n[entrypoints]\nmain = \"secret_leaks::main\"\n",
     )
     .unwrap();
     // The same program without the header of standalone files.

@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Breaking: `launch_listen`, `launch_listen_localcert` and `launch_listen_unsecure` take the secret sources given to the engine, such as `api` on api.melodium.tech workers (#150).
 

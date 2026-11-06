@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [Unreleased]
+## [v0.11.1] (2026-11-06)
 
 - Adding `SecretSource::masked_values`, values a source masks from its registration, empty by default (#154).
 - Adding `Model::source_inherits_contexts` to model descriptors, false by default (#167).

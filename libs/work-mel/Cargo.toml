@@ -1,6 +1,6 @@
 [package]
 name = "work-mel"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.94"
 edition = "2021"
@@ -24,18 +24,18 @@ async-trait = "0.1.71"
 base64 = { version = "0.22", optional = true }
 bytes = { version = "1.10", optional = true }
 futures = "0.3.28"
-std-mel = { path = "../std-mel", version = "0.11.0" }
-compression-mel = { path = "../compression-mel", version = "0.11.0" }
-crypto-mel = { path = "../crypto-mel", version = "0.11.0" }
-fs-mel = { path = "../fs-mel", version = "0.11.0" }
-http-mel = { path = "../http-mel", version = "0.11.0" }
-json-mel = { path = "../json-mel", version = "0.11.0" }
-melodium-core = { path = "../../melodium-core", version = "0.11.0" }
-melodium-engine = { path = "../../melodium-engine", version = "0.11.0" }
-melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
-melodium-share = { path = "../../melodium-share", version = "0.11.0" }
-net-mel = { path = "../net-mel", version = "0.11.0" }
-process-mel = { path = "../process-mel", version = "0.11.0" }
+std-mel = { path = "../std-mel", version = "0.11.1" }
+compression-mel = { path = "../compression-mel", version = "0.11.1" }
+crypto-mel = { path = "../crypto-mel", version = "0.11.1" }
+fs-mel = { path = "../fs-mel", version = "0.11.1" }
+http-mel = { path = "../http-mel", version = "0.11.1" }
+json-mel = { path = "../json-mel", version = "0.11.1" }
+melodium-core = { path = "../../melodium-core", version = "0.11.1" }
+melodium-engine = { path = "../../melodium-engine", version = "0.11.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.11.1" }
+melodium-share = { path = "../../melodium-share", version = "0.11.1" }
+net-mel = { path = "../net-mel", version = "0.11.1" }
+process-mel = { path = "../process-mel", version = "0.11.1" }
 regex = { version = "1.9.1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
