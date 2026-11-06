@@ -1,5 +1,5 @@
 //! Transfers through prepared requests, made as given with a client of their own: downloads
-//! resumed after a cut.
+//! resumed after a cut, and uploads in parts retried one by one.
 //!
 //! Prepared URLs often are credentials, such as presigned ones: they never appear in errors,
 //! which give the status of answers and the `<Code>` of XML error bodies instead.
@@ -124,7 +124,7 @@ pub(crate) async fn error_body(conn: &mut Conn) -> Vec<u8> {
 }
 
 /// Header `name` of the answer of `conn`, if any.
-pub(crate) fn header(conn: &Conn, name: &'static str) -> Option<String> {
+pub(crate) fn header(conn: &Conn, name: &str) -> Option<String> {
     conn.response_headers()
         .get_str(name)
         .map(|value| value.to_string())
@@ -272,6 +272,159 @@ async fn answer_error(conn: &mut Conn, status: u16) -> Attempt {
     }
 }
 
+/// Most parts of an upload object storage takes.
+pub(crate) const MAX_PARTS: u32 = 10_000;
+/// Size of the first parts of an upload.
+const FIRST_PART_SIZE: u64 = 8 << 20;
+/// Number of parts of each size before the size doubles.
+const PARTS_PER_SIZE: u32 = 1_000;
+
+/// Size of the part `part_number` of an upload, from 1: 8 MiB for parts 1 to 1,000, doubling
+/// every 1,000 parts, so that 10,000 parts hold about 8 TiB. Beyond 10,000, the size of the
+/// last part is given.
+pub(crate) fn part_size(part_number: u32) -> u64 {
+    FIRST_PART_SIZE << ((part_number.clamp(1, MAX_PARTS) - 1) / PARTS_PER_SIZE)
+}
+
+/// Cuts data into parts of the sizes `size` gives, from part 1.
+pub(crate) struct Cutter {
+    size: fn(u32) -> u64,
+    part: Vec<u8>,
+    number: u32,
+}
+
+impl Cutter {
+    pub(crate) fn new(size: fn(u32) -> u64) -> Self {
+        Self {
+            size,
+            part: Vec::new(),
+            number: 1,
+        }
+    }
+
+    /// Adds `bytes`, giving the parts they complete.
+    pub(crate) fn push(&mut self, mut bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
+        let mut complete = Vec::new();
+        while !bytes.is_empty() {
+            if self.number > MAX_PARTS {
+                return Err(format!("the data needs more than {MAX_PARTS} parts"));
+            }
+            let size = (self.size)(self.number) as usize;
+            if self.part.capacity() < size {
+                self.part.reserve_exact(size - self.part.len());
+            }
+            let taken = (size - self.part.len()).min(bytes.len());
+            self.part.extend_from_slice(&bytes[..taken]);
+            bytes = &bytes[taken..];
+            if self.part.len() == size {
+                complete.push(core::mem::take(&mut self.part));
+                self.number += 1;
+            }
+        }
+        Ok(complete)
+    }
+
+    /// Ends the data, giving the last part: what is left, or an empty part when no part was
+    /// given, an upload having at least one.
+    pub(crate) fn finish(self) -> Option<Vec<u8>> {
+        (!self.part.is_empty() || self.number == 1).then_some(self.part)
+    }
+}
+
+/// Uploads `part` with `request`, retrying up to `retries` times, and gives the value of the
+/// header `tag_header` of the answer.
+pub(crate) async fn upload_part(
+    client: &Client,
+    request: &PreparedRequest,
+    part: &[u8],
+    tag_header: &str,
+    retries: u32,
+) -> Result<String, String> {
+    let mut failures = 0;
+    loop {
+        // Errors tell whether another attempt is worth it.
+        let result: Result<String, (bool, String)> = async {
+            let (conn, url) = connection(client, request, &[]).map_err(|err| (false, err))?;
+            let mut conn = conn
+                .with_body(part.to_vec())
+                .await
+                .map_err(|err| (true, redact(format!("connection failed: {err}"), &url)))?;
+            let status = conn.status().map(|status| status as u16).unwrap_or(0);
+            if (200..300).contains(&status) {
+                header(&conn, tag_header).ok_or_else(|| {
+                    (
+                        false,
+                        format!("storage gave no '{tag_header}' for the part"),
+                    )
+                })
+            } else {
+                let reason = refusal(status, &error_body(&mut conn).await);
+                Err((retriable(status), reason))
+            }
+        }
+        .await;
+        match result {
+            Ok(tag) => return Ok(tag),
+            Err((true, _)) if failures < retries => {
+                wait(failures).await;
+                failures += 1;
+            }
+            Err((_, reason)) => return Err(reason),
+        }
+    }
+}
+
+/// Uploads `size` bytes given by `next` with `request`, as they come, in one request.
+///
+/// Data longer or shorter than `size` fails the upload, its request being dropped.
+pub(crate) async fn put<F, Fut>(
+    client: &Client,
+    request: &PreparedRequest,
+    size: u64,
+    mut next: F,
+) -> Result<(), String>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Option<Vec<u8>>>,
+{
+    use async_ringbuf::AsyncHeapRb;
+
+    let (conn, url) = connection(client, request, &[])?;
+    let (mut producer, consumer) = AsyncHeapRb::<u8>::new(CHUNK).split();
+
+    let feeding = async move {
+        let mut sent: u64 = 0;
+        while let Some(bytes) = next().await {
+            sent += bytes.len() as u64;
+            if sent > size {
+                return Err(format!("the data is longer than {size} bytes"));
+            }
+            if producer.push_iter(bytes.into_iter()).await.is_err() {
+                break;
+            }
+        }
+        if sent < size {
+            return Err(format!("the data is {sent} bytes, shorter than {size}"));
+        }
+        producer.close();
+        Ok(())
+    };
+    let sending = async {
+        conn.with_body(trillium_client::Body::new_streaming(consumer, Some(size)))
+            .await
+            .map_err(|err| redact(format!("connection failed: {err}"), &url))
+    };
+
+    // A failure of either side drops the other, the request included.
+    let (_, mut conn) = futures::future::try_join(feeding, sending).await?;
+    let status = conn.status().map(|status| status as u16).unwrap_or(0);
+    if (200..300).contains(&status) {
+        Ok(())
+    } else {
+        Err(refusal(status, &error_body(&mut conn).await))
+    }
+}
+
 #[cfg(all(test, feature = "real"))]
 pub(crate) mod tests {
     use super::*;
@@ -326,6 +479,10 @@ pub(crate) mod tests {
             if let Some((name, value)) = header.split_once(':') {
                 headers.insert(name.trim().to_ascii_lowercase(), value.trim().to_string());
             }
+        }
+        // The client waits to be told to send its body, as object storage does.
+        if headers.get("expect").map(String::as_str) == Some("100-continue") {
+            let _ = reader.get_mut().write_all(b"HTTP/1.1 100 Continue\r\n\r\n");
         }
         let length = headers
             .get("content-length")
@@ -506,6 +663,128 @@ pub(crate) mod tests {
         assert_eq!(
             refusal(500, b"<Code>bad code with spaces</Code>"),
             "storage answered 500"
+        );
+    }
+
+    #[test]
+    fn part_sizes_grow_every_thousand_parts() {
+        assert_eq!(part_size(1), 8 << 20);
+        assert_eq!(part_size(1_000), 8 << 20);
+        assert_eq!(part_size(1_001), 16 << 20);
+        assert_eq!(part_size(10_000), 4 << 30);
+        // 1,000 parts of each size, from 8 MiB to 4 GiB: about 8 TiB.
+        let total: u64 = (1..=MAX_PARTS).map(part_size).sum();
+        assert_eq!(total, 1_000 * (8 << 20) * 1_023);
+    }
+
+    fn small(part_number: u32) -> u64 {
+        if part_number <= 2 {
+            4
+        } else {
+            8
+        }
+    }
+
+    #[test]
+    fn data_is_cut_in_parts() {
+        let mut cutter = Cutter::new(small);
+        assert!(cutter.push(b"abc").unwrap().is_empty());
+        assert_eq!(
+            cutter.push(b"defgh").unwrap(),
+            vec![b"abcd".to_vec(), b"efgh".to_vec()]
+        );
+        assert_eq!(
+            cutter.push(b"0123456789").unwrap(),
+            vec![b"01234567".to_vec()]
+        );
+        assert_eq!(cutter.finish(), Some(b"89".to_vec()));
+
+        // Parts ending with the data leave no empty last part, and no data gives one.
+        let mut exact = Cutter::new(small);
+        assert_eq!(exact.push(b"abcd").unwrap().len(), 1);
+        assert_eq!(exact.finish(), None);
+        assert_eq!(Cutter::new(small).finish(), Some(Vec::new()));
+    }
+
+    #[test]
+    fn data_needing_too_many_parts_fails() {
+        let mut cutter = Cutter::new(|_| 1);
+        assert_eq!(
+            cutter.push(&vec![0; MAX_PARTS as usize]).unwrap().len(),
+            MAX_PARTS as usize
+        );
+        assert!(cutter.push(b"x").is_err());
+    }
+
+    fn upload(request: &PreparedRequest, part: &[u8], retries: u32) -> Result<String, String> {
+        smol::block_on(upload_part(&client(), request, part, "etag", retries))
+    }
+
+    #[test]
+    fn refused_parts_are_retried() {
+        let (port, received) = serve(Box::new(|index, _| match index {
+            0 => answer("503 Service Unavailable", &[], b"", 0),
+            _ => answer("200 OK", &[("ETag", "\"part-1\"".to_string())], b"", 0),
+        }));
+        assert_eq!(
+            upload(&request("PUT", port), b"part data", 2),
+            Ok("\"part-1\"".to_string())
+        );
+        let received = received.lock().unwrap();
+        assert_eq!(received.len(), 2);
+        for request in received.iter() {
+            assert!(request.line.starts_with("PUT /object?"), "{}", request.line);
+            assert_eq!(request.headers["content-length"], "9");
+            assert_eq!(request.body, b"part data");
+        }
+    }
+
+    #[test]
+    fn parts_without_tag_fail() {
+        let (port, _) = serve(Box::new(|_, _| answer("200 OK", &[], b"", 0)));
+        assert_eq!(
+            upload(&request("PUT", port), b"part data", 2),
+            Err("storage gave no 'etag' for the part".to_string())
+        );
+    }
+
+    fn put_chunks(
+        request: &PreparedRequest,
+        size: u64,
+        chunks: Vec<&'static [u8]>,
+    ) -> Result<(), String> {
+        smol::block_on(async {
+            let mut chunks = chunks.into_iter();
+            put(&client(), request, size, || {
+                let chunk = chunks.next().map(|chunk| chunk.to_vec());
+                async move { chunk }
+            })
+            .await
+        })
+    }
+
+    #[test]
+    fn single_uploads_have_their_length() {
+        let (port, received) = serve(Box::new(|_, _| answer("200 OK", &[], b"", 0)));
+        assert_eq!(
+            put_chunks(&request("PUT", port), 11, vec![b"hello ", b"world"]),
+            Ok(())
+        );
+        let received = received.lock().unwrap();
+        assert_eq!(received[0].headers["content-length"], "11");
+        assert_eq!(received[0].body, b"hello world");
+    }
+
+    #[test]
+    fn single_uploads_of_another_length_fail() {
+        let (port, _) = serve(Box::new(|_, _| answer("200 OK", &[], b"", 0)));
+        assert_eq!(
+            put_chunks(&request("PUT", port), 4, vec![b"hello"]),
+            Err("the data is longer than 4 bytes".to_string())
+        );
+        assert_eq!(
+            put_chunks(&request("PUT", port), 40, vec![b"hello"]),
+            Err("the data is 5 bytes, shorter than 40".to_string())
         );
     }
 }
