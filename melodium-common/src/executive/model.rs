@@ -1,4 +1,4 @@
-use crate::descriptor::Model as ModelDescriptor;
+use crate::descriptor::{DataType, Model as ModelDescriptor};
 use crate::executive::{SecretsAccess, Value};
 use core::fmt::Debug;
 use downcast_rs::{impl_downcast, DowncastSync};
@@ -22,6 +22,13 @@ pub trait Model: Debug + DowncastSync + Send + Sync {
     fn initialize(&self);
     fn shutdown(&self);
 
-    fn invoke_source(&self, source: &str, params: HashMap<String, Value>);
+    /// Tells the model that its source `source` is used with `params`, and with `generics`
+    /// as its types when it is generic.
+    fn invoke_source(
+        &self,
+        source: &str,
+        params: HashMap<String, Value>,
+        generics: HashMap<String, DataType>,
+    );
 }
 impl_downcast!(sync Model);

@@ -100,6 +100,7 @@ impl BuilderTrait for Builder {
                     source,
                     self.descriptor.upgrade().unwrap(),
                     environment.variables().clone(),
+                    environment.generics().clone(),
                     idx,
                 );
             }
@@ -420,6 +421,18 @@ impl BuilderTrait for Builder {
         };
 
         Some(own_checked_build_result)
+    }
+
+    fn check_host(&self, build: BuildId) -> Option<CheckStep> {
+        let borrowed_builds = self.builds.read().unwrap();
+        let build_sample = borrowed_builds.get(build as usize)?;
+        match &build_sample.host_treatment {
+            HostTreatment::Treatment(host_descriptor) => Some(CheckStep {
+                identifier: host_descriptor.identifier().clone(),
+                build_id: build_sample.host_build_id?,
+            }),
+            HostTreatment::Direct => None,
+        }
     }
 
     fn check_give_next(

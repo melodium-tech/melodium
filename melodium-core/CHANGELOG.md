@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Giving the sources whose tracks inherit contexts to `descriptor::Model::new` (#167).
+- Adding generics to `descriptor::Source`, taken by `Source::new` (#166).
+
 ## [v0.11.0] (2026-10-15)
 
 - Breaking: `descriptor::Treatment::new` and `descriptor::Model::new` take whether the element declares `secrets_access` (#134).

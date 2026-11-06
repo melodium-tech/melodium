@@ -294,6 +294,10 @@ impl ModelDescriptor for Model {
         self.base_model.sources()
     }
 
+    fn source_inherits_contexts(&self, source: &str) -> bool {
+        self.base_model.source_inherits_contexts(source)
+    }
+
     fn secrets_access(&self) -> bool {
         self.base_model.secrets_access()
     }
