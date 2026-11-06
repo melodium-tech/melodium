@@ -3,6 +3,9 @@
 
 ## [Unreleased]
 
+- Adding `Model::source_inherits_contexts` to model descriptors, false by default (#167).
+- Giving the types of generic sources to models in `Model::invoke_source`, and making tracks only for the entries of given types in `World::create_track`, breaking for implementors of both (#166).
+- Adding `SecretsAccess::revealed_scan`, searching the values the engine revealed in data given chunk by chunk, values across chunks included, such as files leaving it, through `SecretsHost::revealed_values` and the `RevealedValues` trait (#162).
 - Adding `SecretSource::shutdown`, called when the engine ends, for sources to wipe what they keep (#150).
 
 ## [v0.11.0] (2026-10-15)

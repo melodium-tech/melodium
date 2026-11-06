@@ -34,6 +34,7 @@ members = [
     "sql",
     "stop_before_data_drained",
     "tester",
+    "volume_filesystem",
     "wipe",
     "work_secrets",
 ]

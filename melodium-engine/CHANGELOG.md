@@ -3,6 +3,10 @@
 
 ## [Unreleased]
 
+- Giving the tracks of inheriting sources the contexts of their parent track, their own replacing inherited ones of the same name, and checking them at genesis with the contexts available where the treatment hosting the source runs (#167).
+- Keeping the types of generic sources in their entries, given to models when sources are invoked, and making tracks only for entries of the types asked (#166).
+- Searching the revealed values in data leaving the engine, as is, in base64, URL-encoded, or as bytes when they are not text, never line by line as masking does (#162).
+- Checking again the tracks of sources at genesis, suspended since 2025-02, each build being checked once whatever the number of paths leading to it, so that connection loops and missing contexts fail the genesis again, in a time proportional to the program (#170).
 - Adding `Engine::add_secret_source`, giving a secret source before genesis, registered before the sources of models, so that a model registering the same scheme fails the launch (D0252), breaking for `Engine` implementors. Ending the engine shuts its secret sources down (#150).
 
 ## [v0.11.0] (2026-10-15)

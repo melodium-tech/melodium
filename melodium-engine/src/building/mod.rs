@@ -9,7 +9,7 @@ pub(crate) mod treatment;
 
 pub type BuildId = usize;
 pub use builder::Builder;
-pub use check::{CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep};
+pub use check::{CheckBuild, CheckBuildResult, CheckEnvironment, CheckState, CheckStep};
 pub use contextual_environment::ContextualEnvironment;
 pub use genesis_environment::GenesisEnvironment;
 pub use host::HostTreatment;

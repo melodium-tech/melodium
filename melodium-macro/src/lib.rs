@@ -549,6 +549,8 @@ fn config_full_source(
     HashMap<String, (Vec<String>, Option<String>, HashMap<String, String>)>,
     Vec<(String, String, Vec<String>, HashMap<String, String>)>,
     HashMap<String, String>,
+    Vec<(String, Vec<String>)>,
+    bool,
 ) {
     let mut next = ts.next();
     let attributes;
@@ -575,6 +577,8 @@ fn config_full_source(
         }
 
         let mut params = HashMap::new();
+        let mut generics = Vec::new();
+        let mut inherit = false;
         if let Some(TokenTree::Group(group)) = ts.next() {
             let mut ts = group.stream().into_iter();
 
@@ -585,6 +589,8 @@ fn config_full_source(
                         let param = config_param(&mut ts);
                         params.insert(param.0, (param.1, param.2, param.3));
                     }
+                    "generic" => generics.push(config_generic(&mut ts)),
+                    "inherit" => inherit = true,
                     _ => panic!("Unrecognized source parameter configuration"),
                 }
             }
@@ -606,7 +612,15 @@ fn config_full_source(
             panic!("Outputs list expected")
         }
 
-        (name.to_string(), contextes, params, outputs, attributes)
+        (
+            name.to_string(),
+            contextes,
+            params,
+            outputs,
+            attributes,
+            generics,
+            inherit,
+        )
     } else {
         panic!("Name identity expected")
     }
@@ -1741,9 +1755,12 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     params.insert(param, (ty, default_val, attributes));
                 }
                 "source" => {
-                    let (name, contexts, params, outputs, attributes) =
+                    let (name, contexts, params, outputs, attributes, generics, inherit) =
                         config_full_source(&mut iter_attr);
-                    sources.insert(name, (contexts, params, outputs, attributes));
+                    sources.insert(
+                        name,
+                        (contexts, params, outputs, attributes, generics, inherit),
+                    );
                 }
                 "initialize" => {
                     if let Some(TokenTree::Ident(name)) = iter_attr.next() {
@@ -1774,9 +1791,16 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
                 "invoke_source" => {
                     if let Some(TokenTree::Ident(name)) = iter_attr.next() {
-                        invoke_source = Some(name.to_string());
+                        invoke_source = Some((name.to_string(), false));
                     } else {
                         panic!("Invoke source function name expected")
+                    }
+                }
+                "invoke_generic_source" => {
+                    if let Some(TokenTree::Ident(name)) = iter_attr.next() {
+                        invoke_source = Some((name.to_string(), true));
+                    } else {
+                        panic!("Invoke generic source function name expected")
                     }
                 }
                 "secrets_access" => secrets_access = true,
@@ -1836,9 +1860,17 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {described_type}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
             )
         }).collect::<Vec<_>>().join(",").parse().unwrap();
+        let inheriting_sources: proc_macro2::TokenStream = sources
+            .iter()
+            .filter(|(_, (_, _, _, _, _, inherit))| *inherit)
+            .map(|(name, _)| format!(r#""{name}".to_string()"#))
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
         let sources: proc_macro2::TokenStream = sources
             .iter()
-            .map(|(name, (contextes, _, _, _))| {
+            .map(|(name, (contextes, _, _, _, _, _))| {
                 let contextes = contextes
                     .iter()
                     .map(|name| format!(r#"{name}::descriptor()"#))
@@ -1862,6 +1894,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     },
                     vec![#parameters],
                     vec![#sources],
+                    vec![#inheriting_sources],
                     #secrets_access,
                     AdHocModel::new,
                 );
@@ -1871,7 +1904,18 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut sources_description = proc_macro2::TokenStream::new();
     {
         let fancy_model_name = name.to_case(Case::Snake);
-        for (source_name, (_, params, outputs, attributes)) in &sources {
+        for (source_name, (_, params, outputs, attributes, generics, _)) in &sources {
+            let generics_list = generics
+                .iter()
+                .map(|(generic, _)| generic.clone())
+                .collect::<Vec<_>>();
+            let generics: proc_macro2::TokenStream = generics
+                .iter()
+                .map(|(name, traits)| format!(r#"melodium_core::common::descriptor::Generic::new("{name}".to_string(), vec![{}])"#, traits.iter().map(|tr| format!("melodium_core::common::descriptor::DataTrait::{tr}")).collect::<Vec<_>>().join(", ")))
+                .collect::<Vec<_>>()
+                .join(",")
+                .parse()
+                .unwrap();
             let attributes = attributes
                 .iter()
                 .map(|(name, value)| {
@@ -1888,7 +1932,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 )
             }).collect::<Vec<_>>().join(",").parse().unwrap();
             let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, flow, ty, attributes)| {
-                let described_type = into_mel_described_type(ty, &Vec::default());
+                let described_type = into_mel_described_type(ty, &generics_list);
                 let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
                 format!(r#"melodium_core::common::descriptor::Output::new("{name}", {described_type}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
             }).collect::<Vec<_>>().join(",").parse().unwrap();
@@ -1907,6 +1951,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     vec![#parameters],
                     vec![(#fancy_model_name.to_string(), vec![#source_name.to_string()])],
                     vec![#outputs],
+                    vec![#generics],
                 ),
             };
         }
@@ -1934,7 +1979,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         helper_implementation = parameters;
 
-        for (source_name, (contextes, _, _, _)) in sources {
+        for (source_name, (contextes, _, _, _, generics, _)) in sources {
             let mut param_contextes = String::new();
             let mut assign_contextes = String::new();
             for context in &contextes {
@@ -1953,6 +1998,18 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             let param_contextes: proc_macro2::TokenStream = param_contextes.parse().unwrap();
             let assign_contextes: proc_macro2::TokenStream = assign_contextes.parse().unwrap();
             let fn_name: proc_macro2::TokenStream = format!("new_{source_name}").parse().unwrap();
+            // Tracks of generic sources are only made for the entries of the types given.
+            let (param_generics, assign_generics): (
+                proc_macro2::TokenStream,
+                proc_macro2::TokenStream,
+            ) = if generics.is_empty() {
+                (proc_macro2::TokenStream::new(), "None".parse().unwrap())
+            } else {
+                (
+                    "generics: &std::collections::HashMap<String, melodium_core::common::descriptor::DataType>,".parse().unwrap(),
+                    "Some(generics)".parse().unwrap(),
+                )
+            };
 
             helper_implementation = quote! {
                 #helper_implementation
@@ -1960,12 +2017,14 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         parent_track: Option<melodium_core::common::executive::TrackId>,
                         #param_contextes
                         params: &std::collections::HashMap<String, melodium_core::common::executive::Value>,
+                        #param_generics
                         callback: Option<Box<dyn FnOnce(Box<melodium_core::common::executive::Outputs>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>>
                     ) {
                     self.world().create_track(
                         self.id().unwrap(),
                         #source_name,
                         params,
+                        #assign_generics,
                         vec![#assign_contextes],
                         parent_track,
                         callback,
@@ -2032,11 +2091,13 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap_or_else(|| String::from("()"))
         .parse()
         .unwrap();
-    let invoke_source: proc_macro2::TokenStream = invoke_source
-        .map(|s| format!("self.model.{s}(source, params)"))
-        .unwrap_or_else(|| String::from("let _ = (source, params)"))
-        .parse()
-        .unwrap();
+    let invoke_source: proc_macro2::TokenStream = match invoke_source {
+        Some((s, true)) => format!("self.model.{s}(source, params, generics)"),
+        Some((s, false)) => format!("{{ let _ = generics; self.model.{s}(source, params) }}"),
+        None => String::from("let _ = (source, params, generics)"),
+    }
+    .parse()
+    .unwrap();
 
     let expanded = quote! {
         #[allow(non_snake_case)]
@@ -2176,7 +2237,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     #shutdown
                 }
 
-                fn invoke_source(&self, source: &str, params: std::collections::HashMap<String, melodium_core::common::executive::Value>) {
+                fn invoke_source(&self, source: &str, params: std::collections::HashMap<String, melodium_core::common::executive::Value>, generics: std::collections::HashMap<String, melodium_core::common::descriptor::DataType>) {
                     #invoke_source;
                 }
             }

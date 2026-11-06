@@ -1,7 +1,8 @@
 use crate::building::builder::get_value;
 use crate::building::{
-    BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
-    DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
+    BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckState, CheckStep,
+    ContextualEnvironment, DynamicBuildResult, FeedingInputs, GenesisEnvironment,
+    StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
 use crate::debug::Event;
@@ -825,7 +826,7 @@ impl BuilderTrait for Builder {
         &self,
         build: BuildId,
         environment: CheckEnvironment,
-        previous_steps: Vec<CheckStep>,
+        state: &mut CheckState,
     ) -> Option<CheckBuildResult> {
         let world = self.world.upgrade().unwrap();
         let descriptor = self.design.descriptor.upgrade().unwrap();
@@ -849,17 +850,15 @@ impl BuilderTrait for Builder {
             identifier: descriptor.identifier().clone(),
             build_id: build,
         };
-        if let Some(_existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
+        if state.path.contains(&check_step) {
             errors.push(LogicError::already_included_build_step(
                 57,
                 descriptor.identifier().clone(),
                 check_step.clone(),
-                previous_steps.clone(),
+                state.path.clone(),
                 None,
             ));
         }
-        let mut current_previous_steps = previous_steps.clone();
-        current_previous_steps.push(check_step);
 
         // Get build
         let borrowed_builds = self.builds.read().unwrap();
@@ -868,7 +867,9 @@ impl BuilderTrait for Builder {
 
         let mut treatment_build_results: HashMap<String, CheckBuildResult> = HashMap::new();
 
-        if errors.is_empty() {
+        // A build already checked from another path is not checked again.
+        if errors.is_empty() && state.checked.insert(check_step.clone()) {
+            state.path.push(check_step);
             // Call each  treatments connected right after self, or first-range treatments
             for (treatment_name, treatment_id) in &build_sample.root_treatments_build_ids {
                 let treatment = self.design.treatments.get(treatment_name).unwrap();
@@ -881,15 +882,12 @@ impl BuilderTrait for Builder {
                 );
 
                 let check_result = treatment_builder
-                    .check_dynamic_build(
-                        *treatment_id,
-                        environment.clone(),
-                        current_previous_steps.clone(),
-                    )
+                    .check_dynamic_build(*treatment_id, environment.clone(), state)
                     .unwrap();
 
                 treatment_build_results.insert(treatment_name.to_string(), check_result);
             }
+            state.path.pop();
         }
 
         let mut all_builds = Vec::new();
@@ -915,7 +913,7 @@ impl BuilderTrait for Builder {
         within_build: BuildId,
         for_label: String,
         environment: CheckEnvironment,
-        previous_steps: Vec<CheckStep>,
+        state: &mut CheckState,
     ) -> Option<CheckBuildResult> {
         let world = self.world.upgrade().unwrap();
 
@@ -930,6 +928,25 @@ impl BuilderTrait for Builder {
         let borrowed_builds = self.builds.read().unwrap();
         let build_sample = borrowed_builds.get(within_build).unwrap();
         let check_build = Arc::clone(&build_sample.check);
+
+        // What follows a label is checked once, whatever the number of paths leading to it.
+        let following = (
+            self.design
+                .descriptor
+                .upgrade()
+                .unwrap()
+                .identifier()
+                .clone(),
+            within_build,
+            for_label.clone(),
+        );
+        if !state.followed.insert(following) {
+            return Some(CheckBuildResult {
+                checked_builds: Vec::new(),
+                build: check_build,
+                errors: Vec::new(),
+            });
+        }
 
         let mut treatment_build_results: HashMap<String, CheckBuildResult> = HashMap::new();
 
@@ -962,11 +979,7 @@ impl BuilderTrait for Builder {
                     );
 
                     let check_result = next_treatment_builder
-                        .check_dynamic_build(
-                            *next_treatment_id,
-                            environment.clone(),
-                            previous_steps.clone(),
-                        )
+                        .check_dynamic_build(*next_treatment_id, environment.clone(), state)
                         .unwrap();
 
                     treatment_build_results
@@ -991,7 +1004,7 @@ impl BuilderTrait for Builder {
                                 build_sample.host_build_id.unwrap(),
                                 build_sample.label.to_string(),
                                 environment.clone(),
-                                previous_steps.clone(),
+                                state,
                             )
                             .unwrap();
 
