@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding `std/secret::scan`, giving data further unless it holds a value the engine revealed, holding back the bytes that could start one, and naming the secret when one is found (#162).
+
 ## [v0.11.0] (2026-10-15)
 
 - Using async-channel and async-lock instead of async-std, which is discontinued (#104).

@@ -1,6 +1,6 @@
 use aho_corasick::{AhoCorasick, MatchKind};
 use base64::Engine;
-use melodium_common::executive::{count_wiped, PackedArray, Value, Wipe};
+use melodium_common::executive::{count_wiped, PackedArray, RevealedValues, Value, Wipe};
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -23,12 +23,25 @@ struct Patterns {
     /// Masked texts, and the name of the secret they come from.
     names: HashMap<String, String>,
     matcher: Option<(AhoCorasick, Vec<String>)>,
+    /// Values searched in data leaving the engine, and the name of the secret they come from.
+    searched: HashMap<Vec<u8>, String>,
+    searcher: Option<Searcher>,
+}
+
+/// Search of the revealed values in data, giving the name of their secret.
+struct Searcher {
+    automaton: AhoCorasick,
+    names: Vec<String>,
+    longest: usize,
 }
 
 /// Registry of revealed values, masked in text outputs such as log messages.
 ///
 /// Each value is masked as is, line by line when it has several lines,
 /// and in its base64 and URL-encoded forms.
+///
+/// The same values are searched in data leaving the engine, such as uploaded files,
+/// as is, in base64 and URL-encoded, but never line by line.
 #[derive(Default)]
 pub struct Masking {
     patterns: RwLock<Patterns>,
@@ -43,8 +56,8 @@ impl Masking {
     ///
     /// Only text and bytes values are registered.
     pub fn add(&self, name: &str, value: &Value) {
-        let texts = Self::forms(value);
-        if texts.is_empty() {
+        let (texts, searched) = Self::forms(value);
+        if texts.is_empty() && searched.is_empty() {
             return;
         }
 
@@ -71,6 +84,33 @@ impl Masking {
                 .map(|matcher| (matcher, replacements));
             patterns.matcher = matcher;
         }
+
+        let mut added = false;
+        for mut bytes in searched {
+            if patterns.searched.contains_key(&bytes) {
+                bytes.zeroize();
+            } else {
+                patterns.searched.insert(bytes, name.to_string());
+                added = true;
+            }
+        }
+        if added {
+            let (values, names): (Vec<&Vec<u8>>, Vec<String>) = patterns
+                .searched
+                .iter()
+                .map(|(bytes, name)| (bytes, name.clone()))
+                .unzip();
+            let longest = values.iter().map(|bytes| bytes.len()).max().unwrap_or(0);
+            let searcher = AhoCorasick::builder()
+                .build(values)
+                .ok()
+                .map(|automaton| Searcher {
+                    automaton,
+                    names,
+                    longest,
+                });
+            patterns.searcher = searcher;
+        }
     }
 
     /// Gives `text` with every registered value replaced by a placeholder naming its secret.
@@ -92,8 +132,8 @@ impl Masking {
         self.wipe();
     }
 
-    /// Gives the texts to mask for `value`.
-    fn forms(value: &Value) -> Vec<String> {
+    /// Gives the texts to mask for `value`, and the bytes to search for it in data.
+    fn forms(value: &Value) -> (Vec<String>, Vec<Vec<u8>>) {
         let bytes: Cow<'_, [u8]> = match value {
             Value::String(text) => Cow::Borrowed(text.as_bytes()),
             Value::Packed(PackedArray::Byte(bytes)) | Value::Packed(PackedArray::U8(bytes)) => {
@@ -109,39 +149,58 @@ impl Masking {
                     .collect();
                 match bytes {
                     Some(bytes) => Cow::Owned(bytes),
-                    None => return Vec::new(),
+                    None => return (Vec::new(), Vec::new()),
                 }
             }
-            _ => return Vec::new(),
+            _ => return (Vec::new(), Vec::new()),
         };
 
         let mut forms = Vec::new();
+        let mut lines = Vec::new();
         // Without padding, so that padded occurrences are masked too.
         forms.push(base64::engine::general_purpose::STANDARD_NO_PAD.encode(&bytes));
-        if let Ok(text) = std::str::from_utf8(&bytes) {
-            forms.push(text.to_string());
-            forms.push(utf8_percent_encode(text, URL_COMPONENT).to_string());
-            if text.contains('\n') {
-                forms.extend(
-                    text.lines()
-                        .map(|line| line.trim_end_matches('\r').to_string()),
-                );
+        let raw = match std::str::from_utf8(&bytes) {
+            Ok(text) => {
+                forms.push(text.to_string());
+                forms.push(utf8_percent_encode(text, URL_COMPONENT).to_string());
+                if text.contains('\n') {
+                    lines.extend(
+                        text.lines()
+                            .map(|line| line.trim_end_matches('\r').to_string()),
+                    );
+                }
+                None
             }
-        }
+            Err(_) => Some(bytes.to_vec()),
+        };
         if let Cow::Owned(mut bytes) = bytes {
             bytes.zeroize();
         }
-        forms
+
+        // Lines are not searched: ordinary lines of a multi-line value, such as
+        // `apiVersion: v1` or the armor of a key, would be found in any data.
+        let searched = forms
+            .iter()
+            .map(|form| form.as_bytes().to_vec())
+            .chain(raw)
+            .filter_map(Self::long_enough)
+            .collect();
+        let masked = forms
             .into_iter()
-            .filter_map(|mut form| {
-                if form.len() >= MIN_MASKED_LENGTH {
-                    Some(form)
-                } else {
-                    form.zeroize();
-                    None
-                }
-            })
-            .collect()
+            .chain(lines)
+            .filter_map(Self::long_enough)
+            .collect();
+        (masked, searched)
+    }
+
+    /// Gives `form` if it is long enough to be masked or searched, overwriting it otherwise.
+    fn long_enough<T: AsRef<[u8]> + Zeroize>(mut form: T) -> Option<T> {
+        if form.as_ref().len() >= MIN_MASKED_LENGTH {
+            Some(form)
+        } else {
+            form.zeroize();
+            None
+        }
     }
 }
 
@@ -154,15 +213,39 @@ impl Drop for Masking {
 impl Wipe for Masking {
     fn wipe(&self) -> bool {
         let mut patterns = self.patterns.write().unwrap();
-        let wiped = !patterns.names.is_empty();
+        let wiped = !patterns.names.is_empty() || !patterns.searched.is_empty();
         for (mut text, _) in patterns.names.drain() {
             text.zeroize();
         }
+        for (mut bytes, _) in patterns.searched.drain() {
+            bytes.zeroize();
+        }
         patterns.matcher = None;
+        patterns.searcher = None;
         if wiped {
             count_wiped();
         }
         wiped
+    }
+}
+
+impl RevealedValues for Masking {
+    fn find(&self, data: &[u8]) -> Option<String> {
+        let patterns = self.patterns.read().unwrap();
+        let searcher = patterns.searcher.as_ref()?;
+        searcher
+            .automaton
+            .find(data)
+            .map(|found| searcher.names[found.pattern().as_usize()].clone())
+    }
+
+    fn longest(&self) -> usize {
+        self.patterns
+            .read()
+            .unwrap()
+            .searcher
+            .as_ref()
+            .map_or(0, |searcher| searcher.longest)
     }
 }
 
@@ -273,6 +356,40 @@ mod tests {
                 elapsed.as_nanos() as f64 / LINES as f64
             );
         }
+    }
+
+    #[test]
+    fn searches_whole_values_in_data() {
+        let masking = Masking::new();
+        masking.add(
+            "kubeconfig",
+            &Value::String("apiVersion: v1\nkind: Config\ntoken: kube-token-value\n".to_string()),
+        );
+        masking.add(
+            "key",
+            &Value::Packed(PackedArray::Byte(std::sync::Arc::new(vec![
+                0xff, 0x00, 0xfe, 0x01, 0xfd, 0x02, 0xfc, 0x03,
+            ]))),
+        );
+
+        assert_eq!(
+            masking.find(b"file: apiVersion: v1\nkind: Config\ntoken: kube-token-value\n"),
+            Some("kubeconfig".to_string())
+        );
+        // Lines alone are masked in text, never searched in data.
+        assert_eq!(masking.find(b"apiVersion: v1\nkind: Pod\n"), None);
+        assert_eq!(
+            masking.find(&[0x10, 0xff, 0x00, 0xfe, 0x01, 0xfd, 0x02, 0xfc, 0x03, 0x10]),
+            Some("key".to_string())
+        );
+        assert!(masking.longest() >= 50);
+
+        masking.wipe();
+        assert_eq!(
+            masking.find(b"apiVersion: v1\nkind: Config\ntoken: kube-token-value\n"),
+            None
+        );
+        assert_eq!(masking.longest(), 0);
     }
 
     #[test]
