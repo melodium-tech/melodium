@@ -34,6 +34,8 @@ use root/data::writeFile
 use root/data::ioToString
 use root/runners::CicdRunnerEngine
 use root/runners::stopRunner
+use root/artifact::Artifact
+use root/artifact::unpack
 use root/cache::Cache
 use root/cache::|cache_filesystem
 use root/cache::|cache_path
@@ -42,6 +44,14 @@ use fs/filesystem::FileSystem
 use fs/local::|local_filesystem
 use std/engine/log::logWarning
 use std/flow::check
+use std/flow::release
+use std/flow/scatter::Scatter
+use std/flow/scatter::scatter
+use std/flow/scatter::scattered
+use std/flow/scatter::gather
+use std/flow/scatter::@Scattered
+use work/artifact::pushArtifact
+use work/artifact::pushArtifactFile
 use std/ops/option/block::map as mapOption
 use std/data/string_map/block::entry as stringEntry
 use std/data/string_map/block::insert as stringInsert
@@ -70,6 +80,7 @@ About the outputs signals:
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands` run, and saved once they succeed, under the name of the cache.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
 `out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
@@ -77,7 +88,7 @@ A missed cache and a cache that cannot be saved only log warnings.
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOn[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOn[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   output started: Block<void>
   output finished: Block<void>
@@ -95,7 +106,8 @@ treatment stepOn[runner: CicdRunnerEngine](var name: string, var executor_name: 
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeData: close<byte>()
 
@@ -129,6 +141,7 @@ About the outputs signals:
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands` run, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
 `out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
@@ -136,7 +149,7 @@ A missed cache and a cache that cannot be saved only log warnings.
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnCached[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnCached[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input cache_name: Block<string>
   output started: Block<void>
@@ -155,7 +168,8 @@ treatment stepOnCached[runner: CicdRunnerEngine](var name: string, var executor_
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeData: close<byte>()
 
@@ -191,6 +205,7 @@ About the outputs signals:
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands` run, and saved once they succeed, under the name of the cache.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOnWithInput only write `data` to the designated location, and then succeed.
 `out_file` and `out_filesystem` can be left _none_ and `data` stream will be closed without emitting reading error.
@@ -198,7 +213,7 @@ A missed cache and a cache that cannot be saved only log warnings.
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input data: Stream<byte>
   output started: Block<void>
@@ -220,7 +235,8 @@ treatment stepOnWithInput[runner: CicdRunnerEngine](var name: string, var in_fil
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeBlock<void>()
 
@@ -256,6 +272,7 @@ About the outputs signals:
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands` run, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOnWithInput only write `data` to the designated location, and then succeed.
 `out_file` and `out_filesystem` can be left _none_ and `data` stream will be closed without emitting reading error.
@@ -263,7 +280,7 @@ A missed cache and a cache that cannot be saved only log warnings.
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnWithInputCached[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnWithInputCached[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input cache_name: Block<string>
   input data: Stream<byte>
@@ -286,7 +303,8 @@ treatment stepOnWithInputCached[runner: CicdRunnerEngine](var name: string, var 
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeBlock<void>()
 
@@ -325,6 +343,7 @@ In that case, `terminated` and `finished` are emitted but not `failed` nor `erro
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands` run, and saved once they succeed, under the name of the cache.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
 `out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
@@ -332,7 +351,7 @@ A missed cache and a cache that cannot be saved only log warnings.
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnTerminable[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnTerminable[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input terminate: Block<void>
   output started: Block<void>
@@ -352,7 +371,8 @@ treatment stepOnTerminable[runner: CicdRunnerEngine](var name: string, var execu
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeData: close<byte>()
     closeBlock<void>()
@@ -392,6 +412,7 @@ In that case, `terminated` and `finished` are emitted but not `failed` nor `erro
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands` run, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
 `out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
@@ -399,7 +420,7 @@ A missed cache and a cache that cannot be saved only log warnings.
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnTerminableCached[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnTerminableCached[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input cache_name: Block<string>
   input terminate: Block<void>
@@ -420,7 +441,8 @@ treatment stepOnTerminableCached[runner: CicdRunnerEngine](var name: string, var
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     closeData: close<byte>()
     closeBlock<void>()
@@ -462,6 +484,7 @@ In that case, `terminated` and `finished` are emitted but not `failed` nor `erro
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands` run, and saved once they succeed, under the name of the cache.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOnWithInput only write `data` to the designated location, and then succeed.
 `out_file` and `out_filesystem` can be left _none_ and `data` stream will be closed without emitting reading error.
@@ -469,7 +492,7 @@ A missed cache and a cache that cannot be saved only log warnings.
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input data: Stream<byte>
   input terminate: Block<void>
@@ -492,7 +515,8 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, 
       out_filesystem=out_filesystem,
       out_file=out_file,
       stop_on_failure=stop_on_failure,
-      cache=cache
+      cache=cache,
+      artifacts=artifacts
     )
     emitCacheName: emit<Option<string>>(value=|cache_name(cache))
     unwrapCacheName: unwrap<string>()
@@ -534,6 +558,7 @@ In that case, `terminated` and `finished` are emitted but not `failed` nor `erro
 
 With a `cache` (see `cicd/cache::|cache`), its directory is restored from api.melodium.tech before `commands` run, and saved once they succeed, under the name received through `cache_name`, such as one computed from the content of a lock file.
 A missed cache and a cache that cannot be saved only log warnings.
+With `artifacts` (see `cicd/artifact::|artifact`), each is pushed to api.melodium.tech as a run artifact once commands succeed, before the step finishes; an artifact that cannot be pushed only logs a warning.
 
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOnWithInput only write `data` to the designated location, and then succeed.
 `out_file` and `out_filesystem` can be left _none_ and `data` stream will be closed without emitting reading error.
@@ -541,7 +566,7 @@ A missed cache and a cache that cannot be saved only log warnings.
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnTerminableWithInputCached[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _)
+treatment stepOnTerminableWithInputCached[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true, var cache: Option<Cache> = _, var artifacts: Vec<Artifact> = [])
   input trigger: Block<void>
   input data: Stream<byte>
   input terminate: Block<void>
@@ -577,6 +602,7 @@ treatment stepOnTerminableWithInputCached[runner: CicdRunnerEngine](var name: st
     sendCacheFilesystem: sendBlock<Option<string>>[distributor=runner](name="cache_filesystem")
     sendCachePath: sendBlock<string>[distributor=runner](name="cache_path")
     sendCacheName: sendBlock<string>[distributor=runner](name="cache_name")
+    sendArtifacts: sendStream<Artifact>[distributor=runner](name="artifacts")
 
     recvStarted: recvBlock<void>[distributor=runner](name="started")
     recvFinished: recvBlock<void>[distributor=runner](name="finished")
@@ -599,6 +625,7 @@ treatment stepOnTerminableWithInputCached[runner: CicdRunnerEngine](var name: st
     distribute.distribution_id -> sendCacheFilesystem.distribution_id
     distribute.distribution_id -> sendCachePath.distribution_id
     distribute.distribution_id -> sendCacheName.distribution_id
+    distribute.distribution_id -> sendArtifacts.distribution_id
     distribute.distribution_id -> recvStarted.distribution_id
     distribute.distribution_id -> recvFinished.distribution_id
     distribute.distribution_id -> recvFailed.distribution_id
@@ -643,6 +670,12 @@ treatment stepOnTerminableWithInputCached[runner: CicdRunnerEngine](var name: st
     unwrapCachePath.value -> cacheGiven.value,check -> emitCacheFilesystem.trigger,emit -> sendCacheFilesystem.data
     cacheGiven.check -> cacheNamed.leverage
     Self.cache_name -> cacheNamed.data,released -> sendCacheName.data
+
+    // The artifacts, pushed once commands succeed.
+    emitArtifacts: emit<Vec<Artifact>>(value=artifacts)
+    streamArtifacts: stream<Vec<Artifact>>()
+    flattenArtifacts: flatten<Artifact>()
+    Self.trigger -> emitArtifacts.trigger,emit -> streamArtifacts.block,stream -> flattenArtifacts.vector,value -> sendArtifacts.data
     Self.data ------> sendData.data
 
     stopRunner[runner=runner]()
@@ -686,6 +719,7 @@ Run step with all streamed inputs and outputs.
 ℹ️ This treatment is not aimed to be used directly, see `stepOn`, `stepOnWithInput`, `stepOnTerminable`, or `stepOnTerminableWithInput` for usage.
 */
 treatment step(var label: string)
+  model pushed: Scatter()
   input in_filesystem_name: Block<string>
   input in_file_name: Block<string>
   input data: Stream<byte>
@@ -698,6 +732,7 @@ treatment step(var label: string)
   input cache_filesystem: Block<Option<string>>
   input cache_path: Block<string>
   input cache_name: Block<string>
+  input artifacts: Stream<Artifact>
   output started: Block<void>
   output finished: Block<void>
   output failed: Block<void>
@@ -787,9 +822,22 @@ treatment step(var label: string)
     saveCache.error -> saveFailure.data,released -> saveWarningReason.value
     Self.cache_name -> saveWarningName.value,map -> saveWarningReason.base,map -> streamSaveWarning.block,stream -> formatSaveWarning.entries,formatted -> saveWarning.stream,first -> logSaveWarning.message
 
+    // Artifacts pushed once commands succeed, each in a track of its own, before the step
+    // finishes.
+    successful: check<void>()
+    emitShared: emit<void>(value=_)
+    successfulArtifacts: release<Artifact>()
+    pushArtifacts: scatter<Artifact, void>[scatter=pushed](parallel=4)
+    pushedArtifact[pushed=pushed]()
+    spawnCommands.success -> successful.value,check -> emitShared.trigger,emit -> pushArtifacts.shared
+    spawnCommands.success -> successfulArtifacts.leverage
+    Self.artifacts -> successfulArtifacts.data,released -> pushArtifacts.values
+
     stepAndSaveFinished: waitBlock<void>()
+    savedAndPushed: waitBlock<void>()
     triggerSpawnAndReadFileFinished.last -> stepAndSaveFinished.a
-    saveCache.finished -------------------> stepAndSaveFinished.b
+    saveCache.finished -------------------> savedAndPushed.a,awaited -> stepAndSaveFinished.b
+    pushArtifacts.finished ---------------> savedAndPushed.b
 
     spawnCommands.started --------------------> Self.started
     stepAndSaveFinished.awaited --------------> Self.finished
@@ -870,4 +918,92 @@ treatment spawnCommands(var label: string)
 
     spawnTerminable.started -> filterExit.value,accepted -> Self.success
                                filterExit.rejected -------> Self.error
+}
+/**
+Push an artifact of a step, in the track `step` makes for it.
+
+ℹ️ This treatment is not aimed to be used directly, see `stepOn`.
+*/
+treatment pushedArtifact[pushed: Scatter]()
+  require @Scattered
+{
+    scattered<Artifact, void>[scatter=pushed]()
+    gather[scatter=pushed]()
+    unpack()
+    scattered.value -> unpack.artifact
+
+    // On its volume or the local file system.
+    filesystemOption: mapOption<string>()
+    volume: getFileSystem()
+    emitLocalFilesystem: emit<Option<FileSystem>>(value=|local_filesystem(_))
+    unwrapLocalFilesystem: unwrap<FileSystem>()
+    filesystem: one<FileSystem>()
+    unpack.filesystem -> filesystemOption.option,value -> volume.name,filesystem -> filesystem.a
+    filesystemOption.none -> emitLocalFilesystem.trigger,emit -> unwrapLocalFilesystem.option,value -> filesystem.b
+
+    // A file alone, or the files of a directory.
+    asFile: filterBlock<string>()
+    asFileFilesystem: filterBlock<FileSystem>()
+    asFileName: filterBlock<string>()
+    unpack.path -> asFile.value
+    unpack.file -> asFile.select
+    filesystem.value -> asFileFilesystem.value
+    unpack.file -> asFileFilesystem.select
+    unpack.name -> asFileName.value
+    unpack.file -> asFileName.select
+
+    pushArtifactFile()
+    pushArtifact()
+    asFileFilesystem.accepted -> pushArtifactFile.filesystem
+    asFile.accepted ----------> pushArtifactFile.path
+    asFileName.accepted ------> pushArtifactFile.name
+    asFileFilesystem.rejected -> pushArtifact.filesystem
+    asFile.rejected ----------> pushArtifact.path
+    asFileName.rejected ------> pushArtifact.name
+
+    // Only the push of the chosen kind tells how the track ends, the other getting nothing.
+    kindKnown: check<bool>()
+    kind: filterBlock<void>()
+    unpack.file -> kindKnown.value,check -> kind.value
+    unpack.file -> kind.select
+    fileCompleted: releaseBlock<void>()
+    fileFailed: releaseBlock<void>()
+    fileError: releaseBlock<string>()
+    directoryCompleted: releaseBlock<void>()
+    directoryFailed: releaseBlock<void>()
+    directoryError: releaseBlock<string>()
+    kind.accepted -> fileCompleted.leverage
+    kind.accepted -> fileFailed.leverage
+    kind.accepted -> fileError.leverage
+    kind.rejected -> directoryCompleted.leverage
+    kind.rejected -> directoryFailed.leverage
+    kind.rejected -> directoryError.leverage
+    pushArtifactFile.completed -> fileCompleted.data
+    pushArtifactFile.failed ----> fileFailed.data
+    pushArtifactFile.error -----> fileError.data
+    pushArtifact.completed -> directoryCompleted.data
+    pushArtifact.failed ----> directoryFailed.data
+    pushArtifact.error -----> directoryError.data
+
+    completedOnce: one<void>()
+    failedOnce: one<void>()
+    errorOfVolume: one<string>()
+    errorOfPush: one<string>()
+    fileCompleted.released -> completedOnce.a
+    directoryCompleted.released -> completedOnce.b,value -> gather.completed
+    fileFailed.released -> failedOnce.a
+    directoryFailed.released -> failedOnce.b,value -> gather.failed
+    volume.error ----------> errorOfVolume.a
+    fileError.released ----> errorOfVolume.b,value -> errorOfPush.a
+    directoryError.released --------------------------> errorOfPush.b,value -> gather.error
+
+    // Not pushed, only a warning.
+    warningName: stringEntry(key="name")
+    warningReason: stringInsert(key="reason")
+    streamWarning: stream<StringMap>()
+    formatWarning: format(format="Artifact `{name}` not pushed: {reason}")
+    warning: trigger<string>()
+    logPushWarning: logWarning(label="artifact")
+    unpack.name -> warningName.value,map -> warningReason.base,map -> streamWarning.block,stream -> formatWarning.entries,formatted -> warning.stream,first -> logPushWarning.message
+    errorOfPush.value -> warningReason.value
 }

@@ -1,0 +1,606 @@
+use crypto/hash::sha256
+use fs/dir::create as createDir
+use fs/dir::files
+use fs/file::read
+use fs/file::remove as removeFile
+use fs/file::write
+use fs/filesystem::FileSystem
+use fs/path::composition
+use http/client::PreparedRequest
+use http/client::download
+use json::Json
+use json/value::fromJson
+use json/value::fromString as jsonFromString
+use json/value::get as jsonGet
+use json/value::insert as jsonInsert
+use json/value::|from_bool
+use json/value::|from_number_u64
+use json/value::|from_option_string
+use json/value::|from_string
+use json/value::|insert as |json_insert
+use json/value::|null
+use json/value::|object
+use std/data/map::Map
+use std/data/map/block::entry as mapEntry
+use std/data/map/block::insert as mapInsert
+use std/data/map/block::get as mapGet
+use std/data/string_map::StringMap
+use std/data/string_map/block::entry as stringEntry
+use std/data/string_map/block::insert as stringInsert
+use std/flow::check
+use std/flow::consume
+use std/flow::emit
+use std/flow::filterBlock
+use std/flow::one
+use std/flow::passBlock
+use std/flow::releaseBlock
+use std/flow::stream
+use std/flow::trigger
+use std/flow::uncheck
+use std/flow::waitBlock
+use std/flow/scatter::Scatter
+use std/flow/scatter::scatter
+use std/flow/scatter::scattered
+use std/flow/scatter::gather
+use std/flow/scatter::@Scattered
+use std/flow/vec::flatten
+use std/ops::|equal
+use std/ops::|gt
+use std/ops/bin::|and
+use std/ops/bin::|not
+use std/ops/block::equal
+use std/ops/option::unwrap
+use std/ops/option/block::unwrap as unwrapBlock
+use std/ops/option/block::map as mapOption
+use std/secret::scan
+use std/text/compose::format
+use std/text/convert/string::toUtf8
+use root/run::RunApi
+use root/run::post
+use root/run::get
+use root/run::upload
+
+/**
+Push the files of a directory as a run artifact of api.melodium.tech.
+
+The regular files under `path` of `filesystem` (`fs/dir::files`, links being left out) are kept
+as the artifact `name` of the run, each at its path relative to `path`, such as `index.html`
+and `assets/main.css`. Each file is uploaded in a track of its own, at most `parallel` at
+once, read, searched for revealed secret values (`std/secret::scan`) with its path, and
+uploaded in parts while it is read (`work/run::upload`).
+
+`name` is made of letters, digits, `_`, `.` and `-`, unique in the run. The artifact is:
+- shown in the run page when `entrypoint` is one of its files, such as `index.html`, making it
+  a render;
+- read by members of the organization and its runs (`access` `organization`), or by anyone
+  (`public`);
+- kept `retention_days` days, the retention of the plan when `0`, or until deleted when
+  `forever`;
+- never deleted before it expires when `lock`, for good.
+
+Once every file is uploaded, the artifact is completed: `artifact` gives it, as api.melodium.tech
+describes it, with `completed`. If a file cannot be read or uploaded, holds a revealed secret
+value, or api.melodium.tech refuses the artifact, `failed` is emitted and `error` gives the
+reason; the pending artifact is never shown, and api.melodium.tech abandons it.
+`finished` is emitted in every case.
+
+Artifacts are only pushed by programs run by api.melodium.tech.
+*/
+treatment pushArtifact(
+    var entrypoint: Option<string> = _,
+    var access: string = "organization",
+    var retention_days: u32 = 0,
+    var forever: bool = false,
+    var lock: bool = false,
+    var parallel: u32 = 4
+)
+  model api: RunApi()
+  model pushed: Scatter()
+  input filesystem: Block<FileSystem>
+  input path: Block<string>
+  input name: Block<string>
+  output artifact: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    declare[api=api](entrypoint=entrypoint, access=access, retention_days=retention_days, forever=forever, lock=lock)
+    Self.name -> declare.name
+
+    // Each file in a track of its own.
+    files()
+    Self.filesystem -> files.filesystem
+    Self.path ------> files.path
+
+    filesystemEntry: mapEntry<FileSystem>(key="filesystem")
+    insertRoot: mapInsert<string>(key="root")
+    insertArtifact: mapInsert<string>(key="artifact_id")
+    scatter<string, Map>[scatter=pushed](parallel=parallel)
+    pushedFile[pushed=pushed, api=api]()
+    Self.filesystem -> filesystemEntry.value,map -> insertRoot.base,map -> insertArtifact.base,map -> scatter.shared
+    Self.path -> insertRoot.value
+    declare.artifact_id -> insertArtifact.value
+    files.files -> scatter.values
+
+    // Completed once every file is uploaded.
+    listed: waitBlock<void>()
+    files.completed -> listed.a
+    scatter.completed -> listed.b
+    complete[api=api]()
+    declare.artifact_id -> complete.artifact_id
+    listed.awaited -> complete.ready
+
+    complete.artifact --> Self.artifact
+    complete.completed -> Self.completed
+    complete.failed ----> Self.failed
+    complete.finished --> Self.finished
+
+    // The reason of the declaration first, then of the files, then of the completion.
+    scatterError: trigger<string>()
+    scatter.errors -> scatterError.stream
+    reasonOfDeclaration: one<string>()
+    reasonOfFiles: one<string>()
+    reasonOfPush: one<string>()
+    givenOnFailure: releaseBlock<string>()
+    declare.error ----> reasonOfDeclaration.a
+    files.error ------> reasonOfDeclaration.b,value -> reasonOfFiles.a
+    scatterError.first ----------------------------> reasonOfFiles.b,value -> reasonOfPush.a
+    complete.error ------------------------------------------------------> reasonOfPush.b,value -> givenOnFailure.data,released -> Self.error
+    complete.failed -> givenOnFailure.leverage
+}
+
+/**
+Push a file as a run artifact of api.melodium.tech.
+
+The file at `path` of `filesystem` is kept as the artifact `name` of the run, under its own
+name, such as `hexyl` for `target/release/hexyl`: its stable address (`/artifacts/<run>/<name>`)
+then gives the file itself. It is read, searched for revealed secret values, and uploaded in
+parts while it is read.
+
+Parameters and outputs are those of `pushArtifact`, without `entrypoint`: renders are
+directories.
+*/
+treatment pushArtifactFile(
+    var access: string = "organization",
+    var retention_days: u32 = 0,
+    var forever: bool = false,
+    var lock: bool = false
+)
+  model api: RunApi()
+  input filesystem: Block<FileSystem>
+  input path: Block<string>
+  input name: Block<string>
+  output artifact: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    // The file keeps its own name.
+    streamPath: stream<string>()
+    composition()
+    unwrapFileName: unwrap<string>()
+    fileName: trigger<string>()
+    Self.path -> streamPath.block,stream -> composition.path,file_name -> unwrapFileName.option,value -> fileName.stream
+
+    declare[api=api](entrypoint=_, access=access, retention_days=retention_days, forever=forever, lock=lock)
+    Self.name -> declare.name
+
+    fileUpload[api=api]()
+    Self.filesystem ----> fileUpload.filesystem
+    Self.path ----------> fileUpload.path
+    fileName.first -----> fileUpload.artifact_path
+    declare.artifact_id -> fileUpload.artifact_id
+
+    complete[api=api]()
+    declare.artifact_id -> complete.artifact_id
+    fileUpload.completed -> complete.ready
+
+    complete.artifact --> Self.artifact
+    complete.completed -> Self.completed
+    complete.failed ----> Self.failed
+    complete.finished --> Self.finished
+
+    reasonOfDeclaration: one<string>()
+    reasonOfPush: one<string>()
+    givenOnFailure: releaseBlock<string>()
+    declare.error ----> reasonOfDeclaration.a
+    fileUpload.error -> reasonOfDeclaration.b,value -> reasonOfPush.a
+    complete.error ---------------------------------> reasonOfPush.b,value -> givenOnFailure.data,released -> Self.error
+    complete.failed -> givenOnFailure.leverage
+}
+
+/**
+Fetch a run artifact of api.melodium.tech.
+
+The files of the artifact `name` of the run `run` (its identifier) are written under `path` of
+`filesystem`, at their paths in the artifact, directories being created as needed, at most
+`parallel` at once. Each file is downloaded with resumption after cuts, and checked against the
+SHA-256 api.melodium.tech recorded: a file that differs is removed, and fails the fetch.
+
+Once every file is written and checked, `completed` is emitted. If the artifact cannot be read
+(it does not exist, is not readable by the run, expired or was deleted), or a file cannot be
+downloaded, written or differs, `failed` is emitted and `error` gives the reason.
+`finished` is emitted in every case.
+
+Artifacts are only fetched by programs run by api.melodium.tech, from runs of their organization
+or public artifacts.
+*/
+treatment fetchArtifact(var parallel: u32 = 4)
+  model api: RunApi()
+  model fetched: Scatter()
+  input filesystem: Block<FileSystem>
+  input path: Block<string>
+  input run: Block<string>
+  input name: Block<string>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    // The artifact, with a download for each file.
+    runEntry: stringEntry(key="run")
+    insertName: stringInsert(key="name")
+    streamAddress: stream<StringMap>()
+    formatAddress: format(format="artifacts/{run}/{name}?manifest")
+    address: trigger<string>()
+    get[api=api]()
+    Self.run -> runEntry.value,map -> insertName.base,map -> streamAddress.block,stream -> formatAddress.entries,formatted -> address.stream,first -> get.path
+    Self.name -> insertName.value
+
+    streamManifest: stream<Json>()
+    getFiles: jsonGet(key="files")
+    unwrapFiles: unwrap<Json>()
+    filesFromJson: fromJson<Vec<Json>>()
+    unwrapFileList: unwrap<Vec<Json>>()
+    flattenFiles: flatten<Json>()
+    get.answer -> streamManifest.block,stream -> getFiles.json,value -> unwrapFiles.option,value -> filesFromJson.json,value -> unwrapFileList.option,value -> flattenFiles.vector
+
+    // Each file in a track of its own.
+    filesystemEntry: mapEntry<FileSystem>(key="filesystem")
+    insertRoot: mapInsert<string>(key="root")
+    scatter<Json, Map>[scatter=fetched](parallel=parallel)
+    fetchedFile[fetched=fetched]()
+    Self.filesystem -> filesystemEntry.value,map -> insertRoot.base,map -> scatter.shared
+    Self.path -> insertRoot.value
+    flattenFiles.value -> scatter.values
+
+    // Completed once the artifact is read and every file is written.
+    readAndFetched: waitBlock<void>()
+    get.completed -----> readAndFetched.a
+    scatter.completed -> readAndFetched.b,awaited -> Self.completed
+    notFetched: uncheck<void>()
+    readAndFetched.awaited -> notFetched.value,uncheck -> Self.failed
+    finishedOnce: one<void>()
+    readAndFetched.awaited -> finishedOnce.a
+    notFetched.uncheck -----> finishedOnce.b,value -> Self.finished
+
+    scatterError: trigger<string>()
+    scatter.errors -> scatterError.stream
+    reasonOfArtifact: one<string>()
+    givenOnFailure: releaseBlock<string>()
+    get.error ---------> reasonOfArtifact.a
+    scatterError.first -> reasonOfArtifact.b,value -> givenOnFailure.data,released -> Self.error
+    notFetched.uncheck -> givenOnFailure.leverage
+}
+
+/**
+Declare a pending artifact of the run, giving its identifier.
+
+ℹ️ This treatment is not aimed to be used directly, see `pushArtifact`.
+*/
+treatment declare[api: RunApi](
+    var entrypoint: Option<string>,
+    var access: string,
+    var retention_days: u32,
+    var forever: bool,
+    var lock: bool
+)
+  input name: Block<string>
+  output artifact_id: Block<string>
+  output error: Block<string>
+{
+    // How long it is kept: until deleted, some days, or as the plan keeps them.
+    named: check<string>()
+    keptForever: passBlock<void>(cond=forever)
+    keptDays: passBlock<void>(cond=|and<bool>(|not<bool>(forever), |gt<u32>(retention_days, 0)))
+    keptByPlan: passBlock<void>(cond=|and<bool>(|not<bool>(forever), |equal<u32>(retention_days, 0)))
+    emitForever: emit<Json>(value=|from_string<string>("never"))
+    emitDays: emit<Json>(value=|json_insert(|object(), "days", |from_number_u64<u32>(retention_days)))
+    emitByPlan: emit<Json>(value=|null())
+    retentionOfForeverOrDays: one<Json>()
+    retention: one<Json>()
+    Self.name -> named.value,check -> keptForever.block,passed -> emitForever.trigger,emit -> retentionOfForeverOrDays.a
+    named.check -> keptDays.block,passed -> emitDays.trigger,emit -> retentionOfForeverOrDays.b,value -> retention.a
+    named.check -> keptByPlan.block,passed -> emitByPlan.trigger,emit -> retention.b
+
+    emitRequest: emit<Json>(value=|json_insert(|json_insert(|json_insert(|object(), "entrypoint", |from_option_string<string>(entrypoint)), "access", |from_string<string>(access)), "lock", |from_bool<bool>(lock)))
+    streamRequest: stream<Json>()
+    streamName: stream<string>()
+    nameToJson: jsonFromString<string>()
+    insertName: jsonInsert(key="name")
+    streamRetention: stream<Json>()
+    insertRetention: jsonInsert(key="retention")
+    body: trigger<Json>()
+    emitPath: emit<string>(value="artifacts")
+    declare: post[api=api]()
+    named.check -> emitRequest.trigger,emit -> streamRequest.block,stream -> insertName.object
+    Self.name -> streamName.block,stream -> nameToJson.value,json -> insertName.value,json -> insertRetention.object
+    retention.value -> streamRetention.block,stream -> insertRetention.value,json -> body.stream,first -> declare.body
+    named.check -> emitPath.trigger,emit -> declare.path
+
+    streamDeclared: stream<Json>()
+    getArtifactId: jsonGet(key="artifact_id")
+    unwrapArtifactId: unwrap<Json>()
+    artifactIdFromJson: fromJson<string>()
+    unwrapArtifactIdString: unwrap<string>()
+    artifactId: trigger<string>()
+    declare.answer -> streamDeclared.block,stream -> getArtifactId.json,value -> unwrapArtifactId.option,value -> artifactIdFromJson.json,value -> unwrapArtifactIdString.option,value -> artifactId.stream,first -> Self.artifact_id
+    declare.error -> Self.error
+}
+
+/**
+Complete a pending artifact of the run once `ready`, giving it.
+
+ℹ️ This treatment is not aimed to be used directly, see `pushArtifact`.
+*/
+treatment complete[api: RunApi]()
+  input artifact_id: Block<string>
+  input ready: Block<void>
+  output artifact: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    readyId: releaseBlock<string>()
+    idEntry: stringEntry(key="id")
+    streamPath: stream<StringMap>()
+    formatPath: format(format="artifacts/{id}/complete")
+    path: trigger<string>()
+    pathGiven: check<string>()
+    emitBody: emit<Json>(value=|object())
+    complete: post[api=api]()
+    Self.ready -> readyId.leverage
+    Self.artifact_id -> readyId.data,released -> idEntry.value,map -> streamPath.block,stream -> formatPath.entries,formatted -> path.stream,first -> complete.path
+    path.first -> pathGiven.value,check -> emitBody.trigger,emit -> complete.body
+
+    complete.answer ---> Self.artifact
+    complete.completed -> Self.completed
+    complete.failed ----> Self.failed
+    complete.finished --> Self.finished
+    complete.error -----> Self.error
+}
+
+/**
+Upload a file of a pending artifact, at `artifact_path` in it.
+
+The file is read, searched for revealed secret values with its path, and uploaded in parts
+while it is read.
+
+ℹ️ This treatment is not aimed to be used directly, see `pushArtifact`.
+*/
+treatment fileUpload[api: RunApi]()
+  input filesystem: Block<FileSystem>
+  input path: Block<string>
+  input artifact_path: Block<string>
+  input artifact_id: Block<string>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    read()
+    scan()
+    upload[api=api]()
+    Self.filesystem -> read.filesystem
+    Self.path ------> read.path,data -> scan.data,scanned -> upload.data
+
+    // The path is searched too, as it is shown.
+    streamArtifactPath: stream<string>()
+    pathToUtf8: toUtf8()
+    pathScan: scan()
+    consume<byte>()
+    Self.artifact_path -> streamArtifactPath.block,stream -> pathToUtf8.text,encoded -> pathScan.data,scanned -> consume.stream
+
+    whole: waitBlock<void>()
+    scannedWhole: waitBlock<void>()
+    read.completed -----> whole.a
+    scan.completed -----> whole.b,awaited -> scannedWhole.a
+    pathScan.completed ------------------> scannedWhole.b,awaited -> upload.whole
+
+    // The purpose: this file of the artifact.
+    idGiven: check<string>()
+    emitObject: emit<Json>(value=|object())
+    streamObject: stream<Json>()
+    emitFileObject: emit<Json>(value=|object())
+    streamFileObject: stream<Json>()
+    streamId: stream<string>()
+    idToJson: jsonFromString<string>()
+    insertId: jsonInsert(key="artifact_id")
+    streamArtifactPathJson: stream<string>()
+    pathToJson: jsonFromString<string>()
+    insertPath: jsonInsert(key="path")
+    insertFile: jsonInsert(key="artifact_file")
+    purpose: trigger<Json>()
+    Self.artifact_id -> idGiven.value,check -> emitObject.trigger,emit -> streamObject.block,stream -> insertFile.object
+    idGiven.check -> emitFileObject.trigger,emit -> streamFileObject.block,stream -> insertId.object
+    Self.artifact_id -> streamId.block,stream -> idToJson.value,json -> insertId.value,json -> insertPath.object
+    Self.artifact_path -> streamArtifactPathJson.block,stream -> pathToJson.value,json -> insertPath.value,json -> insertFile.value,json -> purpose.stream,first -> upload.purpose
+
+    upload.completed -> Self.completed
+    upload.failed ----> Self.failed
+    upload.finished --> Self.finished
+
+    // The secret found first, then the reason of the reading, then the one of the upload.
+    readError: trigger<string>()
+    read.errors -> readError.stream
+    reasonOfPath: one<string>()
+    reasonOfScan: one<string>()
+    reasonOfRead: one<string>()
+    givenOnFailure: releaseBlock<string>()
+    pathScan.error -> reasonOfPath.a
+    scan.error -----> reasonOfPath.b,value -> reasonOfScan.a
+    readError.first ----------------------> reasonOfScan.b,value -> reasonOfRead.a
+    upload.error -----------------------------------------------> reasonOfRead.b,value -> givenOnFailure.data,released -> Self.error
+    upload.failed -> givenOnFailure.leverage
+}
+
+/**
+Push a file of a directory, in the track `pushArtifact` makes for it.
+
+ℹ️ This treatment is not aimed to be used directly, see `pushArtifact`.
+*/
+treatment pushedFile[pushed: Scatter, api: RunApi]()
+  require @Scattered
+{
+    scattered<string, Map>[scatter=pushed]()
+    gather[scatter=pushed]()
+
+    getFilesystem: mapGet<FileSystem>(key="filesystem")
+    unwrapFilesystem: unwrapBlock<FileSystem>()
+    getRoot: mapGet<string>(key="root")
+    unwrapRoot: unwrapBlock<string>()
+    getArtifactId: mapGet<string>(key="artifact_id")
+    unwrapArtifactId: unwrapBlock<string>()
+    scattered.shared -> getFilesystem.map,value -> unwrapFilesystem.option
+    scattered.shared -> getRoot.map,value -> unwrapRoot.option
+    scattered.shared -> getArtifactId.map,value -> unwrapArtifactId.option
+
+    rootEntry: stringEntry(key="root")
+    insertFile: stringInsert(key="file")
+    streamFull: stream<StringMap>()
+    formatFull: format(format="{root}/{file}")
+    full: trigger<string>()
+    unwrapRoot.value -> rootEntry.value,map -> insertFile.base,map -> streamFull.block,stream -> formatFull.entries,formatted -> full.stream
+    scattered.value -> insertFile.value
+
+    fileUpload[api=api]()
+    unwrapFilesystem.value -> fileUpload.filesystem
+    full.first ------------> fileUpload.path
+    scattered.value -------> fileUpload.artifact_path
+    unwrapArtifactId.value -> fileUpload.artifact_id
+
+    fileUpload.completed -> gather.completed
+    fileUpload.failed ----> gather.failed
+    fileUpload.error -----> gather.error
+}
+
+/**
+Fetch a file of an artifact, in the track `fetchArtifact` makes for it.
+
+ℹ️ This treatment is not aimed to be used directly, see `fetchArtifact`.
+*/
+treatment fetchedFile[fetched: Scatter]()
+  require @Scattered
+{
+    scattered<Json, Map>[scatter=fetched]()
+    gather[scatter=fetched]()
+
+    getFilesystem: mapGet<FileSystem>(key="filesystem")
+    unwrapFilesystem: unwrapBlock<FileSystem>()
+    getRoot: mapGet<string>(key="root")
+    unwrapRoot: unwrapBlock<string>()
+    scattered.shared -> getFilesystem.map,value -> unwrapFilesystem.option
+    scattered.shared -> getRoot.map,value -> unwrapRoot.option
+
+    // What the manifest tells of the file.
+    streamFile: stream<Json>()
+    getPath: jsonGet(key="path")
+    unwrapPathJson: unwrap<Json>()
+    pathFromJson: fromJson<string>()
+    unwrapPath: unwrap<string>()
+    filePath: trigger<string>()
+    getDigest: jsonGet(key="sha256")
+    unwrapDigestJson: unwrap<Json>()
+    digestFromJson: fromJson<Option<string>>()
+    unwrapDigestOption: unwrap<Option<string>>()
+    digestOption: trigger<Option<string>>()
+    getDownload: jsonGet(key="download")
+    unwrapDownloadJson: unwrap<Json>()
+    downloadFromJson: fromJson<PreparedRequest>()
+    unwrapDownload: unwrap<PreparedRequest>()
+    request: trigger<PreparedRequest>()
+    scattered.value -> streamFile.block,stream -> getPath.json,value -> unwrapPathJson.option,value -> pathFromJson.json,value -> unwrapPath.option,value -> filePath.stream
+    streamFile.stream -> getDigest.json,value -> unwrapDigestJson.option,value -> digestFromJson.json,value -> unwrapDigestOption.option,value -> digestOption.stream
+    streamFile.stream -> getDownload.json,value -> unwrapDownloadJson.option,value -> downloadFromJson.json,value -> unwrapDownload.option,value -> request.stream
+
+    // Written under the root, in its directory, created first.
+    rootEntry: stringEntry(key="root")
+    insertFile: stringInsert(key="file")
+    streamTarget: stream<StringMap>()
+    formatTarget: format(format="{root}/{file}")
+    target: trigger<string>()
+    unwrapRoot.value -> rootEntry.value,map -> insertFile.base,map -> streamTarget.block,stream -> formatTarget.entries,formatted -> target.stream
+    filePath.first -> insertFile.value
+
+    streamTargetPath: stream<string>()
+    composition()
+    unwrapParent: unwrap<string>()
+    parent: trigger<string>()
+    createDir()
+    targetReady: releaseBlock<string>()
+    created: one<void>()
+    target.first -> streamTargetPath.block,stream -> composition.path,parent -> unwrapParent.option,value -> parent.stream,first -> createDir.path
+    unwrapFilesystem.value -> createDir.filesystem
+    createDir.success -> created.a
+    createDir.failure -> created.b,value -> targetReady.leverage
+    target.first -> targetReady.data
+
+    download()
+    write()
+    sha256()
+    request.first -> download.request,data -> write.data
+    download.data -> sha256.data
+    unwrapFilesystem.value -> write.filesystem
+    targetReady.released -> write.path
+
+    // Checked against the digest recorded, when there is one.
+    digestRecorded: mapOption<string>()
+    equal<string>()
+    digestChecked: check<bool>()
+    digestMatches: filterBlock<void>()
+    noDigest: check<void>()
+    digestOrNone: one<void>()
+    digestOption.first -> digestRecorded.option,value -> equal.b
+    sha256.digest -> equal.a,result -> digestChecked.value,check -> digestMatches.value
+    equal.result -> digestMatches.select
+    digestRecorded.none -> noDigest.value,check -> digestOrNone.b
+    digestMatches.accepted -> digestOrNone.a
+
+    written: waitBlock<void>()
+    writtenAndDownloaded: waitBlock<void>()
+    write.completed -> written.a
+    download.completed -> written.b,awaited -> writtenAndDownloaded.a
+    digestOrNone.value -----------------------> writtenAndDownloaded.b,awaited -> gather.completed
+
+    // A file that differs is removed.
+    differs: releaseBlock<string>()
+    removeFile()
+    digestMatches.rejected -> differs.leverage
+    targetReady.released -> differs.data,released -> removeFile.path
+    unwrapFilesystem.value -> removeFile.filesystem
+
+    differsReason: stringEntry(key="file")
+    streamDiffers: stream<StringMap>()
+    formatDiffers: format(format="'{file}' is not the file api.melodium.tech recorded")
+    differsError: trigger<string>()
+    filePath.first -> differsReason.value,map -> streamDiffers.block,stream -> formatDiffers.entries,formatted -> differsError.stream
+
+    notFetched: uncheck<void>()
+    writtenAndDownloaded.awaited -> notFetched.value,uncheck -> gather.failed
+
+    writeError: trigger<string>()
+    write.errors -> writeError.stream
+    reasonOfDirectory: one<string>()
+    reasonOfDownload: one<string>()
+    reasonOfWrite: one<string>()
+    differsGiven: releaseBlock<string>()
+    digestMatches.rejected -> differsGiven.leverage
+    differsError.first -> differsGiven.data
+    createDir.error -> reasonOfDirectory.a
+    download.error --> reasonOfDirectory.b,value -> reasonOfDownload.a
+    writeError.first -------------------------> reasonOfDownload.b,value -> reasonOfWrite.a
+    differsGiven.released ----------------------------------------------> reasonOfWrite.b,value -> gather.error
+}

@@ -1,0 +1,33 @@
+#!/usr/bin/env melodium
+#! name = run_artifacts_file
+#! version = 0.1.0
+#! require = std:0.11.0 fs:0.11.0 work:0.11.0
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logError
+use std/flow::emit
+use work/resources::getFileSystem
+use work/artifact::pushArtifactFile
+
+// Pushes the file `path` of the volume `data` as the artifact `name`, kept forever.
+treatment main(const name: string, const path: string)
+{
+    startup()
+
+    emitVolume: emit<string>(value="data")
+    getFileSystem()
+    emitPath: emit<string>(value=path)
+    emitName: emit<string>(value=name)
+    pushArtifactFile(forever=true)
+    logPushed: logInfoMessage(label="artifact", message="pushed")
+    logNotPushed: logInfoMessage(label="artifact", message="not pushed")
+    logPushError: logError(label="artifact")
+
+    startup.trigger -> emitVolume.trigger,emit -> getFileSystem.name,filesystem -> pushArtifactFile.filesystem
+    startup.trigger -> emitPath.trigger,emit -> pushArtifactFile.path
+    startup.trigger -> emitName.trigger,emit -> pushArtifactFile.name
+    pushArtifactFile.completed -> logPushed.trigger
+    pushArtifactFile.failed ----> logNotPushed.trigger
+    pushArtifactFile.error -----> logPushError.message
+}

@@ -20,3 +20,18 @@ pub fn api_url() -> Option<string> {
         )
     })
 }
+
+/// Return the address of api.melodium.tech, as the run reaches it.
+///
+/// It is `MELODIUM_API_URL`, as api.melodium.tech workers are configured, such as
+/// `https://api.melodium.tech/0.1`, and none elsewhere. Requests to it carry the token of the
+/// run, `api-run:token`, in their secret headers, such as to read artifacts at their stable
+/// addresses (`<address>/artifacts/<run>/<name>`).
+///
+/// The address is not a credential.
+#[mel_function]
+pub fn api_root_url() -> Option<string> {
+    crate::secret::Api::from_environment()
+        .ok()
+        .map(|api| api.url.trim_end_matches('/').to_string())
+}

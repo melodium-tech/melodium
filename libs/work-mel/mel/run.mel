@@ -1,5 +1,6 @@
 use http/client::HttpClient
 use http/client::post as httpPost
+use http/client::get as httpGet
 use http/status::HttpStatus
 use http/status::|ok
 use json::Json
@@ -59,6 +60,7 @@ use std/flow/scatter::@Scattered
 use std/ops/num::|add
 use std/flow::releaseBlock
 use root/run::|api_url
+use root/run::|api_root_url
 
 /**
 Client of the endpoints of the run on api.melodium.tech.
@@ -92,34 +94,107 @@ treatment post[api: RunApi]()
   output finished: Block<void>
   output error: Block<string>
 {
-    // Only programs run by api.melodium.tech reach it.
-    reachable: passBlock<string>(cond=|not_equal<string>(|unwrap_or<string>(|api_url(), ""), ""))
-    unreachable: passBlock<string>(cond=|equal<string>(|unwrap_or<string>(|api_url(), ""), ""))
+    address(base=|unwrap_or<string>(|api_url(), ""))
+    request: httpPost[client=api]()
+    emitHeaders: emit<StringMap>(value=|map([]))
+    pathGiven: check<string>()
+    streamBody: stream<Json>()
+    bodyToString: toString<Json>()
+    bodyToUtf8: toUtf8()
+    answered()
+    errorOfRequest: one<string>()
+    Self.path -> address.path,url -> request.url
+    Self.path -> pathGiven.value,check -> emitHeaders.trigger,emit -> request.headers
+    Self.body -> streamBody.block,stream -> bodyToString.value,into -> bodyToUtf8.text,encoded -> request.data
+    request.status -> answered.status
+    request.data ---> answered.data
+    address.error -> errorOfRequest.a
+    request.error -> errorOfRequest.b,value -> answered.error
+
+    answered.answer ---> Self.answer
+    answered.completed -> Self.completed
+    answered.failed ----> Self.failed
+    answered.finished --> Self.finished
+    answered.error -----> Self.error
+}
+
+/**
+Read an endpoint of api.melodium.tech, as the run.
+
+`path` is read with `GET`, relative to the address of api.melodium.tech (`|api_root_url()`),
+such as `artifacts/<run>/<name>?manifest`, and the JSON answer comes through `answer`, with
+`completed`. Failures are given as `post` gives them.
+*/
+treatment get[api: RunApi]()
+  input path: Block<string>
+  output answer: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    address(base=|unwrap_or<string>(|api_root_url(), ""))
+    request: httpGet[client=api]()
+    emitHeaders: emit<StringMap>(value=|map([]))
+    pathGiven: check<string>()
+    answered()
+    errorOfRequest: one<string>()
+    Self.path -> address.path,url -> request.url
+    Self.path -> pathGiven.value,check -> emitHeaders.trigger,emit -> request.headers
+    request.status -> answered.status
+    request.data ---> answered.data
+    address.error -> errorOfRequest.a
+    request.error -> errorOfRequest.b,value -> answered.error
+
+    answered.answer ---> Self.answer
+    answered.completed -> Self.completed
+    answered.failed ----> Self.failed
+    answered.finished --> Self.finished
+    answered.error -----> Self.error
+}
+
+/**
+Address of `path` under `base`, which is empty outside the runs of api.melodium.tech.
+
+ℹ️ This treatment is not aimed to be used directly, see `post` and `get`.
+*/
+treatment address(var base: string)
+  input path: Block<string>
+  output url: Block<string>
+  output error: Block<string>
+{
+    reachable: passBlock<string>(cond=|not_equal<string>(base, ""))
+    unreachable: passBlock<string>(cond=|equal<string>(base, ""))
     unreachableTriggered: check<string>()
     unreachableError: emit<string>(value="api.melodium.tech is only reached by the programs it runs")
     Self.path -> reachable.block
-    Self.path -> unreachable.block,passed -> unreachableTriggered.value,check -> unreachableError.trigger
+    Self.path -> unreachable.block,passed -> unreachableTriggered.value,check -> unreachableError.trigger,emit -> Self.error
 
-    // Address of the endpoint.
     pathGiven: check<string>()
-    emitBase: emit<StringMap>(value=|map([|entry("base", |unwrap_or<string>(|api_url(), ""))]))
+    emitBase: emit<StringMap>(value=|map([|entry("base", base)]))
     insertPath: stringInsert(key="path")
     streamUrl: stream<StringMap>()
     formatUrl: format(format="{base}/{path}")
     url: trigger<string>()
     reachable.passed -> pathGiven.value,check -> emitBase.trigger,emit -> insertPath.base
-    reachable.passed -----------------------------------------------> insertPath.value,map -> streamUrl.block,stream -> formatUrl.entries,formatted -> url.stream
+    reachable.passed -----------------------------------------------> insertPath.value,map -> streamUrl.block,stream -> formatUrl.entries,formatted -> url.stream,first -> Self.url
+}
 
-    // Request.
-    request: httpPost[client=api]()
-    emitHeaders: emit<StringMap>(value=|map([]))
-    streamBody: stream<Json>()
-    bodyToString: toString<Json>()
-    bodyToUtf8: toUtf8()
-    url.first -> request.url
-    pathGiven.check -> emitHeaders.trigger,emit -> request.headers
-    Self.body -> streamBody.block,stream -> bodyToString.value,into -> bodyToUtf8.text,encoded -> request.data
+/**
+JSON answer of api.melodium.tech, from the status and body of the answer to a request.
 
+ℹ️ This treatment is not aimed to be used directly, see `post` and `get`.
+*/
+treatment answered()
+  input status: Block<HttpStatus>
+  input data: Stream<byte>
+  input error: Block<string>
+  output answer: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
     // Whole answer, as text, empty when there is none.
     answerFromUtf8: fromUtf8()
     answerRescale: rescale(delimiter="\n")
@@ -127,13 +202,13 @@ treatment post[api: RunApi]()
     answerEmpty: uncheck<string>()
     emitEmpty: emit<string>(value="")
     answerOrEmpty: one<string>()
-    request.data -> answerFromUtf8.encoded,text -> answerRescale.unscaled,scaled -> answerText.stream,first -> answerOrEmpty.a
+    Self.data -> answerFromUtf8.encoded,text -> answerRescale.unscaled,scaled -> answerText.stream,first -> answerOrEmpty.a
     answerText.first -> answerEmpty.value,uncheck -> emitEmpty.trigger,emit -> answerOrEmpty.b
 
     // Accepted answers are JSON.
     isOk: equalTo<HttpStatus>(value=|ok())
     accepted: filterBlock<string>()
-    request.status -> isOk.data,result -> accepted.select
+    Self.status -> isOk.data,result -> accepted.select
     answerOrEmpty.value -> accepted.value
 
     streamAccepted: stream<string>()
@@ -143,12 +218,12 @@ treatment post[api: RunApi]()
     accepted.accepted -> streamAccepted.block,stream -> answerToJson.text,json -> unwrapJson.option,value -> parsed.stream,first -> Self.answer
 
     // Whatever went wrong, there is no answer.
-    answered: check<Json>()
+    answeredOnce: check<Json>()
     notAnswered: uncheck<Json>()
-    parsed.first -> answered.value,check -> Self.completed
+    parsed.first -> answeredOnce.value,check -> Self.completed
     parsed.first -> notAnswered.value,uncheck -> Self.failed
     finishedOnce: one<void>()
-    answered.check ----> finishedOnce.a
+    answeredOnce.check -> finishedOnce.a
     notAnswered.uncheck -> finishedOnce.b,value -> Self.finished
 
     // Refusals give their status and body.
@@ -160,7 +235,7 @@ treatment post[api: RunApi]()
     streamRefusal: stream<StringMap>()
     formatRefusal: format(format="api.melodium.tech answered {status}: {body}")
     refusal: trigger<string>()
-    request.status -> streamStatus.block,stream -> statusToString.value,into -> statusText.stream,first -> statusEntry.value,map -> insertBody.base
+    Self.status -> streamStatus.block,stream -> statusToString.value,into -> statusText.stream,first -> statusEntry.value,map -> insertBody.base
     accepted.rejected -> insertBody.value,map -> streamRefusal.block,stream -> formatRefusal.entries,formatted -> refusal.stream
 
     // Answers accepted but not JSON.
@@ -170,13 +245,11 @@ treatment post[api: RunApi]()
     accepted.accepted -> acceptedText.value,check -> acceptedNotJson.a
     notAnswered.uncheck --------------------------> acceptedNotJson.b,awaited -> notJsonError.trigger
 
-    errorOfRequest: one<string>()
     errorOfRefusal: one<string>()
     errorOfAnswer: one<string>()
-    unreachableError.emit -> errorOfRequest.a
-    request.error --------> errorOfRequest.b,value -> errorOfRefusal.a
-    refusal.first ------------------------------> errorOfRefusal.b,value -> errorOfAnswer.a
-    notJsonError.emit -> errorOfAnswer.b,value -> Self.error
+    Self.error -----> errorOfRefusal.a
+    refusal.first --> errorOfRefusal.b,value -> errorOfAnswer.a
+    notJsonError.emit ----------------------> errorOfAnswer.b,value -> Self.error
 }
 
 /**
