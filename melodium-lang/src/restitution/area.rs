@@ -1,4 +1,4 @@
-use super::{model::Model, treatment::Treatment};
+use super::{model::Model, treatment::Treatment, RestitutionOptions};
 use crate::Path;
 use convert_case::{Case, Casing};
 use itertools::Itertools;
@@ -15,10 +15,19 @@ pub struct Area {
     uses_names: BTreeMap<Identifier, String>,
     models: Vec<Model>,
     treatments: Vec<Treatment>,
+    options: RestitutionOptions,
 }
 
 impl Area {
     pub fn new(path: Path, collection: Arc<Collection>) -> Self {
+        Self::new_with_options(path, collection, RestitutionOptions::default())
+    }
+
+    pub fn new_with_options(
+        path: Path,
+        collection: Arc<Collection>,
+        options: RestitutionOptions,
+    ) -> Self {
         let mut owned_ids = collection
             .identifiers()
             .into_iter()
@@ -144,6 +153,7 @@ impl Area {
             uses_names: names,
             models,
             treatments,
+            options,
         }
     }
 
@@ -169,6 +179,10 @@ impl Area {
 
     pub fn treatments(&self) -> &Vec<Treatment> {
         &self.treatments
+    }
+
+    pub fn options(&self) -> &RestitutionOptions {
+        &self.options
     }
 
     pub fn implementation_needs(&self, needs: Vec<Identifier>) -> String {
@@ -222,11 +236,12 @@ impl Area {
         );
 
         for model in &self.models {
-            result.push_str(&model.implementation(&self.uses_names));
+            result.push_str(&model.implementation_with_options(&self.uses_names, &self.options));
         }
 
         for treatment in &self.treatments {
-            result.push_str(&treatment.implementation(&self.uses_names));
+            result
+                .push_str(&treatment.implementation_with_options(&self.uses_names, &self.options));
         }
 
         result

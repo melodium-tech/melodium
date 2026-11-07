@@ -1,0 +1,44 @@
+#!/usr/bin/env melodium
+#! name = run_artifacts_push
+#! version = 0.1.0
+#! require = std:0.11.1 fs:0.11.1 json:0.11.1 work:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfo
+use std/engine/log::logError
+use std/conv::toString
+use std/flow::emit
+use std/flow::stream
+use std/flow::trigger
+use json::Json
+use std/ops/option::|wrap
+use work/resources::getFileSystem
+use work/artifact::pushArtifact
+
+// Pushes `path` of the volume `data` as the artifact `name`, a render showing `index.html`.
+treatment main(const name: string, const path: string = "site", const parallel: u32 = 4)
+{
+    startup()
+
+    emitVolume: emit<string>(value="data")
+    getFileSystem()
+    emitPath: emit<string>(value=path)
+    emitName: emit<string>(value=name)
+    pushArtifact(entrypoint=|wrap<string>("index.html"), access="public", retention_days=30, parallel=parallel)
+    logPushed: logInfoMessage(label="artifact", message="pushed")
+    logNotPushed: logInfoMessage(label="artifact", message="not pushed")
+    logPushError: logError(label="artifact")
+    streamArtifact: stream<Json>()
+    artifactText: toString<Json>()
+    artifactFirst: trigger<string>()
+    logArtifact: logInfo(label="described")
+
+    startup.trigger -> emitVolume.trigger,emit -> getFileSystem.name,filesystem -> pushArtifact.filesystem
+    startup.trigger -> emitPath.trigger,emit -> pushArtifact.path
+    startup.trigger -> emitName.trigger,emit -> pushArtifact.name
+    pushArtifact.completed -> logPushed.trigger
+    pushArtifact.failed ----> logNotPushed.trigger
+    pushArtifact.error -----> logPushError.message
+    pushArtifact.artifact -> streamArtifact.block,stream -> artifactText.value,into -> artifactFirst.stream,first -> logArtifact.message
+}

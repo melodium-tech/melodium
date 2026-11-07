@@ -15,6 +15,8 @@ use process/command::|command
 use work/resources/arch::Arch
 use work/resources/arch::|arm64
 use work/resources::|service_container
+use cicd/cache::Cache
+use cicd/cache::|cache
 use cicd/runners::CicdDispatchEngine
 use cicd/naive::simpleStep
 use cicd/naive::simpleStepWithInput
@@ -31,6 +33,8 @@ use fs/local::writeLocal
 //                      the cloned repo's own Cargo.toml, streamed back
 //                      locally (works for any ordinary single-binary crate,
 //                      not just the one used as the default `repo_url`).
+//                      Crates and build outputs are the cache `cargo` of
+//                      api.melodium.tech, restored before and saved after.
 //
 //   Stage 2, test:    rust:1.90-slim + postgres:16 service container; a
 //                      `psql` connectivity check exercises DATABASE_URL
@@ -214,9 +218,18 @@ treatment build[dispatcher: CicdDispatchEngine](const repo_url: string)
             |command("sh", ["-c", "apt-get update -qq && apt-get install -y --no-install-recommends git"]),
             |command("sh", ["-c", "git clone --depth 1 ${REPO_URL} /workspace"]),
             |command("sh", ["-c", "cd /workspace && cargo build --release 2>&1"]),
-            |command("sh", ["-c", "BIN=$(grep -m1 '^name' /workspace/Cargo.toml | cut -d '\"' -f2) && cp \"/workspace/target/release/$BIN\" /mnt/data/binary"])
+            |command("sh", ["-c", "BIN=$(grep -m1 '^name' /workspace/Cargo.toml | cut -d '\"' -f2) && cp \"/mnt/data/cache/target/release/$BIN\" /mnt/data/binary"])
         ],
-        variables    = |wrap<StringMap>(|map([|entry("REPO_URL", repo_url)])),
+        // Downloaded crates and build outputs live in `cache` of the `data`
+        // volume: the cache `cargo` of api.melodium.tech, restored before the
+        // commands and saved, as a new version, once they succeed.
+        variables    = |wrap<StringMap>(|map([
+            |entry("REPO_URL", repo_url),
+            |entry("CARGO_HOME", "/mnt/data/cache/cargo"),
+            |entry("CARGO_TARGET_DIR", "/mnt/data/cache/target")
+        ])),
+        out_storage  = 4096,
+        cache        = |wrap<Cache>(|cache(|wrap<string>("data"), "cache", "cargo")),
         out_file     = "binary"
     )
 
@@ -267,6 +280,7 @@ treatment test[dispatcher: CicdDispatchEngine](const repo_url: string)
                     |entry("POSTGRES_PASSWORD", "ci"),
                     |entry("POSTGRES_DB",       "ci_test")
                 ])),
+                _,
                 _
             )
         ],

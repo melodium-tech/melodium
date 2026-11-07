@@ -1,0 +1,41 @@
+#!/usr/bin/env melodium
+#! name = http_download
+#! version = 0.1.0
+#! require = std:0.11.1 http:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/engine/log::logError
+use std/flow::emit
+use std/flow::stream
+use std/flow::check
+use std/flow::consume
+use std/conv::toString
+use std/data/string_map::|map
+use std/data/string_map::|entry
+use http/method::|get
+use http/client::PreparedRequest
+use http/client::download
+use http/client::|prepared_request
+
+treatment main(const url: string)
+{
+    startup()
+
+    emitRequest: emit<PreparedRequest>(value=|prepared_request(|get(), url, |map([|entry("X-Prepared", "yes")])))
+    download()
+    consume<byte>()
+    downloaded: check<void>()
+    logError(label="download")
+
+    startup.trigger -> emitRequest.trigger,emit -> download.request,data -> consume.stream
+    download.completed -> downloaded.value
+    download.error ----> logError.message
+
+    // Requests show their method and host only.
+    emitShown: emit<PreparedRequest>(value=|prepared_request(|get(), url, |map([])))
+    streamShown: stream<PreparedRequest>()
+    toString<PreparedRequest>()
+    logInfos(label="shown")
+    startup.trigger -> emitShown.trigger,emit -> streamShown.block,stream -> toString.value,into -> logInfos.messages
+}

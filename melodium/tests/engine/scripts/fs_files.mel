@@ -1,0 +1,32 @@
+#!/usr/bin/env melodium
+#! name = fs_files
+#! version = 0.1.0
+#! require = std:0.11.1 fs:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/engine/log::logError
+use std/flow::emit
+use std/flow::check
+use std/ops/option::|wrap
+use std/ops/option/block::unwrap
+use fs/filesystem::FileSystem
+use fs/local::|local_filesystem
+use fs/dir::files
+
+treatment main(const root: string)
+{
+    startup()
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem(|wrap<string>(root)))
+    filesystem: unwrap<FileSystem>()
+    emitPath: emit<string>(value="tree")
+    files()
+    logFiles: logInfos(label="file")
+    logFilesError: logError(label="files")
+    listed: check<void>()
+    startup.trigger -> emitFileSystem.trigger,emit -> filesystem.option,value -> files.filesystem
+    startup.trigger -> emitPath.trigger,emit -> files.path
+    files.files -> logFiles.messages
+    files.error -> logFilesError.message
+    files.completed -> listed.value
+}

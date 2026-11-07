@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.11.1] (2026-11-06)
+
+- Adding SHA-256 digests of data streams (`crypto/hash::sha256`) and of byte vectors (`crypto/hash::|sha256`), in lowercase hexadecimal (#161).
+
 ## [v0.11.0] (2026-10-15)
 
 - First version: HMAC signing and verification of data (`crypto/signature/hmac::sign`, `crypto/signature/hmac::verify`) with SHA-256, SHA-384, SHA-512 and SHA-1, and constant-time checking of received tokens against secrets (`crypto/token::check`), such as for webhooks (#136).

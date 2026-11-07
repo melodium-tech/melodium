@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "api_secrets",
     "check_rejections",
     "complex_call",
     "crypto_webhooks",
@@ -25,6 +26,8 @@ members = [
     "process_secrets",
     "protocol_timeout_survives_jitter",
     "regex",
+    "run_artifacts",
+    "run_caches",
     "secret_access_cli",
     "secret_distribution",
     "secret_leaks",
@@ -33,6 +36,7 @@ members = [
     "sql",
     "stop_before_data_drained",
     "tester",
+    "volume_filesystem",
     "wipe",
     "work_secrets",
 ]

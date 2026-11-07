@@ -95,6 +95,50 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) 
     }
 }
 
+/// Gives the literal of a value on a single line, unless it holds strings written on several.
+pub fn inline_value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
+    match value {
+        Value::Array(array) => format!(
+            "[{}]",
+            array
+                .iter()
+                .map(|val| inline_value(val, names))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        Value::Function(function, generics, params) => {
+            let name = names.get(function.identifier()).unwrap();
+
+            let generics = if !function.generics().is_empty() && !generics.is_empty() {
+                format!(
+                    "<{}>",
+                    function
+                        .generics()
+                        .iter()
+                        .map(|generic| generics
+                            .get(&generic.name)
+                            .map(|desc_type| describe_type(desc_type, names))
+                            .unwrap_or_else(|| "_".to_string()))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            } else {
+                String::new()
+            };
+
+            format!(
+                "{name}{generics}({})",
+                params
+                    .iter()
+                    .map(|p| inline_value(p, names))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
+        other => self::value(other, names, 1),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

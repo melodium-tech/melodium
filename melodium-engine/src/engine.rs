@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use melodium_common::{
     descriptor::{Collection, Identifier},
     executive::{
-        DirectCreationCallback, Level as LogLevel, Log, Secret, SecretsAccess, TrackId, Value,
+        DirectCreationCallback, Level as LogLevel, Log, Secret, SecretError, SecretSource,
+        SecretsAccess, TrackId, Value,
     },
 };
 use std::{collections::HashMap, sync::Arc};
@@ -15,6 +16,15 @@ use std::{collections::HashMap, sync::Arc};
 #[async_trait]
 pub trait Engine: Send + Sync {
     fn collection(&self) -> Arc<Collection>;
+    /// Gives a secret source for the `scheme` of locators, such as `api` for `api:<name>`.
+    ///
+    /// Only possible before genesis, that registers it before the sources of models: as for
+    /// `env` and `file`, a model registering the same scheme makes the launch fail.
+    fn add_secret_source(
+        &self,
+        scheme: &str,
+        source: Arc<dyn SecretSource>,
+    ) -> Result<(), SecretError>;
     fn genesis(&self, entry: &Identifier, params: HashMap<String, Value>) -> LogicResult<()>;
     fn errors(&self) -> LogicErrors;
     fn set_auto_end(&self, auto_end: bool);

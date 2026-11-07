@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "api_secrets"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -349,6 +356,22 @@ name = "regex"
 version = "0.1.0"
 
 [[package]]
+name = "run_artifacts"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tester",
+]
+
+[[package]]
+name = "run_caches"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tester",
+]
+
+[[package]]
 name = "secret_access_cli"
 version = "0.1.0"
 dependencies = [
@@ -550,6 +573,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
+name = "volume_filesystem"
+version = "0.1.0"
+dependencies = [
+ "tester",
+]
+
+[[package]]
 name = "wipe"
 version = "0.1.0"
 dependencies = [
@@ -560,6 +590,7 @@ dependencies = [
 name = "work_secrets"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "tester",
 ]
 

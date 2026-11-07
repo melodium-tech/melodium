@@ -1,0 +1,60 @@
+#!/usr/bin/env melodium
+#! name = compression_zstd
+#! version = 0.1.0
+#! require = std:0.11.1 compression:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logError
+use std/flow::emit
+use std/flow::stream
+use std/flow::check
+use std/flow::consume
+use std/flow/vec::flatten
+use std/text/convert/string::toUtf8
+use compression/zstd::compress
+use compression/zstd::decompress
+
+treatment main()
+{
+    startup()
+
+    emitText: emit<Vec<string>>(value=["Mélodium streams data ", "through compression ", "and back, ", "Mélodium streams data ", "through compression ", "and back."])
+    streamText: stream<Vec<string>>()
+    flattenText: flatten<string>()
+    toUtf8()
+    compress(level=19)
+    decompress()
+    consumeBack: consume<byte>()
+
+    startup.trigger -> emitText.trigger,emit -> streamText.block,stream -> flattenText.vector,value -> toUtf8.text,encoded -> compress.data,compressed -> decompress.data,decompressed -> consumeBack.stream
+
+    emitCorrupt: emit<string>(value="these bytes are not zstd")
+    streamCorrupt: stream<string>()
+    corruptUtf8: toUtf8()
+    corrupt: decompress()
+    consumeCorrupt: consume<byte>()
+    logCorrupt: logError(label="corrupt")
+
+    startup.trigger -> emitCorrupt.trigger,emit -> streamCorrupt.block,stream -> corruptUtf8.text,encoded -> corrupt.data,decompressed -> consumeCorrupt.stream
+    corrupt.error -> logCorrupt.message
+
+    unsupported: compress(level=40)
+    emitUnsupported: emit<string>(value="anything")
+    streamUnsupported: stream<string>()
+    unsupportedUtf8: toUtf8()
+    consumeUnsupported: consume<byte>()
+    logUnsupported: logError(label="unsupported")
+
+    startup.trigger -> emitUnsupported.trigger,emit -> streamUnsupported.block,stream -> unsupportedUtf8.text,encoded -> unsupported.data,compressed -> consumeUnsupported.stream
+    unsupported.error -> logUnsupported.message
+
+    // Signals are connected, so that what they send is in debug events.
+    compressCompleted: check<void>()
+    decompressCompleted: check<void>()
+    corruptCompleted: check<void>()
+    corruptFailed: check<void>()
+    compress.completed --> compressCompleted.value
+    decompress.completed -> decompressCompleted.value
+    corrupt.completed ----> corruptCompleted.value
+    corrupt.failed -------> corruptFailed.value
+}

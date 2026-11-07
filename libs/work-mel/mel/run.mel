@@ -1,0 +1,462 @@
+use http/client::HttpClient
+use http/client::post as httpPost
+use http/client::get as httpGet
+use http/status::HttpStatus
+use http/status::|ok
+use json::Json
+use json::toJson
+use std/conv::toString
+use std/data/map::Map
+use std/data/map::|map as |secret_map
+use std/data/map::|entry as |secret_entry
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/string_map::|entry
+use std/data/string_map/block::entry as stringEntry
+use std/data/string_map/block::insert as stringInsert
+use std/flow::check
+use std/flow::emit
+use std/flow::filterBlock
+use std/flow::one
+use std/flow::passBlock
+use std/flow::stream
+use std/flow::trigger
+use std/flow::uncheck
+use std/flow::waitBlock
+use std/ops/block::equalTo
+use std/ops::|equal
+use std/ops::|not_equal
+use std/ops/option::|unwrap_or
+use std/ops/option::|wrap
+use std/ops/option::unwrap
+use std/secret::|format as |secret_format
+use std/text/compose::format
+use std/text/compose::rescale
+use std/text/convert/string::fromUtf8
+use std/text/convert/string::toUtf8
+use crypto/hash::sha256
+use http/client::PreparedRequest
+use http/upload::cut
+use http/upload::parts as uploadParts
+use http/upload::|part_size
+use json/value::array as jsonArray
+use json/value::fromJson
+use json/value::fromNumberU64
+use json/value::fromString as jsonFromString
+use json/value::get as jsonGet
+use json/value::index as jsonIndex
+use json/value::insert as jsonInsert
+use json/value::|from_number_u64
+use json/value::|insert as |json_insert
+use json/value::|object
+use std/conv::saturatingToU64
+use std/conv::|saturating_to_u32
+use std/flow::count
+use std/flow/scatter::Scatter
+use std/flow/scatter::scatterGathering
+use std/flow/scatter::scattered
+use std/flow/scatter::gatherValue
+use std/flow/scatter::@Scattered
+use std/ops/num::|add
+use std/flow::releaseBlock
+use root/run::|api_url
+use root/run::|api_root_url
+
+/**
+Client of the endpoints of the run on api.melodium.tech.
+
+Requests carry the token of the run, `api-run:token`, in their `Authorization` header, as a
+secret: it is only revealed to be sent, and never appears in logs. Requests are given full
+addresses, under `work/run::|api_url()`.
+*/
+model RunApi() : HttpClient
+{
+    headers = |map([|entry("Content-Type", "application/json"), |entry("Accept", "application/json")])
+    secret_headers = |wrap<Map>(|secret_map([|secret_entry<Secret<string>>("Authorization", |secret_format("Bearer {token}", |secret_map([|secret_entry<Secret<string>>("token", "api-run:token")]), "authorization"))]))
+}
+
+/**
+Call an endpoint of the run on api.melodium.tech.
+
+`body` is sent with `POST` to `path`, relative to the address of the run (`|api_url()`), such
+as `cache/restore`, and the JSON answer comes through `answer`, with `completed`.
+
+If the program is not run by api.melodium.tech, the API cannot be reached, it refuses the
+request, or its answer is not JSON, `failed` is emitted and `error` gives the reason, with the
+status and the body of a refusal. `finished` is emitted in every case.
+*/
+treatment post[api: RunApi]()
+  input path: Block<string>
+  input body: Block<Json>
+  output answer: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    address(base=|unwrap_or<string>(|api_url(), ""))
+    request: httpPost[client=api]()
+    emitHeaders: emit<StringMap>(value=|map([]))
+    pathGiven: check<string>()
+    streamBody: stream<Json>()
+    bodyToString: toString<Json>()
+    bodyToUtf8: toUtf8()
+    answered()
+    errorOfRequest: one<string>()
+    Self.path -> address.path,url -> request.url
+    Self.path -> pathGiven.value,check -> emitHeaders.trigger,emit -> request.headers
+    Self.body -> streamBody.block,stream -> bodyToString.value,into -> bodyToUtf8.text,encoded -> request.data
+    request.status -> answered.status
+    request.data ---> answered.data
+    address.error -> errorOfRequest.a
+    request.error -> errorOfRequest.b,value -> answered.error
+
+    answered.answer ---> Self.answer
+    answered.completed -> Self.completed
+    answered.failed ----> Self.failed
+    answered.finished --> Self.finished
+    answered.error -----> Self.error
+}
+
+/**
+Read an endpoint of api.melodium.tech, as the run.
+
+`path` is read with `GET`, relative to the address of api.melodium.tech (`|api_root_url()`),
+such as `artifacts/<run>/<name>?manifest`, and the JSON answer comes through `answer`, with
+`completed`. Failures are given as `post` gives them.
+*/
+treatment get[api: RunApi]()
+  input path: Block<string>
+  output answer: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    address(base=|unwrap_or<string>(|api_root_url(), ""))
+    request: httpGet[client=api]()
+    emitHeaders: emit<StringMap>(value=|map([]))
+    pathGiven: check<string>()
+    answered()
+    errorOfRequest: one<string>()
+    Self.path -> address.path,url -> request.url
+    Self.path -> pathGiven.value,check -> emitHeaders.trigger,emit -> request.headers
+    request.status -> answered.status
+    request.data ---> answered.data
+    address.error -> errorOfRequest.a
+    request.error -> errorOfRequest.b,value -> answered.error
+
+    answered.answer ---> Self.answer
+    answered.completed -> Self.completed
+    answered.failed ----> Self.failed
+    answered.finished --> Self.finished
+    answered.error -----> Self.error
+}
+
+/**
+Address of `path` under `base`, which is empty outside the runs of api.melodium.tech.
+
+ℹ️ This treatment is not aimed to be used directly, see `post` and `get`.
+*/
+treatment address(var base: string)
+  input path: Block<string>
+  output url: Block<string>
+  output error: Block<string>
+{
+    reachable: passBlock<string>(cond=|not_equal<string>(base, ""))
+    unreachable: passBlock<string>(cond=|equal<string>(base, ""))
+    unreachableTriggered: check<string>()
+    unreachableError: emit<string>(value="api.melodium.tech is only reached by the programs it runs")
+    Self.path -> reachable.block
+    Self.path -> unreachable.block,passed -> unreachableTriggered.value,check -> unreachableError.trigger,emit -> Self.error
+
+    pathGiven: check<string>()
+    emitBase: emit<StringMap>(value=|map([|entry("base", base)]))
+    insertPath: stringInsert(key="path")
+    streamUrl: stream<StringMap>()
+    formatUrl: format(format="{base}/{path}")
+    url: trigger<string>()
+    reachable.passed -> pathGiven.value,check -> emitBase.trigger,emit -> insertPath.base
+    reachable.passed -----------------------------------------------> insertPath.value,map -> streamUrl.block,stream -> formatUrl.entries,formatted -> url.stream,first -> Self.url
+}
+
+/**
+JSON answer of api.melodium.tech, from the status and body of the answer to a request.
+
+ℹ️ This treatment is not aimed to be used directly, see `post` and `get`.
+*/
+treatment answered()
+  input status: Block<HttpStatus>
+  input data: Stream<byte>
+  input error: Block<string>
+  output answer: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    // Whole answer, as text, empty when there is none.
+    answerFromUtf8: fromUtf8()
+    answerRescale: rescale(delimiter="\n")
+    answerText: trigger<string>()
+    answerEmpty: uncheck<string>()
+    emitEmpty: emit<string>(value="")
+    answerOrEmpty: one<string>()
+    Self.data -> answerFromUtf8.encoded,text -> answerRescale.unscaled,scaled -> answerText.stream,first -> answerOrEmpty.a
+    answerText.first -> answerEmpty.value,uncheck -> emitEmpty.trigger,emit -> answerOrEmpty.b
+
+    // Accepted answers are JSON.
+    isOk: equalTo<HttpStatus>(value=|ok())
+    accepted: filterBlock<string>()
+    Self.status -> isOk.data,result -> accepted.select
+    answerOrEmpty.value -> accepted.value
+
+    streamAccepted: stream<string>()
+    answerToJson: toJson()
+    unwrapJson: unwrap<Json>()
+    parsed: trigger<Json>()
+    accepted.accepted -> streamAccepted.block,stream -> answerToJson.text,json -> unwrapJson.option,value -> parsed.stream,first -> Self.answer
+
+    // Whatever went wrong, there is no answer.
+    answeredOnce: check<Json>()
+    notAnswered: uncheck<Json>()
+    parsed.first -> answeredOnce.value,check -> Self.completed
+    parsed.first -> notAnswered.value,uncheck -> Self.failed
+    finishedOnce: one<void>()
+    answeredOnce.check -> finishedOnce.a
+    notAnswered.uncheck -> finishedOnce.b,value -> Self.finished
+
+    // Refusals give their status and body.
+    statusEntry: stringEntry(key="status")
+    statusToString: toString<HttpStatus>()
+    streamStatus: stream<HttpStatus>()
+    statusText: trigger<string>()
+    insertBody: stringInsert(key="body")
+    streamRefusal: stream<StringMap>()
+    formatRefusal: format(format="api.melodium.tech answered {status}: {body}")
+    refusal: trigger<string>()
+    Self.status -> streamStatus.block,stream -> statusToString.value,into -> statusText.stream,first -> statusEntry.value,map -> insertBody.base
+    accepted.rejected -> insertBody.value,map -> streamRefusal.block,stream -> formatRefusal.entries,formatted -> refusal.stream
+
+    // Answers accepted but not JSON.
+    acceptedText: check<string>()
+    acceptedNotJson: waitBlock<void>()
+    notJsonError: emit<string>(value="api.melodium.tech gave an answer that is not JSON")
+    accepted.accepted -> acceptedText.value,check -> acceptedNotJson.a
+    notAnswered.uncheck --------------------------> acceptedNotJson.b,awaited -> notJsonError.trigger
+
+    errorOfRefusal: one<string>()
+    errorOfAnswer: one<string>()
+    Self.error -----> errorOfRefusal.a
+    refusal.first --> errorOfRefusal.b,value -> errorOfAnswer.a
+    notJsonError.emit ----------------------> errorOfAnswer.b,value -> Self.error
+}
+
+/**
+Upload data to api.melodium.tech through an upload session of the run.
+
+A session is opened for `purpose`, such as `{"cache": {"name": "cargo"}}`, then the bytes
+received through `data` are uploaded in parts while they come (`http/upload::cut`), at most
+`parallel` parts at once, each presigned by api.melodium.tech and retried after cuts. Memory
+holds about `parallel` parts, whatever the size of the data.
+
+`whole` tells that `data` is all there is to upload, such as once what produces it completed.
+The session is then completed with the SHA-256 and the size of the data, and `answer` gives
+what the upload became, with `completed`. If `data` ends without `whole`, a part cannot be
+uploaded, or api.melodium.tech refuses the session, it is aborted, leaving nothing in storage,
+then `failed` is emitted and `error` gives the reason. `finished` is emitted in every case.
+
+Presigned addresses never appear in logs, errors or outputs.
+*/
+treatment upload[api: RunApi](var parallel: u32 = 4)
+  model parts: Scatter()
+  input purpose: Block<Json>
+  input data: Stream<byte>
+  input whole: Block<void>
+  output answer: Block<Json>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output error: Block<string>
+{
+    // The session.
+    purposeGiven: check<Json>()
+    emitOpenPath: emit<string>(value="storage/uploads")
+    emitOpenObject: emit<Json>(value=|object())
+    streamOpenObject: stream<Json>()
+    streamPurpose: stream<Json>()
+    insertPurpose: jsonInsert(key="purpose")
+    openBody: trigger<Json>()
+    open: post[api=api]()
+    Self.purpose -> purposeGiven.value,check -> emitOpenPath.trigger,emit -> open.path
+    purposeGiven.check -> emitOpenObject.trigger,emit -> streamOpenObject.block,stream -> insertPurpose.object
+    Self.purpose -> streamPurpose.block,stream -> insertPurpose.value,json -> openBody.stream,first -> open.body
+
+    streamOpened: stream<Json>()
+    getUploadId: jsonGet(key="upload_id")
+    unwrapUploadId: unwrap<Json>()
+    uploadIdFromJson: fromJson<string>()
+    unwrapUploadIdString: unwrap<string>()
+    uploadId: trigger<string>()
+    open.answer -> streamOpened.block,stream -> getUploadId.json,value -> unwrapUploadId.option,value -> uploadIdFromJson.json,value -> unwrapUploadIdString.option,value -> uploadId.stream
+
+    // Parts, each in a track of its own, presigned and uploaded.
+    cut()
+    scatterGathering<Vec<byte>, string, Json>[scatter=parts](parallel=parallel)
+    part[parts=parts, api=api]()
+    Self.data -> cut.data,parts -> scatterGathering.values
+    uploadId.first -> scatterGathering.shared
+
+    // What was uploaded.
+    sha256()
+    count<byte>()
+    lastCount: trigger<u128>()
+    streamCount: stream<u128>()
+    sizeToU64: saturatingToU64<u128>()
+    Self.data -> sha256.data
+    Self.data -> count.stream,count -> lastCount.stream,last -> streamCount.block,stream -> sizeToU64.value
+
+    // Completed once the data is whole and every part is uploaded.
+    partsArray: jsonArray()
+    scatterGathering.gathered -> partsArray.values
+
+    uploaded: waitBlock<void>()
+    cutWhole: waitBlock<void>()
+    Self.whole -> uploaded.a
+    scatterGathering.completed -> uploaded.b,awaited -> cutWhole.a
+    cut.completed -------------------------------------> cutWhole.b
+
+    emitCompleteObject: emit<Json>(value=|object())
+    streamCompleteObject: stream<Json>()
+    streamDigest: stream<string>()
+    digestToJson: jsonFromString<string>()
+    insertDigest: jsonInsert(key="sha256")
+    sizeToJson: fromNumberU64<u64>()
+    insertSize: jsonInsert(key="size")
+    streamParts: stream<Json>()
+    insertParts: jsonInsert(key="parts")
+    completeBody: trigger<Json>()
+    cutWhole.awaited -> emitCompleteObject.trigger,emit -> streamCompleteObject.block,stream -> insertDigest.object
+    sha256.digest -> streamDigest.block,stream -> digestToJson.value,json -> insertDigest.value,json -> insertSize.object
+    sizeToU64.into -> sizeToJson.value,json -> insertSize.value,json -> insertParts.object
+    partsArray.array -> streamParts.block,stream -> insertParts.value,json -> completeBody.stream
+
+    idEntry: stringEntry(key="id")
+    completeIdReleased: releaseBlock<string>()
+    streamCompletePath: stream<StringMap>()
+    formatCompletePath: format(format="storage/uploads/{id}/complete")
+    completePath: trigger<string>()
+    complete: post[api=api]()
+    cutWhole.awaited -> completeIdReleased.leverage
+    uploadId.first -> completeIdReleased.data,released -> idEntry.value,map -> streamCompletePath.block,stream -> formatCompletePath.entries,formatted -> completePath.stream,first -> complete.path
+    completeBody.first -> complete.body
+
+    complete.answer ---> Self.answer
+    complete.completed -> Self.completed
+
+    // Aborted otherwise.
+    notWhole: uncheck<void>()
+    notWholeError: emit<string>(value="the data to upload ended before it was whole")
+    cutWhole.awaited -> notWhole.value,uncheck -> notWholeError.trigger
+
+    abortIdReleased: releaseBlock<string>()
+    abortIdEntry: stringEntry(key="id")
+    streamAbortPath: stream<StringMap>()
+    formatAbortPath: format(format="storage/uploads/{id}/abort")
+    abortPath: trigger<string>()
+    emitAbortBody: emit<Json>(value=|object())
+    abort: post[api=api]()
+    notWhole.uncheck -> abortIdReleased.leverage
+    uploadId.first -> abortIdReleased.data,released -> abortIdEntry.value,map -> streamAbortPath.block,stream -> formatAbortPath.entries,formatted -> abortPath.stream,first -> abort.path
+    abortPathGiven: check<string>()
+    abortPath.first -> abortPathGiven.value,check -> emitAbortBody.trigger,emit -> abort.body
+
+    // `failed` comes once the session is aborted, or when it could not be completed.
+    abortedOnce: waitBlock<void>()
+    failedOnce: one<void>()
+    notWhole.uncheck -> abortedOnce.a
+    abort.finished ---> abortedOnce.b,awaited -> failedOnce.a
+    complete.failed --------------------------> failedOnce.b,value -> Self.failed
+
+    finishedOnce: one<void>()
+    complete.completed -> finishedOnce.a
+    failedOnce.value ---> finishedOnce.b,value -> Self.finished
+
+    // The first reason found is given.
+    scatterError: trigger<string>()
+    scatterGathering.errors -> scatterError.stream
+    reasonOfOpen: one<string>()
+    reasonOfCut: one<string>()
+    reasonOfParts: one<string>()
+    reasonOfCompletion: one<string>()
+    open.error -> reasonOfOpen.a
+    cut.error --> reasonOfOpen.b,value -> reasonOfCut.a
+    scatterError.first ----------------> reasonOfCut.b,value -> reasonOfParts.a
+    notWholeError.emit --------------------------------------> reasonOfParts.b,value -> reasonOfCompletion.a
+    complete.error ------------------------------------------------------------------> reasonOfCompletion.b,value -> Self.error
+}
+
+/**
+Upload a part of an upload session, in the track `upload` makes for it.
+
+ℹ️ This treatment is not aimed to be used directly, see `upload`.
+*/
+treatment part[parts: Scatter, api: RunApi]()
+  require @Scattered
+{
+    scattered<Vec<byte>, string>[scatter=parts]()
+    gatherValue<Json>[scatter=parts]()
+
+    // Presigned alone, numbered from 1.
+    idEntry: stringEntry(key="id")
+    streamPath: stream<StringMap>()
+    formatPath: format(format="storage/uploads/{id}/parts")
+    path: trigger<string>()
+    emitBody: emit<Json>(value=|json_insert(|json_insert(|json_insert(|object(), "first", |from_number_u64<u64>(|add<u64>(@Scattered[index], 1))), "count", |from_number_u64<u64>(1)), "part_size", |from_number_u64<u64>(|part_size(|saturating_to_u32<u64>(|add<u64>(@Scattered[index], 1))))))
+    presign: post[api=api]()
+    scattered.shared -> idEntry.value,map -> streamPath.block,stream -> formatPath.entries,formatted -> path.stream,first -> presign.path
+    path.first -> pathGiven.value,check -> emitBody.trigger,emit -> presign.body
+    pathGiven: check<string>()
+
+    streamPresigned: stream<Json>()
+    getTagHeader: jsonGet(key="tag_header")
+    unwrapTagHeader: unwrap<Json>()
+    tagHeaderFromJson: fromJson<string>()
+    unwrapTagHeaderString: unwrap<string>()
+    tagHeader: trigger<string>()
+    getParts: jsonGet(key="parts")
+    unwrapParts: unwrap<Json>()
+    firstPart: jsonIndex(index=0)
+    unwrapFirstPart: unwrap<Json>()
+    getRequest: jsonGet(key="request")
+    unwrapRequest: unwrap<Json>()
+    requestFromJson: fromJson<PreparedRequest>()
+    unwrapRequestValue: unwrap<PreparedRequest>()
+    presign.answer -> streamPresigned.block,stream -> getTagHeader.json,value -> unwrapTagHeader.option,value -> tagHeaderFromJson.json,value -> unwrapTagHeaderString.option,value -> tagHeader.stream
+    streamPresigned.stream -> getParts.json,value -> unwrapParts.option,value -> firstPart.json,value -> unwrapFirstPart.option,value -> getRequest.json,value -> unwrapRequest.option,value -> requestFromJson.json,value -> unwrapRequestValue.option
+
+    // Uploaded, retried after cuts, its tag gathered with its number.
+    streamPart: stream<Vec<byte>>()
+    uploadParts()
+    scattered.value -> streamPart.block,stream -> uploadParts.parts
+    unwrapRequestValue.value -> uploadParts.requests
+    tagHeader.first -> uploadParts.tag_header
+
+    emitTagged: emit<Json>(value=|json_insert(|object(), "part_number", |from_number_u64<u64>(|add<u64>(@Scattered[index], 1))))
+    streamTagged: stream<Json>()
+    tagToJson: jsonFromString<string>()
+    insertTag: jsonInsert(key="etag")
+    tagged: trigger<Json>()
+    tagHeader.first -> tagHeaderGiven.value,check -> emitTagged.trigger,emit -> streamTagged.block,stream -> insertTag.object
+    tagHeaderGiven: check<string>()
+    uploadParts.tags -> tagToJson.value,json -> insertTag.value,json -> tagged.stream,first -> gatherValue.value
+
+    failedOnce: one<void>()
+    presign.failed -> failedOnce.a
+    uploadParts.failed -> failedOnce.b,value -> gatherValue.failed
+    uploadParts.completed -> gatherValue.completed
+
+    errorOnce: one<string>()
+    presign.error -> errorOnce.a
+    uploadParts.error -> errorOnce.b,value -> gatherValue.error
+}

@@ -1,6 +1,7 @@
 use crate::building::{
-    BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
-    DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
+    BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckState, CheckStep,
+    ContextualEnvironment, DynamicBuildResult, FeedingInputs, GenesisEnvironment,
+    StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
 use crate::debug::Event;
@@ -85,6 +86,7 @@ impl BuilderTrait for Builder {
                     source,
                     self.descriptor.upgrade().unwrap(),
                     environment.variables().clone(),
+                    environment.generics().clone(),
                     idx,
                 );
             }
@@ -191,7 +193,7 @@ impl BuilderTrait for Builder {
         &self,
         build: BuildId,
         environment: CheckEnvironment,
-        previous_steps: Vec<CheckStep>,
+        state: &mut CheckState,
     ) -> Option<CheckBuildResult> {
         let world = self.world.upgrade().unwrap();
         let descriptor = self.descriptor.upgrade().unwrap();
@@ -202,24 +204,24 @@ impl BuilderTrait for Builder {
             identifier: descriptor.identifier().clone(),
             build_id: build,
         };
-        if let Some(_existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
+        if state.path.contains(&check_step) {
             errors.push(LogicError::already_included_build_step(
                 58,
                 descriptor.identifier().clone(),
                 check_step.clone(),
-                previous_steps.clone(),
+                state.path.clone(),
                 None,
             ));
         }
-        let mut current_previous_steps = previous_steps.clone();
-        current_previous_steps.push(check_step);
 
         // Get build
         let borrowed_builds = self.builds.read().unwrap();
         let build_sample = borrowed_builds.get(build as usize).unwrap();
 
         let mut all_builds = Vec::new();
-        if errors.is_empty() {
+        // A build already checked from another path is not checked again.
+        if errors.is_empty() && state.checked.insert(check_step.clone()) {
+            state.path.push(check_step);
             match &build_sample.host_treatment {
                 HostTreatment::Treatment(host_descriptor) => {
                     let build_result = world
@@ -230,7 +232,7 @@ impl BuilderTrait for Builder {
                             build_sample.host_build_id.unwrap(),
                             build_sample.label.to_string(),
                             environment.clone(),
-                            current_previous_steps,
+                            state,
                         )
                         .unwrap();
 
@@ -240,6 +242,7 @@ impl BuilderTrait for Builder {
                 }
                 HostTreatment::Direct => {}
             }
+            state.path.pop();
             all_builds.push(Arc::clone(&build_sample.check));
         }
 
@@ -253,12 +256,24 @@ impl BuilderTrait for Builder {
         Some(own_checked_build_result)
     }
 
+    fn check_host(&self, build: BuildId) -> Option<CheckStep> {
+        let borrowed_builds = self.builds.read().unwrap();
+        let build_sample = borrowed_builds.get(build as usize)?;
+        match &build_sample.host_treatment {
+            HostTreatment::Treatment(host_descriptor) => Some(CheckStep {
+                identifier: host_descriptor.identifier().clone(),
+                build_id: build_sample.host_build_id?,
+            }),
+            HostTreatment::Direct => None,
+        }
+    }
+
     fn check_give_next(
         &self,
         _within_build: BuildId,
         _for_label: String,
         _environment: CheckEnvironment,
-        _previous_steps: Vec<CheckStep>,
+        _state: &mut CheckState,
     ) -> Option<CheckBuildResult> {
         // A core treatment cannot have sub-treatments (its not a sequence), so nothing to ever return.
         None

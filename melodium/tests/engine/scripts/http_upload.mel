@@ -1,0 +1,73 @@
+#!/usr/bin/env melodium
+#! name = http_upload
+#! version = 0.1.0
+#! require = std:0.11.1 http:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/engine/log::logError
+use std/flow::emit
+use std/flow::stream
+use std/flow::check
+use std/flow/vec::flatten
+use std/text/convert/string::toUtf8
+use std/data/string_map::|map
+use std/data/string_map::|entry
+use http/method::|put
+use http/client::PreparedRequest
+use http/client::|prepared_request
+use http/upload::cut
+use http/upload::parts
+use http/upload::put
+use http/upload::|part_size
+use std/conv::toString
+
+treatment main(const url: string)
+{
+    startup()
+
+    // Data cut in parts, each sent with its prepared request.
+    emitData: emit<Vec<string>>(value=["uploaded ", "in parts"])
+    streamData: stream<Vec<string>>()
+    flattenData: flatten<string>()
+    toUtf8()
+    cut()
+    emitRequests: emit<Vec<PreparedRequest>>(value=[|prepared_request(|put(), url, |map([|entry("X-Part", "1")]))])
+    streamRequests: stream<Vec<PreparedRequest>>()
+    flattenRequests: flatten<PreparedRequest>()
+    emitTagHeader: emit<string>(value="etag")
+    parts()
+    logTags: logInfos(label="tag")
+    uploaded: check<void>()
+    logPartsError: logError(label="parts")
+
+    startup.trigger -> emitData.trigger,emit -> streamData.block,stream -> flattenData.vector,value -> toUtf8.text,encoded -> cut.data,parts -> parts.parts
+    startup.trigger -> emitRequests.trigger,emit -> streamRequests.block,stream -> flattenRequests.vector,value -> parts.requests
+    startup.trigger -> emitTagHeader.trigger,emit -> parts.tag_header
+    parts.tags -> logTags.messages
+    parts.completed -> uploaded.value
+    parts.error -> logPartsError.message
+
+    // Data of known size sent in one request.
+    emitSingle: emit<string>(value="single")
+    streamSingle: stream<string>()
+    singleUtf8: toUtf8()
+    emitPut: emit<PreparedRequest>(value=|prepared_request(|put(), url, |map([|entry("X-Part", "single")])))
+    emitSize: emit<u64>(value=6)
+    put()
+    putDone: check<void>()
+    logPutError: logError(label="put")
+
+    startup.trigger -> emitSingle.trigger,emit -> streamSingle.block,stream -> singleUtf8.text,encoded -> put.data
+    startup.trigger -> emitPut.trigger,emit -> put.request
+    startup.trigger -> emitSize.trigger,emit -> put.size
+    put.completed -> putDone.value
+    put.error -> logPutError.message
+
+    // Part sizes are known ahead.
+    emitPartSize: emit<u64>(value=|part_size(1001))
+    streamPartSize: stream<u64>()
+    toString<u64>()
+    logPartSize: logInfos(label="part size")
+    startup.trigger -> emitPartSize.trigger,emit -> streamPartSize.block,stream -> toString.value,into -> logPartSize.messages
+}

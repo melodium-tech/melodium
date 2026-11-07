@@ -1,0 +1,78 @@
+#!/usr/bin/env melodium
+#! name = scatter_nested
+#! version = 0.1.0
+#! require = std:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfo
+use std/flow::emit
+use std/flow::stream
+use std/flow::check
+use std/flow/vec::flatten
+use std/flow/scatter::Scatter
+use std/flow/scatter::scatter
+use std/flow/scatter::scattered
+use std/flow/scatter::gather
+use std/flow/scatter::@Scattered
+
+// Each outer value is scattered again over two inner tracks, sharing the outer value.
+treatment main()
+  model outer: Scatter()
+{
+    startup()
+    emitValues: emit<Vec<string>>(value=["a", "b"])
+    streamValues: stream<Vec<string>>()
+    flattenValues: flatten<string>()
+    emitNothing: emit<void>(value=_)
+    scatter<string, void>[scatter=outer]()
+    outerItem[outer=outer]()
+    scattered: check<void>()
+
+    startup.trigger -> emitValues.trigger,emit -> streamValues.block,stream -> flattenValues.vector,value -> scatter.values
+    startup.trigger -> emitNothing.trigger,emit -> scatter.shared
+    scatter.completed -> scattered.value
+}
+
+treatment outerItem[outer: Scatter]()
+  model inner: Scatter()
+  require @Scattered
+{
+    scattered<string, void>[scatter=outer]()
+    gather[scatter=outer]()
+
+    emitValues: emit<Vec<string>>(value=["x", "y"])
+    streamValues: stream<Vec<string>>()
+    flattenValues: flatten<string>()
+    innerScatter: scatter<string, string>[scatter=inner]()
+    innerItem[inner=inner]()
+    failed: check<void>()
+    reason: emit<string>(value="inner failed")
+
+    started: check<string>()
+    scattered.value -> started.value,check -> emitValues.trigger
+    scattered.value -> innerScatter.shared
+    emitValues.emit -> streamValues.block,stream -> flattenValues.vector,value -> innerScatter.values
+    innerScatter.completed -> gather.completed
+    innerScatter.failed -> failed.value,check -> gather.failed
+    failed.check -> reason.trigger,emit -> gather.error
+}
+
+treatment innerItem[inner: Scatter]()
+  require @Scattered
+{
+    scattered<string, string>[scatter=inner]()
+    gather[scatter=inner]()
+    logValue: logInfo(label="inner")
+    logShared: logInfo(label="outer")
+    completed: check<string>()
+    failed: check<void>()
+    reason: emit<string>(value="never")
+
+    scattered.value --> logValue.message
+    scattered.shared -> logShared.message
+    scattered.value -> completed.value,check -> gather.completed
+    failed.check -> gather.failed
+    reason.emit -> gather.error
+    completed.check -> failed.value
+    failed.check -> reason.trigger
+}

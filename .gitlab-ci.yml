@@ -73,7 +73,7 @@ cadence:trigger:
       dotenv: variables.env
 
 variables:
-  PACKAGES: audio cicd crypto distrib encoding fs http javascript json ml net process record regex sql std vault work
+  PACKAGES: audio cicd compression crypto distrib encoding fs http javascript json ml net process record regex sql std vault work
 
 workflow:
   rules:

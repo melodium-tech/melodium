@@ -2,7 +2,7 @@
 name: melodium
 description: Manage Mélodium technology and language. Use when dealing with Mélodium code, if "melodium" is mentionned, or in projects with 'Compo.toml' file, or '.mel' files.
 license: EUPL-1.2
-compatibility: Requires Mélodium 0.11.0+
+compatibility: Requires Mélodium 0.11.1+
 allowed-tools: Bash(melodium check *)
 ---
 
@@ -217,7 +217,7 @@ This reads: `startup.trigger` → `emit.trigger`; `emit.emit` → `generate.leng
 
 `Vec<T>`, `Option<T>` are built-in. Common library types: `Map<K,V>` (`std/data/map`), `StringMap` (`std/data/string_map`), `Json` (`json`), `HttpStatus` (`http/status`), etc.
 
-`Secret<T>` (most often `Secret<string>`) holds a credential: where its value comes from rather than the value, given as a locator such as `"env:MELODIUM_SECRET_DB_PASSWORD"`, `"file:/run/secrets/db"` or `"vault:kv/data/app#password"`. Only the elements using it reveal it, and its value never appears in parameters, logs or command arguments. Programs only get the environment variables whose name starts with `MELODIUM_SECRET_`, and secrets from the environment and from files are never given as plain data by `std/secret::reveal`. `std/secret` builds, derives (`|format`, `|base64`) and restricts secrets given as parameters, and `std/secret/block` does the same for secrets received at runtime (from `std/secret::conceal` or `vault::get`), which `process/environment/block` and `http/client::requestWithSecretHeaders` take on inputs. A secret cannot hold another secret, and secrets only implement the `Serialize` and `Deserialize` traits, those of their inner type.
+`Secret<T>` (most often `Secret<string>`) holds a credential: where its value comes from rather than the value, given as a locator such as `"env:MELODIUM_SECRET_DB_PASSWORD"`, `"file:/run/secrets/db"`, `"vault:kv/data/app#password"` or `"api:prod/db-password"` (stored on api.melodium.tech, for the programs it runs). Only the elements using it reveal it, and its value never appears in parameters, logs or command arguments. Programs only get the environment variables whose name starts with `MELODIUM_SECRET_`, and secrets from the environment, from files and from api.melodium.tech are never given as plain data by `std/secret::reveal`. `std/secret` builds, derives (`|format`, `|base64`) and restricts secrets given as parameters, and `std/secret/block` does the same for secrets received at runtime (from `std/secret::conceal` or `vault::get`), which `process/environment/block` and `http/client::requestWithSecretHeaders` take on inputs. A secret cannot hold another secret, and secrets only implement the `Serialize` and `Deserialize` traits, those of their inner type.
 
 ### Traits
 
@@ -293,9 +293,9 @@ name    = "my_project"
 version = "0.1.0"
 
 [dependencies]
-std  = "0.11.0"
-http = "0.11.0"
-fs   = "0.11.0"
+std  = "0.11.1"
+http = "0.11.1"
+fs   = "0.11.1"
 
 [entrypoints]
 main   = "my_project/main::main"
@@ -303,8 +303,8 @@ server = "my_project/server::serve"
 ```
 
 - `std` must be declared explicitly even though it is the standard library.
-- Version strings follow SemVer compatibility rules (Cargo-style): `"0.11.0"` allows `>=0.11.0, <0.12.0`.
-- Other operators: `~0.11.0` (patch only), `0.11.*` (wildcard), `>= 0.10, < 0.12` (range).
+- Version strings follow SemVer compatibility rules (Cargo-style): `"0.11.1"` allows `>=0.11.1, <0.12.0`.
+- Other operators: `~0.11.1` (patch only), `0.11.*` (wildcard), `>= 0.10, < 0.12` (range).
 
 ### Entrypoints
 
@@ -324,7 +324,7 @@ Single-file scripts with a mandatory shebang and metadata header:
 #!/usr/bin/env melodium
 #! name    = my_script
 #! version = 0.1.0
-#! require = std:0.11.0 fs:0.11.0
+#! require = std:0.11.1 fs:0.11.1
 
 // Usual Mélodium code…
 // Must have exactly one treatment named "main".
@@ -405,6 +405,7 @@ Built with `melodium jeu build <project_dir> <output.jeu>`. Already bzip2-compre
 | `audio`      | Audio data processing: decode, encode, channel/format transforms |
 | `record`     | Audio recording from an input device (mock mode when no real device is available) |
 | `vault`      | Secrets read from HashiCorp Vault or OpenBao (`vault:` locators) |
+| `compression` | zstd, gzip, zlib, deflate, deflate64 (decompression only) and brotli compression and decompression of data streams while they flow |
 | `crypto`     | HMAC and Ed25519 signatures, JSON Web Tokens, random tokens, constant-time checking of received tokens against secrets, such as for webhooks |
 
 Always check https://doc.melodium.tech/latest/en/ for the exact treatment/function signatures.

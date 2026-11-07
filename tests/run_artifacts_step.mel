@@ -1,0 +1,68 @@
+#!/usr/bin/env melodium
+#! name = run_artifacts_step
+#! version = 0.1.0
+#! require = std:0.11.1 cicd:0.11.1 process:0.11.1 work:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/flow::close
+use std/flow::closeBlock
+use std/flow::emit
+use std/flow::stream
+use std/flow/vec::flatten
+use std/ops/option::|wrap
+use process/command::Command
+use process/command::|command
+use process/environment::Environment
+use cicd/artifact::Artifact
+use cicd/artifact::|artifact
+use cicd/artifact::|artifact_file
+use cicd/steps::step
+
+// Runs a step on the local executor, its command writing `report` in the volume `data` at
+// `directory` and `out/tool` in the local file system (the engine running in `directory`), then
+// exiting with `exit`; `report` and `tool` are its artifacts.
+treatment main(const directory: string, const exit: string = "0")
+{
+    startup()
+
+    emitExecutor: emit<Option<string>>(value=_)
+    emitEnvironment: emit<Option<Environment>>(value=_)
+    emitCommands: emit<Vec<Command>>(value=[|command("sh", ["-c", "mkdir -p \"$0/report/nested\" \"$0/out\" && echo '<h1>Report</h1>' > \"$0/report/index.html\" && echo data > \"$0/report/nested/data.txt\" && echo tool > \"$0/out/tool\" && exit $1", directory, exit])])
+    streamCommands: stream<Vec<Command>>()
+    flattenCommands: flatten<Command>()
+    emitArtifacts: emit<Vec<Artifact>>(value=[|artifact(|wrap<string>("data"), "report", "report"), |artifact_file(_, "out/tool", "binary")])
+    streamArtifacts: stream<Vec<Artifact>>()
+    flattenArtifacts: flatten<Artifact>()
+
+    step(label="build")
+    logSuccess: logInfoMessage(label="step", message="success")
+    logFinished: logInfoMessage(label="step", message="finished")
+
+    startup.trigger -> emitExecutor.trigger,emit -> step.executor_name
+    startup.trigger -> emitEnvironment.trigger,emit -> step.environment
+    startup.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> step.commands
+    startup.trigger -> emitArtifacts.trigger,emit -> streamArtifacts.block,stream -> flattenArtifacts.vector,value -> step.artifacts
+
+    // No input file, no output file, no cache, never terminated.
+    closeInFilesystem: closeBlock<string>()
+    closeInFile: closeBlock<string>()
+    closeData: close<byte>()
+    closeTerminate: closeBlock<void>()
+    closeOutFilesystem: closeBlock<string>()
+    closeOutFile: closeBlock<string>()
+    closeCacheFilesystem: closeBlock<Option<string>>()
+    closeCachePath: closeBlock<string>()
+    closeCacheName: closeBlock<string>()
+    startup.trigger -> closeInFilesystem.trigger,closed -> step.in_filesystem_name
+    startup.trigger -> closeInFile.trigger,closed -> step.in_file_name
+    startup.trigger -> closeData.trigger,closed -> step.data
+    startup.trigger -> closeTerminate.trigger,closed -> step.terminate
+    startup.trigger -> closeOutFilesystem.trigger,closed -> step.out_filesystem_name
+    startup.trigger -> closeOutFile.trigger,closed -> step.out_file_name
+    startup.trigger -> closeCacheFilesystem.trigger,closed -> step.cache_filesystem
+    startup.trigger -> closeCachePath.trigger,closed -> step.cache_path
+    startup.trigger -> closeCacheName.trigger,closed -> step.cache_name
+    step.success -> logSuccess.trigger
+    step.finished -> logFinished.trigger
+}

@@ -1,6 +1,6 @@
 [package]
 name = "distrib-mel"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.94"
 edition = "2021"
@@ -18,14 +18,14 @@ name = "distrib_mel"
 
 [dependencies]
 futures = "0.3.28"
-melodium-certs = { path = "../../melodium-certs", version = "0.11.0" }
-melodium-core = { path = "../../melodium-core", version = "0.11.0" }
-melodium-engine = { path = "../../melodium-engine", version = "0.11.0" }
-melodium-macro = { path = "../../melodium-macro", version = "0.11.0" }
-melodium-share = { path = "../../melodium-share", version = "0.11.0" }
-melodium-distribution = { path = "../../melodium-distribution", version = "0.11.0", optional = true }
-std-mel = { path = "../std-mel", version = "0.11.0" }
-work-mel = { path = "../work-mel", version = "0.11.0" }
+melodium-certs = { path = "../../melodium-certs", version = "0.11.1" }
+melodium-core = { path = "../../melodium-core", version = "0.11.1" }
+melodium-engine = { path = "../../melodium-engine", version = "0.11.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.11.1" }
+melodium-share = { path = "../../melodium-share", version = "0.11.1" }
+melodium-distribution = { path = "../../melodium-distribution", version = "0.11.1", optional = true }
+std-mel = { path = "../std-mel", version = "0.11.1" }
+work-mel = { path = "../work-mel", version = "0.11.1" }
 async-channel = "2.5"
 async-lock = "3.4"
 event-listener = "5"

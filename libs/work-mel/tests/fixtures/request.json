@@ -3,7 +3,7 @@
   "id": null,
   "organization_id": null,
   "edition": null,
-  "version": "0.11.0",
+  "version": "0.11.1",
   "mode": {
     "distribution_secret_key": {
       "key": "6f1c1d3e-5f0e-4a0b-9d38-2b5a0c7e41aa"
@@ -30,6 +30,7 @@
       "name": "builder",
       "image": "registry.example.org/builder:1",
       "pull_secret": "",
+      "pull_secret_name": "registry/example",
       "memory": 512,
       "cpu": 500,
       "storage": 1024,
@@ -53,6 +54,9 @@
       "mounts": [],
       "env": {
         "POSTGRES_DB": "ci"
+      },
+      "secret_env": {
+        "POSTGRES_PASSWORD": "ci/database-password"
       },
       "command": ["postgres", "-c", "fsync=off"]
     }

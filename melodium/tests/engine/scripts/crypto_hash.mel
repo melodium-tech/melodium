@@ -1,0 +1,40 @@
+#!/usr/bin/env melodium
+#! name = crypto_hash
+#! version = 0.1.0
+#! require = std:0.11.1 crypto:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfo
+use std/flow::emit
+use std/flow::stream
+use std/text/convert/string::toUtf8
+use std/text/convert/string::|to_utf8
+use crypto/hash::sha256
+use crypto/hash::|sha256
+
+treatment main()
+{
+    startup()
+    emitData: emit<string>(value="abc")
+    asStream: stream<string>()
+    toUtf8()
+    startup.trigger -> emitData.trigger,emit -> asStream.block,stream -> toUtf8.text
+
+    sha256()
+    toUtf8.encoded -> sha256.data
+
+    emitEmpty: emit<string>(value="")
+    emptyStream: stream<string>()
+    emptyUtf8: toUtf8()
+    empty: sha256()
+    startup.trigger -> emitEmpty.trigger,emit -> emptyStream.block,stream -> emptyUtf8.text,encoded -> empty.data
+
+    emitFunction: emit<string>(value=|sha256(|to_utf8("abc")))
+
+    logStream: logInfo(label="stream")
+    logEmpty: logInfo(label="empty")
+    logFunction: logInfo(label="function")
+    sha256.digest -> logStream.message
+    empty.digest -> logEmpty.message
+    startup.trigger -> emitFunction.trigger,emit -> logFunction.message
+}

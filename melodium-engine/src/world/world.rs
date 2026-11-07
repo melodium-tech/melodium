@@ -4,12 +4,13 @@ use super::secret_sources::EnvironmentSource;
 #[cfg(feature = "filesystem")]
 use super::secret_sources::FileSource;
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
-use crate::building::HostTreatment;
 use crate::building::{
     model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
-    BuildId, Builder, /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs,
-    GenesisEnvironment, StaticBuildResult,
+    BuildId, Builder, CheckEnvironment, CheckState,
+    /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs, GenesisEnvironment,
+    StaticBuildResult,
 };
+use crate::building::{CheckStep, HostTreatment};
 use crate::debug::{
     DebugLevel, Event, EventKind, TrackCreation, TransmissionDebug, TransmissionDetails,
 };
@@ -27,14 +28,14 @@ use futures::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::{pin_mut, select, FutureExt};
 use melodium_common::descriptor::{
-    Collection, Entry as CollectionEntry, Flow, Identifier, Treatment,
+    Collection, DataType, Entry as CollectionEntry, Flow, Identifier, Treatment,
 };
 use melodium_common::executive::{
     check_secret_resolution, register_wipe, Context as ExecutiveContext, ContinuousFuture,
     DirectCreationCallback, Input as ExecutiveInput, Level as LogLevel, Log, Model, ModelId,
-    Output as ExecutiveOutput, ResultStatus, Secret, SecretAudit, SecretAuditOutcome, SecretError,
-    SecretId, SecretSource, SecretTransmission, SecretsAccess, SecretsHost, TrackCreationCallback,
-    TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
+    Output as ExecutiveOutput, ResultStatus, RevealedValues, Secret, SecretAudit,
+    SecretAuditOutcome, SecretError, SecretId, SecretSource, SecretTransmission, SecretsAccess,
+    SecretsHost, TrackCreationCallback, TrackFuture, TrackId, Value, Wipe, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::future::Future;
@@ -70,6 +71,8 @@ pub struct World {
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
     secret_sources: RwLock<HashMap<String, Arc<dyn SecretSource>>>,
+    /// Sources given before genesis, registered before the ones of models.
+    given_secret_sources: RwLock<Vec<(String, Arc<dyn SecretSource>)>>,
     masking: Arc<Masking>,
     /// Whether models can register secret sources, only while genesis asks them to.
     secret_sources_registration: AtomicBool,
@@ -94,6 +97,8 @@ pub struct World {
 
     tracks_counter: Mutex<TrackId>,
     tracks_info: Mutex<HashMap<TrackId, InfoTrack>>,
+    /// Contexts of the running tracks having some, given to the tracks inheriting them.
+    tracks_contexts: std::sync::Mutex<HashMap<TrackId, Vec<Arc<dyn ExecutiveContext>>>>,
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
     tracks_running: AtomicUsize,
@@ -192,8 +197,9 @@ impl World {
             .for_each(|value| find(value, &mut secrets));
     }
 
-    /// Registers the secret sources of every model, then checks that the secrets known
-    /// at launch that only this engine can resolve have a source for their scheme.
+    /// Registers the secret sources given before genesis, then those of every model, then
+    /// checks that the secrets known at launch that only this engine can resolve have a
+    /// source for their scheme.
     ///
     /// Secrets sent by reference may be resolved by distant engines, with their own
     /// sources, so they are not checked. Derived secrets cannot be sent by reference:
@@ -201,6 +207,10 @@ impl World {
     fn prepare_secret_sources(&self) -> Vec<LogicError> {
         self.secret_sources_registration
             .store(true, Ordering::Relaxed);
+        for (scheme, source) in self.given_secret_sources.write().unwrap().drain(..) {
+            // A scheme registered twice makes the launch fail.
+            let _ = self.register_secret_source(&scheme, source);
+        }
         self.models
             .read()
             .unwrap()
@@ -274,6 +284,7 @@ impl World {
             models: RwLock::new(Vec::new()),
             sources: RwLock::new(HashMap::new()),
             secret_sources: RwLock::new(Self::builtin_secret_sources()),
+            given_secret_sources: RwLock::new(Vec::new()),
             masking: {
                 let masking = Arc::new(Masking::new());
                 register_wipe(Arc::downgrade(&masking) as Weak<dyn Wipe>);
@@ -294,6 +305,7 @@ impl World {
             continuous_tasks_receiver,
             tracks_counter: Mutex::new(0),
             tracks_info: Mutex::new(HashMap::new()),
+            tracks_contexts: std::sync::Mutex::new(HashMap::new()),
             tracks_sender,
             tracks_receiver,
             tracks_running: AtomicUsize::new(0),
@@ -351,12 +363,49 @@ impl World {
         id
     }
 
+    /// Checks the tracks of the source `entry` with `contexts`, recording in `reached` the
+    /// contexts each build of them is reached with.
+    fn check_source_entry(
+        &self,
+        entry: &SourceEntry,
+        contexts: Vec<String>,
+        reached: &mut HashMap<CheckStep, Vec<Vec<String>>>,
+    ) -> LogicResult<()> {
+        let mut state = CheckState::default();
+        let result = self
+            .builder(entry.descriptor.identifier())
+            .and_then(|builder| {
+                let check = builder
+                    .check_dynamic_build(
+                        entry.id,
+                        CheckEnvironment {
+                            contextes: contexts.clone(),
+                        },
+                        &mut state,
+                    )
+                    .unwrap();
+                let mut result = LogicResult::new_success(());
+                result.errors_mut().extend(check.errors);
+                result
+            });
+        let mut sorted = contexts;
+        sorted.sort();
+        for step in state.checked {
+            let known = reached.entry(step).or_default();
+            if !known.contains(&sorted) {
+                known.push(sorted.clone());
+            }
+        }
+        result
+    }
+
     pub fn add_source(
         &self,
         model_id: ModelId,
         name: &str,
         descriptor: Arc<dyn Treatment>,
         params: HashMap<String, Value>,
+        generics: HashMap<String, DataType>,
         build_id: BuildId,
     ) {
         let mut sources = self.sources.write().unwrap();
@@ -369,11 +418,12 @@ impl World {
             descriptor,
             id: build_id,
             params: params.clone(),
+            generics: generics.clone(),
         });
 
         let model = self.models.read().unwrap()[model_id].clone();
 
-        model.invoke_source(name, params);
+        model.invoke_source(name, params, generics);
     }
 
     pub fn direct(&self, id: &TrackId) -> LogicResult<FeedingInputs> {
@@ -537,6 +587,7 @@ impl World {
                 (id, result) = futures.select_next_some() => {
                     let _ = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
                     self.tracks_aborts.lock().unwrap().remove(&id);
+                    self.tracks_contexts.lock().unwrap().remove(&id);
                     let result = match result {
                         Ok(result) => result,
                         // Stopped, it has no result.
@@ -614,6 +665,21 @@ impl Engine for World {
         Arc::clone(&self.collection)
     }
 
+    fn add_secret_source(
+        &self,
+        scheme: &str,
+        source: Arc<dyn SecretSource>,
+    ) -> Result<(), SecretError> {
+        if self.main_id.read().unwrap().is_some() {
+            return Err(SecretError::RegistrationClosed);
+        }
+        self.given_secret_sources
+            .write()
+            .unwrap()
+            .push((scheme.to_string(), source));
+        Ok(())
+    }
+
     fn genesis(&self, entry: &Identifier, mut params: HashMap<String, Value>) -> LogicResult<()> {
         let mut gen_env = GenesisEnvironment::new();
 
@@ -677,45 +743,86 @@ impl Engine for World {
             _ => panic!("Cannot make a genesis with something else than a treatment"),
         };
 
-        // Check all the tracks/paths
-        let /*mut*/ result = result.and_degrade_failure(LogicResult::new_success(()));
-        /*let models = self.models.read().unwrap();
-        let mut builds = Vec::new();
-        for (model_id, model_sources) in self.sources.read().unwrap().iter() {
-            let model = models.get(*model_id as usize).unwrap();
+        // Check the tracks of every source: the contexts they need, and that they never loop.
+        // Sources inheriting contexts are checked once the builds hosting them are, with each
+        // set of contexts those are reached with.
+        let mut result = result.and_degrade_failure(LogicResult::new_success(()));
+        {
+            let models = self.models.read().unwrap();
+            let sources = self.sources.read().unwrap();
+            let mut reached: HashMap<CheckStep, Vec<Vec<String>>> = HashMap::new();
+            let mut pending = Vec::new();
+            for (model_id, model_sources) in sources.iter() {
+                let model = models.get(*model_id as usize).unwrap().descriptor();
 
-            for (source, entries) in model_sources {
-                let check_environment = CheckEnvironment {
-                    contextes: model
-                        .descriptor()
+                for (source, entries) in model_sources {
+                    let contexts: Vec<String> = model
                         .sources()
                         .get(source)
                         .unwrap()
                         .iter()
                         .map(|context| context.name().to_string())
-                        .collect(),
-                };
-
-                for entry in entries {
-                    result = result.and_degrade_failure(
-                        self.builder(entry.descriptor.identifier())
-                            .and_then(|builder| {
-                                let check = builder
-                                    .check_dynamic_build(
-                                        entry.id,
-                                        check_environment.clone(),
-                                        Vec::new(),
-                                    )
-                                    .unwrap();
-                                builds.extend(check.checked_builds);
-                                let mut result = LogicResult::new_success(());
-                                result.errors_mut().extend(check.errors);
-                                result
-                            }),
-                    );
+                        .collect();
+                    for entry in entries {
+                        if model.source_inherits_contexts(source) {
+                            pending.push((contexts.clone(), entry));
+                        } else {
+                            result = result.and_degrade_failure(self.check_source_entry(
+                                entry,
+                                contexts.clone(),
+                                &mut reached,
+                            ));
+                        }
+                    }
                 }
             }
-        }*/
+
+            // Inheriting sources nested in others are checked in later rounds.
+            while !pending.is_empty() {
+                let mut waiting = Vec::new();
+                let count = pending.len();
+                for (contexts, entry) in pending {
+                    let host = self
+                        .builder(entry.descriptor.identifier())
+                        .success()
+                        .and_then(|builder| builder.check_host(entry.id));
+                    let inherited = match &host {
+                        Some(host) => reached.get(host).cloned(),
+                        None => Some(vec![Vec::new()]),
+                    };
+                    match inherited {
+                        Some(inherited) => {
+                            for inherited_contexts in inherited {
+                                let mut all_contexts = contexts.clone();
+                                all_contexts.extend(
+                                    inherited_contexts
+                                        .into_iter()
+                                        .filter(|context| !contexts.contains(context)),
+                                );
+                                result = result.and_degrade_failure(self.check_source_entry(
+                                    entry,
+                                    all_contexts,
+                                    &mut reached,
+                                ));
+                            }
+                        }
+                        None => waiting.push((contexts, entry)),
+                    }
+                }
+                if waiting.len() == count {
+                    // Hosts that no track reaches: their sources get their own contexts only.
+                    for (contexts, entry) in waiting {
+                        result = result.and_degrade_failure(self.check_source_entry(
+                            entry,
+                            contexts,
+                            &mut reached,
+                        ));
+                    }
+                    break;
+                }
+                pending = waiting;
+            }
+        }
 
         let mut borrowed_errors = self.errors.write().unwrap();
         borrowed_errors.extend(result.errors().clone());
@@ -1032,6 +1139,11 @@ impl Engine for World {
                 .unwrap()
                 .iter()
                 .for_each(|m| m.shutdown());
+            self.secret_sources
+                .read()
+                .unwrap()
+                .values()
+                .for_each(|source| source.shutdown());
             self.tracks_sender.close();
             self.closing_check_sender.close();
             self.closing.store(true, Ordering::Relaxed);
@@ -1093,6 +1205,7 @@ impl ExecutiveWorld for World {
         id: ModelId,
         source: &str,
         params: &HashMap<String, Value>,
+        generics: Option<&HashMap<String, DataType>>,
         contexts: Vec<Arc<dyn ExecutiveContext>>,
         parent_track: Option<TrackId>,
         callback: Option<TrackCreationCallback>,
@@ -1103,6 +1216,37 @@ impl ExecutiveWorld for World {
             track_id = *counter;
             *counter = track_id + 1;
             self.tracks_creating.fetch_add(1, Ordering::SeqCst);
+        }
+
+        // Tracks of sources inheriting contexts get those of their parent, then their own, an own
+        // context replacing an inherited one of the same name.
+        let inherits = self.models.read().unwrap()[id]
+            .descriptor()
+            .source_inherits_contexts(source);
+        let contexts = match parent_track.filter(|_| inherits) {
+            Some(parent) => {
+                let mut inherited = self
+                    .tracks_contexts
+                    .lock()
+                    .unwrap()
+                    .get(&parent)
+                    .cloned()
+                    .unwrap_or_default();
+                inherited.retain(|context| {
+                    !contexts
+                        .iter()
+                        .any(|own| own.descriptor().name() == context.descriptor().name())
+                });
+                inherited.extend(contexts);
+                inherited
+            }
+            None => contexts,
+        };
+        if !contexts.is_empty() {
+            self.tracks_contexts
+                .lock()
+                .unwrap()
+                .insert(track_id, contexts.clone());
         }
 
         let mut track_futures: Vec<TrackFuture> = Vec::new();
@@ -1121,8 +1265,11 @@ impl ExecutiveWorld for World {
                 contextual_environment.add_context(context.descriptor().name(), context.clone())
             });
 
+            // Entries of generic sources are only built for the types asked, if any.
             for entry in entries {
-                if &entry.params == params {
+                if &entry.params == params
+                    && generics.map_or(true, |generics| &entry.generics == generics)
+                {
                     let build_result = self
                         .builder(entry.descriptor.identifier())
                         .success()
@@ -1273,6 +1420,9 @@ impl SecretsHost for World {
                 Err(SecretError::SourceAlreadyRegistered(scheme.to_string()))
             }
             Entry::Vacant(entry) => {
+                for (name, value) in source.masked_values() {
+                    self.masking.add(&name, &value);
+                }
                 entry.insert(source);
                 Ok(())
             }
@@ -1281,6 +1431,10 @@ impl SecretsHost for World {
 
     fn add_masked_value(&self, secret_name: &str, value: &Value) {
         self.masking.add(secret_name, value);
+    }
+
+    fn revealed_values(&self) -> Option<Arc<dyn RevealedValues>> {
+        Some(Arc::clone(&self.masking) as Arc<dyn RevealedValues>)
     }
 
     fn revealing(&self) -> bool {
@@ -1603,6 +1757,75 @@ mod tests {
             host.register_secret_source("other", Arc::new(TestSource)),
             Err(SecretError::RegistrationClosed)
         );
+    }
+
+    #[derive(Debug, Default)]
+    struct ShutdownSource(AtomicBool);
+
+    #[async_trait]
+    impl SecretSource for ShutdownSource {
+        async fn resolve(&self, _path: &str, _datatype: &DataType) -> Result<Value, String> {
+            Err("unused".to_string())
+        }
+
+        fn shutdown(&self) {
+            self.0.store(true, Ordering::Relaxed);
+        }
+    }
+
+    #[test]
+    fn given_sources_are_registered_before_the_ones_of_models() {
+        let world = world();
+        let host = world.secrets_host();
+        let given = Arc::new(ShutdownSource::default());
+        assert_eq!(
+            world.add_secret_source("given", Arc::clone(&given) as Arc<dyn SecretSource>),
+            Ok(())
+        );
+        assert_eq!(
+            world.add_secret_source("twice", Arc::new(TestSource)),
+            Ok(())
+        );
+        assert_eq!(
+            world.add_secret_source("twice", Arc::new(TestSource)),
+            Ok(())
+        );
+        assert!(host.secret_source("given").is_none());
+
+        assert_eq!(
+            world
+                .prepare_secret_sources()
+                .iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>(),
+            vec!["D0252: A secret source is already registered for 'twice:'"]
+        );
+        assert!(host.secret_source("given").is_some());
+
+        // Models register theirs within the same window, after the given ones.
+        world
+            .secret_sources_registration
+            .store(true, Ordering::Relaxed);
+        assert_eq!(
+            host.register_secret_source("given", Arc::new(TestSource)),
+            Err(SecretError::SourceAlreadyRegistered("given".to_string()))
+        );
+
+        // Once genesis started, sources are not given anymore.
+        world
+            .main_id
+            .write()
+            .unwrap()
+            .replace("test::main".parse().unwrap());
+        assert_eq!(
+            world.add_secret_source("late", Arc::new(TestSource)),
+            Err(SecretError::RegistrationClosed)
+        );
+
+        // Ending the engine shuts the sources down.
+        assert!(!given.0.load(Ordering::Relaxed));
+        block_on(world.end());
+        assert!(given.0.load(Ordering::Relaxed));
     }
 
     #[test]

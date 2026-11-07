@@ -1,6 +1,14 @@
 
 # Changelog
 
+## [v0.11.1] (2026-11-06)
+
+- Adding `SecretSource::masked_values`, values a source masks from its registration, empty by default (#154).
+- Adding `Model::source_inherits_contexts` to model descriptors, false by default (#167).
+- Giving the types of generic sources to models in `Model::invoke_source`, and making tracks only for the entries of given types in `World::create_track`, breaking for implementors of both (#166).
+- Adding `SecretsAccess::revealed_scan`, searching the values the engine revealed in data given chunk by chunk, values across chunks included, such as files leaving it, through `SecretsHost::revealed_values` and the `RevealedValues` trait (#162).
+- Adding `SecretSource::shutdown`, called when the engine ends, for sources to wipe what they keep (#150).
+
 ## [v0.11.0] (2026-10-15)
 
 - Adding the `Secret<T>` type (`Value::Secret`, `DataType::Secret`): sensitive values holding where they come from (a locator, a derivation or an inline value), revealed only through the `SecretsAccess` the engine gives to elements declaring it, following their policy (transmission, reveal, plain reveal) (#133, #134, #135).

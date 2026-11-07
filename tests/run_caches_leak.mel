@@ -1,0 +1,56 @@
+#!/usr/bin/env melodium
+#! name = run_caches_leak
+#! version = 0.1.0
+#! require = std:0.11.1 fs:0.11.1 process:0.11.1 work:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logError
+use std/flow::emit
+use std/data/map::|map as |secret_map
+use std/data/map::|entry as |secret_entry
+use std/data/string_map::|map
+use std/ops/option::|wrap
+use process/command::|command
+use process/environment::Environment
+use process/environment::|environment
+use process/environment::|with_secret_variables
+use process/local::execOnce
+use work/resources::getFileSystem
+use work/cache::saveCache
+
+// A command gets the password as a variable and writes it in `target` of the volume `data`
+// at `directory`, which is then saved as the cache `name`.
+treatment main(
+    const name: string,
+    const directory: string,
+    const password: Secret<string> = "env:MELODIUM_SECRET_CACHE_PASSWORD"
+)
+{
+    startup()
+
+    run: execOnce(
+        command=|command("sh", ["-c", "printf 'password=%s\n' \"$PASSWORD\" > \"$0/target/config\"", directory]),
+        environment=|wrap<Environment>(|with_secret_variables(
+            |environment(|map([]), _, false, false),
+            |secret_map([|secret_entry<Secret<string>>("PASSWORD", password)])
+        ))
+    )
+    logRunError: logError(label="exec")
+    startup.trigger -> run.launch
+    run.error -> logRunError.message
+
+    emitVolume: emit<string>(value="data")
+    getFileSystem()
+    emitPath: emit<string>(value="target")
+    emitName: emit<string>(value=name)
+    saveCache()
+    logSaved: logInfoMessage(label="cache", message="saved")
+    logSaveError: logError(label="cache")
+
+    run.completed -> emitVolume.trigger,emit -> getFileSystem.name,filesystem -> saveCache.filesystem
+    run.completed -> emitPath.trigger,emit -> saveCache.path
+    run.completed -> emitName.trigger,emit -> saveCache.name
+    saveCache.completed -> logSaved.trigger
+    saveCache.error ----> logSaveError.message
+}

@@ -1,10 +1,16 @@
-use super::{describe_type, value::value};
+use super::{
+    describe_type,
+    layout::{layout, Link, Node},
+    sorted_attributes,
+    value::{inline_value, value},
+    RestitutionOptions,
+};
 use itertools::Itertools;
 use melodium_common::descriptor::{
     Attribuable, Documented, Generics, Identified, Identifier, Parameterized,
     Treatment as TreatmentDescriptor,
 };
-use melodium_engine::design::{Connection, Treatment as TreatmentDesign, IO};
+use melodium_engine::design::{Treatment as TreatmentDesign, IO};
 use std::collections::BTreeMap;
 
 pub struct Treatment {
@@ -30,6 +36,14 @@ impl Treatment {
     }
 
     pub fn implementation(&self, names: &BTreeMap<Identifier, String>) -> String {
+        self.implementation_with_options(names, &RestitutionOptions::default())
+    }
+
+    pub fn implementation_with_options(
+        &self,
+        names: &BTreeMap<Identifier, String>,
+        options: &RestitutionOptions,
+    ) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
         let mut implementation = if descriptor.documentation().trim().is_empty() {
@@ -46,7 +60,7 @@ impl Treatment {
             )
         };
 
-        for (name, attribute) in descriptor.attributes() {
+        for (name, attribute) in sorted_attributes(descriptor.attributes()) {
             implementation.push_str("#[");
             implementation.push_str(name);
             implementation.push_str("(");
@@ -119,6 +133,7 @@ impl Treatment {
                         attributes = param
                             .attributes()
                             .iter()
+                            .sorted()
                             .map(|(name, attribute)| format!("\n    #[{name}({attribute})]"))
                             .collect::<Vec<_>>()
                             .join(""),
@@ -148,7 +163,7 @@ impl Treatment {
         }
 
         for (_, input) in descriptor.inputs().iter().sorted_by_key(|(k, _)| *k) {
-            for (name, attribute) in input.attributes() {
+            for (name, attribute) in sorted_attributes(input.attributes()) {
                 implementation.push_str("  #[");
                 implementation.push_str(name);
                 implementation.push_str("(");
@@ -165,7 +180,7 @@ impl Treatment {
         }
 
         for (_, output) in descriptor.outputs().iter().sorted_by_key(|(k, _)| *k) {
-            for (name, attribute) in output.attributes() {
+            for (name, attribute) in sorted_attributes(output.attributes()) {
                 implementation.push_str("  #[");
                 implementation.push_str(name);
                 implementation.push_str("(");
@@ -187,7 +202,7 @@ impl Treatment {
             .iter()
             .sorted_by_key(|(k, _)| *k)
         {
-            for (name, attribute) in model.attributes() {
+            for (name, attribute) in sorted_attributes(model.attributes()) {
                 implementation.push_str("  #[");
                 implementation.push_str(name);
                 implementation.push_str("(");
@@ -205,50 +220,101 @@ impl Treatment {
 
             implementation.push_str("(");
 
-            implementation.push_str(
-                &model
+            let parameters = |value: &dyn Fn(&_) -> String| {
+                model
                     .parameters
                     .iter()
                     .sorted_by_key(|(k, _)| *k)
                     .map(|(_, param)| {
-                        format!(
-                            "{name} = {value}",
-                            name = param.name,
-                            value = value(&param.value, names, 1)
-                        )
+                        format!("{name} = {}", value(&param.value), name = param.name)
                     })
                     .collect::<Vec<_>>()
-                    .join(", "),
-            );
+                    .join(", ")
+            };
+            let single_line = parameters(&|v| inline_value(v, names));
+            if !single_line.contains('\n')
+                && implementation
+                    .lines()
+                    .last()
+                    .unwrap_or_default()
+                    .chars()
+                    .count()
+                    + single_line.chars().count()
+                    + 1
+                    <= options.width
+            {
+                implementation.push_str(&single_line);
+            } else {
+                implementation.push_str(&parameters(&|v| value(v, names, 1)));
+            }
 
             implementation.push_str(")\n");
         }
 
         implementation.push_str("{\n");
 
-        for (_, instanciation) in self.design.treatments.iter().sorted_by_key(|(k, _)| *k) {
+        let connections = layout(
+            self.design
+                .connections
+                .iter()
+                .map(|connection| Link {
+                    source: match &connection.output_treatment {
+                        IO::Sequence() => Node::Inputs,
+                        IO::Treatment(name) => Node::Instance(name.clone()),
+                    },
+                    output: connection.output_name.clone(),
+                    destination: match &connection.input_treatment {
+                        IO::Sequence() => Node::Outputs,
+                        IO::Treatment(name) => Node::Instance(name.clone()),
+                    },
+                    input: connection.input_name.clone(),
+                    attributes: sorted_attributes(connection.attributes())
+                        .into_iter()
+                        .map(|(name, attribute)| (name.clone(), attribute.clone()))
+                        .collect(),
+                })
+                .collect(),
+            4,
+            options.width,
+        );
+
+        // Instanciations are declared in the order connections show them, then by name.
+        let instanciations = connections
+            .order
+            .iter()
+            .filter_map(|name| self.design.treatments.get(name))
+            .chain(
+                self.design
+                    .treatments
+                    .iter()
+                    .sorted_by_key(|(k, _)| *k)
+                    .filter(|(k, _)| !connections.order.contains(k))
+                    .map(|(_, instanciation)| instanciation),
+            );
+
+        for instanciation in instanciations {
             let descriptor = instanciation.descriptor.upgrade().unwrap();
 
-            for (name, attribute) in instanciation.attributes() {
+            for (name, attribute) in sorted_attributes(instanciation.attributes()) {
                 implementation.push_str("    #[");
                 implementation.push_str(name);
                 implementation.push_str("(");
                 implementation.push_str(&attribute);
                 implementation.push_str(")]\n");
             }
-            implementation.push_str("    ");
-            implementation.push_str(&instanciation.name);
+
+            let mut declaration = format!("    {}", instanciation.name);
 
             let treatment_name = names.get(descriptor.identifier()).unwrap();
             if treatment_name != &instanciation.name {
-                implementation.push_str(": ");
-                implementation.push_str(treatment_name);
+                declaration.push_str(": ");
+                declaration.push_str(treatment_name);
             }
 
             if !descriptor.generics().is_empty() && !instanciation.generics.is_empty() {
-                implementation.push('<');
+                declaration.push('<');
 
-                implementation.push_str(
+                declaration.push_str(
                     &descriptor
                         .generics()
                         .iter()
@@ -263,12 +329,12 @@ impl Treatment {
                         .join(", "),
                 );
 
-                implementation.push('>');
+                declaration.push('>');
             }
 
             if !instanciation.models.is_empty() {
-                implementation.push_str("[");
-                implementation.push_str(
+                declaration.push_str("[");
+                declaration.push_str(
                     &instanciation
                         .models
                         .iter()
@@ -277,66 +343,59 @@ impl Treatment {
                         .collect::<Vec<_>>()
                         .join(", "),
                 );
-                implementation.push_str("]");
+                declaration.push_str("]");
             }
 
-            implementation.push_str("(");
-
-            implementation.push_str(
-                &instanciation
-                    .parameters
+            // Parameters stay on the line of the declaration when they fit in it.
+            let parameters = instanciation
+                .parameters
+                .iter()
+                .sorted_by_key(|(k, _)| *k)
+                .map(|(_, param)| (&param.name, &param.value))
+                .collect::<Vec<_>>();
+            let single_line = format!(
+                "{declaration}({})",
+                parameters
                     .iter()
-                    .sorted_by_key(|(k, _)| *k)
-                    .map(|(_, param)| {
-                        format!(
-                            "\n        {name} = {value}",
-                            name = param.name,
-                            value = value(&param.value, names, 3)
-                        )
-                    })
+                    .map(|(name, value)| format!("{name} = {}", inline_value(value, names)))
                     .collect::<Vec<_>>()
-                    .join(","),
+                    .join(", ")
             );
-            if !instanciation.parameters.is_empty() {
-                implementation.push_str("\n    ");
+            if parameters.is_empty()
+                || (!single_line.contains('\n') && single_line.chars().count() <= options.width)
+            {
+                implementation.push_str(&single_line);
+            } else {
+                implementation.push_str(&declaration);
+                implementation.push_str("(");
+                implementation.push_str(
+                    &parameters
+                        .iter()
+                        .map(|(name, param_value)| {
+                            format!(
+                                "\n        {name} = {value}",
+                                value = value(param_value, names, 3)
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
+                implementation.push_str("\n    )");
             }
-            implementation.push_str(")\n");
+            implementation.push_str("\n");
         }
 
-        implementation.push_str("\n");
+        if !connections.lines.is_empty() && !self.design.treatments.is_empty() {
+            implementation.push_str("\n");
+        }
 
-        for connection in &self.design.connections {
-            for (name, attribute) in connection.attributes() {
-                implementation.push_str("    #[");
-                implementation.push_str(name);
-                implementation.push_str("(");
-                implementation.push_str(&attribute);
-                implementation.push_str(")]\n");
-            }
-            implementation.push_str("    ");
-            implementation.push_str(&Self::connection(connection));
+        for line in connections.lines {
+            implementation.push_str(&line);
             implementation.push_str("\n");
         }
 
         implementation.push_str("}\n\n");
 
         implementation
-    }
-
-    fn connection(connection: &Connection) -> String {
-        format!(
-            "{source}.{output} -> {receiver}.{input}",
-            source = Self::io(&connection.output_treatment),
-            output = connection.output_name,
-            receiver = Self::io(&connection.input_treatment),
-            input = connection.input_name,
-        )
-    }
-
-    fn io(io: &IO) -> &str {
-        match io {
-            IO::Sequence() => "Self",
-            IO::Treatment(name) => name,
-        }
     }
 }

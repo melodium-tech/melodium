@@ -27,6 +27,8 @@ This reference covers the patterns, treatments, and data types needed to migrate
 | `env` | Parameters passed to treatments |
 | `step.continue-on-error` | `continue_on_error` parameter of `runAction`, chain `continue` output |
 | `step.timeout-minutes` | No direct equivalent per step; apply `max_duration` at runner level |
+| `actions/upload-artifact` / `actions/download-artifact` | `artifacts` parameter of `simpleStep` (`\|artifact(\|wrap<string>("data"), "<dir under /mnt/data>", "<name>")` from `cicd/artifact`), pushed after success, or `work/artifact::pushArtifact` and `fetchArtifact` in programs run by api.melodium.tech; within one program, `data` streams pass files between steps without storage |
+| `actions/cache` | `cache` parameter of `simpleStep`, `\|wrap<Cache>(\|cache(\|wrap<string>("data"), "<dir under /mnt/data>", "<name>"))` from `cicd/cache`, restored before `commands` and saved after success, or `work/cache::restoreCache` and `saveCache` in programs run by api.melodium.tech; `simpleStepCached` takes a `key` computed by the program on `cache_name`, and `restore-keys` are fallbacks wired on `missed` |
 | Status reporting | `postGithubState` / `postGithubStateContext` |
 
 ---

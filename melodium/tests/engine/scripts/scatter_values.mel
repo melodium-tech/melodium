@@ -1,0 +1,95 @@
+#!/usr/bin/env melodium
+#! name = scatter_values
+#! version = 0.1.0
+#! require = std:0.11.1
+
+use std/engine/util::startup
+use std/engine/log::logInfo
+use std/engine/log::logErrors
+use std/flow::emit
+use std/flow::stream
+use std/flow::check
+use std/flow::passBlock
+use std/flow/vec::flatten
+use std/ops::|equal
+use std/ops::|not_equal
+use std/flow/scatter::Scatter
+use std/flow/scatter::scatter
+use std/flow/scatter::scattered
+use std/flow/scatter::gather
+use std/flow/scatter::@Scattered
+
+treatment main()
+  model items: Scatter()
+  model others: Scatter()
+{
+    startup()
+
+    emitValues: emit<Vec<string>>(value=["ok-0", "fail-1", "ok-2", "ok-3", "ok-4", "silent-5"])
+    streamValues: stream<Vec<string>>()
+    flattenValues: flatten<string>()
+    emitShared: emit<string>(value="shared")
+    scatter<string, string>[scatter=items](parallel=2)
+    item[items=items]()
+    logScatter: logErrors(label="scatter")
+    scatterCompleted: check<void>()
+    scatterFailed: check<void>()
+    scatterFinished: check<void>()
+
+    startup.trigger -> emitValues.trigger,emit -> streamValues.block,stream -> flattenValues.vector,value -> scatter.values
+    startup.trigger -> emitShared.trigger,emit -> scatter.shared
+    scatter.errors ----> logScatter.messages
+    scatter.completed -> scatterCompleted.value
+    scatter.failed ----> scatterFailed.value
+    scatter.finished --> scatterFinished.value
+
+    // Values of another type than those `scattered` takes.
+    emitOthers: emit<Vec<string>>(value=["other"])
+    streamOthers: stream<Vec<string>>()
+    flattenOthers: flatten<string>()
+    emitNothing: emit<void>(value=_)
+    mismatched: scatter<string, void>[scatter=others]()
+    other[others=others]()
+    logMismatched: logErrors(label="mismatched")
+
+    startup.trigger -> emitOthers.trigger,emit -> streamOthers.block,stream -> flattenOthers.vector,value -> mismatched.values
+    startup.trigger -> emitNothing.trigger,emit -> mismatched.shared
+    mismatched.errors -> logMismatched.messages
+}
+
+// Track 1 fails, track 5 tells nothing, the others complete.
+treatment item[items: Scatter]()
+  require @Scattered
+{
+    scattered<string, string>[scatter=items]()
+    gather[scatter=items]()
+    logValue: logInfo(label="item")
+    logShared: logInfo(label="shared")
+
+    scattered.value --> logValue.message
+    scattered.shared -> logShared.message
+
+    notFailing: passBlock<string>(cond=|not_equal<u64>(@Scattered[index], 1))
+    notSilent: passBlock<string>(cond=|not_equal<u64>(@Scattered[index], 5))
+    completed: check<string>()
+    scattered.value -> notFailing.block,passed -> notSilent.block,passed -> completed.value,check -> gather.completed
+
+    failing: passBlock<string>(cond=|equal<u64>(@Scattered[index], 1))
+    failed: check<string>()
+    reason: emit<string>(value="asked to fail")
+    scattered.value -> failing.block,passed -> failed.value,check -> gather.failed
+    failed.check -> reason.trigger,emit -> gather.error
+}
+
+treatment other[others: Scatter]()
+  require @Scattered
+{
+    scattered<u64, void>[scatter=others]()
+    gather[scatter=others]()
+    completed: check<u64>()
+    failed: check<u64>()
+    reason: emit<string>(value="never")
+    scattered.value -> completed.value,check -> gather.completed
+    scattered.value -> failed.value,check -> reason.trigger,emit -> gather.error
+    failed.check -> gather.failed
+}
