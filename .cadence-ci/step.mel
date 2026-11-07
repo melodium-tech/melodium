@@ -1,3 +1,5 @@
+use cicd/artifact::Artifact
+use cicd/cache::Cache
 use cicd/runners::CicdDispatchEngine
 use cicd/runners::CicdRunnerEngine
 use cicd/runners::setupRunner
@@ -19,7 +21,6 @@ use std/flow::close
 use std/flow::closeBlock
 use std/flow::merge
 use std/flow::one
-use std/ops/num::|div
 use std/ops/num::|saturating_add
 use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
@@ -33,7 +34,7 @@ use work/resources/arch::Arch
   Runs `commands` in a container of `image`, on a worker tagged `name={name}`, and reports its state as `name` to GitLab.
 
   Same as `cicd/naive::simpleStep`, which gives no tags and keeps the default `max_duration` of its worker.
-  `/mnt/data` is a volume of a tenth of `storage`, `out_file` naming the file of it sent through `data`.
+  `/mnt/data` is a volume of `data_storage`, `out_file` naming the file of it sent through `data`.
   `name` is also the hostname of the container with the "compose" location, so its underscores are replaced there.
 */
 treatment containerStep[cicd: CicdDispatchEngine](
@@ -45,11 +46,14 @@ treatment containerStep[cicd: CicdDispatchEngine](
     var cpu: u32 = 500,
     var memory: u32 = 500,
     var storage: u32 = 5000,
+    var data_storage: u32 = 500,
     var max_duration: u32 = 3600,
     var variables: Option<StringMap> = _,
     var secret_variables: Option<Map> = _,
     var commands: Vec<Command>,
     var out_file: Option<string> = _,
+    var cache: Option<Cache> = _,
+    var artifacts: Vec<Artifact> = [],
     var ref: string,
     var gitlab_project_id: string,
     var gitlab_sha: string,
@@ -65,10 +69,10 @@ treatment containerStep[cicd: CicdDispatchEngine](
         name=|unwrap_or<string>(|replace(name, "_", "-"), name),
         cpu=100,
         memory=500,
-        storage=|saturating_add<u32>(|div<u32>(storage, 10), 80),
+        storage=|saturating_add<u32>(data_storage, 80),
         arch=arch,
         max_duration=max_duration,
-        volumes=[|volume("data", |div<u32>(storage, 10))],
+        volumes=[|volume("data", data_storage)],
         containers=[
             |container(|unwrap_or<string>(|replace(name, "_", "-"), name), memory, cpu, storage, arch, [|mount("data", "/mnt/data")], image, _)
         ],
@@ -80,7 +84,9 @@ treatment containerStep[cicd: CicdDispatchEngine](
         environment=|wrap<Environment>(|with_secret_variables(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false), |unwrap_or<Map>(secret_variables, |secret_map([])))),
         commands=commands,
         out_filesystem=|wrap<string>("data"),
-        out_file=out_file
+        out_file=out_file,
+        cache=cache,
+        artifacts=artifacts
     )
     stopRunner[runner=runner]()
     report: setServiceState(
@@ -134,12 +140,15 @@ treatment containerStepWithInput[cicd: CicdDispatchEngine](
     var cpu: u32 = 500,
     var memory: u32 = 500,
     var storage: u32 = 5000,
+    var data_storage: u32 = 500,
     var max_duration: u32 = 3600,
     var variables: Option<StringMap> = _,
     var secret_variables: Option<Map> = _,
     var commands: Vec<Command>,
     var in_file: string,
     var out_file: Option<string> = _,
+    var cache: Option<Cache> = _,
+    var artifacts: Vec<Artifact> = [],
     var ref: string,
     var gitlab_project_id: string,
     var gitlab_sha: string,
@@ -156,10 +165,10 @@ treatment containerStepWithInput[cicd: CicdDispatchEngine](
         name=|unwrap_or<string>(|replace(name, "_", "-"), name),
         cpu=100,
         memory=500,
-        storage=|saturating_add<u32>(|div<u32>(storage, 10), 80),
+        storage=|saturating_add<u32>(data_storage, 80),
         arch=arch,
         max_duration=max_duration,
-        volumes=[|volume("data", |div<u32>(storage, 10))],
+        volumes=[|volume("data", data_storage)],
         containers=[
             |container(|unwrap_or<string>(|replace(name, "_", "-"), name), memory, cpu, storage, arch, [|mount("data", "/mnt/data")], image, _)
         ],
@@ -173,7 +182,9 @@ treatment containerStepWithInput[cicd: CicdDispatchEngine](
         in_filesystem=|wrap<string>("data"),
         in_file=|wrap<string>(in_file),
         out_filesystem=|wrap<string>("data"),
-        out_file=out_file
+        out_file=out_file,
+        cache=cache,
+        artifacts=artifacts
     )
     stopRunner[runner=runner]()
     report: setServiceState(

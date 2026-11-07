@@ -1,3 +1,4 @@
+use cicd/artifact::|artifact_file
 use cicd/runners::CicdDispatchEngine
 use cicd/runners::CicdRunnerEngine
 use cicd/runners::setupRunner
@@ -118,6 +119,7 @@ mv testers.tar.gz /mnt/data/testers.tar.gz}},
             ])
         ),
         out_file=|wrap<string>("testers.tar.gz"),
+        artifacts=[|artifact_file(|wrap<string>("data"), "testers.tar.gz", |format("testers-{target}", |entry("target", target)))],
         repository_url=repository_url,
         ref=ref,
         gitlab_project_id=gitlab_project_id,
@@ -185,7 +187,7 @@ apt-get install -y ca-certificates libasound2}},
                 |entry("POSTGRES_USER", "test_user"),
                 |entry("POSTGRES_PASSWORD", "test_pAs$w0rD"),
                 |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
-            ])), _)
+            ])), _, _)
         ]
     )
 

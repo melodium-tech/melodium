@@ -1,3 +1,4 @@
+use cicd/artifact::|artifact_file
 use cicd/runners::CicdDispatchEngine
 use root/source::sourceStep
 use root/source::sourceStepWithInput
@@ -56,6 +57,7 @@ mv target/{target}/{profile}/{executable} /mnt/data/{executable}
             ])
         ),
         out_file=|wrap<string>(executable),
+        artifacts=[|artifact_file(|wrap<string>("data"), executable, |format("{package}-{target}", |map([|entry("package", package), |entry("target", target)])))],
         repository_url=repository_url,
         ref=ref,
         gitlab_project_id=gitlab_project_id,
@@ -109,6 +111,7 @@ tar --create --gzip --file /mnt/data/wasm.tar.gz target/wasm32-unknown-unknown/r
             |map([|entry("packages", packages)])
         ),
         out_file=|wrap<string>("wasm.tar.gz"),
+        artifacts=[|artifact_file(|wrap<string>("data"), "wasm.tar.gz", "wasm-packages")],
         repository_url=repository_url,
         ref=ref,
         gitlab_project_id=gitlab_project_id,
@@ -158,6 +161,7 @@ tar --create --gzip --file /mnt/data/repo.tar.gz repo}},
         ),
         in_file="wasm.tar.gz",
         out_file=|wrap<string>("repo.tar.gz"),
+        artifacts=[|artifact_file(|wrap<string>("data"), "repo.tar.gz", "packages-repository")],
         repository_url=repository_url,
         ref=ref,
         gitlab_project_id=gitlab_project_id,

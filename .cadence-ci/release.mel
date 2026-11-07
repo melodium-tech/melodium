@@ -41,6 +41,7 @@ treatment publishRelease[cicd: CicdDispatchEngine](
         image="debian:trixie",
         arch=|wrap<Arch>(|amd64()),
         storage=20000,
+        data_storage=2000,
         secret_variables=|wrap<Map>(|secret_map([
             |secret_entry<Option<Secret<string>>>("PUBLISH_SERVER", |locate<string>(|format("env:MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_SERVER", |entry("destination", destination)), "publish_server", "value", false)),
             |secret_entry<Option<Secret<string>>>("PUBLISH_USER", |locate<string>(|format("env:MELODIUM_SECRET_{destination}_RELEASE_PUBLISH_USER", |entry("destination", destination)), "publish_user", "value", false)),

@@ -1,3 +1,6 @@
+use cicd/artifact::Artifact
+use cicd/cache::Cache
+use cicd/cache::|cache
 use cicd/runners::CicdDispatchEngine
 use process/command::|command
 use root/step::containerStep
@@ -5,6 +8,7 @@ use root/step::containerStepWithInput
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
+use std/ops/option::|wrap
 use std/text/compose::|format
 use work/resources/arch::Arch
 
@@ -24,11 +28,13 @@ treatment sourceStep[cicd: CicdDispatchEngine](
     var cpu: u32 = 6000,
     var memory: u32 = 10000,
     var storage: u32 = 20000,
+    var data_storage: u32 = 10000,
     var max_duration: u32 = 7200,
     var variables: Option<StringMap> = _,
     var setup: string = "",
     var script: string,
     var out_file: Option<string> = _,
+    var artifacts: Vec<Artifact> = [],
     var repository_url: string,
     var ref: string,
     var gitlab_project_id: string,
@@ -49,11 +55,13 @@ treatment sourceStep[cicd: CicdDispatchEngine](
         cpu=cpu,
         memory=memory,
         storage=storage,
+        data_storage=data_storage,
         max_duration=max_duration,
         variables=variables,
         commands=[
             |command("sh", ["-c", |format(
                 ${{set -ex
+export CARGO_HOME=/mnt/data/cargo
 {setup}
 git config --global url."https://".insteadOf git://
 git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" /source
@@ -69,6 +77,8 @@ cd /source
             )])
         ],
         out_file=out_file,
+        cache=|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", |format("cargo-{name}", |entry("name", name)))),
+        artifacts=artifacts,
         ref=ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
@@ -92,12 +102,14 @@ treatment sourceStepWithInput[cicd: CicdDispatchEngine](
     var cpu: u32 = 6000,
     var memory: u32 = 10000,
     var storage: u32 = 20000,
+    var data_storage: u32 = 10000,
     var max_duration: u32 = 7200,
     var variables: Option<StringMap> = _,
     var setup: string = "",
     var script: string,
     var in_file: string,
     var out_file: Option<string> = _,
+    var artifacts: Vec<Artifact> = [],
     var repository_url: string,
     var ref: string,
     var gitlab_project_id: string,
@@ -119,11 +131,13 @@ treatment sourceStepWithInput[cicd: CicdDispatchEngine](
         cpu=cpu,
         memory=memory,
         storage=storage,
+        data_storage=data_storage,
         max_duration=max_duration,
         variables=variables,
         commands=[
             |command("sh", ["-c", |format(
                 ${{set -ex
+export CARGO_HOME=/mnt/data/cargo
 {setup}
 git config --global url."https://".insteadOf git://
 git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" /source
@@ -140,6 +154,8 @@ cd /source
         ],
         in_file=in_file,
         out_file=out_file,
+        cache=|wrap<Cache>(|cache(|wrap<string>("data"), "cargo", |format("cargo-{name}", |entry("name", name)))),
+        artifacts=artifacts,
         ref=ref,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,

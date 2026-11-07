@@ -1,3 +1,4 @@
+use cicd/artifact::|artifact_file
 use cicd/runners::CicdDispatchEngine
 use root/source::sourceStepWithInput
 use std/data/string_map::StringMap
@@ -54,6 +55,7 @@ mv doc/book reference/en
 tar --create --gzip --file /mnt/data/reference.tar.gz reference}},
         in_file="melodium",
         out_file=|wrap<string>("reference.tar.gz"),
+        artifacts=[|artifact_file(|wrap<string>("data"), "reference.tar.gz", "reference")],
         repository_url=repository_url,
         ref=ref,
         gitlab_project_id=gitlab_project_id,

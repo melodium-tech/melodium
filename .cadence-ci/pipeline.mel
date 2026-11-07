@@ -114,7 +114,7 @@ treatment fullPipeline[cicd: CicdDispatchEngine](
     var gitlab_project_id: string,
     var gitlab_sha: string,
     var gitlab_pipeline_id: string,
-    var packages: string = "audio cicd crypto distrib encoding fs http javascript json ml net process record regex sql std vault work",
+    var packages: string = "audio cicd compression crypto distrib encoding fs http javascript json ml net process record regex sql std vault work",
     var setup_x86_64_unknown_linux_gnu: string = ${{apt-get update
 apt-get install -y libasound2-dev
 export CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu}},
