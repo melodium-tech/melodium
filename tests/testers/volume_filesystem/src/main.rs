@@ -112,7 +112,7 @@ fn files_within_the_volume_are_reached() {
     assert_contains(&stdout, "create: done");
     assert_contains(
         &stdout,
-        &format!("entry: {}", fixture.volume.join("inside/file").display()),
+        &format!("entry: {}", fixture.volume.join("inside").join("file").display()),
     );
     assert!(!stdout.contains("error"), "{}", stdout);
     assert_eq!(
