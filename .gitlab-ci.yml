@@ -7,7 +7,7 @@ include:
   - local: /.gitlab/ci/packaging.yml
   - local: /.gitlab/ci/releases.yml
   - local: /.gitlab/ci/cadence.yml
-  - component: gitlab.com/melodium/gitlab-ci/melodium@v0.11.0
+  - component: gitlab.com/melodium/gitlab-ci/melodium@v0.11.1
     inputs:
       job_name: cadence:trigger
       stage: build
